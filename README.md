@@ -1,6 +1,6 @@
 # ISAM Database in C
 
-This ISAM database program enables dynamic creation of file definitions at runtime, making it ideal for applications that require flexible data structure configurations without the need to hardcode each type.
+This ISAM database program enables dynamic creation of file definitions at runtime,  without the need to hardcode each type.
 
 ## Features
 
@@ -9,7 +9,7 @@ This ISAM database program enables dynamic creation of file definitions at runti
 
 ## How It Works
 
-Users can dynamically specify the attributes of a business entity by defining each field's name, type, and initial value using a simple format. This flexibility is crucial for managing data structures that may change or need to be customized.
+Users can dynamically specify the attributes of a business entity by defining each field's name, type, and initial value using a simple format.
 
 ### Example Usage
 
@@ -40,7 +40,7 @@ note the flag -k, this provide an id for the record that you are adding or creat
 
 as for now you have to supply the key manually, it would make more sense if the program took care of the key authomatically, I am working on this.
 
-the file is created, and the base definition would be made by 3 variables code, price and discount, this base definition cannot change anymore, you can add to it, but everytime you add a record to a file, yoe need at least to provide the correct definition if you try to do the follwing:
+the file is created, and the base definition would be made by 3 variables code, price and discount, this base definition cannot change anymore, you can add to it, but everytime you add a record to a file, yoe need at least to provide the correct definition if you try to do the follwing ( notes the different flag -a for adding to an existing file):
 
 ```plain text
 bin/isam.db -f item -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_STRING:0.0 -k jj7
