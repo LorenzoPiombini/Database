@@ -18,6 +18,7 @@ Here's how you can define a file dinamically:
 ```plaintext
 code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0
 
+```
 
 This configuration sets up three fields:
 
