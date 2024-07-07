@@ -11,13 +11,16 @@ This ISAM database program enables dynamic creation of file definitions at runti
 
 Users can dynamically specify the attributes of a business entity by defining each field's name, type, and initial value using a simple format. This flexibility is crucial for managing data structures that may change or need to be customized.
 
-## How It Works
-
-Users can define the attributes of a business entity by specifying each field's name, type, and initial value. This is particularly advantageous in scenarios where the structure of data may vary or evolve over time.
-
 ### Example Usage
 
-Here's how you can define a data structure dynamically:
+Here's how you can define a file dinamically:
 
 ```plaintext
 code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0
+
+
+This configuration sets up three fields:
+
+code: A string (char*) with the value "man78-g-hus".
+price: A float with the value 33.56.
+discount: A float with the value 0.0.
