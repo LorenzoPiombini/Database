@@ -39,8 +39,11 @@ note the flag -k, this provide an id for the record that you are adding or creat
 ## IMPORTANT
 
 as for now you have to supply the key manually, it would make more sense if the program took care of the key authomatically, I am working on this.
+___________________________________________________________________________________
 
-the file is created, and the base definition would be made by 3 variables code, price and discount, this base definition cannot change anymore, you can add to it, but everytime you add a record to a file, yoe need at least to provide the correct definition if you try to do the follwing ( notes the different flag -a for adding to an existing file):
+now the  file is created, and the base definition would be made by 3 variables code, price and discount. 
+
+this base definition cannot change anymore, you can add to it (up to 200 fields foor each file), but everytime you add a record to a file, you need to provide at least the correct definition. if you try to do the follwing ( notes the different flag -a for adding to an existing file):
 
 ```plain text
 bin/isam.db -f item -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_STRING:0.0 -k jj7
@@ -61,3 +64,7 @@ bin/isam.db -f item -r jj6
 ```
 
 this will display the data to the stdout, if found.
+
+## STILL DEVOLOPING
+
+I am making this project to better learn C, this is still a work in porgress, and help is very much appreciated. THANKS!
