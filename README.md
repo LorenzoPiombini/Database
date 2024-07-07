@@ -23,7 +23,9 @@ code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0
 This configuration sets up three fields:
 
 code: A string (char*) with the value "man78-g-hus".
+
 price: A float with the value 33.56.
+
 discount: A float with the value 0.0.
 
 to put it all together this will create a new file:
