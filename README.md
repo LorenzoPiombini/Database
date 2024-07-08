@@ -41,7 +41,7 @@ note the flag -k, this provide an id for the record that you are adding or creat
 as for now you have to supply the key manually, it would make more sense if the program took care of the key authomatically, I am working on this.
 ___________________________________________________________________________________
 
-now the  file is created, and the base definition would be made by 3 variables code, price and discount. 
+now the  file is created, and the base definition would be made by 3 variables code, price and discount.
 
 this base definition cannot change anymore, you can add to it (up to 200 fields foor each file), but everytime you add a record to a file, you need to provide at least the correct definition. if you try to do the follwing ( notes the different flag -a for adding to an existing file):
 
@@ -52,7 +52,7 @@ bin/isam.db -f item -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:dis
 this will fail, the program check the new input against the header, thus, it  knows that discount is supposed to be a float, the message will be:
 
 ```plain text
-Schema is not equal to file definition.
+Schema different than file definition.
 Files Closed successfully!
 ```
 
@@ -65,6 +65,6 @@ bin/isam.db -f item -r jj6
 
 this will display the data to the stdout, if found.
 
-## STILL DEVOLOPING
+## STILL DEVELOPING
 
 I am making this project to better learn C, this is still a work in porgress, and help is very much appreciated. THANKS!
