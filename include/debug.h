@@ -7,6 +7,5 @@
 void print_record(Record_f *rec);
 void print_schema(Schema sch);
 void print_header(Header_d hd);
-void print_size_header(Header_d hd);
-
+size_t compute_size_header(Header_d hd);
 #endif
