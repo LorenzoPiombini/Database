@@ -41,7 +41,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		sch->fields_name = sch_names;
 
 		int j = 0;
-		for (j; j < fields_num; j++)
+		for (j = 0; j < fields_num; j++)
 		{
 			sch->fields_name[j] = strdup(names[j]);
 
@@ -153,7 +153,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	}
 
 	int i = 0;
-	for (i; i < fields_num; i++)
+	for (i = 0; i < fields_num; i++)
 	{
 		set_field(rec, i, names[i], types_i[i], values[i]);
 	}
@@ -219,6 +219,7 @@ int write_empty_header(int fd, Header_d *hd)
 		return 0;
 	}
 
+	/* important we need to write 0 field_number when the user creates a file with no data*/
 	if (write(fd, &hd->sch_d.fields_num, sizeof(hd->sch_d.fields_num)) == -1)
 	{
 		perror("writing fields number header.");
@@ -256,7 +257,7 @@ int write_header(int fd, Header_d *hd)
 	}
 
 	int i = 0;
-	for (i; i < hd->sch_d.fields_num; i++)
+	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
 		size_t l = strlen(hd->sch_d.fields_name[i]) + 1;
 		if (write(fd, &l, sizeof(l)) == -1)
@@ -444,7 +445,7 @@ int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
 	if (fields_eq != hd.sch_d.fields_num || types_eq != hd.sch_d.fields_num)
 	{
 		printf("Schema different than file definition.\n");
-		free(names), free(types_i), free(copy_sch);
+		free(copy_sch);
 		return SCHEMA_ERR;
 	}
 
@@ -557,7 +558,6 @@ int sort_input_like_header_schema(Schema *sch, char **names, char **values, Valu
 			if (strcmp(names[i], sch->fields_name[j]) == 0)
 			{
 				value_pos[i] = j;
-				printf("%d, ", j);
 				break;
 			}
 		}

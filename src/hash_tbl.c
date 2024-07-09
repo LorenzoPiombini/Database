@@ -8,7 +8,7 @@
 
 void print_hash_table(HashTable tbl){
         int i = 0;
-        for(i; i < tbl.size;i++ ){
+        for(i = 0; i < tbl.size;i++ ){
                 printf("%d: \n",i);
                 Node *node = tbl.dataMap[i];
 
@@ -37,7 +37,7 @@ int write_ht(int fd, HashTable *ht){
 			return 0;
 		}
 
-		for(i; i < ht->size; i++){
+		for(i = 0; i < ht->size; i++){
 	    		Node* current = ht->dataMap[i];
 					while(current != NULL){
 						size_t key_l = strlen(current->key);
@@ -61,7 +61,7 @@ int hash(char *key, int size){
 	int i = 0;
 
 	int len = strlen(key);
-	for (i ; i < len; i++){
+	for (i = 0; i < len; i++){
 		int asciiValue = (int)key[i];
 		hash = (hash + asciiValue * 23);
 	}
@@ -149,7 +149,7 @@ Node* delete(char *key, HashTable *tbl){
 }
 void destroy_hasht(HashTable *tbl){
 	int i = 0;
-	for(i; i < tbl->size; i++){
+	for(i = 0; i < tbl->size; i++){
 		Node* current = tbl->dataMap[i];
 		while( current != NULL){
 			Node* next = current->next;

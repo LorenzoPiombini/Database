@@ -73,7 +73,7 @@ size_t compute_size_header(Header_d hd)
         sum += sizeof(hd.id_n) + sizeof(hd.version) + sizeof(hd.sch_d.fields_num) + sizeof(hd.sch_d);
         int i = 0;
 
-        for (i; i < hd.sch_d.fields_num; i++)
+        for (i = 0; i < hd.sch_d.fields_num; i++)
         {
                 sum += strlen(hd.sch_d.fields_name[i]);
                 sum += sizeof(hd.sch_d.types[i]);

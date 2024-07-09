@@ -282,6 +282,7 @@ int main(int argc, char *argv[])
 					free(files[0]), free(files[1]), free(files);
 					free(buffer), free(buf_t), free(buf_v);
 					close_file(2, fd_index, fd_data);
+					clean_schema(&hd.sch_d);
 					return 1;
 				case SCHEMA_NW:
 					rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t,
@@ -315,6 +316,7 @@ int main(int argc, char *argv[])
 			}
 
 			// check the header size
+			printf("header size is: %ld", compute_size_header(hd));
 			if (compute_size_header(hd) >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");

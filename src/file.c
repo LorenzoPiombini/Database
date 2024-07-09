@@ -58,7 +58,7 @@ void close_file(int count, ...){
 	va_list args;
 	va_start(args, count);
 
-	for(int i = 0; i < count; i++){
+	for(i = 0; i < count; i++){
 		int fd = va_arg(args, int);
 		if(close(fd) != 0)
 			sum++;
@@ -68,8 +68,6 @@ void close_file(int count, ...){
 
 	if(sum > 0)
 		perror("close");
-	else 
-		printf("Files Closed successfully!\n");
 
 }
 
@@ -144,7 +142,7 @@ int read_index_file(int fd, HashTable *ht){
 	}	
 
 	int i  = 0;
-	for(i ; i < ht_l; i++){
+	for(i = 0 ; i < ht_l; i++){
 		size_t key_l = 0;
 
 		if(read(fd, &key_l, sizeof(key_l)) > 0){
@@ -203,7 +201,7 @@ ssize_t compute_record_size(Record_f *rec){
 	ssize_t sum = 0; 
 	sum += sizeof(rec->fields_num) + sizeof(rec->fields[i].type);
 
-	for(i; i < rec->fields_num; i++){
+	for(i = 0; i < rec->fields_num; i++){
 		switch(rec->fields[i].type){
 			case TYPE_INT: sum += sizeof(rec->fields[i].data.i);
 				        break;
@@ -246,7 +244,7 @@ int write_file(int fd, Record_f *rec){
 
 		int i = 0;
 		size_t lt = 0;
-		for(i; i < rec->fields_num; i++){
+		for(i = 0; i < rec->fields_num; i++){
 			size_t l = strlen(rec->fields[i].field_name);
 			if(write(fd, &l, sizeof(l)) < 0){
 				perror("write size name");
@@ -347,7 +345,7 @@ Record_f* read_file(int fd, char* file_name){
 		
         int i = 0;
 
-	for(i; i < rec->fields_num; i++){
+	for(i = 0; i < rec->fields_num; i++){
 		size_t lt = 0;
 
 		if(read(fd, &lt, sizeof(lt)) < 0 ){
@@ -478,7 +476,7 @@ int file_error_handler(int count, ...){
 int padding_file(int fd, int bytes){
 	unsigned char padding[bytes];
 	int i = 0;
-	for(i; i < bytes; i++)
+	for(i = 0; i < bytes; i++)
 		padding[i] = '0';
 
 
