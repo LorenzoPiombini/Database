@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 			key = optarg;
 			break;
 		case 'D':
-			del = 1, record_id = optarg; // true
+			del = 1, record_id = optarg;
 			break;
 		case 't':
 			print_types();
@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
 	if (new_file)
 	{
-		/*creates two name from the file_path => from "str_op.h" */
+		/*creates two name from the file_path  "str_op.h" */
 		char **files = two_file_path(file_path);
 
 		fd_index = create_file(files[0]);
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
 			{
 				int check = check_schema(fields_count, buffer, buf_t, hd);
 
-				//	printf("check schema is %d",check);
+				// printf("check schema is %d",check);
 				switch (check)
 				{
 				case SCHEMA_EQ:

@@ -28,8 +28,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		return NULL;
 	}
 
-	if (sch && check_sch != SCHEMA_EQ)
-	{
+	if (sch && check_sch == 0)
+	{ /* true when a new file is created */
 		char **sch_names = malloc(fields_num * sizeof(char *));
 		if (!sch_names)
 		{
@@ -65,8 +65,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		return NULL;
 	}
 
-	if (sch && check_sch != SCHEMA_EQ)
-	{
+	if (sch && check_sch == 0)
+	{ /* true when a new file is created */
 		ValueType *sch_types = calloc(fields_num, sizeof(ValueType));
 
 		if (!sch_types)
@@ -77,7 +77,6 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		}
 
 		sch->types = sch_types;
-		// we can declare the i variable again here due to the scope rules
 		int i = 0;
 		for (i; i < fields_num; i++)
 		{
@@ -117,7 +116,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 			return NULL;
 		}
 
-		char **temp_name = realloc(sch->fields_name, fields_num * sizeof(char));
+		char **temp_name = realloc(sch->fields_name, fields_num * sizeof(char *));
 
 		if (!temp_name)
 		{ /*do not free sch->fields_name */
@@ -125,25 +124,30 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 			return NULL;
 		}
 
-		ValueType *types_n = realloc(sch->types, sizeof(ValueType));
+		ValueType *types_n = realloc(sch->types, fields_num * sizeof(ValueType));
 
 		if (!types_n)
-		{
+		{ /*do not free sch->fields_name */
 			printf("can't perform realloc. (parse.c l 146)");
 			return NULL;
 		}
 
+		int old_fn = sch->fields_num;
 		sch->fields_num = fields_num;
 		sch->fields_name = temp_name;
 		sch->types = types_n;
-
 		int i = 0;
-		for (i = 0; i < fields_num; i++)
-		{
-			if (strcmp(sch->fields_name[i], names[i]) == 0)
-				continue;
 
-			sch->fields_name[i] = names[i];
+		for (i = old_fn; i < fields_num; i++)
+		{
+			sch->fields_name[i] = NULL;
+			sch->types[i] = 0;
+		}
+
+		for (i = old_fn; i < fields_num; i++)
+		{
+
+			sch->fields_name[i] = strdup(names[i]);
 			sch->types[i] = types_i[i];
 		}
 	}
@@ -165,12 +169,14 @@ void clean_schema(Schema *sch)
 		return;
 
 	int i = 0;
-	for (i; i < sch->fields_num; i++)
+	for (i = 0; i < sch->fields_num; i++)
 	{
 		if (sch->fields_name != NULL)
 		{
 			if (sch->fields_name[i])
+			{
 				free(sch->fields_name[i]);
+			}
 		}
 	}
 
@@ -314,7 +320,7 @@ int read_header(int fd, Header_d *hd)
 		perror("reading field_number header.\n");
 		return 0;
 	}
-	printf("field number %d.\n", hd->sch_d.fields_num);
+
 	if (hd->sch_d.fields_num == 0)
 	{
 		printf("no schema in this header.Please check data integrety.\n");
@@ -551,6 +557,7 @@ int sort_input_like_header_schema(Schema *sch, char **names, char **values, Valu
 			if (strcmp(names[i], sch->fields_name[j]) == 0)
 			{
 				value_pos[i] = j;
+				printf("%d, ", j);
 				break;
 			}
 		}
