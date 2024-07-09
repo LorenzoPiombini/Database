@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 	char *fileds_and_type = NULL;
 	char *key = NULL;
 
-	while ((c = getopt(argc, argv, "nf:r:d:a:k:D:")) != -1)
+	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:")) != -1)
 	{
 		switch (c)
 		{
@@ -56,7 +56,8 @@ int main(int argc, char *argv[])
 		case 'D':
 			del = 1, record_id = optarg; // true
 			break;
-		case 't': // print de type list;
+		case 't':
+			print_types();
 			return 0;
 		default:
 			printf("Unknow option -%c\n", c);
@@ -100,8 +101,8 @@ int main(int argc, char *argv[])
 			if (!rec)
 			{
 				printf("error creating the record");
-				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -109,27 +110,28 @@ int main(int argc, char *argv[])
 
 			if (!create_header(&hd))
 			{
-				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
+				free(files[0]), free(files[1]), free(files);
+				return 1;
 			}
 
 			// print_size_header(hd);
 
 			if (!write_header(fd_data, &hd))
 			{
-				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
 			if (!padding_file(fd_data, MAX_HD_SIZE))
 			{
 				printf("padding failed!\n");
-				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -140,24 +142,22 @@ int main(int argc, char *argv[])
 
 			off_t offset = get_file_offset(fd_data);
 
-			set(key, offset, &ht);
+			set(key, offset, &ht); /*create a new key value pair i the hash table*/
 
 			// print_hash_table(ht);
 
 			if (write_file(fd_data, rec))
-				printf("File %s written!", files[1]);
+				printf("File %s written!\n", files[1]);
 			else
 				printf("error, could not write to the file %s\n", file_path);
 
-			if (ht.write(fd_index, &ht))
-				printf("index_file written!\n");
-			else
+			if (!ht.write(fd_index, &ht))
 				printf("could not write the file.\n");
 
 			clean_up(rec, fields_count); // this free the memory allocated for the record
 			free(buffer), free(buf_t), free(buf_v);
-			free(files[0]), free(files[1]), free(files);
 			destroy_hasht(&ht);
+			free(files[0]), free(files[1]), free(files);
 		}
 		else
 		{
@@ -165,13 +165,38 @@ int main(int argc, char *argv[])
 			printf("%s has been created, you can add to the file using option -a.\n", file_path);
 			print_usage(argv);
 
-			free(files[0]), free(files[1]), free(files);
+			Schema sch = {0, NULL, NULL};
+			Header_d hd = {HEADER_ID_SYS, VS, sch};
+
+			if (!write_empty_header(fd_data, &hd))
+			{
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			if (!padding_file(fd_data, MAX_HD_SIZE))
+			{
+				printf("padding failed!\n");
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			Node **dataMap = calloc(7, sizeof(Node));
+			HashTable ht = {7, dataMap, write_ht};
+
+			if (!ht.write(fd_index, &ht))
+				printf("could not write the file.\n");
+
+			destroy_hasht(&ht);
 			close_file(2, fd_index, fd_data);
 			return 0;
 		}
 	}
 	else
-	{
+	{ /*file already exist. we can add, display and delete records*/
+
 		/*creates two name from the file_path => from "str_op.h" */
 		char **files = two_file_path(file_path);
 
@@ -187,7 +212,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (del)
-		{ /*this section will delete the record specified by the -D option, in the index file*/
+		{ /* delete the record specified by the -D option, in the index file*/
 			HashTable ht = {0, NULL, write_ht};
 			read_index_file(fd_index, &ht);
 
@@ -218,7 +243,8 @@ int main(int argc, char *argv[])
 		}
 
 		if (data_to_add)
-		{ /*this section will append data to the speified file*/
+		{ /* append data to the specified file*/
+
 			int fields_count = count_fields(data_to_add);
 
 			char *buffer = strdup(data_to_add);
@@ -239,36 +265,44 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			int check = check_schema(fields_count, buffer, buf_t, hd);
-
 			Record_f *rec = NULL;
-			//	printf("check schema is %d",check);
-			switch (check)
-			{
-			case SCHEMA_EQ:
-				rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t,
-										 buf_v, &hd.sch_d, SCHEMA_EQ);
-				break;
-			case SCHEMA_ERR:
-				free(files[0]), free(files[1]), free(files);
-				free(buffer), free(buf_t), free(buf_v);
-				close_file(2, fd_index, fd_data);
-				return 1;
-			case SCHEMA_NW:
-				printf("new schema detected!\n");
-				rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t,
-										 buf_v, &hd.sch_d, SCHEMA_NW);
 
-				break;
-			case SCHEMA_CT:
-				printf("schema is not complete but valid.\n");
-				return 1;
-			default:
-				printf("no processable option for the SCHEMA. main.c l 237");
-				free(files[0]), free(files[1]), free(files);
-				free(buffer), free(buf_t), free(buf_v);
-				close_file(2, fd_index, fd_data);
-				return 1;
+			if (hd.sch_d.fields_num != 0)
+			{
+				int check = check_schema(fields_count, buffer, buf_t, hd);
+
+				//	printf("check schema is %d",check);
+				switch (check)
+				{
+				case SCHEMA_EQ:
+					rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t,
+											 buf_v, &hd.sch_d, SCHEMA_EQ);
+					break;
+				case SCHEMA_ERR:
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					return 1;
+				case SCHEMA_NW:
+					rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t,
+											 buf_v, &hd.sch_d, SCHEMA_NW);
+
+					break;
+				case SCHEMA_CT:
+					printf("schema is not complete but valid.\n");
+					return 1;
+				default:
+					printf("no processable option for the SCHEMA. main.c l 237");
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					return 1;
+				}
+			}
+			else
+			{
+
+				rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &hd.sch_d, 0);
 			}
 
 			if (!rec)

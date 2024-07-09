@@ -26,6 +26,7 @@ typedef struct
 Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char *buf_t, char *buf_v, Schema *sch, int check_sch);
 void clean_schema(Schema *sch);
 int create_header(Header_d *hd);
+int write_empty_header(int fd, Header_d *hd);
 int write_header(int fd, Header_d *hd);
 int read_header(int fd, Header_d *hd);
 int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd);

@@ -183,15 +183,41 @@ void clean_schema(Schema *sch)
 
 int create_header(Header_d *hd)
 {
+
 	if (hd->sch_d.fields_name == NULL ||
 		hd->sch_d.types == NULL)
 	{
-		printf("schema is NULL.\ncould not create header.\n");
+
+		printf("\nschema is NULL.\ncould not create header.\n");
 		return 0;
 	}
 
 	hd->id_n = HEADER_ID_SYS;
 	hd->version = VS;
+
+	return 1;
+}
+
+int write_empty_header(int fd, Header_d *hd)
+{
+
+	if (write(fd, &hd->id_n, sizeof(hd->id_n)) == -1)
+	{
+		perror("write header id.\n");
+		return 0;
+	}
+
+	if (write(fd, &hd->version, sizeof(hd->version)) == -1)
+	{
+		perror("write header version.\n");
+		return 0;
+	}
+
+	if (write(fd, &hd->sch_d.fields_num, sizeof(hd->sch_d.fields_num)) == -1)
+	{
+		perror("writing fields number header.");
+		return 0;
+	}
 
 	return 1;
 }
@@ -287,6 +313,12 @@ int read_header(int fd, Header_d *hd)
 	{
 		perror("reading field_number header.\n");
 		return 0;
+	}
+	printf("field number %d.\n", hd->sch_d.fields_num);
+	if (hd->sch_d.fields_num == 0)
+	{
+		printf("no schema in this header.Please check data integrety.\n");
+		return 1;
 	}
 
 	// printf("fields number %u.", hd->sch_d.fields_num);
