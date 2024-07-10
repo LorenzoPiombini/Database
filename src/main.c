@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 			}
 
 			Header_d hd = {0, 0, sch};
-
+			//	print_schema(sch);
 			if (!create_header(&hd))
 			{
 				free(buffer), free(buf_t), free(buf_v);
@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
 
 			clean_up(rec, fields_count); // this free the memory allocated for the record
 			free(buffer), free(buf_t), free(buf_v);
-			destroy_hasht(&ht);
+			destroy_hasht(&ht), clean_schema(&sch);
 			free(files[0]), free(files[1]), free(files);
 		}
 		else
@@ -327,7 +327,7 @@ int main(int argc, char *argv[])
 				free(buffer), free(buf_t), free(buf_v);
 				return 1;
 			}
-
+			// print_schema(hd.sch_d);
 			Record_f *rec = NULL;
 
 			if (hd.sch_d.fields_num != 0)

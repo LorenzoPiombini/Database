@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include "record.h"
 #include "str_op.h"
 #include "parse.h"
@@ -207,20 +208,23 @@ int create_header(Header_d *hd)
 int write_empty_header(int fd, Header_d *hd)
 {
 
-	if (write(fd, &hd->id_n, sizeof(hd->id_n)) == -1)
+	uint32_t id = htonl(hd->id_n); /*converting the endianess*/
+	if (write(fd, &id, sizeof(id)) == -1)
 	{
 		perror("write header id.\n");
 		return 0;
 	}
 
-	if (write(fd, &hd->version, sizeof(hd->version)) == -1)
+	uint16_t vs = htons(hd->version);
+	if (write(fd, &vs, sizeof(vs)) == -1)
 	{
 		perror("write header version.\n");
 		return 0;
 	}
 
 	/* important we need to write 0 field_number when the user creates a file with no data*/
-	if (write(fd, &hd->sch_d.fields_num, sizeof(hd->sch_d.fields_num)) == -1)
+	uint16_t fn = htons((uint16_t)hd->sch_d.fields_num);
+	if (write(fd, &fn, sizeof(fn)) == -1)
 	{
 		perror("writing fields number header.");
 		return 0;
@@ -238,19 +242,24 @@ int write_header(int fd, Header_d *hd)
 		return 0;
 	}
 
-	if (write(fd, &hd->id_n, sizeof(hd->id_n)) == -1)
+	uint32_t id = htonl(hd->id_n); /*converting the endianess*/
+	if (write(fd, &id, sizeof(id)) == -1)
 	{
 		perror("write header id.\n");
 		return 0;
 	}
 
-	if (write(fd, &hd->version, sizeof(hd->version)) == -1)
+	uint16_t vs = htons(hd->version);
+	if (write(fd, &vs, sizeof(vs)) == -1)
 	{
 		perror("write header version.\n");
 		return 0;
 	}
 
-	if (write(fd, &hd->sch_d.fields_num, sizeof(hd->sch_d.fields_num)) == -1)
+	uint16_t fn = htons((uint16_t)hd->sch_d.fields_num);
+	//	printf("Writing fields_num (network order): %u\n", fn);
+
+	if (write(fd, &fn, sizeof(fn)) == -1)
 	{
 		perror("writing fields number header.");
 		return 0;
@@ -260,7 +269,8 @@ int write_header(int fd, Header_d *hd)
 	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
 		size_t l = strlen(hd->sch_d.fields_name[i]) + 1;
-		if (write(fd, &l, sizeof(l)) == -1)
+		uint32_t l_end = htonl((uint32_t)l);
+		if (write(fd, &l_end, sizeof(l_end)) == -1)
 		{
 			perror("write size of name in header.\n");
 			return 0;
@@ -275,7 +285,9 @@ int write_header(int fd, Header_d *hd)
 
 	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
-		if (write(fd, &hd->sch_d.types[i], sizeof(hd->sch_d.types[i])) == -1)
+
+		uint32_t type = htonl((uint32_t)hd->sch_d.types[i]);
+		if (write(fd, &type, sizeof(type)) == -1)
 		{
 			perror("writing types from header.\n");
 			return 0;
@@ -294,6 +306,7 @@ int read_header(int fd, Header_d *hd)
 		return 0;
 	}
 
+	id = ntohl(id); /*changing the bytes to host endianess*/
 	if (id != HEADER_ID_SYS)
 	{
 		printf("this is not a db file.\n");
@@ -307,6 +320,7 @@ int read_header(int fd, Header_d *hd)
 		return 0;
 	}
 
+	vs = ntohs(vs);
 	if (vs != VS)
 	{
 		printf("this file was edited from a different software.\n");
@@ -316,11 +330,13 @@ int read_header(int fd, Header_d *hd)
 	hd->id_n = id;
 	hd->version = vs;
 
-	if (read(fd, &hd->sch_d.fields_num, sizeof(hd->sch_d.fields_num)) == -1)
+	uint16_t field_n = 0;
+	if (read(fd, &field_n, sizeof(field_n)) == -1)
 	{
 		perror("reading field_number header.\n");
 		return 0;
 	}
+	hd->sch_d.fields_num = (unsigned short)ntohs(field_n);
 
 	if (hd->sch_d.fields_num == 0)
 	{
@@ -328,7 +344,7 @@ int read_header(int fd, Header_d *hd)
 		return 1;
 	}
 
-	// printf("fields number %u.", hd->sch_d.fields_num);
+	//	printf("fields number %u.", hd->sch_d.fields_num);
 	char **names = calloc(hd->sch_d.fields_num, sizeof(char *));
 
 	if (!names)
@@ -342,13 +358,15 @@ int read_header(int fd, Header_d *hd)
 	int i = 0;
 	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
-		size_t l = 0;
-		if (read(fd, &l, sizeof(l)) == -1)
+		uint32_t l_end = 0;
+		if (read(fd, &l_end, sizeof(l_end)) == -1)
 		{
 			perror("reading size of field name.\n");
 			clean_schema(&hd->sch_d);
 			return 0;
 		}
+		size_t l = (size_t)ntohl(l_end);
+
 		//	printf("size of name is %ld.\n", l);
 		char *field = malloc(l);
 		if (!field)
@@ -389,12 +407,15 @@ int read_header(int fd, Header_d *hd)
 	hd->sch_d.types = types_h;
 	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
-		if (read(fd, &hd->sch_d.types[i], sizeof(hd->sch_d.types[i])) == -1)
+		uint32_t type = 0;
+		if (read(fd, &type, sizeof(type)) == -1)
 		{
 			perror("reading types from header.");
 			clean_schema(&hd->sch_d);
 			return 0;
 		}
+
+		hd->sch_d.types[i] = ntohl(type);
 	}
 
 	return 1; // successed
@@ -435,9 +456,11 @@ int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
 	int j = 0;
 	for (i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++)
 	{
+		//      printf("%s == %s\n",copy_sch[i],names[j]);
 		if (strcmp(copy_sch[i], names[j]) == 0)
 			fields_eq++;
 
+		//	printf("%d == %d\n",types_cp[i], types_i[j]);
 		if (types_cp[i] == types_i[j])
 			types_eq++;
 	}
@@ -478,7 +501,6 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 
 	if (hd.sch_d.fields_num == fields_n)
 	{
-
 		int ck_rst = ck_input_schema_fields(names, types_i, hd);
 
 		switch (ck_rst)
