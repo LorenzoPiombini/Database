@@ -19,7 +19,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		return NULL;
 	}
 
-	char **names = get_fileds_name(buffer, fields_num);
+	char **names = get_fileds_name(buffer, fields_num, 3);
 
 	if (!names)
 	{
@@ -55,7 +55,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		}
 	}
 
-	ValueType *types_i = get_value_types(buf_t, fields_num);
+	ValueType *types_i = get_value_types(buf_t, fields_num, 3);
 
 	if (!types_i)
 	{
@@ -458,7 +458,7 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	char *names_cs = strdup(buffer);
 	char *types_cs = strdup(buf_t);
 
-	ValueType *types_i = get_value_types(types_cs, fields_n);
+	ValueType *types_i = get_value_types(types_cs, fields_n, 3);
 
 	if (!types_i)
 	{
@@ -467,7 +467,7 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 		return 0;
 	}
 
-	char **names = get_fileds_name(names_cs, fields_n);
+	char **names = get_fileds_name(names_cs, fields_n, 3);
 
 	if (!names)
 	{
@@ -624,4 +624,74 @@ int ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int f
 
 	printf("Schema different than file definition.\n");
 	return SCHEMA_ERR;
+}
+
+int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, Schema *sch)
+{
+
+	char **names = get_fileds_name(buffer, fields_num, 2);
+
+	if (!names)
+	{
+		printf("Error in getting the fields name");
+		return 0;
+	}
+
+	if (sch)
+	{
+		char **sch_names = malloc(fields_num * sizeof(char *));
+		if (!sch_names)
+		{
+			printf("no memory for Schema fileds name.");
+			free(names);
+			return 0;
+		}
+		sch->fields_num = (unsigned short)fields_num;
+		sch->fields_name = sch_names;
+
+		int j = 0;
+		for (j = 0; j < fields_num; j++)
+		{
+			sch->fields_name[j] = strdup(names[j]);
+
+			if (!sch->fields_name[j])
+			{
+				printf("strdup failed, schema creation field.\n");
+				clean_schema(sch);
+				free(names);
+				return 0;
+			}
+		}
+	}
+
+	ValueType *types_i = get_value_types(buf_t, fields_num, 2);
+
+	if (!types_i)
+	{
+		printf("Error in getting the fields types");
+		free(names);
+		clean_schema(sch);
+		return 0;
+	}
+
+	if (sch)
+	{
+		ValueType *sch_types = calloc(fields_num, sizeof(ValueType));
+
+		if (!sch_types)
+		{
+			printf("No memory for schema types.\n");
+			clean_schema(sch);
+			free(names), free(types_i);
+		}
+
+		sch->types = sch_types;
+		int i = 0;
+		for (i = 0; i < fields_num; i++)
+		{
+			sch->types[i] = types_i[i];
+		}
+	}
+
+	return 1; // scheam creation succssed
 }

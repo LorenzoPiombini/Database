@@ -80,5 +80,5 @@ size_t compute_size_header(Header_d hd)
         }
 
         sum += hd.sch_d.fields_num; // acounting for n '\0'
-                                    // printf("\n\n\nSize of Header: %ld\n\n\n", sum);
+        // printf("\n\n\nSize of Header: %ld\n\n\n", sum);
 }

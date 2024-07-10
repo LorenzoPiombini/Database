@@ -30,8 +30,9 @@ int main(int argc, char *argv[])
 	char *data_to_add = NULL;
 	char *fileds_and_type = NULL;
 	char *key = NULL;
+	char *schema_def = NULL;
 
-	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:")) != -1)
+	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:")) != -1)
 	{
 		switch (c)
 		{
@@ -54,11 +55,14 @@ int main(int argc, char *argv[])
 			key = optarg;
 			break;
 		case 'D':
-			del = 1, record_id = optarg;
+			del = 1, record_id = optarg; // 1 is marking del as true
 			break;
 		case 't':
 			print_types();
 			return 0;
+		case 'R':
+			schema_def = optarg;
+			break;
 		default:
 			printf("Unknow option -%c\n", c);
 			return 1;
@@ -84,6 +88,67 @@ int main(int argc, char *argv[])
 			printf("Error in creating or opening the files\n");
 			free(files[0]), free(files[1]), free(files);
 			return 1;
+		}
+
+		if (schema_def)
+		{
+			int fields_count = count_fields(schema_def);
+			char *buf_sdf = strdup(schema_def);
+			char *buf_t = strdup(schema_def);
+
+			Schema sch = {0, NULL, NULL};
+			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
+			{
+				printf("can't create file definition");
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+			}
+
+			Header_d hd = {0, 0, sch};
+
+			if (!create_header(&hd))
+			{
+				free(buf_sdf), free(buf_t);
+				clean_schema(&sch);
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			// print_size_header(hd);
+			if (compute_size_header(hd) >= MAX_HD_SIZE)
+			{
+				printf("File definition is bigger than the limit.\n");
+				free(buf_sdf), free(buf_t);
+				clean_schema(&sch);
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			if (!write_header(fd_data, &hd))
+			{
+				free(buf_sdf), free(buf_t);
+				clean_schema(&sch);
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			if (!padding_file(fd_data, MAX_HD_SIZE))
+			{
+				free(buf_sdf), free(buf_t);
+				clean_schema(&sch);
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			// now you have to create an hash table (empty) and write to the index file
+
+			free(files[0]), free(files[1]), free(files);
+			close_file(2, fd_index, fd_data);
+			return 0;
 		}
 
 		if (fileds_and_type)
@@ -134,8 +199,6 @@ int main(int argc, char *argv[])
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
-
-			clean_schema(&hd.sch_d);
 
 			Node **dataMap = calloc(7, sizeof(Node));
 			HashTable ht = {7, dataMap, write_ht};
