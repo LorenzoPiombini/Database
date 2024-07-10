@@ -14,42 +14,6 @@ Users can dynamically specify the attributes of a business entity by defining ea
 ### Example Usage
 
 Here's how you can define a file dinamically:
-
-```plaintext
-code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0
-
-```
-
-This command sets up three fields:
-
-code: A string (char*) with the value "man78-g-hus".
-
-price: A float with the value 33.56.
-
-discount: A float with the value 0.0.
-
-to put it all together this will create a new file:
-
-```plaintext
-bin/isam.db -nf item -d code:TYPE_STRING:man78-g-hus:price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
-```
-
-the flag that you can provide as for now are:
-
-```plaintext
-         -a - add record to a file.
-         -n - create a new database file
-         -f - [required] path to file (file name)
-         -r - look for the record key provided in the specified file. 
-         -d - variables name and type <variableName>:TYPE_INT:12.
-         -D - delete the record  provided for specified file.
-         -k - specify the record id, the program will save, retrive and delete the record based on this id.
-         -R - define a file definitions witout values.
-         -t - list of available types. this flag will exit the program.
-```
-
-note the flag -k, this provide an id for the record that you are adding or creating, you will use this key for CRUD operation.
-
 if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat(and a file person.inx), with only the variables name, last name and age with the type, in the header of the file:
 
 ```plaintext
@@ -64,10 +28,47 @@ bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
 
 now we have an empty file with a definiton, and we can write data to it later.
 
+you can also create file and provide values to the fields at the same time, let's break it in two step:
+
+```plaintext
+code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0
+
+```
+
+The line above, sets up three fields:
+
+code: A string (char*) with the value "man78-g-hus".
+
+price: A float with the value 33.56.
+
+discount: A float with the value 0.0.
+
+to put it all together this will create a new file:
+
+```plaintext
+bin/isam.db -nf item -d code:TYPE_STRING:man78-g-hus:price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
+```
+
+note the flag -k, this provide an id for the record that you are adding or creating, you will use this key for CRUD operation.
+
 ## IMPORTANT
 
 as for now you have to supply the key manually, it would make more sense if the program took care of the key authomatically, I am working on this.
 ___________________________________________________________________________________
+
+the flag that you can provide as for now, are:
+
+```plaintext
+         -a - add record to a file.
+         -n - create a new database file
+         -f - [required] path to file (file name)
+         -r - look for the record key provided in the specified file. 
+         -d - variables name and type <variableName>:TYPE_INT:12.
+         -D - delete the record  provided for specified file.
+         -k - specify the record id, the program will save, retrive and delete the record based on this id.
+         -R - define a file definitions witout values.
+         -t - list of available types. this flag will exit the program.
+```
 
 now the  file is created, and the base definition would be made by 3 variables code, price and discount.
 
