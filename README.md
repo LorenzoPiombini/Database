@@ -50,7 +50,7 @@ the flag that you can provide as for now are:
 
 note the flag -k, this provide an id for the record that you are adding or creating, you will use this key for CRUD operation.
 
-if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat(and a file person.inx), with only the variable name and the type saved in the header of the file:
+if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat(and a file person.inx), with only the variables name, last name and age with the type, in the header of the file:
 
 ```plaintext
 bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
