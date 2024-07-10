@@ -31,10 +31,24 @@ discount: A float with the value 0.0.
 to put it all together this will create a new file:
 
 ```plaintext
-bin/isam.db -nf item -d code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
+bin/isam.db -nf item -d code:TYPE_STRING:man78-g-hus:price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
 ```
 
 note the flag -k, this provide an id for the record that you are adding or creating, you will use this key for CRUD operation.
+
+if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat(and a file person.inx), with only the variable name and the type saved in the header of the file:
+
+```plaintext
+bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
+```
+
+note the "last name" field, if you want to write field with spaces you have to put the "" around the field name, or you can do the follwing(last_name underscore without ""):
+
+```plaintext
+bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
+```
+
+now we have an empty file with a definiton, and we can write data to it later.
 
 ## IMPORTANT
 
