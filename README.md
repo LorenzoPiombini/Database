@@ -5,7 +5,7 @@ This ISAM database program enables dynamic creation of file definitions at runti
 ## Features
 
 - **Dynamic File Definition**: Easily define file fields dynamically at runtime by specifying field names, types, and initial values.
-- **Supports Multiple Data Types**: Supports a variety of data types including integers, longs, floats, strings, bytes, and doubles.
+- **Supports Multiple Data Types**: Supports a variety of data types including integers, long, floats, strings, bytes, and doubles.
 
 ## How It Works
 
@@ -20,7 +20,7 @@ code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0
 
 ```
 
-This configuration sets up three fields:
+This command sets up three fields:
 
 code: A string (char*) with the value "man78-g-hus".
 
@@ -32,6 +32,20 @@ to put it all together this will create a new file:
 
 ```plaintext
 bin/isam.db -nf item -d code:TYPE_STRING:man78-g-hus:price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
+```
+
+the flag that you can provide as for now are:
+
+```plaintext
+         -a - add record to a file.
+         -n - create a new database file
+         -f - [required] path to file (file name)
+         -r - look for the record key provided in the specified file. 
+         -d - variables name and type <variableName>:TYPE_INT:12.
+         -D - delete the record  provided for specified file.
+         -k - specify the record id, the program will save, retrive and delete the record based on this id.
+         -R - define a file definitions witout values.
+         -t - list of available types. this flag will exit the program.
 ```
 
 note the flag -k, this provide an id for the record that you are adding or creating, you will use this key for CRUD operation.
