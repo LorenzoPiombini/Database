@@ -81,4 +81,4 @@ this will display the data to the stdout, if found.
 
 ## STILL DEVELOPING
 
-I am making this project to better learn C, this is still a work in porgress, and help is very much appreciated. THANKS!
+I am making this project to better learn C, it is based on a system that i work with, which is very poerfull but it is build with a custom lenguage and it is a barrier for new developers, so I've decided to create a system in C, a very well known lenguage, this is still a work in porgress, and help is very much appreciated. THANKS!
