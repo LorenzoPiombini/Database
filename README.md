@@ -56,30 +56,30 @@ keep in mind that your project structure should be like this:
 ``````plaintext
 .
 \bin
-\u251c\u2500\u250 include
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 common.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 debug.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 file.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 hash_tbl.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 input.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 lock.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 parse.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 record.h
-\u2502\u00a0\u00a0 \u251c\u2500\u2500 sort.h
-\u2502\u00a0\u00a0 \u2514\u2500\u2500 str_op.h
-\u251c\u2500\u2500 Makefile
-\u251c\u2500\u2500 obj
-\u2514\u2500\u2500 src
-    \u251c\u2500\u2500 debug.c
-    \u251c\u2500\u2500 file.c
-    \u251c\u2500\u2500 hash_tbl.c
-    \u251c\u2500\u2500 input.c
-    \u251c\u2500\u2500 lock.c
-    \u251c\u2500\u2500 main.c
-    \u251c\u2500\u2500 parse.c
-    \u251c\u2500\u2500 record.c
-    \u251c\u2500\u2500 sort.c
-    \u251c\u2500\u2500 str_op.c
+\include
+  |_______common.h
+  |_______debug.h
+  |_______file.h
+  |_______hash_tbl.h
+  |_______input.h
+  |_______lock.h
+  |_______ parse.h
+  |_______record.h
+  |_______sort.h
+  |_______str_op.h
+\Makefile
+\obj
+\src
+  |_______debug.c
+  |_______ file.c
+  |_______ hash_tbl.c
+  |_______ input.c
+  |_______lock.c
+  |_______main.c
+  |_______ parse.c
+  |_______record.c
+  |_______sort.c
+  |_______str_op.c
 
 ``````
 
