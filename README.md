@@ -148,7 +148,7 @@ the flag that you can provide as for now, are:
          -d - variables name and type <variableName>:TYPE_INT:12.
          -D - delete the record  provided for specified file.
          -k - specify the record id, the program will save, retrive and delete the record based on this id.
-         -R - define a file definitions witout values.
+         -R - define a file definition witout values.
          -t - list of available types. this flag will exit the program.
 ```
 

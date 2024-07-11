@@ -7,6 +7,7 @@
 #define VS 1
 #define MAX_FIELD_LT 32
 #define MAX_HD_SIZE 7232
+#define MAX_FIELD_NR 200
 
 typedef struct
 {

@@ -41,7 +41,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		sch->fields_num = (unsigned short)fields_num;
 		sch->fields_name = sch_names;
 
-		int j = 0;
+		register unsigned char j = 0;
 		for (j = 0; j < fields_num; j++)
 		{
 			sch->fields_name[j] = strdup(names[j]);
@@ -49,7 +49,6 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 			if (!sch->fields_name[j])
 			{
 				printf("strdup failed, schema creation field.\n");
-				clean_schema(sch);
 				free(names), free(rec);
 				return NULL;
 			}
@@ -73,13 +72,13 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!sch_types)
 		{
 			printf("No memory for schema types.\n");
-			clean_schema(sch);
 			free(names), free(rec), free(types_i);
+			return NULL;
 		}
 
 		sch->types = sch_types;
-		int i = 0;
-		for (i; i < fields_num; i++)
+		register unsigned char i = 0;
+		for (i = 0; i < fields_num; i++)
 		{
 			sch->types[i] = types_i[i];
 		}
@@ -122,6 +121,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!temp_name)
 		{ /*do not free sch->fields_name */
 			printf("can`t perform realloc. (parse.c l 138).\n");
+			free(rec), free(values);
+			free(names), free(types_i);
 			return NULL;
 		}
 
@@ -130,6 +131,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!types_n)
 		{ /*do not free sch->fields_name */
 			printf("can't perform realloc. (parse.c l 146)");
+			free(names), free(types_i);
+			free(rec), free(values);
 			return NULL;
 		}
 
@@ -137,7 +140,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		sch->fields_num = fields_num;
 		sch->fields_name = temp_name;
 		sch->types = types_n;
-		int i = 0;
+		register unsigned char i = 0;
 
 		for (i = old_fn; i < fields_num; i++)
 		{
@@ -164,7 +167,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 			return NULL;
 		}
 	}
-	int i = 0;
+	register unsigned char i = 0;
 	for (i = 0; i < fields_num; i++)
 	{
 		set_field(rec, i, names[i], types_i[i], values[i]);
@@ -180,7 +183,7 @@ void clean_schema(Schema *sch)
 	if (!sch)
 		return;
 
-	int i = 0;
+	register unsigned char i = 0;
 	for (i = 0; i < sch->fields_num; i++)
 	{
 		if (sch->fields_name != NULL)
@@ -276,7 +279,7 @@ int write_header(int fd, Header_d *hd)
 		return 0;
 	}
 
-	int i = 0;
+	register unsigned char i = 0;
 	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
 		size_t l = strlen(hd->sch_d.fields_name[i]) + 1;
@@ -366,7 +369,7 @@ int read_header(int fd, Header_d *hd)
 
 	hd->sch_d.fields_name = names;
 
-	int i = 0;
+	register unsigned char i = 0;
 	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
 		uint32_t l_end = 0;
@@ -448,7 +451,7 @@ int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
 
 	ValueType types_cp[hd.sch_d.fields_num];
 
-	int i = 0;
+	register unsigned char i = 0;
 	for (i = 0; i < hd.sch_d.fields_num; i++)
 	{
 		copy_sch[i] = hd.sch_d.fields_name[i];
@@ -464,7 +467,7 @@ int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
 		quick_sort_str(copy_sch, 0, hd.sch_d.fields_num - 1);
 	}
 
-	int j = 0;
+	register unsigned char j = 0;
 	for (i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++)
 	{
 		//      printf("%s == %s\n",copy_sch[i],names[j]);
@@ -554,7 +557,8 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	{ /*case where the fileds are less than the schema */
 		// if they are in the schema and the types are correct, return SCHEMA_CT
 		// create a record with only the values provided and set the other values to 0;
-		printf("last data should be here.\n");
+		// printf("last data should be here.\n");
+
 		int ck_rst = ck_schema_contain_input(names, types_i, hd, fields_n);
 
 		switch (ck_rst)
@@ -584,7 +588,7 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 {
 	int f_n = schema_tp == SCHEMA_NW ? sch->fields_num : fields_num;
 	int value_pos[f_n];
-	int i, j;
+	register unsigned char i, j;
 
 	for (i = 0; i < f_n; i++)
 	{
@@ -638,18 +642,19 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 int ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int fields_num)
 {
 
-	int i = 0, j = 0, found_f = 0, found_t = 0;
+	register unsigned char i = 0, j = 0;
+	int found_f = 0, found_t = 0;
 
 	for (i = 0; i < fields_num; i++)
 	{
 		found_t = 0;
 		for (j = 0; j < hd.sch_d.fields_num; j++)
 		{
-			printf("%s == %s\n", names[i], hd.sch_d.fields_name[j]);
+			// printf("%s == %s\n",names[i],hd.sch_d.fields_name[j]);
 			if (strcmp(names[i], hd.sch_d.fields_name[j]) == 0)
 				found_f++;
 
-			printf("%d == %d\n", types_i[i], hd.sch_d.types[j]);
+			// printf("%d == %d\n",types_i[i], hd.sch_d.types[j]);
 			if (found_t < fields_num)
 			{
 				if (types_i[i] == hd.sch_d.types[j])
@@ -696,7 +701,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		sch->fields_num = (unsigned short)fields_num;
 		sch->fields_name = sch_names;
 
-		int j = 0;
+		register unsigned char j = 0;
 		for (j = 0; j < fields_num; j++)
 		{
 			sch->fields_name[j] = strdup(names[j]);
@@ -733,7 +738,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		}
 
 		sch->types = sch_types;
-		int i = 0;
+		register unsigned char i = 0;
 		for (i = 0; i < fields_num; i++)
 		{
 			sch->types[i] = types_i[i];
