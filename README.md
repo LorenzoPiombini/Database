@@ -9,7 +9,7 @@ This ISAM database program enables dynamic creation of file definitions at runti
 
 ## Get Started
 
-you can pull the repo, or dowload the files directly on your manchine.
+To get started, you can either clone the repository or download the files directly to your machine.
 
 the Make file has some test case commented out, you can delete the # and try them out, when you run
 
