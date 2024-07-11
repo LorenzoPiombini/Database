@@ -51,6 +51,40 @@ gcc -o bin/isam.db obj/debug.o obj/file.o obj/hash_tbl.o obj/input.o obj/lock.o 
 
 ``````
 
+keep in mind that your project structure should be like this:
+
+``````plaintext
+.
+\bin
+\u251c\u2500\u250 include
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 common.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 debug.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 file.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 hash_tbl.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 input.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 lock.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 parse.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 record.h
+\u2502\u00a0\u00a0 \u251c\u2500\u2500 sort.h
+\u2502\u00a0\u00a0 \u2514\u2500\u2500 str_op.h
+\u251c\u2500\u2500 Makefile
+\u251c\u2500\u2500 obj
+\u2514\u2500\u2500 src
+    \u251c\u2500\u2500 debug.c
+    \u251c\u2500\u2500 file.c
+    \u251c\u2500\u2500 hash_tbl.c
+    \u251c\u2500\u2500 input.c
+    \u251c\u2500\u2500 lock.c
+    \u251c\u2500\u2500 main.c
+    \u251c\u2500\u2500 parse.c
+    \u251c\u2500\u2500 record.c
+    \u251c\u2500\u2500 sort.c
+    \u251c\u2500\u2500 str_op.c
+
+``````
+
+create the folder **obj** and **bin** if you haven't done it yet
+
 This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, it has not been tested on Windows or MacOS and other Linux distros.
 
 now you have the program is compiled and we can run it.
