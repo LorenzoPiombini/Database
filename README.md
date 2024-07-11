@@ -133,9 +133,9 @@ bin/isam.db -nf item -d code:TYPE_STRING:man78-g-hus:price:TYPE_FLOAT:33.56:disc
 
 note the flag -k, this provide an id for the record that you are adding or creating, you will use this key for CRUD operation.
 
-## IMPORTANT
+## Note
 
-as for now you have to supply the key manually, it would make more sense if the program took care of the key authomatically, I am working on this.
+Currently, you must manually supply a key for CRUD operations. Future versions will aim to automate key management.
 ___________________________________________________________________________________
 
 the flag that you can provide as for now, are:
