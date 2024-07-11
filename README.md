@@ -2,6 +2,11 @@
 
 This ISAM database program enables dynamic creation of file definitions at runtime,  without the need to hardcode each type.
 
+## Features
+
+- **Dynamic File Definition**: Easily define file fields dynamically at runtime by specifying field names, types, and initial values.
+- **Supports Multiple Data Types**: Supports a variety of data types including integers, long, floats, strings, bytes, and doubles.
+
 ## Get Started
 
 you can pull the repo, or dowload the files directly on your manchine.
@@ -48,10 +53,7 @@ gcc -o bin/isam.db obj/debug.o obj/file.o obj/hash_tbl.o obj/input.o obj/lock.o 
 
 This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, it has not been tested on Windows or MacOS and other Linux distros.
 
-## Features
-
-- **Dynamic File Definition**: Easily define file fields dynamically at runtime by specifying field names, types, and initial values.
-- **Supports Multiple Data Types**: Supports a variety of data types including integers, long, floats, strings, bytes, and doubles.
+now you have the program is compiled and we can run it.
 
 ## How It Works
 
