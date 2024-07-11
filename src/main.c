@@ -327,7 +327,7 @@ int main(int argc, char *argv[])
 				free(buffer), free(buf_t), free(buf_v);
 				return 1;
 			}
-			// print_schema(hd.sch_d);
+			print_schema(hd.sch_d);
 			Record_f *rec = NULL;
 
 			if (hd.sch_d.fields_num != 0)
@@ -338,8 +338,8 @@ int main(int argc, char *argv[])
 				switch (check)
 				{
 				case SCHEMA_EQ:
-					rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t,
-											 buf_v, &hd.sch_d, SCHEMA_EQ);
+					rec = parse_d_flag_input(file_path, fields_count, buffer,
+											 buf_t, buf_v, &hd.sch_d, SCHEMA_EQ);
 					break;
 				case SCHEMA_ERR:
 					free(files[0]), free(files[1]), free(files);
@@ -348,13 +348,14 @@ int main(int argc, char *argv[])
 					clean_schema(&hd.sch_d);
 					return 1;
 				case SCHEMA_NW:
-					rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t,
-											 buf_v, &hd.sch_d, SCHEMA_NW);
+					rec = parse_d_flag_input(file_path, fields_count, buffer,
+											 buf_t, buf_v, &hd.sch_d, SCHEMA_NW);
 
 					break;
 				case SCHEMA_CT:
-					printf("schema is not complete but valid.\n");
-					return 1;
+					rec = parse_d_flag_input(file_path, fields_count, buffer,
+											 buf_t, buf_v, &hd.sch_d, SCHEMA_CT);
+					break;
 				default:
 					printf("no processable option for the SCHEMA. main.c l 237");
 					free(files[0]), free(files[1]), free(files);
@@ -365,7 +366,7 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-
+				printf("do not tell me that i am here");
 				rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &hd.sch_d, 0);
 			}
 

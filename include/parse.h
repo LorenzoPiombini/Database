@@ -31,7 +31,7 @@ int write_header(int fd, Header_d *hd);
 int read_header(int fd, Header_d *hd);
 int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd);
 int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd);
-int sort_input_like_header_schema(Schema *sch, char **names, char **values, ValueType *types_i);
+int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, char **names, char **values, ValueType *types_i);
 int ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int fields_num);
 int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, Schema *sch);
 #endif

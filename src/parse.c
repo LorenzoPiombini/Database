@@ -30,7 +30,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	}
 
 	if (sch && check_sch == 0)
-	{ /* true when a new file is created */
+	{ /* true when a new file is created or when the schema input is partial*/
 		char **sch_names = malloc(fields_num * sizeof(char *));
 		if (!sch_names)
 		{
@@ -67,7 +67,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	}
 
 	if (sch && check_sch == 0)
-	{ /* true when a new file is created */
+	{ /* true when a new file is created or when the schema input is partial*/
 		ValueType *sch_types = calloc(fields_num, sizeof(ValueType));
 
 		if (!sch_types)
@@ -97,7 +97,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	int reorder_rtl = -1;
 	if (check_sch == SCHEMA_EQ)
-		reorder_rtl = sort_input_like_header_schema(sch, names, values, types_i);
+		reorder_rtl = sort_input_like_header_schema(check_sch, fields_num, sch, names, values, types_i);
 
 	if (!reorder_rtl)
 	{
@@ -108,7 +108,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (check_sch == SCHEMA_NW)
 	{
-		reorder_rtl = sort_input_like_header_schema(sch, names, values, types_i);
+		reorder_rtl = sort_input_like_header_schema(check_sch, fields_num, sch, names, values, types_i);
 
 		if (!reorder_rtl)
 		{
@@ -153,6 +153,17 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		}
 	}
 
+	if (check_sch == SCHEMA_CT)
+	{
+		reorder_rtl = sort_input_like_header_schema(check_sch, fields_num, sch, names, values, types_i);
+
+		if (!reorder_rtl)
+		{
+			free(names), free(types_i);
+			free(rec), free(values);
+			return NULL;
+		}
+	}
 	int i = 0;
 	for (i = 0; i < fields_num; i++)
 	{
@@ -502,7 +513,6 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	if (hd.sch_d.fields_num == fields_n)
 	{
 		int ck_rst = ck_input_schema_fields(names, types_i, hd);
-
 		switch (ck_rst)
 		{
 		case SCHEMA_ERR:
@@ -522,6 +532,7 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	{ /* case where the header needs to be updated */
 
 		int ck_rst = ck_input_schema_fields(names, types_i, hd);
+		printf("here? sche < fiel n??\n");
 
 		switch (ck_rst)
 		{
@@ -543,6 +554,7 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	{ /*case where the fileds are less than the schema */
 		// if they are in the schema and the types are correct, return SCHEMA_CT
 		// create a record with only the values provided and set the other values to 0;
+		printf("last data should be here.\n");
 		int ck_rst = ck_schema_contain_input(names, types_i, hd, fields_n);
 
 		switch (ck_rst)
@@ -568,12 +580,13 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	return 1;
 }
 
-int sort_input_like_header_schema(Schema *sch, char **names, char **values, ValueType *types_i)
+int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, char **names, char **values, ValueType *types_i)
 {
-	int value_pos[sch->fields_num];
+	int f_n = schema_tp == SCHEMA_NW ? sch->fields_num : fields_num;
+	int value_pos[f_n];
 	int i, j;
 
-	for (i = 0; i < sch->fields_num; i++)
+	for (i = 0; i < f_n; i++)
 	{
 		for (j = 0; j < sch->fields_num; j++)
 		{
@@ -585,7 +598,7 @@ int sort_input_like_header_schema(Schema *sch, char **names, char **values, Valu
 		}
 	}
 
-	char **temp_val = calloc(sch->fields_num, sizeof(char *));
+	char **temp_val = calloc(fields_num, sizeof(char *));
 
 	if (!temp_val)
 	{
@@ -593,7 +606,7 @@ int sort_input_like_header_schema(Schema *sch, char **names, char **values, Valu
 		return 0;
 	}
 
-	char **temp_name = calloc(sch->fields_num, sizeof(char *));
+	char **temp_name = calloc(fields_num, sizeof(char *));
 
 	if (!temp_name)
 	{
@@ -602,16 +615,16 @@ int sort_input_like_header_schema(Schema *sch, char **names, char **values, Valu
 		return 0;
 	}
 
-	ValueType temp_types[sch->fields_num];
+	ValueType temp_types[fields_num];
 
-	for (i = 0; i < sch->fields_num; i++)
+	for (i = 0; i < f_n; i++)
 	{
 		temp_val[value_pos[i]] = values[i];
 		temp_name[value_pos[i]] = names[i];
 		temp_types[value_pos[i]] = types_i[i];
 	}
 
-	for (i = 0; i < sch->fields_num; i++)
+	for (i = 0; i < f_n; i++)
 	{
 		values[i] = temp_val[i];
 		names[i] = temp_name[i];
@@ -629,13 +642,25 @@ int ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int f
 
 	for (i = 0; i < fields_num; i++)
 	{
+		found_t = 0;
 		for (j = 0; j < hd.sch_d.fields_num; j++)
 		{
+			printf("%s == %s\n", names[i], hd.sch_d.fields_name[j]);
 			if (strcmp(names[i], hd.sch_d.fields_name[j]) == 0)
 				found_f++;
 
-			if (types_i[i] == hd.sch_d.types[j])
-				found_t++;
+			printf("%d == %d\n", types_i[i], hd.sch_d.types[j]);
+			if (found_t < fields_num)
+			{
+				if (types_i[i] == hd.sch_d.types[j])
+					found_t++;
+			}
+
+			if (found_t == 0)
+			{
+				printf("Schema different than file definition.\n");
+				return SCHEMA_ERR;
+			}
 		}
 	}
 

@@ -5,12 +5,20 @@
 
 void print_record(Record_f *rec)
 {
-        int i = 0;
+        int i = 0, max = 0;
+        for (i = 0; i < rec->fields_num; i++)
+        {
+                if (max < (int)strlen(rec->fields[i].field_name))
+                {
+                        max = (int)strlen(rec->fields[i].field_name);
+                }
+        }
+
         printf("#################################################################\n\n");
         printf("the Record data are: \n");
         for (i = 0; i < rec->fields_num; i++)
         {
-                printf("%s: \t", rec->fields[i].field_name);
+                printf("%-*s\t", max++, rec->fields[i].field_name);
                 switch (rec->fields[i].type)
                 {
                 case TYPE_INT:
@@ -73,12 +81,12 @@ size_t compute_size_header(Header_d hd)
         sum += sizeof(hd.id_n) + sizeof(hd.version) + sizeof(hd.sch_d.fields_num) + sizeof(hd.sch_d);
         int i = 0;
 
-        for (i = 0; i < hd.sch_d.fields_num; i++)
+        for (i; i < hd.sch_d.fields_num; i++)
         {
                 sum += strlen(hd.sch_d.fields_name[i]);
                 sum += sizeof(hd.sch_d.types[i]);
         }
 
         sum += hd.sch_d.fields_num; // acounting for n '\0'
-        // printf("\n\n\nSize of Header: %ld\n\n\n", sum);
+                                    // printf("\n\n\nSize of Header: %ld\n\n\n", sum);
 }
