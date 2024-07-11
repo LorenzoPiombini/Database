@@ -2,6 +2,52 @@
 
 This ISAM database program enables dynamic creation of file definitions at runtime,  without the need to hardcode each type.
 
+## Get Started
+
+you can pull the repo, or dowload the files directly on your manchine.
+
+the Make file has some test case commented out, you can delete the # and try them out, when you run
+
+```plaintext
+-$ make clean
+```
+
+this is the output you'll see:
+
+```plaintext
+rm -f obj/*.o
+rm -f bin/*
+rm *.dat *.inx
+rm *core*
+rm: cannot remove '*core*': No such file or directory
+make: *** [Makefile:22: clean] Error 1
+```
+
+to compile the program you just run the make command inside of the project directory:
+
+```plaintext
+project-$ make
+```
+
+output:
+
+``````plaintext
+cc -c src/debug.c -o obj/debug.o -Iinclude -g
+gcc -c src/file.c -o obj/file.o -Iinclude -g
+gcc -c src/hash_tbl.c -o obj/hash_tbl.o -Iinclude -g
+gcc -c src/input.c -o obj/input.o -Iinclude -g
+gcc -c src/lock.c -o obj/lock.o -Iinclude -g
+gcc -c src/main.c -o obj/main.o -Iinclude -g
+gcc -c src/parse.c -o obj/parse.o -Iinclude -g
+gcc -c src/record.c -o obj/record.o -Iinclude -g
+gcc -c src/sort.c -o obj/sort.o -Iinclude -g
+gcc -c src/str_op.c -o obj/str_op.o -Iinclude -g
+gcc -o bin/isam.db obj/debug.o obj/file.o obj/hash_tbl.o obj/input.o obj/lock.o obj/main.o obj/parse.o obj/record.o obj/sort.o obj/str_op.o
+
+``````
+
+This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, it has not been tested on Windows or MacOS and other Linux distros.
+
 ## Features
 
 - **Dynamic File Definition**: Easily define file fields dynamically at runtime by specifying field names, types, and initial values.
