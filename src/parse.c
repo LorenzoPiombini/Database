@@ -8,6 +8,7 @@
 #include "parse.h"
 #include "common.h"
 #include "sort.h"
+#include "debug.h"
 
 Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char *buf_t, char *buf_v, Schema *sch, int check_sch)
 {
@@ -30,7 +31,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	}
 
 	if (sch && check_sch == 0)
-	{ /* true when a new file is created or when the schema input is partial*/
+	{ /* true when a new file is created */
 		char **sch_names = malloc(fields_num * sizeof(char *));
 		if (!sch_names)
 		{
@@ -100,6 +101,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (!reorder_rtl)
 	{
+		printf("failed to reorder like header schema.(parse.c l 91)\n");
 		free(names), free(types_i);
 		free(rec), free(values);
 		return NULL;
@@ -111,6 +113,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!reorder_rtl)
 		{
+			printf("failed to reorder like header schema.(parse.c l 101)\n");
 			free(names), free(types_i);
 			free(rec), free(values);
 			return NULL;
@@ -162,6 +165,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!reorder_rtl)
 		{
+			printf("failed to reorder like header schema.(parse.c l 148)\n");
 			free(names), free(types_i);
 			free(rec), free(values);
 			return NULL;
@@ -280,23 +284,26 @@ int write_header(int fd, Header_d *hd)
 	}
 
 	register unsigned char i = 0;
-	for (i = 0; i < hd->sch_d.fields_num; i++)
+	for (i = 0; i <= hd->sch_d.fields_num - 1; i++)
 	{
 		size_t l = strlen(hd->sch_d.fields_name[i]) + 1;
 		uint32_t l_end = htonl((uint32_t)l);
-		if (write(fd, &l_end, sizeof(l_end)) == -1)
-		{
-			perror("write size of name in header.\n");
-			return 0;
-		}
 
-		if (write(fd, hd->sch_d.fields_name[i], l) == -1)
+		if (hd->sch_d.fields_name[i])
 		{
-			perror("write name of field in header.\n");
-			return 0;
+			if (write(fd, &l_end, sizeof(l_end)) == -1)
+			{
+				perror("write size of name in header.\n");
+				return 0;
+			}
+
+			if (write(fd, hd->sch_d.fields_name[i], l) == -1)
+			{
+				perror("write name of field in header.\n");
+				return 0;
+			}
 		}
 	}
-
 	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
 
@@ -461,7 +468,7 @@ int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
 	/*sorting the name and type arrays  */
 	if (hd.sch_d.fields_num > 1)
 	{
-		quick_sort(types_i, 0, hd.sch_d.fields_num - 1);
+		quick_sort(types_i, 1, hd.sch_d.fields_num - 1);
 		quick_sort(types_cp, 0, hd.sch_d.fields_num - 1);
 		quick_sort_str(names, 0, hd.sch_d.fields_num - 1);
 		quick_sort_str(copy_sch, 0, hd.sch_d.fields_num - 1);
@@ -535,7 +542,6 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	{ /* case where the header needs to be updated */
 
 		int ck_rst = ck_input_schema_fields(names, types_i, hd);
-		printf("here? sche < fiel n??\n");
 
 		switch (ck_rst)
 		{
@@ -691,27 +697,32 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 
 	if (sch)
 	{
-		char **sch_names = malloc(fields_num * sizeof(char *));
+
+		char **sch_names = calloc(fields_num, sizeof(char *));
 		if (!sch_names)
 		{
 			printf("no memory for Schema fileds name.");
 			free(names);
 			return 0;
 		}
-		sch->fields_num = (unsigned short)fields_num;
 		sch->fields_name = sch_names;
 
 		register unsigned char j = 0;
 		for (j = 0; j < fields_num; j++)
 		{
-			sch->fields_name[j] = strdup(names[j]);
+			// printf("%d%s\n",j,names[j]);
 
-			if (!sch->fields_name[j])
+			if (names[j])
 			{
-				printf("strdup failed, schema creation field.\n");
-				clean_schema(sch);
-				free(names);
-				return 0;
+
+				sch->fields_name[j] = strdup(names[j]);
+				if (!sch->fields_name[j])
+				{
+					printf("strdup failed, schema creation field.\n");
+					clean_schema(sch);
+					free(names);
+					return 0;
+				}
 			}
 		}
 	}
@@ -745,5 +756,52 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		}
 	}
 
+	free(names), free(types_i);
 	return 1; // scheam creation succssed
+}
+
+int perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_count, int fd_data,
+							 char *file_path, Record_f **rec, Header_d *hd)
+{
+
+	// check if the schema on the file is equal to the input Schema.
+
+	if (!read_header(fd_data, hd))
+	{
+		return 0;
+	}
+
+	// print_schema(hd.sch_d);
+
+	if (hd->sch_d.fields_num != 0)
+	{
+		int check = check_schema(fields_count, buffer, buf_t, *hd);
+		// printf("check schema is %d",check);
+		switch (check)
+		{
+		case SCHEMA_EQ:
+			*rec = parse_d_flag_input(file_path, fields_count, buffer,
+									  buf_t, buf_v, &hd->sch_d, SCHEMA_EQ);
+			break;
+		case SCHEMA_ERR:
+			return 0;
+		case SCHEMA_NW:
+			*rec = parse_d_flag_input(file_path, fields_count, buffer,
+									  buf_t, buf_v, &hd->sch_d, SCHEMA_NW);
+			break;
+		case SCHEMA_CT:
+			*rec = parse_d_flag_input(file_path, fields_count, buffer,
+									  buf_t, buf_v, &hd->sch_d, SCHEMA_CT);
+			break;
+		default:
+			printf("no processable option for the SCHEMA. parse.c l 703");
+			return 0;
+		}
+	}
+	else
+	{
+		*rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &hd->sch_d, 0);
+	}
+
+	return 1;
 }

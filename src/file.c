@@ -185,7 +185,7 @@ int read_index_file(int fd, HashTable *ht)
 
 			if (!newNode)
 			{
-				perror("mamory for node");
+				perror("memory for node");
 				free_nodes(dataMap, size);
 				free(key);
 				return 0;
@@ -305,21 +305,21 @@ int write_file(int fd, Record_f *rec)
 		case TYPE_INT:
 			if (write(fd, &rec->fields[i].data.i, sizeof(rec->fields[i].data.i)) < 0)
 			{
-				printf("error in writing int type to file.");
+				perror("error in writing int type to file.\n");
 				return 0;
 			}
 			break;
 		case TYPE_LONG:
 			if (write(fd, &rec->fields[i].data.l, sizeof(rec->fields[i].data.l)) < 0)
 			{
-				perror("error in writing long type to file.");
+				perror("error in writing long type to file.\n");
 				return 0;
 			}
 			break;
 		case TYPE_FLOAT:
 			if (write(fd, &rec->fields[i].data.f, sizeof(rec->fields[i].data.f)) < 0)
 			{
-				perror("error in writing float type.");
+				perror("error in writing float type.\n");
 				return 0;
 			}
 			break;
@@ -341,7 +341,7 @@ int write_file(int fd, Record_f *rec)
 				write(fd, buff_w, buff_update) < 0)
 			{
 
-				perror("error in writing type string (cahr *)file.");
+				perror("error in writing type string (char *)file.\n");
 				return 0;
 			}
 
@@ -350,20 +350,26 @@ int write_file(int fd, Record_f *rec)
 		case TYPE_BYTE:
 			if (write(fd, &rec->fields[i].data.b, sizeof(rec->fields[i].data.b)) < 0)
 			{
-				printf("error in writing type byte to file.");
+				perror("error in writing type byte to file.\n");
 				return 0;
 			}
 			break;
 		case TYPE_DOUBLE:
 			if (write(fd, &rec->fields[i].data.d, sizeof(rec->fields[i].data.d)) < 0)
 			{
-				printf("error in writing double to file.");
+				perror("error in writing double to file.\n");
 				return 0;
 			}
 			break;
 		default:
 			break;
 		}
+	}
+	off_t update_off_t = 0;
+	if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
+	{
+		perror("writing off_t for future update");
+		return 0;
 	}
 
 	return 1; // write to file succssed!
@@ -381,6 +387,30 @@ ssize_t get_record_size(int fd)
 
 	return size;
 }
+
+off_t get_update_offset(int fd, off_t record_pos)
+{
+	ssize_t size = get_record_size(fd);
+	off_t move = size + record_pos;
+
+	off_t up_pos = lseek(fd, record_pos, SEEK_SET);
+
+	if (up_pos == -1)
+	{
+		perror("position update not found (file.c l 355).\n");
+		return up_pos;
+	}
+
+	off_t urec_pos = 0;
+	if (read(fd, &urec_pos, sizeof(urec_pos)) == -1)
+	{
+		perror("could not read the update record position (file.c l 365).\n");
+		return -1;
+	}
+
+	return urec_pos;
+}
+
 Record_f *read_file(int fd, char *file_name)
 {
 	ssize_t size = get_record_size(fd);
@@ -534,6 +564,7 @@ Record_f *read_file(int fd, char *file_name)
 			break;
 		}
 	}
+
 	return rec;
 }
 
@@ -565,11 +596,13 @@ int file_error_handler(int count, ...)
 	return j;
 }
 
-int padding_file(int fd, int bytes)
+int padding_file(int fd, int bytes, size_t hd_st)
 {
-	unsigned char padding[bytes];
-	int i = 0;
-	for (i = 0; i < bytes; i++)
+
+	short actual_pd = (short)(bytes - (int)hd_st);
+	unsigned char padding[actual_pd];
+	short i = 0;
+	for (i = 0; i < (bytes - hd_st); i++)
 		padding[i] = '0';
 
 	if (write(fd, &padding, sizeof(padding)) == -1)

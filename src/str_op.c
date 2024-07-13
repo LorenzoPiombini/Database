@@ -54,7 +54,7 @@ char **two_file_path(char *filePath)
 int count_fields(char *fields)
 {
 	int c = 0;
-	const char *target = "TYPE";
+	const char *target = "TYPE_";
 	const char *p = fields;
 
 	while ((p = strstr(p, target)) != NULL)
