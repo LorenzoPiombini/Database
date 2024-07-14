@@ -147,9 +147,11 @@ the flag that you can provide as for now, are:
          -r - look for the record key provided in the specified file. 
          -d - variables name and type <variableName>:TYPE_INT:12.
          -D - delete the record  provided for specified file.
-         -k - specify the record id, the program will save, retrive and delete the record based on this id.
          -R - define a file definition witout values.
+         -k - specify the record id, the program will save, retrice and delete the record based on this id.
          -t - list of available types. this flag will exit the program.
+         -l - list the file definition specified with -f.
+         -u - update the file specified by -f .
 ```
 
 now the  file is created, and the base definition would be made by 3 variables code, price and discount.
