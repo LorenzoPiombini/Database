@@ -25,8 +25,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (!names)
 	{
-		printf("Error in getting the fields name");
-		free(rec);
+		printf("Error in getting the fields name.\n");
+		clean_up(rec, fields_num);
 		return NULL;
 	}
 

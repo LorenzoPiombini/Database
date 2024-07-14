@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "str_op.h"
 #include "record.h"
+#include "parse.h"
 
 char **two_file_path(char *filePath)
 {
@@ -97,7 +98,7 @@ int get_type(char *s)
 char **get_fileds_name(char *fields_name, int fields_count, int steps)
 {
 	int i = 0, j = 0;
-
+	unsigned char oversized_f = 0;
 	char **names_f = calloc(fields_count, sizeof(char *));
 	char *s = NULL;
 
@@ -112,6 +113,13 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count)
 	{
 		names_f[j] = s;
+		if ((strlen(names_f[j]) > MAX_FIELD_LT))
+		{
+			printf("%s, this fields is longer than the system limit! max %d per field name.\n",
+				   names_f[j], MAX_FIELD_LT);
+			oversized_f = 1;
+		}
+
 		j++;
 
 		strtok_r(NULL, ":", &cp_fv);
@@ -120,6 +128,11 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 			strtok_r(NULL, ":", &cp_fv);
 	}
 
+	if (oversized_f)
+	{
+		free(names_f);
+		return NULL;
+	}
 	return names_f;
 }
 

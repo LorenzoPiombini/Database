@@ -3,42 +3,48 @@
 #include "sort.h"
 #include "record.h"
 
-void swap(ValueType* array, int first_index, int second_index){
+void swap(ValueType *array, int first_index, int second_index)
+{
 	int temp = array[first_index];
 	array[first_index] = array[second_index];
 	array[second_index] = temp;
-	
 }
 
-void swap_str(char** array, int first_index, int second_index){
-	char* temp = array[first_index];
+void swap_str(char **array, int first_index, int second_index)
+{
+	char *temp = array[first_index];
 	array[first_index] = array[second_index];
 	array[second_index] = temp;
 }
 
-
-int pivot(ValueType* array, int pivot_index, int end_index){
+int pivot(ValueType *array, int pivot_index, int end_index)
+{
 	int swap_index = pivot_index;
 	int i;
 
-	for(i = pivot_index + 1; i <= end_index; i++){
-		if(array[i] < array[pivot_index]){
+	for (i = pivot_index + 1; i <= end_index; i++)
+	{
+		if (array[i] < array[pivot_index])
+		{
 			swap_index++;
 			swap(array, swap_index, i);
-		}		
+		}
 	}
-	
+
 	swap(array, pivot_index, swap_index);
 
 	return swap_index;
 }
 
-int pivot_str(char** array, int pivot_index, int end_index){
+int pivot_str(char **array, int pivot_index, int end_index)
+{
 	int swap_index = pivot_index;
 	int i;
-	
-	for(i = pivot_index + 1; i <= end_index; i++){
-		if(strcmp(array[i],array[pivot_index]) < 0){
+
+	for (i = pivot_index + 1; i <= end_index; i++)
+	{
+		if (strcmp(array[i], array[pivot_index]) < 0)
+		{
 			swap_index++;
 			swap_str(array, swap_index, i);
 		}
@@ -48,24 +54,22 @@ int pivot_str(char** array, int pivot_index, int end_index){
 	return swap_index;
 }
 
-void quick_sort(ValueType* array, int left_index, int right_index){
-	if(left_index >= right_index)
+void quick_sort(ValueType *array, int left_index, int right_index)
+{
+	if (left_index >= right_index)
 		return;
 
-	int pivot_index = pivot(array, left_index,right_index);
+	int pivot_index = pivot(array, left_index, right_index);
 	quick_sort(array, left_index, pivot_index - 1);
 	quick_sort(array, pivot_index + 1, right_index);
-
-
 }
 
-
-void quick_sort_str(char** array, int left_index, int right_index){
-	if(left_index >= right_index)
+void quick_sort_str(char **array, int left_index, int right_index)
+{
+	if (left_index >= right_index)
 		return;
 
-	int pivot_index = pivot_str(array, left_index,right_index);
+	int pivot_index = pivot_str(array, left_index, right_index);
 	quick_sort_str(array, left_index, pivot_index - 1);
 	quick_sort_str(array, pivot_index + 1, right_index);
-
 }

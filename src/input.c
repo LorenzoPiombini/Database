@@ -13,9 +13,11 @@ void print_usage(char *argv[])
         printf("\t -r - look for the record key provided in the specified file. \n");
         printf("\t -d - variables name and type <variableName>:TYPE_INT:12.\n");
         printf("\t -D - delete the record  provided for specified file.\n");
+        printf("\t -R - define a file definition witout values.\n");
         printf("\t -k - specify the record id, the program will save, retrice and delete the record based on this id.\n");
-        printf("\t -R - define a file definitions without values.\n");
         printf("\t -t - list of available types. this flag will exit the program.\n");
+        printf("\t -l - list the file definition specified with -f.\n");
+        printf("\t -u - update the file specified by -f .\n");
 }
 
 void print_types()
@@ -33,7 +35,8 @@ void print_types()
         printf("\tTYPE_DOUBLE, floating point number, %ld bytes (%ld bits).\n",
                sizeof(double), 8 * sizeof(double));
 }
-int check_input_and_values(char *file_path, char *data_to_add, char *fileds_and_type, char *key, char *argv[], int del)
+int check_input_and_values(char *file_path, char *data_to_add, char *fileds_and_type, char *key, char *argv[],
+                           unsigned char del, unsigned char list_def, unsigned char new_file)
 {
 
         if (!file_path)
@@ -57,6 +60,13 @@ int check_input_and_values(char *file_path, char *data_to_add, char *fileds_and_
         if ((data_to_add || fileds_and_type) && !key)
         {
                 printf("option -k is required.\n\n");
+                print_usage(argv);
+                return 0;
+        }
+
+        if (new_file && list_def)
+        {
+                printf("option -l can`t be used on new file, or at file creation.\n\n");
                 print_usage(argv);
                 return 0;
         }
