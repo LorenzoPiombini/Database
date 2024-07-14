@@ -8,7 +8,8 @@ typedef struct HashTable HashTable;
 
 typedef struct Record Record;
 
-typedef enum {
+typedef enum
+{
 	TYPE_INT,
 	TYPE_LONG,
 	TYPE_FLOAT,
@@ -16,39 +17,40 @@ typedef enum {
 	TYPE_BYTE,
 	TYPE_OFF_T,
 	TYPE_DOUBLE
-}ValueType;
+} ValueType;
 
-typedef struct{
-   char* field_name;
-   ValueType type;
+typedef struct
+{
+	char *field_name;
+	ValueType type;
 
-   union{
-   	int i;
-	long l;
-	float f;
-	char* s;
-	unsigned char b;
-	off_t offset;
-   	double d;
-   }data;
-}Field;
+	union
+	{
+		int i;
+		long l;
+		float f;
+		char *s;
+		unsigned char b;
+		off_t offset;
+		double d;
+	} data;
+} Field;
 
-typedef struct {
-	char* file_name;
+typedef struct
+{
+	char *file_name;
 	int fields_num;
-	Field* fields;
+	Field *fields;
 
-}Record_f;
+} Record_f;
 
-
-Record_f* create_record(char *file_name, int fields_num);
-void set_field(Record_f* rec,int index,char *field_name, ValueType type, char* value);
+Record_f *create_record(char *file_name, int fields_num);
+void set_field(Record_f *rec, int index, char *field_name, ValueType type, char *value);
 void clean_up(Record_f *rec, int fields_num);
 
-typedef struct {
+typedef struct
+{
 	HashTable *ht;
-}Index;
-
-
+} Index;
 
 #endif

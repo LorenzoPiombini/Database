@@ -50,19 +50,44 @@ void print_schema(Schema sch)
 {
         if (sch.fields_name && sch.types)
         {
-                printf("Schema: \n");
-                printf("number of fields:\t %d.\n", sch.fields_num);
-                printf("fields:\t ");
+                //	printf("Schema: \n");
+                //        printf("number of fields:\t %d.\n", sch.fields_num);
+                printf("definition:\n");
+                int i = 0, max = 0;
 
-                int i = 0;
-
-                for (i; i < sch.fields_num; i++)
-                        printf("%s, ", sch.fields_name[i]);
-
-                printf("\nTypes:\t ");
+                char c = ' ';
+                printf("Field Name%-*cType\n", 11, c);
+                printf("__________________________\n");
                 for (i = 0; i < sch.fields_num; i++)
-                        printf("%d, ", sch.types[i]);
+                {
+                        printf("%s%-*c", sch.fields_name[i], (int)(15 - strlen(sch.fields_name[i])), c);
+                        switch (sch.types[i])
+                        {
+                        case TYPE_INT:
+                                printf("int.\n");
+                                break;
+                        case TYPE_FLOAT:
+                                printf("float.\n");
+                                break;
+                        case TYPE_LONG:
+                                printf("long.\n");
+                                break;
+                        case TYPE_BYTE:
+                                printf("byte.\n");
+                                break;
+                        case TYPE_DOUBLE:
+                                printf("double.\n");
+                                break;
+                        case TYPE_STRING:
+                                printf("string.\n");
+                                break;
+                        default:
+                                printf("\n");
+                                break;
+                        }
+                }
         }
+
         printf("\n");
 }
 
@@ -83,7 +108,11 @@ size_t compute_size_header(Header_d hd)
 
         for (i; i < hd.sch_d.fields_num; i++)
         {
-                sum += strlen(hd.sch_d.fields_name[i]);
+                if (hd.sch_d.fields_name[i])
+                {
+                        sum += strlen(hd.sch_d.fields_name[i]);
+                }
+
                 sum += sizeof(hd.sch_d.types[i]);
         }
 

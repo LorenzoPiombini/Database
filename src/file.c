@@ -75,6 +75,24 @@ void close_file(int count, ...)
 		perror("close");
 }
 
+void delete_file(unsigned short count, ...)
+{
+	int sum = 0;
+	short i = 0;
+	va_list args;
+	va_start(args, count);
+
+	for (i = 0; i < count; i++)
+	{
+		char *file_name = va_arg(args, char *);
+		if (unlink(file_name) != 0)
+			sum++;
+	}
+
+	if (sum > 0)
+		perror("unlink");
+}
+
 off_t begin_in_file(int fd)
 {
 

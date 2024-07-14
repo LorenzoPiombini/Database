@@ -1,6 +1,7 @@
 {
   "files.associations": {
     "stat.h": "c",
-    "hash_tbl.h": "c"
+    "hash_tbl.h": "c",
+    "types.h": "c"
   }
 }
