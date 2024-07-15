@@ -328,6 +328,7 @@ int read_header(int fd, Header_d *hd)
 	}
 
 	id = ntohl(id); /*changing the bytes to host endianess*/
+	printf("id is %x\n", id);
 	if (id != HEADER_ID_SYS)
 	{
 		printf("this is not a db file.\n");
@@ -442,7 +443,7 @@ int read_header(int fd, Header_d *hd)
 	return 1; // successed
 }
 
-int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
+unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
 {
 	int fields_eq = 0;
 	int types_eq = 0;
@@ -497,7 +498,7 @@ int ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
 	return SCHEMA_EQ;
 }
 
-int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
+unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 {
 	char *names_cs = strdup(buffer);
 	char *types_cs = strdup(buf_t);
@@ -522,7 +523,7 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 
 	if (hd.sch_d.fields_num == fields_n)
 	{
-		int ck_rst = ck_input_schema_fields(names, types_i, hd);
+		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
 		switch (ck_rst)
 		{
 		case SCHEMA_ERR:
@@ -541,7 +542,7 @@ int check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	else if (hd.sch_d.fields_num < fields_n)
 	{ /* case where the header needs to be updated */
 
-		int ck_rst = ck_input_schema_fields(names, types_i, hd);
+		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
 
 		switch (ck_rst)
 		{
@@ -645,7 +646,7 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 	return 1;
 }
 
-int ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int fields_num)
+unsigned char ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int fields_num)
 {
 
 	register unsigned char i = 0, j = 0;
@@ -760,8 +761,8 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	return 1; // scheam creation succssed
 }
 
-int perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_count, int fd_data,
-							 char *file_path, Record_f **rec, Header_d *hd)
+unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_count, int fd_data,
+									   char *file_path, Record_f **rec, Header_d *hd)
 {
 
 	// check if the schema on the file is equal to the input Schema.
@@ -775,24 +776,24 @@ int perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_
 
 	if (hd->sch_d.fields_num != 0)
 	{
-		int check = check_schema(fields_count, buffer, buf_t, *hd);
+		unsigned char check = check_schema(fields_count, buffer, buf_t, *hd);
 		// printf("check schema is %d",check);
 		switch (check)
 		{
 		case SCHEMA_EQ:
 			*rec = parse_d_flag_input(file_path, fields_count, buffer,
 									  buf_t, buf_v, &hd->sch_d, SCHEMA_EQ);
-			break;
+			return SCHEMA_EQ;
 		case SCHEMA_ERR:
-			return 0;
+			return SCHEMA_ERR;
 		case SCHEMA_NW:
 			*rec = parse_d_flag_input(file_path, fields_count, buffer,
 									  buf_t, buf_v, &hd->sch_d, SCHEMA_NW);
-			break;
+			return SCHEMA_NW;
 		case SCHEMA_CT:
 			*rec = parse_d_flag_input(file_path, fields_count, buffer,
 									  buf_t, buf_v, &hd->sch_d, SCHEMA_CT);
-			break;
+			return SCHEMA_CT;
 		default:
 			printf("no processable option for the SCHEMA. parse.c l 703");
 			return 0;
@@ -804,4 +805,54 @@ int perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_
 	}
 
 	return 1;
+}
+
+unsigned char compare_old_rec_with_schema(Record_f *rec_old, Header_d *hd)
+{
+	unsigned char i = 0, j = 0, field_c = 0, type_c = 0;
+
+	if (rec_old->fields_num == hd->sch_d.fields_num)
+	{
+		for (i = 0; i < hd->sch_d.fields_num; i++)
+		{
+			for (j = 0; j < hd->sch_d.fields_num; j++)
+			{
+				if (strcmp(rec_old->fields[i].field_name, hd->sch_d.fields_name[j]) == 0)
+				{
+					field_c++;
+				}
+
+				if (rec_old->fields[i].type == hd->sch_d.types[j])
+					type_c++;
+			}
+
+			if (field_c == hd->sch_d.fields_num && field_c == hd->sch_d.fields_num)
+			{
+				return SCHEMA_EQ;
+			}
+		}
+	}
+
+	char **names = calloc(rec_old->fields_num, sizeof(char *));
+	if (!names)
+	{
+		printf("no memory for char** in compare old record to schema:\n\t-(parse.c l 833).\n");
+		return 0;
+	}
+
+	ValueType *types_i = calloc(rec_old->fields_num, sizeof(ValueType));
+	if (!types_i)
+	{
+		printf("no memory for ValueType* in compare old record to schema:\n\t-(parse.c l 837).\n");
+		return 0;
+	}
+	// populate the two callocs with the datas on the old record.
+}
+
+unsigned char compare_old_rec_update_rec(Record_f *old_rec, Record_f *update_rec)
+{
+	if (old_rec->fields_num == update_rec->fields_num)
+		return UPDATE_OLD;
+
+	return 0;
 }

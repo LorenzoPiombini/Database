@@ -16,7 +16,7 @@ off_t begin_in_file(int fd);
 int read_index_file(int fd, HashTable *ht);
 int write_file(int fd, Record_f *rec);
 ssize_t compute_record_size(Record_f *rec);
-off_t get_update_offset(int fd, off_t record_pos);
+off_t get_update_offset(int fd);
 Record_f *read_file(int fd, char *file_name);
 int file_error_handler(int count, ...);
 int padding_file(int fd, int bytes, size_t hd_st);

@@ -36,7 +36,8 @@ void print_types()
                sizeof(double), 8 * sizeof(double));
 }
 int check_input_and_values(char *file_path, char *data_to_add, char *fileds_and_type, char *key, char *argv[],
-                           unsigned char del, unsigned char list_def, unsigned char new_file)
+                           unsigned char del, unsigned char list_def, unsigned char new_file,
+                           unsigned char update)
 {
 
         if (!file_path)
@@ -57,7 +58,7 @@ int check_input_and_values(char *file_path, char *data_to_add, char *fileds_and_
                 return 0;
         }
 
-        if ((data_to_add || fileds_and_type) && !key)
+        if ((data_to_add || fileds_and_type || update) && !key)
         {
                 printf("option -k is required.\n\n");
                 print_usage(argv);

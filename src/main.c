@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 	char *key = NULL;
 	char *schema_def = NULL;
 
-	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:u:l")) != -1)
+	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:ul")) != -1)
 	{
 		switch (c)
 		{
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 			schema_def = optarg;
 			break;
 		case 'u':
-			data_to_add = optarg, update = 1;
+			update = 1;
 			break;
 		case 'l':
 			list_def = 1;
@@ -81,11 +81,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!check_input_and_values(file_path, data_to_add, fileds_and_type, key, argv, del, list_def, new_file))
+	if (!check_input_and_values(file_path, data_to_add, fileds_and_type, key,
+								argv, del, list_def, new_file, update))
 	{
 		return 1;
 	}
-
+	printf("%s\n", file_path);
 	if (new_file)
 	{
 		/*creates two name from the file_path  "str_op.h" */
@@ -109,8 +110,9 @@ int main(int argc, char *argv[])
 			if (fields_count > MAX_FIELD_NR)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -121,8 +123,9 @@ int main(int argc, char *argv[])
 			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
 			{
 				printf("can't create file definition");
-				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -132,8 +135,9 @@ int main(int argc, char *argv[])
 			{
 				free(buf_sdf), free(buf_t);
 				clean_schema(&sch);
-				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -144,8 +148,9 @@ int main(int argc, char *argv[])
 				printf("File definition is bigger than the limit.\n");
 				free(buf_sdf), free(buf_t);
 				clean_schema(&sch);
-				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -153,8 +158,9 @@ int main(int argc, char *argv[])
 			{
 				free(buf_sdf), free(buf_t);
 				clean_schema(&sch);
-				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -163,9 +169,9 @@ int main(int argc, char *argv[])
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
 				free(buf_sdf), free(buf_t);
-				clean_schema(&sch);
-				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -173,9 +179,16 @@ int main(int argc, char *argv[])
 			HashTable ht = {7, dataMap, write_ht};
 
 			if (!ht.write(fd_index, &ht))
+			{
 				printf("could not write the file.\n");
-			else
-				printf("file created succesfully!\n");
+				free(buf_sdf), free(buf_t);
+				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
+				return 1;
+			}
+
+			printf("File created successfully!\n");
 
 			free(buf_sdf), free(buf_t);
 			free(files[0]), free(files[1]), free(files);
@@ -269,25 +282,10 @@ int main(int argc, char *argv[])
 
 			// print_hash_table(ht);
 
-			if (write_file(fd_data, rec))
-			{
-				printf("File %s written!\n", files[1]);
-			}
-			else
+			if (!write_file(fd_data, rec))
 			{
 				printf("error, could not write to the file %s\n", file_path);
-				clean_up(rec, fields_count); // this free the memory allocated for the record
-				free(buffer), free(buf_t), free(buf_v);
-				destroy_hasht(&ht);
-				free(files[0]), free(files[1]), free(files);
-				close_file(2, fd_index, fd_data);
-				return 1;
-			}
-
-			if (!ht.write(fd_index, &ht))
-			{
-				printf("could not write the file.\n");
-				clean_up(rec, fields_count); // this free the memory allocated for the record
+				clean_up(rec, fields_count);
 				free(buffer), free(buf_t), free(buf_v);
 				destroy_hasht(&ht);
 				close_file(2, fd_index, fd_data);
@@ -296,6 +294,19 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
+			if (!ht.write(fd_index, &ht))
+			{
+				printf("could not write the file.\n");
+				clean_up(rec, fields_count);
+				free(buffer), free(buf_t), free(buf_v);
+				destroy_hasht(&ht);
+				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
+				return 1;
+			}
+
+			printf("File created successfully.\n");
 			clean_up(rec, fields_count); // this free the memory allocated for the record
 			free(buffer), free(buf_t), free(buf_v);
 			destroy_hasht(&ht);
@@ -343,9 +354,15 @@ int main(int argc, char *argv[])
 			HashTable ht = {7, dataMap, write_ht};
 
 			if (!ht.write(fd_index, &ht))
+			{
 				printf("could not write the file.\n");
-			else
-				printf("file created successfully.\n");
+				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				free(files[0]), free(files[1]), free(files);
+				return 1;
+			}
+
+			printf("File created successfully.\n");
 
 			destroy_hasht(&ht);
 			free(files[0]), free(files[1]), free(files);
@@ -390,10 +407,14 @@ int main(int argc, char *argv[])
 			close_file(1, fd_index);
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
-			if (ht.write(fd_index, &ht))
-				printf("index written!\n");
-			else
+			if (!ht.write(fd_index, &ht))
+			{
 				printf("could not write index file.\n");
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				destroy_hasht(&ht);
+				return 1;
+			}
 
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
@@ -401,24 +422,10 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		if (update && data_to_add)
+		if (update && data_to_add && key)
 		{
+			printf("updating the record . . .\n");
 			// 1 - check the schema with the one on file
-			// 2 - if schema is good load the record into memory and update the fields if any
-			// 3 - write the data that were not wrote to disk, at the end of the file and store
-			//     .the offset
-			//     .for example if the data on disk do not contain a specific field,
-			//     .write the new filed at
-			//     .the end of the file and save the offset in a variable.
-			// 4 - update the old record if needed, update the offset at the end with the offset from
-			//     .the previous file saved (EOF before that writing)
-			// 5 - read the current record size on file
-			//  -
-		}
-
-		if (!update && data_to_add)
-		{ /* append data to the specified file*/
-
 			int fields_count = count_fields(data_to_add);
 
 			if (fields_count > MAX_FIELD_NR)
@@ -437,8 +444,165 @@ int main(int argc, char *argv[])
 			Schema sch = {0, NULL, NULL};
 			Header_d hd = {0, 0, sch};
 
-			if (!perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
-										  fd_data, file_path, &rec, &hd))
+			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
+														   fd_data, file_path, &rec, &hd);
+
+			if (check == SCHEMA_ERR || check == 0)
+			{
+				free(files[0]), free(files[1]), free(files);
+				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+				free(buffer), free(buf_t), free(buf_v);
+				if (rec)
+					clean_up(rec, fields_count);
+
+				return 1;
+			}
+			// 2 - if schema is good load the record into memory and update the fields if any
+			// -- at this point you already checked the header, and you have an updated header,
+			//	an updated record in memory
+
+			HashTable ht = {0, NULL};
+
+			if (!read_index_file(fd_index, &ht))
+			{
+				printf("index file reading failed.\n");
+				free(buffer), free(buf_t), free(buf_v);
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				clean_up(rec, fields_count);
+				clean_schema(&hd.sch_d);
+				return 1;
+			}
+
+			off_t offset = get(key, &ht); /*look for the key in the ht */
+
+			if (offset == -1)
+			{
+				printf("record not found.\n");
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				clean_up(rec, fields_count);
+				clean_schema(&hd.sch_d);
+				destroy_hasht(&ht);
+				free(buffer), free(buf_t), free(buf_v);
+				return 1;
+			}
+
+			off_t find_record = find_record_position(fd_data, offset);
+			// printf("record pos is %ld\n",find_record);
+
+			if (find_record == -1)
+			{
+				perror("error looking for record in file.\n");
+				free(files[0]), free(files[1]), free(files);
+				free(buffer), free(buf_t), free(buf_v);
+				close_file(2, fd_index, fd_data);
+				clean_up(rec, fields_count);
+				clean_schema(&hd.sch_d);
+				destroy_hasht(&ht);
+				return 1;
+			}
+			Record_f *rec_old = read_file(fd_data, file_path);
+
+			if (!rec_old)
+			{
+				printf("no memory for record.\n");
+				free(files[0]), free(files[1]), free(files);
+				free(buffer), free(buf_t), free(buf_v);
+				close_file(2, fd_index, fd_data);
+				clean_up(rec, fields_count);
+				clean_schema(&hd.sch_d);
+				destroy_hasht(&ht);
+				return 1;
+			}
+
+			off_t updated_rec_pos = get_update_offset(fd_data);
+
+			if (updated_rec_pos == -1)
+			{
+				perror("error reading update record position (main.c l 467).\n");
+				free(files[0]), free(files[1]), free(files);
+				free(buffer), free(buf_t), free(buf_v);
+				close_file(2, fd_index, fd_data);
+				clean_up(rec, fields_count);
+				clean_schema(&hd.sch_d);
+				destroy_hasht(&ht);
+			}
+
+			unsigned char comp_rr = compare_old_rec_update_rec(rec_old, rec);
+			printf("comp_rr is %u.\n", comp_rr);
+			printf("update rec pos is %d.\n", updated_rec_pos);
+
+			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLD)
+			{
+				// simply write the new record to the file
+				//  1st set the position back to the record
+				find_record = find_record_position(fd_data, offset);
+				if (!write_file(fd_data, rec))
+				{
+					printf("could not write to %s", files[1]);
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_schema(&hd.sch_d);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, fields_count);
+					destroy_hasht(&ht);
+					return 1;
+				}
+
+				printf("record %s updated!\n", record_id);
+				free(files[0]), free(files[1]), free(files);
+				free(buffer), free(buf_t), free(buf_v);
+				close_file(2, fd_index, fd_data);
+				clean_schema(&hd.sch_d);
+				clean_up(rec, fields_count);
+				clean_up(rec_old, fields_count);
+				destroy_hasht(&ht);
+				return 0;
+			}
+
+			return 0;
+			// udate any fields presents in the old record,
+			// and move to the end of the file to write the other fields,
+			// come back to the record and update the EOF
+
+			// 3 - write the data that were not wrote to disk, at the end of the file and store
+			//     .the offset
+			//     .for example if the data on disk do not contain a specific field,
+			//     .write the new filed at
+			//     .the end of the file and save the offset in a variable.
+			// 4 - update the old record if needed, update the offset at the end with the offset from
+			//     .the previous file saved (EOF before that writing)
+			// 5 - read the current record size on file
+			//  -
+		}
+
+		if (!update && data_to_add)
+		{ /* append data to the specified file*/
+			printf("i real should not be here\n");
+			int fields_count = count_fields(data_to_add);
+
+			if (fields_count > MAX_FIELD_NR)
+			{
+				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+				free(files[0]), free(files[1]), free(files);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			char *buffer = strdup(data_to_add);
+			char *buf_t = strdup(data_to_add);
+			char *buf_v = strdup(data_to_add);
+
+			Record_f *rec = NULL;
+			Schema sch = {0, NULL, NULL};
+			Header_d hd = {0, 0, sch};
+
+			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
+														   fd_data, file_path, &rec, &hd);
+
+			if (check == SCHEMA_ERR || check == 0)
 			{
 
 				free(files[0]), free(files[1]), free(files);
@@ -459,36 +623,39 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			// check the header size
-			//	printf("header size is: %ld",compute_size_header(hd));
-			if (compute_size_header(hd) >= MAX_HD_SIZE)
-			{
-				printf("File definition is bigger than the limit.\n");
-				free(files[0]), free(files[1]), free(files);
-				free(buffer), free(buf_t), free(buf_v);
-				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
-				clean_up(rec, fields_count);
-				return 1;
-			}
+			if (check == SCHEMA_NW)
+			{ /*if the schema is new we update the header*/
+				// check the header size
+				// printf("header size is: %ld",compute_size_header(hd));
+				if (compute_size_header(hd) >= MAX_HD_SIZE)
+				{
+					printf("File definition is bigger than the limit.\n");
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					return 1;
+				}
 
-			if (begin_in_file(fd_data) == -1)
-			{
-				printf("failed to set file pointer (main.c l 279).\n");
-				free(files[0]), free(files[1]), free(files);
-				free(buffer), free(buf_t), free(buf_v);
-				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
-				clean_up(rec, fields_count);
-				return 1;
-			}
+				if (begin_in_file(fd_data) == -1)
+				{
+					printf("failed to set file pointer (main.c l 279).\n");
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					return 1;
+				}
 
-			if (!write_header(fd_data, &hd))
-			{
-				printf("failed to update the header.(main.c l 287)\n");
-				free(files[0]), free(files[1]), free(files);
-				free(buffer), free(buf_t), free(buf_v);
-				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
-				clean_up(rec, fields_count);
-				return 1;
+				if (!write_header(fd_data, &hd))
+				{
+					printf("failed to update the header.(main.c l 287)\n");
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					return 1;
+				}
 			}
 
 			clean_schema(&hd.sch_d);

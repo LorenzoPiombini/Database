@@ -6,5 +6,7 @@
 #define SCHEMA_EQ 3
 #define SCHEMA_NW 4
 #define SCHEMA_CT 5
+#define UPDATE_OLD 6 // you can overwrite the old record with no worries!
+#define UPDATE_NEW 7
 
 #endif

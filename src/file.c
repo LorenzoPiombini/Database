@@ -238,7 +238,7 @@ ssize_t compute_record_size(Record_f *rec)
 {
 	register unsigned char i = 0;
 	ssize_t sum = 0;
-	sum += sizeof(rec->fields_num) + sizeof(rec->fields[i].type);
+	sum += sizeof(rec->fields_num);
 
 	for (i = 0; i < rec->fields_num; i++)
 	{
@@ -254,7 +254,8 @@ ssize_t compute_record_size(Record_f *rec)
 			sum += sizeof(rec->fields[i].data.f);
 			break;
 		case TYPE_STRING:
-			sum += (strlen(rec->fields[i].data.s) * 2) + 1; // counting '\0'
+			// account for '/0' and the size of each size_t wrote for each string
+			sum += (strlen(rec->fields[i].data.s) * 2) + 1 + sizeof(size_t);
 			break;
 		case TYPE_BYTE:
 			sum += sizeof(rec->fields[i].data.b);
@@ -278,8 +279,6 @@ int write_file(int fd, Record_f *rec)
 		printf("cannot write to the file, unknown type(s).\n");
 		return 0;
 	}
-
-	size += sizeof(ssize_t);
 
 	if (write(fd, &size, sizeof(size)) == -1)
 	{
@@ -383,6 +382,7 @@ int write_file(int fd, Record_f *rec)
 			break;
 		}
 	}
+
 	off_t update_off_t = 0;
 	if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
 	{
@@ -406,19 +406,8 @@ ssize_t get_record_size(int fd)
 	return size;
 }
 
-off_t get_update_offset(int fd, off_t record_pos)
+off_t get_update_offset(int fd)
 {
-	ssize_t size = get_record_size(fd);
-	off_t move = size + record_pos;
-
-	off_t up_pos = lseek(fd, record_pos, SEEK_SET);
-
-	if (up_pos == -1)
-	{
-		perror("position update not found (file.c l 355).\n");
-		return up_pos;
-	}
-
 	off_t urec_pos = 0;
 	if (read(fd, &urec_pos, sizeof(urec_pos)) == -1)
 	{
