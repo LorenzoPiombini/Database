@@ -12,13 +12,13 @@ Record_f *create_record(char *file_name, int fields_num)
 
 	if (!rec)
 	{
-		perror("memmory allocation\n");
+		printf("memmory allocation, record.c l 11.\n");
 		return NULL;
 	}
 	rec->file_name = strdup(file_name);
 	if (!rec->file_name)
 	{
-		perror("memory allocation file_name\n");
+		printf("memory allocation file_name, record.c l 17.\n");
 		free(rec);
 		return NULL;
 	}
@@ -29,7 +29,7 @@ Record_f *create_record(char *file_name, int fields_num)
 
 	if (!rec->fields)
 	{
-		perror("Memory allocation fields");
+		printf("Memory allocation fields, record.c l 26.\n");
 		free(rec->file_name);
 		free(rec);
 	}
@@ -39,6 +39,7 @@ Record_f *create_record(char *file_name, int fields_num)
 
 void set_field(Record_f *rec, int index, char *field_name, ValueType type, char *value)
 {
+	//	printf("inside set_filed\n");
 	rec->fields[index].field_name = strdup(field_name);
 	rec->fields[index].type = type;
 

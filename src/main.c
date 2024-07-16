@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
 	{
 		return 1;
 	}
-	printf("%s\n", file_path);
+
 	if (new_file)
 	{
 		/*creates two name from the file_path  "str_op.h" */
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
 
 			// print_hash_table(ht);
 
-			if (!write_file(fd_data, rec))
+			if (!write_file(fd_data, rec, 0))
 			{
 				printf("error, could not write to the file %s\n", file_path);
 				clean_up(rec, fields_count);
@@ -424,7 +424,6 @@ int main(int argc, char *argv[])
 
 		if (update && data_to_add && key)
 		{
-			printf("updating the record . . .\n");
 			// 1 - check the schema with the one on file
 			int fields_count = count_fields(data_to_add);
 
@@ -443,7 +442,6 @@ int main(int argc, char *argv[])
 			Record_f *rec = NULL;
 			Schema sch = {0, NULL, NULL};
 			Header_d hd = {0, 0, sch};
-
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
 														   fd_data, file_path, &rec, &hd);
 
@@ -457,6 +455,7 @@ int main(int argc, char *argv[])
 
 				return 1;
 			}
+
 			// 2 - if schema is good load the record into memory and update the fields if any
 			// -- at this point you already checked the header, and you have an updated header,
 			//	an updated record in memory
@@ -516,6 +515,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
+			off_t update_p_position = get_file_offset(fd_data);
 			off_t updated_rec_pos = get_update_offset(fd_data);
 
 			if (updated_rec_pos == -1)
@@ -525,39 +525,173 @@ int main(int argc, char *argv[])
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				clean_up(rec, fields_count);
+				clean_up(rec_old, rec_old->fields_num);
 				clean_schema(&hd.sch_d);
 				destroy_hasht(&ht);
+				return 1;
 			}
+			// you have to check the value updated_rec_pos, if it is 0, is okay the way it is
+			// but if the records has been updated before, you need to load the full record
+			// and check it against the value the user wnat to update.
+			Record_f *new_rec = NULL;
+			unsigned char comp_rr = compare_old_rec_update_rec(rec_old, rec, &new_rec, file_path);
 
-			unsigned char comp_rr = compare_old_rec_update_rec(rec_old, rec);
-			printf("comp_rr is %u.\n", comp_rr);
-			printf("update rec pos is %d.\n", updated_rec_pos);
+			if (comp_rr == 0)
+			{
+				printf("could not compare the records for update. main.c l 497\n");
+				free(files[0]), free(files[1]), free(files);
+				free(buffer), free(buf_t), free(buf_v);
+				close_file(2, fd_index, fd_data);
+				clean_up(rec, fields_count);
+				clean_up(rec_old, rec_old->fields_num);
+				if (new_rec)
+				{
+					clean_up(new_rec, new_rec->fields_num);
+				}
+				clean_schema(&hd.sch_d);
+				destroy_hasht(&ht);
+				return 1;
+			}
 
 			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLD)
 			{
-				// simply write the new record to the file
-				//  1st set the position back to the record
+				// 1st set the position back to the record
 				find_record = find_record_position(fd_data, offset);
-				if (!write_file(fd_data, rec))
+
+				if (find_record == -1)
+				{
+					perror("error looking for record in file.\n");
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_schema(&hd.sch_d);
+					destroy_hasht(&ht);
+					return 1;
+				}
+
+				// simply write the new record to the file
+				if (!write_file(fd_data, rec, 0))
 				{
 					printf("could not write to %s", files[1]);
 					free(files[0]), free(files[1]), free(files);
 					free(buffer), free(buf_t), free(buf_v);
 					close_file(2, fd_index, fd_data);
-					clean_schema(&hd.sch_d);
 					clean_up(rec, fields_count);
-					clean_up(rec_old, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_schema(&hd.sch_d);
 					destroy_hasht(&ht);
 					return 1;
 				}
 
-				printf("record %s updated!\n", record_id);
+				printf("record %s updated!\n", key);
 				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				clean_schema(&hd.sch_d);
 				clean_up(rec, fields_count);
-				clean_up(rec_old, fields_count);
+				clean_up(rec_old, rec_old->fields_num);
+				destroy_hasht(&ht);
+				return 0;
+			}
+
+			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLDN)
+			{
+				// 1st set the position back to the record
+				find_record = find_record_position(fd_data, offset);
+
+				if (find_record == -1)
+				{
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_up(new_rec, new_rec->fields_num);
+					clean_schema(&hd.sch_d);
+					destroy_hasht(&ht);
+					return 1;
+				}
+
+				// update the old record :
+				if (!write_file(fd_data, rec_old, 0))
+				{
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_up(new_rec, new_rec->fields_num);
+					clean_schema(&hd.sch_d);
+					destroy_hasht(&ht);
+					return 1;
+				}
+
+				off_t eof = go_to_EOF(fd_data);
+				if (eof == -1)
+				{
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_up(new_rec, new_rec->fields_num);
+					clean_schema(&hd.sch_d);
+					destroy_hasht(&ht);
+					return 1;
+				}
+
+				if (!write_file(fd_data, new_rec, 0))
+				{
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_up(new_rec, new_rec->fields_num);
+					clean_schema(&hd.sch_d);
+					destroy_hasht(&ht);
+					return 1;
+				}
+				// set position to the update off_t value at the end of the od record
+				find_record = find_record_position(fd_data, update_p_position);
+
+				if (find_record == -1)
+				{
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_up(new_rec, new_rec->fields_num);
+					clean_schema(&hd.sch_d);
+					destroy_hasht(&ht);
+					return 1;
+				}
+
+				// write the off_t value position of the new part of the record
+				if (!write_file(fd_data, NULL, eof))
+				{
+					free(files[0]), free(files[1]), free(files);
+					free(buffer), free(buf_t), free(buf_v);
+					close_file(2, fd_index, fd_data);
+					clean_up(rec, fields_count);
+					clean_up(rec_old, rec_old->fields_num);
+					clean_up(new_rec, new_rec->fields_num);
+					clean_schema(&hd.sch_d);
+					destroy_hasht(&ht);
+					return 1;
+				}
+
+				printf("record %s updated!\n", key);
+				free(files[0]), free(files[1]), free(files);
+				free(buffer), free(buf_t), free(buf_v);
+				close_file(2, fd_index, fd_data);
+				clean_up(rec, fields_count);
+				clean_up(rec_old, rec_old->fields_num);
+				clean_up(new_rec, new_rec->fields_num);
+				clean_schema(&hd.sch_d);
 				destroy_hasht(&ht);
 				return 0;
 			}
@@ -683,7 +817,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			if (!write_file(fd_data, rec))
+			if (!write_file(fd_data, rec, 0))
 			{
 				printf("could not write to %s", files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -775,12 +909,121 @@ int main(int argc, char *argv[])
 				printf("no memory for record.\n");
 				free(files[0]), free(files[1]), free(files);
 				destroy_hasht(&ht);
+				close_file(2, fd_data, fd_index);
+				return 1;
+			}
+			off_t offt_rec_up_pos = get_file_offset(fd_data);
+			off_t update_rec_pos = get_update_offset(fd_data);
+			if (update_rec_pos == -1)
+			{
+				free(files[0]), free(files[1]), free(files);
+				destroy_hasht(&ht);
+				clean_up(rec, rec->fields_num);
+				close_file(2, fd_data, fd_index);
 				return 1;
 			}
 
-			print_record(rec);
+			int counter = 1;
+			Record_f **recs = NULL;
 
-			clean_up(rec, rec->fields_num);
+			if (update_rec_pos > 0)
+			{
+				off_t cp_urc = update_rec_pos;
+				recs = calloc(counter, sizeof(Record_f *));
+				if (!recs)
+				{
+					printf("no memory for Record_f** recs, main.c l 868.\n");
+					free(files[0]), free(files[1]), free(files);
+					destroy_hasht(&ht);
+					clean_up(rec, rec->fields_num);
+					close_file(2, fd_data, fd_index);
+					return 1;
+				}
+
+				recs[0] = rec;
+
+				// set the file pointer back to update_rec_pos (we need to read it)
+				//  again for the reading process to be successful
+				find_record = find_record_position(fd_data, offt_rec_up_pos);
+
+				while ((update_rec_pos = get_update_offset(fd_data)) > 0)
+				{
+					counter++;
+
+					recs = realloc(recs, counter * sizeof(Record_f *));
+
+					if (!recs)
+					{
+						printf("no memory for realloc record array, main.c l 871.\n");
+						free(files[0]), free(files[1]), free(files);
+						destroy_hasht(&ht);
+						int i = 0;
+						for (i = 0; i < counter; i++)
+						{
+							if (recs[i])
+								clean_up(recs[i], recs[i]->fields_num);
+						}
+						free(recs);
+						close_file(2, fd_data, fd_index);
+						return 1;
+					}
+
+					find_record = find_record_position(fd_data, update_rec_pos);
+
+					if (find_record == -1)
+					{
+						perror("error looking for updated record position main.c l 870.\n");
+						free(files[0]), free(files[1]), free(files);
+						destroy_hasht(&ht);
+						int i = 0;
+						for (i = 0; i < counter; i++)
+						{
+							if (recs[i])
+								clean_up(recs[i], recs[i]->fields_num);
+						}
+						free(recs);
+						close_file(2, fd_index, fd_data);
+						return 1;
+					}
+
+					Record_f *rec_n = read_file(fd_data, file_path);
+
+					if (!rec_n)
+					{
+						printf("no memory for updated record, main.c l 903.\n");
+						free(files[0]), free(files[1]), free(files);
+						destroy_hasht(&ht);
+						int i = 0;
+						for (i = 0; i < counter; i++)
+						{
+							if (recs[i])
+								clean_up(recs[i], recs[i]->fields_num);
+						}
+						free(recs);
+						close_file(2, fd_data, fd_index);
+						return 1;
+					}
+
+					recs[counter - 1] = rec_n;
+				}
+			}
+			if (counter == 1)
+			{
+				print_record(1, &rec);
+				clean_up(rec, rec->fields_num);
+			}
+			else
+			{
+				print_record(counter, recs);
+				int i = 0;
+				for (i = 0; i < counter; i++)
+				{
+					if (recs[i])
+						clean_up(recs[i], recs[i]->fields_num);
+				}
+				free(recs);
+			}
+
 			destroy_hasht(&ht);
 		}
 

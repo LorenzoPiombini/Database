@@ -328,7 +328,7 @@ int read_header(int fd, Header_d *hd)
 	}
 
 	id = ntohl(id); /*changing the bytes to host endianess*/
-	printf("id is %x\n", id);
+	// printf("id is %x\n",id);
 	if (id != HEADER_ID_SYS)
 	{
 		printf("this is not a db file.\n");
@@ -469,7 +469,7 @@ unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d 
 	/*sorting the name and type arrays  */
 	if (hd.sch_d.fields_num > 1)
 	{
-		quick_sort(types_i, 1, hd.sch_d.fields_num - 1);
+		quick_sort(types_i, 0, hd.sch_d.fields_num - 1);
 		quick_sort(types_cp, 0, hd.sch_d.fields_num - 1);
 		quick_sort_str(names, 0, hd.sch_d.fields_num - 1);
 		quick_sort_str(copy_sch, 0, hd.sch_d.fields_num - 1);
@@ -478,11 +478,11 @@ unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d 
 	register unsigned char j = 0;
 	for (i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++)
 	{
-		//      printf("%s == %s\n",copy_sch[i],names[j]);
+		// printf("%s == %s\n",copy_sch[i],names[j]);
 		if (strcmp(copy_sch[i], names[j]) == 0)
 			fields_eq++;
 
-		//	printf("%d == %d\n",types_cp[i], types_i[j]);
+		// printf("%d == %d\n",types_cp[i], types_i[j]);
 		if (types_cp[i] == types_i[j])
 			types_eq++;
 	}
@@ -523,6 +523,7 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 
 	if (hd.sch_d.fields_num == fields_n)
 	{
+		//	printf("the fields are == to the schema asper qty.\n");
 		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
 		switch (ck_rst)
 		{
@@ -769,6 +770,7 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 
 	if (!read_header(fd_data, hd))
 	{
+		printf("can`t read the header, parse.c l 770.\n");
 		return 0;
 	}
 
@@ -807,52 +809,140 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 	return 1;
 }
 
-unsigned char compare_old_rec_with_schema(Record_f *rec_old, Header_d *hd)
+unsigned char compare_old_rec_update_rec(Record_f *rec_old, Record_f *rec, Record_f **new_rec, char *file_path)
 {
-	unsigned char i = 0, j = 0, field_c = 0, type_c = 0;
+	unsigned char i = 0, j = 0;
 
-	if (rec_old->fields_num == hd->sch_d.fields_num)
-	{
-		for (i = 0; i < hd->sch_d.fields_num; i++)
-		{
-			for (j = 0; j < hd->sch_d.fields_num; j++)
-			{
-				if (strcmp(rec_old->fields[i].field_name, hd->sch_d.fields_name[j]) == 0)
-				{
-					field_c++;
-				}
-
-				if (rec_old->fields[i].type == hd->sch_d.types[j])
-					type_c++;
-			}
-
-			if (field_c == hd->sch_d.fields_num && field_c == hd->sch_d.fields_num)
-			{
-				return SCHEMA_EQ;
-			}
-		}
-	}
-
-	char **names = calloc(rec_old->fields_num, sizeof(char *));
-	if (!names)
-	{
-		printf("no memory for char** in compare old record to schema:\n\t-(parse.c l 833).\n");
-		return 0;
-	}
-
-	ValueType *types_i = calloc(rec_old->fields_num, sizeof(ValueType));
-	if (!types_i)
-	{
-		printf("no memory for ValueType* in compare old record to schema:\n\t-(parse.c l 837).\n");
-		return 0;
-	}
-	// populate the two callocs with the datas on the old record.
-}
-
-unsigned char compare_old_rec_update_rec(Record_f *old_rec, Record_f *update_rec)
-{
-	if (old_rec->fields_num == update_rec->fields_num)
+	if (rec_old->fields_num == rec->fields_num)
 		return UPDATE_OLD;
 
-	return 0;
+	if (rec_old->fields_num < rec->fields_num)
+	{
+		int elements = rec->fields_num - rec_old->fields_num;
+		char **names = calloc(elements, sizeof(char *));
+
+		*new_rec = create_record(file_path, elements);
+		if (!*new_rec)
+		{
+			printf("no memory for new record update parse.c l 822");
+			return 0;
+		}
+
+		if (!names)
+		{
+			printf("calloc failed at parse.c l 822.\n");
+			return 0;
+		}
+
+		ValueType *types_i = calloc(elements, sizeof(ValueType));
+
+		if (!types_i)
+		{
+			printf("calloc failed at parse.c l 827.\n");
+			free(names);
+			return 0;
+		}
+
+		char **values = calloc(elements, sizeof(char *));
+		if (!values)
+		{
+			printf("calloc failed at parse.c l 827.\n");
+			free(names);
+			free(types_i);
+			return 0;
+		}
+
+		for (i = 0; i < rec_old->fields_num; i++)
+		{
+			if (strcmp(rec_old->fields[i].field_name, rec->fields[i].field_name) == 0)
+			{
+				switch (rec_old->fields[i].type)
+				{
+				case TYPE_INT:
+					rec_old->fields[i].data.i = rec->fields[i].data.i;
+					break;
+				case TYPE_LONG:
+					rec_old->fields[i].data.l = rec->fields[i].data.l;
+					break;
+				case TYPE_FLOAT:
+					rec_old->fields[i].data.f = rec->fields[i].data.f;
+					break;
+				case TYPE_STRING:
+					// free memory before allocating other memory
+					if (rec_old->fields[i].data.s != NULL)
+					{
+						free(rec_old->fields[i].data.s);
+						rec_old->fields[i].data.s = NULL;
+					}
+					rec_old->fields[i].data.s = strdup(rec->fields[i].data.s);
+					break;
+				case TYPE_BYTE:
+					rec_old->fields[i].data.b = rec->fields[i].data.b;
+					break;
+				case TYPE_DOUBLE:
+					rec_old->fields[i].data.d = rec->fields[i].data.d;
+					break;
+				default:
+					printf("invalid type! type -> %d.", rec->fields[i].type);
+					return 0;
+				}
+			}
+		}
+
+		for (i = 0, j = 0; i < rec->fields_num; i++)
+		{
+			if (i < rec_old->fields_num)
+				continue;
+
+			names[j] = strdup(rec->fields[i].field_name);
+			//	printf("%s\n",names[i]);
+			types_i[j] = rec->fields[i].type;
+			char buffer[64];
+
+			switch (rec->fields[i].type)
+			{
+			case TYPE_INT:
+				snprintf(buffer, sizeof(buffer), "%d", rec->fields[i].data.i);
+				values[j] = strdup(buffer);
+				break;
+			case TYPE_LONG:
+				snprintf(buffer, sizeof(buffer), "%ld", rec->fields[i].data.l);
+				values[j] = strdup(buffer);
+				break;
+			case TYPE_FLOAT:
+				snprintf(buffer, sizeof(buffer), "%f", rec->fields[i].data.f);
+				values[j] = strdup(buffer);
+				break;
+			case TYPE_STRING:
+				values[j] = strdup(rec->fields[i].data.s);
+				break;
+			case TYPE_BYTE:
+				snprintf(buffer, sizeof(buffer), "%u", rec->fields[i].data.b);
+				values[j] = strdup(buffer);
+				break;
+			case TYPE_DOUBLE:
+				snprintf(buffer, sizeof(buffer), "%lf", rec->fields[i].data.d);
+				values[j] = strdup(buffer);
+				break;
+			default:
+				printf("invalid type! type -> %d.", rec->fields[i].type);
+				return 0;
+			}
+			j++;
+			// printf("%s\n",values[j-1]);
+		}
+		// printf("before setting fields in the new rec.\n");
+		for (i = 0; i < elements; i++)
+		{
+			set_field(*new_rec, i, names[i], types_i[i], values[i]);
+		}
+
+		for (i = 0; i < elements; i++)
+		{
+			free(names[i]);
+			free(values[i]);
+		}
+		free(names), free(types_i), free(values);
+		return UPDATE_OLDN;
+	}
 }
