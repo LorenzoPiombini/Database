@@ -70,7 +70,14 @@ your-project-folder:
 
 ``````
 
-if you do not have the folder **bin** and **obj** you have to creat them.
+when you clone or download this repo, you do not have the folders **bin** and **obj**, you have to create them:
+
+``````plaintext
+[isam.db-C-language-main]$ mkdir bin obj
+``````
+
+This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on Centos Stream Release 9.
+it has not been tested on Windows or MacOS and other Linux distros bisides the ones mentioned above.
 
 ```plaintext
 -$ make clean
@@ -109,9 +116,6 @@ gcc -c src/str_op.c -o obj/str_op.o -Iinclude -g
 gcc -o bin/isam.db obj/debug.o obj/file.o obj/hash_tbl.o obj/input.o obj/lock.o obj/main.o obj/parse.o obj/record.o obj/sort.o obj/str_op.o
 
 ``````
-
-This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on Centos Stream Release 9.
-it has not been tested on Windows or MacOS and other Linux distros bisides the ones mentioned above.
 
 now you have the program is compiled and we can run it.
 
