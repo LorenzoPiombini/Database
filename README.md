@@ -14,7 +14,7 @@ To get started, you can either clone the repository or download the files direct
 ## Makefile rules
 
 - **default**: will build the source c files and create the executable isam.db.  
-- **test**: will execute the follwing tests
+- **test**:
       - create new file and provide data to it.
       - checks for memory leaks when creating a new file with data.
       - create new file with no data.
@@ -22,12 +22,13 @@ To get started, you can either clone the repository or download the files direct
       - adding the correct data to an existing file.
       - adding partial but correct data to an existing file.
       - deleting data from an existing file
-- **clean**: will delete the follwing:
-      - all the files created.
-      - any core files dumped for debugging.
-      - all the objects created and the binary executable isam.db
-      - the commands created by the install rule, GET and LIST
-- **install**: will create two commands to help you browsing the files in the db:
+- **clean**:
+      - delete all the files created.
+      - delete all core files dumped for debugging.
+      - delete all the objects created and the binary executable isam.db
+      - delete the commands created by the install rule, GET and LIST
+- **install**:
+- creates the follwing commands:
       - GET expects two arguments *file name* and the *record identifier* (key)
         - this command will fetch the specified record *(if found)* and will display it
         - if you execute GET with no arguments will display the usage instruction.
