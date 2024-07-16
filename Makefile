@@ -50,7 +50,7 @@ $(BINDIR)/GET:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
-		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \
+		echo "/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \
 		chmod +x $@; \
 	fi
 $(BINDIR)/LIST:
@@ -63,7 +63,7 @@ $(BINDIR)/LIST:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
-		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -lf \"\$$1\"" >> $@; \
+		echo "/put/your/target/full/path/here/$(TARGET) -lf \"\$$1\"" >> $@; \
 		chmod +x $@; \
 	fi
 
