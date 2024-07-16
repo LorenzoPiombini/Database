@@ -110,9 +110,8 @@ gcc -o bin/isam.db obj/debug.o obj/file.o obj/hash_tbl.o obj/input.o obj/lock.o 
 
 ``````
 
-create the folder **obj** and **bin** if you haven't done it yet
-
-This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, it has not been tested on Windows or MacOS and other Linux distros.
+This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on Centos Stream Release 9.
+it has not been tested on Windows or MacOS and other Linux distros bisides the ones mentioned above.
 
 now you have the program is compiled and we can run it.
 
