@@ -11,7 +11,24 @@ This ISAM database program enables dynamic creation of file definitions at runti
 
 To get started, you can either clone the repository or download the files directly to your machine.
 
-the Make file has some test case commented out, you can delete the # and try them out, when you run
+## Makefile rules
+
+- **default**: will build the source c files and create the executable isam.db.  
+- **test**: will execute the follwing tests
+            - create new file and provide data to it.
+            - checks for memory leaks when creating a new file with data.
+            - create new file with no data.
+            - adding the wrong data to an existing file.
+            - adding the correct data to an existing file.
+            - adding partial but correct data to an existing file.
+            - deleting data from an existing file
+- **clean**: will delete the follwing:
+            - all the files created.
+            - any core files dumped for debugging.
+            - all the objects created and the binary executable isam.db
+            - the commands created by the install rule, GET and LIST
+- **install**: will create two commands to help you browsing the files in the db:
+            - GET expects two arguments *file name* and the *record identifier* (key)
 
 ```plaintext
 -$ make clean
