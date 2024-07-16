@@ -36,6 +36,42 @@ To get started, you can either clone the repository or download the files direct
     - this command will display the file definition for the specified file.
     - if you execute LIST with no arguments will display the usage instruction.
 
+you need root privilege to run the install and clean rules.
+
+organize your project structure as shown below:
+
+``````plaintext
+your-project-folder:
+  |__\bin
+  |__\include
+  |    |_______common.h
+  |    |_______debug.h
+  |    |_______file.h
+  |    |_______hash_tbl.h
+  |    |_______input.h
+  |    |_______lock.h
+  |    |_______ parse.h
+  |    |_______record.h
+  |    |_______sort.h
+  |    |_______str_op.h
+  |__\Makefile
+  |__\obj
+  |__\src
+     |_______debug.c
+     |_______ file.c
+     |_______ hash_tbl.c
+     |_______ input.c
+     |_______lock.c
+     |_______main.c
+     |_______parse.c
+     |_______record.c
+     |_______sort.c
+     |_______str_op.c
+
+``````
+
+if you do not have the folder **bin** and **obj** you have to creat them.
+
 ```plaintext
 -$ make clean
 ```
@@ -60,7 +96,7 @@ project-$ make
 output:
 
 ``````plaintext
-cc -c src/debug.c -o obj/debug.o -Iinclude -g
+gcc -c src/debug.c -o obj/debug.o -Iinclude -g
 gcc -c src/file.c -o obj/file.o -Iinclude -g
 gcc -c src/hash_tbl.c -o obj/hash_tbl.o -Iinclude -g
 gcc -c src/input.c -o obj/input.o -Iinclude -g
@@ -71,38 +107,6 @@ gcc -c src/record.c -o obj/record.o -Iinclude -g
 gcc -c src/sort.c -o obj/sort.o -Iinclude -g
 gcc -c src/str_op.c -o obj/str_op.o -Iinclude -g
 gcc -o bin/isam.db obj/debug.o obj/file.o obj/hash_tbl.o obj/input.o obj/lock.o obj/main.o obj/parse.o obj/record.o obj/sort.o obj/str_op.o
-
-``````
-
-keep in mind that your project structure should be like this:
-
-``````plaintext
-.
-\bin
-\include
-  |_______common.h
-  |_______debug.h
-  |_______file.h
-  |_______hash_tbl.h
-  |_______input.h
-  |_______lock.h
-  |_______ parse.h
-  |_______record.h
-  |_______sort.h
-  |_______str_op.h
-\Makefile
-\obj
-\src
-  |_______debug.c
-  |_______ file.c
-  |_______ hash_tbl.c
-  |_______ input.c
-  |_______lock.c
-  |_______main.c
-  |_______ parse.c
-  |_______record.c
-  |_______sort.c
-  |_______str_op.c
 
 ``````
 
