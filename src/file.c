@@ -18,11 +18,11 @@ int open_file(char *fileName, int use_trunc)
 
 	if (!use_trunc)
 	{
-		fd = open(fileName, O_RDWR, S_IRWXU);
+		fd = open(fileName, O_RDWR | O_NOFOLLOW, S_IRWXU);
 	}
 	else
 	{
-		fd = open(fileName, O_WRONLY | O_TRUNC, S_IRWXU);
+		fd = open(fileName, O_WRONLY | O_TRUNC | O_NOFOLLOW, S_IRWXU);
 	}
 
 	if (fd == -1)
@@ -37,7 +37,7 @@ int open_file(char *fileName, int use_trunc)
 
 int create_file(char *fileName)
 {
-	int fd = open(fileName, O_RDONLY);
+	int fd = open(fileName, O_RDONLY | O_NOFOLLOW);
 	if (fd != -1)
 	{
 		printf("File already exist.\n");
@@ -45,7 +45,7 @@ int create_file(char *fileName)
 		return -1;
 	}
 
-	fd = open(fileName, O_RDWR | O_CREAT, S_IRWXU);
+	fd = open(fileName, O_RDWR | O_CREAT | O_NOFOLLOW, S_IRWXU);
 
 	if (fd == -1)
 	{
@@ -271,123 +271,136 @@ ssize_t compute_record_size(Record_f *rec)
 	return sum;
 }
 
-int write_file(int fd, Record_f *rec)
+int write_file(int fd, Record_f *rec, off_t update_off_t)
 {
-	ssize_t size = compute_record_size(rec);
-	if (size == -1)
-	{
-		printf("cannot write to the file, unknown type(s).\n");
-		return 0;
-	}
 
-	if (write(fd, &size, sizeof(size)) == -1)
+	if (update_off_t == 0)
 	{
-		perror("write size of record to file");
-		return 0;
-	}
 
-	if (write(fd, &rec->fields_num, sizeof(rec->fields_num)) < 0)
-	{
-		perror("could not write fields number");
-		return 0;
-	}
-
-	register unsigned char i = 0;
-	size_t lt = 0;
-	size_t buff_update = 0;
-	char *buff_w = NULL;
-	for (i = 0; i < rec->fields_num; i++)
-	{
-		size_t l = strlen(rec->fields[i].field_name);
-		if (write(fd, &l, sizeof(l)) < 0)
+		ssize_t size = compute_record_size(rec);
+		if (size == -1)
 		{
-			perror("write size name");
+			printf("cannot write to the file, unknown type(s).\n");
 			return 0;
 		}
 
-		if (write(fd, rec->fields[i].field_name, l) < 0)
+		if (write(fd, &size, sizeof(size)) == -1)
 		{
-			perror("write field name");
+			perror("write size of record to file");
 			return 0;
 		}
 
-		if (write(fd, &rec->fields[i].type, sizeof(rec->fields[i].type)) < 0)
+		if (write(fd, &rec->fields_num, sizeof(rec->fields_num)) < 0)
 		{
-			perror("could not write fields type");
+			perror("could not write fields number");
 			return 0;
 		}
 
-		switch (rec->fields[i].type)
+		register unsigned char i = 0;
+		size_t lt = 0;
+		size_t buff_update = 0;
+		char *buff_w = NULL;
+		for (i = 0; i < rec->fields_num; i++)
 		{
-		case TYPE_INT:
-			if (write(fd, &rec->fields[i].data.i, sizeof(rec->fields[i].data.i)) < 0)
+			size_t l = strlen(rec->fields[i].field_name);
+			if (write(fd, &l, sizeof(l)) < 0)
 			{
-				perror("error in writing int type to file.\n");
-				return 0;
-			}
-			break;
-		case TYPE_LONG:
-			if (write(fd, &rec->fields[i].data.l, sizeof(rec->fields[i].data.l)) < 0)
-			{
-				perror("error in writing long type to file.\n");
-				return 0;
-			}
-			break;
-		case TYPE_FLOAT:
-			if (write(fd, &rec->fields[i].data.f, sizeof(rec->fields[i].data.f)) < 0)
-			{
-				perror("error in writing float type.\n");
-				return 0;
-			}
-			break;
-		case TYPE_STRING:
-			lt = strlen(rec->fields[i].data.s) + 1;
-			buff_update = (strlen(rec->fields[i].data.s) * 2) + 1;
-			buff_w = calloc(buff_update, sizeof(char));
-
-			if (!buff_w)
-			{
-				printf("calloc failed, (file.c l 289).\n");
+				perror("write size name");
 				return 0;
 			}
 
-			strncpy(buff_w, rec->fields[i].data.s, lt - 1);
-
-			if (write(fd, &lt, sizeof(lt)) < 0 ||
-				write(fd, &buff_update, sizeof(buff_update)) < 0 ||
-				write(fd, buff_w, buff_update) < 0)
+			if (write(fd, rec->fields[i].field_name, l) < 0)
 			{
-
-				perror("error in writing type string (char *)file.\n");
+				perror("write field name");
 				return 0;
 			}
 
-			free(buff_w);
-			break;
-		case TYPE_BYTE:
-			if (write(fd, &rec->fields[i].data.b, sizeof(rec->fields[i].data.b)) < 0)
+			if (write(fd, &rec->fields[i].type, sizeof(rec->fields[i].type)) < 0)
 			{
-				perror("error in writing type byte to file.\n");
+				perror("could not write fields type");
 				return 0;
 			}
-			break;
-		case TYPE_DOUBLE:
-			if (write(fd, &rec->fields[i].data.d, sizeof(rec->fields[i].data.d)) < 0)
+
+			switch (rec->fields[i].type)
 			{
-				perror("error in writing double to file.\n");
-				return 0;
+			case TYPE_INT:
+				if (write(fd, &rec->fields[i].data.i, sizeof(rec->fields[i].data.i)) < 0)
+				{
+					perror("error in writing int type to file.\n");
+					return 0;
+				}
+				break;
+			case TYPE_LONG:
+				if (write(fd, &rec->fields[i].data.l, sizeof(rec->fields[i].data.l)) < 0)
+				{
+					perror("error in writing long type to file.\n");
+					return 0;
+				}
+				break;
+			case TYPE_FLOAT:
+				if (write(fd, &rec->fields[i].data.f, sizeof(rec->fields[i].data.f)) < 0)
+				{
+					perror("error in writing float type.\n");
+					return 0;
+				}
+				break;
+			case TYPE_STRING:
+				lt = strlen(rec->fields[i].data.s) + 1;
+				buff_update = (strlen(rec->fields[i].data.s) * 2) + 1;
+				buff_w = calloc(buff_update, sizeof(char));
+
+				if (!buff_w)
+				{
+					printf("calloc failed, (file.c l 289).\n");
+					return 0;
+				}
+
+				strncpy(buff_w, rec->fields[i].data.s, lt - 1);
+
+				if (write(fd, &lt, sizeof(lt)) < 0 ||
+					write(fd, &buff_update, sizeof(buff_update)) < 0 ||
+					write(fd, buff_w, buff_update) < 0)
+				{
+
+					perror("error in writing type string (char *)file.\n");
+					return 0;
+				}
+
+				free(buff_w);
+				break;
+			case TYPE_BYTE:
+				if (write(fd, &rec->fields[i].data.b, sizeof(rec->fields[i].data.b)) < 0)
+				{
+					perror("error in writing type byte to file.\n");
+					return 0;
+				}
+				break;
+			case TYPE_DOUBLE:
+				if (write(fd, &rec->fields[i].data.d, sizeof(rec->fields[i].data.d)) < 0)
+				{
+					perror("error in writing double to file.\n");
+					return 0;
+				}
+				break;
+			default:
+				break;
 			}
-			break;
-		default:
-			break;
+		}
+
+		if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
+		{
+			perror("writing off_t for future update");
+			return 0;
 		}
 	}
-
-	off_t update_off_t = 0;
-	if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
+	else
 	{
-		perror("writing off_t for future update");
-		return 0;
+
+		if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
+		{
+			perror("writing off_t for future update");
+			return 0;
+		}
 	}
 
 	return 1; // write to file succssed!
