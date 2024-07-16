@@ -15,27 +15,27 @@ To get started, you can either clone the repository or download the files direct
 
 - **default**: will build the source c files and create the executable isam.db.  
 - **test**:
-      - create new file and provide data to it.
-      - checks for memory leaks when creating a new file with data.
-      - create new file with no data.
-      - adding the wrong data to an existing file
-      - adding the correct data to an existing file.
-      - adding partial but correct data to an existing file.
-      - deleting data from an existing file
+  - create new file and provide data to it.
+  - checks for memory leaks when creating a new file with data.
+  - create new file with no data.
+  - adding the wrong data to an existing file
+  - adding the correct data to an existing file.
+  - adding partial but correct data to an existing file.
+  - deleting data from an existing file
 - **clean**:
-      - delete all the files created.
-      - delete all core files dumped for debugging.
-      - delete all the objects created and the binary executable isam.db
-      - delete the commands created by the install rule, GET and LIST
+  - delete all the files created.
+  - delete all core files dumped for debugging.
+  - delete all the objects created and the binary executable isam.db
+  - delete the commands created by the install rule, GET and LIST
 - **install**:
 - creates the follwing commands:
-      - GET expects two arguments *file name* and the *record identifier* (key)
-        - this command will fetch the specified record *(if found)* and will display it
-        - if you execute GET with no arguments will display the usage instruction.
-      - LIST expects one argument *file name*
-        - this command will display the file definition for the specified file.
-        - if you execute LIST with no arguments will display the usage instruction.
-  
+  - GET expects two arguments *file name* and the *record identifier* (key).
+    - this command will fetch the specified record *(if found)* and will display it.
+    - if you execute GET with no arguments will display the usage instruction.
+  - LIST expects one argument *file name*.
+    - this command will display the file definition for the specified file.
+    - if you execute LIST with no arguments will display the usage instruction.
+
 ```plaintext
 -$ make clean
 ```
