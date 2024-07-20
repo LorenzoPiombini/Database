@@ -73,3 +73,19 @@ void quick_sort_str(char **array, int left_index, int right_index)
 	quick_sort_str(array, left_index, pivot_index - 1);
 	quick_sort_str(array, pivot_index + 1, right_index);
 }
+
+void selection_sort(int *array, int left, int right)
+{
+	int i = 0, j = 0;
+	for (i = left; i < right; i++)
+	{
+		int min = i;
+		for (j = i + 1; j <= right; j++)
+			if (array[j] < array[min])
+				min = j;
+
+		int temp = array[min];
+		array[min] = array[i];
+		array[i] = temp;
+	}
+}

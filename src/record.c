@@ -32,6 +32,7 @@ Record_f *create_record(char *file_name, int fields_num)
 		printf("Memory allocation fields, record.c l 26.\n");
 		free(rec->file_name);
 		free(rec);
+		return NULL;
 	}
 
 	return rec;

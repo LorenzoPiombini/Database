@@ -3,6 +3,15 @@
 #include "debug.h"
 #include "record.h"
 
+void loop_str_arr(char **str, int len)
+{
+
+        int i = 0;
+        for (i = 0; i < len; i++)
+                printf("%s, ", str[i]);
+
+        printf("\n");
+}
 void print_record(int count, Record_f **recs)
 {
 
@@ -112,7 +121,7 @@ size_t compute_size_header(Header_d hd)
         sum += sizeof(hd.id_n) + sizeof(hd.version) + sizeof(hd.sch_d.fields_num) + sizeof(hd.sch_d);
         int i = 0;
 
-        for (i; i < hd.sch_d.fields_num; i++)
+        for (i = 0; i < hd.sch_d.fields_num; i++)
         {
                 if (hd.sch_d.fields_name[i])
                 {

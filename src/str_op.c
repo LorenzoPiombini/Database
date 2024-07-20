@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "str_op.h"
 #include "record.h"
 #include "parse.h"
@@ -107,12 +108,22 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 		perror("memory");
 		return NULL;
 	}
-
 	char *cp_fv = fields_name;
 
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count)
 	{
-		names_f[j] = s;
+		names_f[j] = strdup(s);
+		if (!names_f[j])
+		{
+			perror("error duplicating token, str_op.c l 92\n");
+			while (j-- > 0)
+			{
+				free(names_f[j]);
+			}
+			free(names_f);
+			return NULL;
+		}
+
 		if ((strlen(names_f[j]) > MAX_FIELD_LT))
 		{
 			printf("%s, this fields is longer than the system limit! max %d per field name.\n",
@@ -124,12 +135,16 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 
 		strtok_r(NULL, ":", &cp_fv);
 
-		if (steps == 3)
+		if (steps == 3 && j < fields_count)
 			strtok_r(NULL, ":", &cp_fv);
 	}
 
 	if (oversized_f)
 	{
+		int i = 0;
+		for (i = 0; i < fields_count; i++)
+			if (names_f[i])
+				free(names_f[i]);
 		free(names_f);
 		return NULL;
 	}
@@ -198,7 +213,12 @@ char **get_values(char *fields_input, int fields_count)
 
 	if (s)
 	{
-		values[j] = s;
+		values[j] = strdup(s);
+		if (!values[j])
+		{
+			free(values);
+			return NULL;
+		}
 		i++;
 	}
 	else
@@ -211,13 +231,42 @@ char **get_values(char *fields_input, int fields_count)
 	while ((s = strtok_r(NULL, ":", &cp_fv)) != NULL)
 	{
 		if ((i % 3 == 0) && (fields_count - j >= 1))
-			j++, values[j] = s;
+			j++, values[j] = strdup(s);
 
+		if (!values[j])
+		{
+			while (j-- > 0)
+			{
+				free(values[j]);
+			}
+			free(values);
+			return NULL;
+		}
 		i++;
 		s = NULL;
 	}
 
 	return values;
+}
+
+void free_strs(int fields_num, int count, ...)
+{
+	int i = 0, j = 0;
+	va_list args;
+	va_start(args, count);
+
+	for (i = 0; i < count; i++)
+	{
+		char **str = va_arg(args, char **);
+		for (j = 0; j < fields_num; j++)
+		{
+			if (str[j])
+			{
+				free(str[j]);
+			}
+		}
+		free(str);
+	}
 }
 
 int is_file_name_valid(char *str)

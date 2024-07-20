@@ -13,16 +13,19 @@
 Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char *buf_t, char *buf_v, Schema *sch, int check_sch)
 {
 
-	Record_f *rec = create_record(file_path, fields_num);
-
-	if (!rec)
+	Record_f *rec = NULL;
+	if (check_sch != SCHEMA_CT)
 	{
-		printf("unable to create the record");
-		return NULL;
+		rec = create_record(file_path, fields_num);
+
+		if (!rec)
+		{
+			printf("unable to create the record");
+			return NULL;
+		}
 	}
 
 	char **names = get_fileds_name(buffer, fields_num, 3);
-
 	if (!names)
 	{
 		printf("Error in getting the fields name.\n");
@@ -36,7 +39,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!sch_names)
 		{
 			printf("no memory for Schema fileds name.");
-			free(rec), free(names);
+			clean_up(rec, fields_num);
+			free_strs(fields_num, 1, names);
 			return NULL;
 		}
 		sch->fields_num = (unsigned short)fields_num;
@@ -50,7 +54,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 			if (!sch->fields_name[j])
 			{
 				printf("strdup failed, schema creation field.\n");
-				free(names), free(rec);
+				clean_up(rec, fields_num);
+				free_strs(fields_num, 1, names);
 				return NULL;
 			}
 		}
@@ -61,8 +66,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	if (!types_i)
 	{
 		printf("Error in getting the fields types");
-		free(names);
-		free(rec);
+		clean_up(rec, fields_num);
+		free_strs(fields_num, 1, names);
 		return NULL;
 	}
 
@@ -73,7 +78,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!sch_types)
 		{
 			printf("No memory for schema types.\n");
-			free(names), free(rec), free(types_i);
+			clean_up(rec, fields_num);
+			free_strs(fields_num, 1, names);
 			return NULL;
 		}
 
@@ -90,8 +96,9 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	if (!values)
 	{
 		printf("Error in getting the fields value");
-		free(names), free(types_i);
-		free(rec);
+		free(types_i);
+		clean_up(rec, fields_num);
+		free_strs(fields_num, 1, names);
 		return NULL;
 	}
 
@@ -102,8 +109,9 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	if (!reorder_rtl)
 	{
 		printf("failed to reorder like header schema.(parse.c l 91)\n");
-		free(names), free(types_i);
-		free(rec), free(values);
+		free(types_i);
+		clean_up(rec, fields_num);
+		free_strs(fields_num, 2, names, values);
 		return NULL;
 	}
 
@@ -114,8 +122,9 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!reorder_rtl)
 		{
 			printf("failed to reorder like header schema.(parse.c l 101)\n");
-			free(names), free(types_i);
-			free(rec), free(values);
+			free(types_i);
+			clean_up(rec, fields_num);
+			free_strs(fields_num, 2, names, values);
 			return NULL;
 		}
 
@@ -124,8 +133,9 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!temp_name)
 		{ /*do not free sch->fields_name */
 			printf("can`t perform realloc. (parse.c l 138).\n");
-			free(rec), free(values);
-			free(names), free(types_i);
+			free(types_i);
+			clean_up(rec, fields_num);
+			free_strs(fields_num, 2, names, values);
 			return NULL;
 		}
 
@@ -134,8 +144,9 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		if (!types_n)
 		{ /*do not free sch->fields_name */
 			printf("can't perform realloc. (parse.c l 146)");
-			free(names), free(types_i);
-			free(rec), free(values);
+			free(types_i);
+			clean_up(rec, fields_num);
+			free_strs(fields_num, 2, names, values);
 			return NULL;
 		}
 
@@ -161,24 +172,73 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (check_sch == SCHEMA_CT)
 	{
-		reorder_rtl = sort_input_like_header_schema(check_sch, fields_num, sch, names, values, types_i);
-
-		if (!reorder_rtl)
+		Record_f *temp = create_record(file_path, sch->fields_num);
+		if (!temp)
 		{
-			printf("failed to reorder like header schema.(parse.c l 148)\n");
-			free(names), free(types_i);
-			free(rec), free(values);
+			printf("no memory for temp record parse.c l 174.\n");
+			clean_up(rec, fields_num);
 			return NULL;
 		}
+		register unsigned char i = 0, j = 0, found = 0;
+		for (i = 0; i < sch->fields_num; i++)
+		{
+			found = 0;
+			for (j = 0; j < fields_num; j++)
+			{
+				if (strcmp(sch->fields_name[i], names[j]) == 0)
+				{
+					//	printf("before set_field: %s, %s ,\n",names[j],values[j]);
+					set_field(temp, i, names[j], types_i[j], values[j]);
+					//	printf("after set_field: %s, %s ,\n",names[j],values[j]);
+					found++;
+				}
+			}
+			char *number = "0";
+			char *fp = "0.0";
+			char *str = "null";
+			if (found == 0)
+			{
+				switch (sch->types[i])
+				{
+				case TYPE_INT:
+				case TYPE_LONG:
+				case TYPE_BYTE:
+					set_field(temp, i, sch->fields_name[i], sch->types[i], number);
+					break;
+				case TYPE_STRING:
+					set_field(temp, i, sch->fields_name[i], sch->types[i], str);
+					break;
+				case TYPE_FLOAT:
+				case TYPE_DOUBLE:
+					set_field(temp, i, sch->fields_name[i], sch->types[i], fp);
+					break;
+				default:
+					printf("type no supported! %d.\n", sch->types[i]);
+					free(types_i);
+					free_strs(fields_num, 2, names, values);
+					clean_up(temp, sch->fields_num);
+					return NULL;
+				}
+			}
+		}
+
+		// printf("after set_field: %s, %s ,\n",names[0],values[0]);
+		free(types_i);
+		free_strs(fields_num, 2, names, values);
+		return temp;
 	}
-	register unsigned char i = 0;
-	for (i = 0; i < fields_num; i++)
+	else
 	{
-		set_field(rec, i, names[i], types_i[i], values[i]);
+
+		register unsigned char i = 0;
+		for (i = 0; i < fields_num; i++)
+		{
+			set_field(rec, i, names[i], types_i[i], values[i]);
+		}
 	}
 
-	free(types_i), free(names), free(values);
-
+	free(types_i);
+	free_strs(fields_num, 2, names, values);
 	return rec;
 }
 
@@ -453,7 +513,6 @@ unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d 
 	if (!copy_sch)
 	{
 		printf("could not perform calloc (parse.c l 366).\n");
-		free(names), free(types_i);
 		return 0;
 	}
 
@@ -508,7 +567,8 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	if (!types_i)
 	{
 		printf("could not get types from input(parse.c l 287).\n");
-		free(names_cs), free(types_cs);
+		free(names_cs);
+		free(types_cs);
 		return 0;
 	}
 
@@ -528,35 +588,42 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 		switch (ck_rst)
 		{
 		case SCHEMA_ERR:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return SCHEMA_ERR;
 		case SCHEMA_EQ:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return SCHEMA_EQ;
 		default:
 			printf("check on Schema failed.\n");
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
+			free(types_cs);
 			return 0;
 		}
 	}
 	else if (hd.sch_d.fields_num < fields_n)
 	{ /* case where the header needs to be updated */
-
 		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
 
 		switch (ck_rst)
 		{
 		case SCHEMA_ERR:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return SCHEMA_ERR;
 		case SCHEMA_EQ:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return SCHEMA_NW;
 		default:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return 0;
 		}
@@ -572,22 +639,26 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 		switch (ck_rst)
 		{
 		case SCHEMA_ERR:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return SCHEMA_ERR;
 		case SCHEMA_CT:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return SCHEMA_CT;
 		default:
-			free(names), free(types_i), free(names_cs);
+			free_strs(fields_n, 1, names);
+			free(types_i), free(names_cs);
 			free(types_cs);
 			return 0;
 		}
 	}
 
 	// this is unreachable
-	free(names), free(types_i), free(names_cs);
+	free_strs(fields_n, 1, names);
+	free(types_i), free(names_cs);
 	free(types_cs);
 	return 1;
 }
@@ -614,7 +685,7 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 
 	if (!temp_val)
 	{
-		printf("could not perform calloc,(parse.c l 469).\n");
+		printf("could not perform calloc,(parse.c l 612).\n");
 		return 0;
 	}
 
@@ -622,7 +693,7 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 
 	if (!temp_name)
 	{
-		printf("could not perform calloc, (parse.c l 477).\n");
+		printf("could not perform calloc, (parse.c l 620).\n");
 		free(temp_val);
 		return 0;
 	}
@@ -649,35 +720,28 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 
 unsigned char ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int fields_num)
 {
-
+	// printf("fields are %d",fields_num);
 	register unsigned char i = 0, j = 0;
 	int found_f = 0, found_t = 0;
 
 	for (i = 0; i < fields_num; i++)
 	{
-		found_t = 0;
 		for (j = 0; j < hd.sch_d.fields_num; j++)
 		{
-			// printf("%s == %s\n",names[i],hd.sch_d.fields_name[j]);
+			//		 printf("%s == %s\n",names[i],hd.sch_d.fields_name[j]);
 			if (strcmp(names[i], hd.sch_d.fields_name[j]) == 0)
+			{
 				found_f++;
-
-			// printf("%d == %d\n",types_i[i], hd.sch_d.types[j]);
-			if (found_t < fields_num)
-			{
-				if (types_i[i] == hd.sch_d.types[j])
-					found_t++;
-			}
-
-			if (found_t == 0)
-			{
-				printf("Schema different than file definition.\n");
-				return SCHEMA_ERR;
+				//		 printf("%d == %d\n",types_i[i], hd.sch_d.types[j]);
+				if (types_i[i] != hd.sch_d.types[j])
+				{
+					printf("Schema different than file definition.\n");
+					return SCHEMA_ERR;
+				}
 			}
 		}
 	}
-
-	if (found_f == fields_num && found_t == fields_num)
+	if (found_f == fields_num)
 	{
 		return SCHEMA_CT;
 	}
@@ -699,12 +763,11 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 
 	if (sch)
 	{
-
 		char **sch_names = calloc(fields_num, sizeof(char *));
 		if (!sch_names)
 		{
 			printf("no memory for Schema fileds name.");
-			free(names);
+			free_strs(fields_num, 1, names);
 			return 0;
 		}
 		sch->fields_name = sch_names;
@@ -722,7 +785,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 				{
 					printf("strdup failed, schema creation field.\n");
 					clean_schema(sch);
-					free(names);
+					free_strs(fields_num, 1, names);
 					return 0;
 				}
 			}
@@ -734,7 +797,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	if (!types_i)
 	{
 		printf("Error in getting the fields types");
-		free(names);
+		free_strs(fields_num, 1, names);
 		clean_schema(sch);
 		return 0;
 	}
@@ -747,7 +810,8 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		{
 			printf("No memory for schema types.\n");
 			clean_schema(sch);
-			free(names), free(types_i);
+			free_strs(fields_num, 1, names);
+			free(types_i);
 		}
 
 		sch->types = sch_types;
@@ -758,7 +822,8 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		}
 	}
 
-	free(names), free(types_i);
+	free_strs(fields_num, 1, names);
+	free(types_i);
 	return 1; // scheam creation succssed
 }
 
@@ -809,17 +874,128 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 	return 1;
 }
 
-unsigned char compare_old_rec_update_rec(Record_f *rec_old, Record_f *rec, Record_f **new_rec, char *file_path)
+unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Record_f **new_rec,
+										 char *file_path, unsigned char check, char *buffer, int fields_num)
 {
 	unsigned char i = 0, j = 0;
 
-	if (rec_old->fields_num == rec->fields_num)
-		return UPDATE_OLD;
-
-	if (rec_old->fields_num < rec->fields_num)
+	char **names = get_fileds_name(buffer, fields_num, 3);
+	if (!names)
 	{
-		int elements = rec->fields_num - rec_old->fields_num;
-		char **names = calloc(elements, sizeof(char *));
+		printf("no memory for names, parse.c l 864.\n");
+		return 0;
+	}
+
+	if (check == SCHEMA_CT)
+	{
+		for (i = 0; i < fields_num; i++)
+		{
+			for (j = 0; j < (*rec_old)->fields_num; j++)
+			{
+				if (strcmp(names[i], (*rec_old)->fields[j].field_name) == 0)
+				{
+					switch (rec->fields[j].type)
+					{
+					case TYPE_INT:
+						if ((*rec_old)->fields[j].data.i != rec->fields[j].data.i)
+							(*rec_old)->fields[j].data.i = rec->fields[j].data.i;
+						break;
+					case TYPE_LONG:
+						if ((*rec_old)->fields[j].data.l != rec->fields[j].data.l)
+							(*rec_old)->fields[j].data.l = rec->fields[j].data.l;
+
+						break;
+					case TYPE_FLOAT:
+						if ((*rec_old)->fields[j].data.f != rec->fields[j].data.f)
+							(*rec_old)->fields[j].data.f = rec->fields[j].data.f;
+						break;
+					case TYPE_STRING:
+						if (strcmp((*rec_old)->fields[j].data.s, rec->fields[j].data.s) != 0)
+						{
+							// free memory before allocating other memory
+							if ((*rec_old)->fields[j].data.s != NULL)
+							{
+								free((*rec_old)->fields[j].data.s);
+								(*rec_old)->fields[j].data.s = NULL;
+							}
+							(*rec_old)->fields[j].data.s = strdup(rec->fields[j].data.s);
+						}
+						break;
+					case TYPE_BYTE:
+						if ((*rec_old)->fields[j].data.b != rec->fields[j].data.b)
+							(*rec_old)->fields[j].data.b = rec->fields[j].data.b;
+						break;
+					case TYPE_DOUBLE:
+						if ((*rec_old)->fields[j].data.d != rec->fields[j].data.d)
+							(*rec_old)->fields[j].data.d = rec->fields[j].data.d;
+						break;
+					default:
+						printf("invalid type! type -> %d.", rec->fields[j].type);
+						return 0;
+					}
+				}
+			}
+		}
+
+		free_strs(fields_num, 1, names);
+		return UPDATE_OLD;
+	}
+
+	if ((*rec_old)->fields_num == rec->fields_num)
+	{
+		for (i = 0; i < (*rec_old)->fields_num; i++)
+		{
+			for (j = 0; j < (*rec_old)->fields_num; j++)
+			{
+				if (strcmp((*rec_old)->fields[i].field_name, rec->fields[j].field_name) == 0)
+				{
+					switch ((*rec_old)->fields[i].type)
+					{
+					case TYPE_INT:
+						if ((*rec_old)->fields[i].data.i != rec->fields[i].data.i)
+							(*rec_old)->fields[i].data.i = rec->fields[i].data.i;
+						break;
+					case TYPE_LONG:
+						if ((*rec_old)->fields[i].data.l != rec->fields[i].data.l)
+							(*rec_old)->fields[i].data.l = rec->fields[i].data.l;
+						break;
+					case TYPE_FLOAT:
+						if ((*rec_old)->fields[i].data.f != rec->fields[i].data.f)
+							(*rec_old)->fields[i].data.f = rec->fields[i].data.f;
+						break;
+					case TYPE_STRING:
+						if (strcmp((*rec_old)->fields[i].data.s, rec->fields[i].data.s) != 0)
+						{
+							// free memory before allocating other memory
+							if ((*rec_old)->fields[i].data.s != NULL)
+							{
+								free((*rec_old)->fields[i].data.s);
+								(*rec_old)->fields[i].data.s = NULL;
+							}
+							(*rec_old)->fields[i].data.s = strdup(rec->fields[i].data.s);
+						}
+						break;
+					case TYPE_BYTE:
+						if ((*rec_old)->fields[i].data.b != rec->fields[i].data.b)
+							(*rec_old)->fields[i].data.b = rec->fields[i].data.b;
+						break;
+					case TYPE_DOUBLE:
+						if ((*rec_old)->fields[i].data.d != rec->fields[i].data.d)
+							(*rec_old)->fields[i].data.d = rec->fields[i].data.d;
+						break;
+					default:
+						printf("invalid type! type -> %d.", rec->fields[i].type);
+						return 0;
+					}
+				}
+			}
+		}
+		return UPDATE_OLD;
+	}
+
+	if ((*rec_old)->fields_num < rec->fields_num)
+	{
+		int elements = rec->fields_num - (*rec_old)->fields_num;
 
 		*new_rec = create_record(file_path, elements);
 		if (!*new_rec)
@@ -828,9 +1004,10 @@ unsigned char compare_old_rec_update_rec(Record_f *rec_old, Record_f *rec, Recor
 			return 0;
 		}
 
+		char **names = calloc(elements, sizeof(char *));
 		if (!names)
 		{
-			printf("calloc failed at parse.c l 822.\n");
+			printf("calloc failed at parse.c l 875.\n");
 			return 0;
 		}
 
@@ -838,8 +1015,8 @@ unsigned char compare_old_rec_update_rec(Record_f *rec_old, Record_f *rec, Recor
 
 		if (!types_i)
 		{
-			printf("calloc failed at parse.c l 827.\n");
-			free(names);
+			printf("calloc failed at parse.c l 881.\n");
+			free_strs(elements, 1, names);
 			return 0;
 		}
 
@@ -847,40 +1024,41 @@ unsigned char compare_old_rec_update_rec(Record_f *rec_old, Record_f *rec, Recor
 		if (!values)
 		{
 			printf("calloc failed at parse.c l 827.\n");
-			free(names);
+			free_strs(elements, 1, names);
 			free(types_i);
 			return 0;
 		}
 
-		for (i = 0; i < rec_old->fields_num; i++)
+		for (i = 0; i < (*rec_old)->fields_num; i++)
 		{
-			if (strcmp(rec_old->fields[i].field_name, rec->fields[i].field_name) == 0)
+			if (strcmp((*rec_old)->fields[i].field_name, rec->fields[i].field_name) == 0)
 			{
-				switch (rec_old->fields[i].type)
+				switch ((*rec_old)->fields[i].type)
 				{
 				case TYPE_INT:
-					rec_old->fields[i].data.i = rec->fields[i].data.i;
+					(*rec_old)->fields[i].data.i = rec->fields[i].data.i;
 					break;
 				case TYPE_LONG:
-					rec_old->fields[i].data.l = rec->fields[i].data.l;
+					(*rec_old)->fields[i].data.l = rec->fields[i].data.l;
 					break;
 				case TYPE_FLOAT:
-					rec_old->fields[i].data.f = rec->fields[i].data.f;
+					(*rec_old)->fields[i].data.f = rec->fields[i].data.f;
 					break;
 				case TYPE_STRING:
 					// free memory before allocating other memory
-					if (rec_old->fields[i].data.s != NULL)
+					if ((*rec_old)->fields[i].data.s != NULL)
 					{
-						free(rec_old->fields[i].data.s);
-						rec_old->fields[i].data.s = NULL;
+						free((*rec_old)->fields[i].data.s);
+						(*rec_old)->fields[i].data.s = NULL;
+
+						(*rec_old)->fields[i].data.s = strdup(rec->fields[i].data.s);
 					}
-					rec_old->fields[i].data.s = strdup(rec->fields[i].data.s);
 					break;
 				case TYPE_BYTE:
-					rec_old->fields[i].data.b = rec->fields[i].data.b;
+					(*rec_old)->fields[i].data.b = rec->fields[i].data.b;
 					break;
 				case TYPE_DOUBLE:
-					rec_old->fields[i].data.d = rec->fields[i].data.d;
+					(*rec_old)->fields[i].data.d = rec->fields[i].data.d;
 					break;
 				default:
 					printf("invalid type! type -> %d.", rec->fields[i].type);
@@ -891,7 +1069,7 @@ unsigned char compare_old_rec_update_rec(Record_f *rec_old, Record_f *rec, Recor
 
 		for (i = 0, j = 0; i < rec->fields_num; i++)
 		{
-			if (i < rec_old->fields_num)
+			if (i < (*rec_old)->fields_num)
 				continue;
 
 			names[j] = strdup(rec->fields[i].field_name);
@@ -937,12 +1115,83 @@ unsigned char compare_old_rec_update_rec(Record_f *rec_old, Record_f *rec, Recor
 			set_field(*new_rec, i, names[i], types_i[i], values[i]);
 		}
 
-		for (i = 0; i < elements; i++)
-		{
-			free(names[i]);
-			free(values[i]);
-		}
-		free(names), free(types_i), free(values);
+		free_strs(elements, 2, names, values);
+		free(types_i);
 		return UPDATE_OLDN;
+	}
+	return 0;
+}
+void find_fields_to_update(Record_f ***recs_old, char *positions, Record_f *rec, int index)
+{
+	int i = 0, j = 0, x = 0;
+	for (i = 0; i < index; i++)
+	{
+		if (positions[i] != 'y')
+			positions[i] = 'n';
+
+		for (j = 0; j < (*recs_old[i])->fields_num; j++)
+		{
+			for (x = 0; x < rec->fields_num; x++)
+			{
+				if (strcmp(rec->fields[x].field_name, (*recs_old[i])->fields[j].field_name) == 0)
+				{
+					switch (rec->fields[x].type)
+					{
+					case TYPE_INT:
+						if ((*recs_old[i])->fields[j].data.i != rec->fields[x].data.i)
+						{
+							(*recs_old[i])->fields[j].data.i = rec->fields[x].data.i;
+							positions[i] = 'y';
+						}
+						break;
+					case TYPE_LONG:
+						if ((*recs_old[i])->fields[j].data.l != rec->fields[x].data.l)
+						{
+							(*recs_old[i])->fields[j].data.l = rec->fields[x].data.l;
+							positions[i] = 'y';
+						}
+						break;
+					case TYPE_FLOAT:
+						if ((*recs_old[i])->fields[j].data.f != rec->fields[x].data.f)
+						{
+							(*recs_old[i])->fields[j].data.f = rec->fields[x].data.f;
+							positions[i] = 'y';
+						}
+						break;
+					case TYPE_STRING:
+						if (strcmp((*recs_old[i])->fields[j].data.s,
+								   rec->fields[x].data.s) != 0)
+						{
+							if ((*recs_old[i])->fields[j].data.s != NULL)
+							{
+								free((*recs_old[i])->fields[j].data.s);
+								(*recs_old[i])->fields[j].data.s = NULL;
+							}
+							(*recs_old[i])->fields[j].data.s = strdup(rec->fields[x].data.s);
+							positions[i] = 'y';
+						}
+						break;
+					case TYPE_BYTE:
+						if ((*recs_old[i])->fields[j].data.b != rec->fields[x].data.b)
+						{
+							(*recs_old[i])->fields[j].data.b = rec->fields[x].data.b;
+							positions[i] = 'y';
+						}
+						break;
+					case TYPE_DOUBLE:
+						if ((*recs_old[i])->fields[j].data.d != rec->fields[x].data.d)
+						{
+							(*recs_old[i])->fields[j].data.d = rec->fields[x].data.d;
+							positions[i] = 'y';
+						}
+						break;
+					default:
+						printf("no matching type\n");
+						positions[0] = '0';
+						return;
+					}
+				}
+			}
+		}
 	}
 }
