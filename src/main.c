@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
 	unsigned char del = 0;
 	unsigned char update = 0;
 	unsigned char list_def = 0;
+	unsigned char del_file = 0;
 
 	/*------------------------------------------*/
 	int c = 0;
@@ -38,7 +39,7 @@ int main(int argc, char *argv[])
 	char *key = NULL;
 	char *schema_def = NULL;
 
-	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:ul")) != -1)
+	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:ule")) != -1)
 	{
 		switch (c)
 		{
@@ -74,6 +75,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'l':
 			list_def = 1;
+			break;
+		case 'e':
+			del_file = 1;
 			break;
 		default:
 			printf("Unknow option -%c\n", c);
@@ -387,6 +391,15 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
+		if (del_file)
+		{ /*delete file */
+			delete_file(2, files[0], files[1]);
+			printf("file %s, deleted", file_path);
+			free(files[0]), free(files[1]), free(files);
+			close_file(2, fd_index, fd_data);
+			return 0;
+		}
+
 		if (del)
 		{ /* delete the record specified by the -D option, in the index file*/
 			HashTable ht = {0, NULL, write_ht};
@@ -569,7 +582,6 @@ int main(int argc, char *argv[])
 			{
 				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 				free(buffer), free(buf_t), free(buf_v);
-				clean_up(rec, rec->fields_num);
 				return 1;
 			}
 
@@ -619,7 +631,7 @@ int main(int argc, char *argv[])
 			if (!read_index_file(fd_index, &ht))
 			{
 				printf("index file reading failed.\n");
-				close_file(2, fd_index, fd_data);
+				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				return 1;
 			}
@@ -629,7 +641,7 @@ int main(int argc, char *argv[])
 			if (offset == -1)
 			{
 				printf("record not found.\n");
-				close_file(2, fd_index, fd_data);
+				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				destroy_hasht(&ht);
 				return 1;
@@ -642,7 +654,7 @@ int main(int argc, char *argv[])
 			if (find_record == -1)
 			{
 				perror("error looking for record in file.\n");
-				close_file(2, fd_index, fd_data);
+				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				return 1;
 			}
@@ -651,7 +663,7 @@ int main(int argc, char *argv[])
 			if (!rec_old)
 			{
 				printf("no memory for record.\n");
-				close_file(2, fd_index, fd_data);
+				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				return 1;
 			}
@@ -662,7 +674,7 @@ int main(int argc, char *argv[])
 			if (updated_rec_pos == -1)
 			{
 				perror("error reading update record position (main.c l 467).\n");
-				close_file(2, fd_index, fd_data);
+				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				clean_up(rec_old, rec_old->fields_num);
 				return 1;
@@ -670,13 +682,13 @@ int main(int argc, char *argv[])
 
 			Record_f **recs_old = NULL;
 			off_t *pos_u = NULL;
-
+			printf("the other piece of the record is at %ld\n", updated_rec_pos);
 			if (updated_rec_pos > 0)
 			{
 				int index = 2;
 				int pos_i = 2;
 				recs_old = calloc(index, sizeof(Record_f *));
-
+				free(buffer);
 				if (!recs_old)
 				{
 					printf("calloc faild main.c l 535 Record_f**, update file.\n");
@@ -745,6 +757,7 @@ int main(int argc, char *argv[])
 					}
 					return 1;
 				}
+
 				recs_old[0] = rec_old;
 				recs_old[1] = rec_old_s;
 
@@ -819,17 +832,35 @@ int main(int argc, char *argv[])
 
 				char *positions = calloc(index, sizeof(char));
 
+				if (!positions)
+				{
+					printf("calloc failed for position char array, mian.c l 754.\n");
+					close_file(2, fd_index, fd_data);
+					free(pos_u);
+					clean_up(rec, rec->fields_num);
+					if (recs_old)
+					{
+						int i = 0;
+						for (i = 0; i < index; i++)
+						{
+							clean_up(recs_old[i], recs_old[i]->fields_num);
+						}
+						free(recs_old);
+					}
+					return 1;
+				}
 				/* this function check all records from the file
 				   against the new record seeting the values that we have to update
 				   and populate the char array positions, if an element contain 'y'
 				   you have to update the record at that index position. */
-				find_fields_to_update(&recs_old, positions, rec, index);
+
+				find_fields_to_update(recs_old, positions, rec, index);
 
 				if (positions[0] != 'n' && positions[0] != 'y')
 				{
 					printf("check on fields failed, update, main.c l 633.\n");
 					close_file(2, fd_index, fd_data);
-					free(pos_u);
+					free(pos_u), free(positions);
 					clean_up(rec, rec->fields_num);
 					if (recs_old)
 					{
@@ -849,13 +880,14 @@ int main(int argc, char *argv[])
 				{
 					if (positions[i] == 'n')
 						continue;
-
+					printf("position on file is %ld", pos_u[i]);
 					if (find_record_position(fd_data, pos_u[i]) == -1)
 					{
-						printf("error file pointer, update, main.c l 656.\n");
+						printf("error file pointer, update, main.c l 785.\n");
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						clean_up(rec, rec->fields_num);
+						free(positions);
 						if (recs_old)
 						{
 							int i = 0;
@@ -872,11 +904,12 @@ int main(int argc, char *argv[])
 					if ((index - i) > 1)
 						right_update_pos = pos_u[i + 1];
 
-					if (!write_file(fd_index, recs_old[i], pos_u[i], update))
+					if (!write_file(fd_data, recs_old[i], right_update_pos, update))
 					{
-						printf("error write file, update, main.c l 675.\n");
+						printf("error write file, update, main.c l 820.\n");
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
+						free(positions);
 						clean_up(rec, rec->fields_num);
 						if (recs_old)
 						{
@@ -894,6 +927,7 @@ int main(int argc, char *argv[])
 				printf("record %s updated!\n", key);
 				close_file(2, fd_index, fd_data);
 				free(pos_u);
+				free(positions);
 				clean_up(rec, rec->fields_num);
 				if (recs_old)
 				{
@@ -957,6 +991,7 @@ int main(int argc, char *argv[])
 				return 0;
 			}
 
+			/*updating the record but we need to write some data in another place in the file*/
 			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLDN)
 			{
 				// get EOF position (update record position)
@@ -976,7 +1011,7 @@ int main(int argc, char *argv[])
 
 				if (find_record == -1)
 				{
-					printf("can't find record, main.c l 648.\n");
+					printf("can't find record, main.c l 918.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -987,7 +1022,7 @@ int main(int argc, char *argv[])
 				// update the old record :
 				if (!write_file(fd_data, rec_old, eof, update))
 				{
-					printf("can't write record, main.c l 661.\n");
+					printf("can't write record, main.c l 931.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -997,6 +1032,7 @@ int main(int argc, char *argv[])
 
 				// set position at EOF
 				eof = go_to_EOF(fd_data);
+				printf("eof is %ld\n", eof);
 				if (eof == -1)
 				{
 					printf("error file pointer, main.c l 673.\n");
@@ -1007,9 +1043,9 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 
-				if (!write_file(fd_data, new_rec, 0, update))
-				{
-					printf("can't write record, main.c l 683.\n");
+				if (!write_file(fd_data, new_rec, 0, 0))
+				{ /*passing update as 0 becuase is a "new_rec"*/
+					printf("can't write record, main.c l 933.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);

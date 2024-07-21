@@ -879,15 +879,14 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 {
 	unsigned char i = 0, j = 0;
 
-	char **names = get_fileds_name(buffer, fields_num, 3);
-	if (!names)
+	if (check == SCHEMA_CT && (*rec_old)->fields_num == rec->fields_num)
 	{
-		printf("no memory for names, parse.c l 864.\n");
-		return 0;
-	}
-
-	if (check == SCHEMA_CT)
-	{
+		char **names = get_fileds_name(buffer, fields_num, 3);
+		if (!names)
+		{
+			printf("no memory for names, parse.c l 864.\n");
+			return 0;
+		}
 		for (i = 0; i < fields_num; i++)
 		{
 			for (j = 0; j < (*rec_old)->fields_num; j++)
@@ -1036,29 +1035,40 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 				switch ((*rec_old)->fields[i].type)
 				{
 				case TYPE_INT:
-					(*rec_old)->fields[i].data.i = rec->fields[i].data.i;
+					if (rec->fields[i].data.i != 0)
+						(*rec_old)->fields[i].data.i = rec->fields[i].data.i;
+
 					break;
 				case TYPE_LONG:
-					(*rec_old)->fields[i].data.l = rec->fields[i].data.l;
+					if (rec->fields[i].data.l != 0)
+						(*rec_old)->fields[i].data.l = rec->fields[i].data.l;
+
 					break;
 				case TYPE_FLOAT:
-					(*rec_old)->fields[i].data.f = rec->fields[i].data.f;
+					if (rec->fields[i].data.f != 0.0)
+						(*rec_old)->fields[i].data.f = rec->fields[i].data.f;
+
 					break;
 				case TYPE_STRING:
-					// free memory before allocating other memory
-					if ((*rec_old)->fields[i].data.s != NULL)
+					if (strcmp(rec->fields[i].data.s, "null") != 0)
 					{
-						free((*rec_old)->fields[i].data.s);
-						(*rec_old)->fields[i].data.s = NULL;
+						// free memory before allocating other memory
+						if ((*rec_old)->fields[i].data.s != NULL)
+						{
+							free((*rec_old)->fields[i].data.s);
+							(*rec_old)->fields[i].data.s = NULL;
 
-						(*rec_old)->fields[i].data.s = strdup(rec->fields[i].data.s);
+							(*rec_old)->fields[i].data.s = strdup(rec->fields[i].data.s);
+						}
 					}
 					break;
 				case TYPE_BYTE:
-					(*rec_old)->fields[i].data.b = rec->fields[i].data.b;
+					if (rec->fields[i].data.b != 0)
+						(*rec_old)->fields[i].data.b = rec->fields[i].data.b;
 					break;
 				case TYPE_DOUBLE:
-					(*rec_old)->fields[i].data.d = rec->fields[i].data.d;
+					if (rec->fields[i].data.d != 0.0)
+						(*rec_old)->fields[i].data.d = rec->fields[i].data.d;
 					break;
 				default:
 					printf("invalid type! type -> %d.", rec->fields[i].type);
@@ -1121,7 +1131,7 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 	}
 	return 0;
 }
-void find_fields_to_update(Record_f ***recs_old, char *positions, Record_f *rec, int index)
+void find_fields_to_update(Record_f **recs_old, char *positions, Record_f *rec, int index)
 {
 	int i = 0, j = 0, x = 0;
 	for (i = 0; i < index; i++)
@@ -1129,60 +1139,79 @@ void find_fields_to_update(Record_f ***recs_old, char *positions, Record_f *rec,
 		if (positions[i] != 'y')
 			positions[i] = 'n';
 
-		for (j = 0; j < (*recs_old[i])->fields_num; j++)
+		for (j = 0; j < recs_old[i]->fields_num; j++)
 		{
 			for (x = 0; x < rec->fields_num; x++)
 			{
-				if (strcmp(rec->fields[x].field_name, (*recs_old[i])->fields[j].field_name) == 0)
+				if (strcmp(rec->fields[x].field_name, recs_old[i]->fields[j].field_name) == 0)
 				{
 					switch (rec->fields[x].type)
 					{
 					case TYPE_INT:
-						if ((*recs_old[i])->fields[j].data.i != rec->fields[x].data.i)
+						if (rec->fields[x].data.i != 0)
 						{
-							(*recs_old[i])->fields[j].data.i = rec->fields[x].data.i;
-							positions[i] = 'y';
+							if (recs_old[i]->fields[j].data.i != rec->fields[x].data.i)
+							{
+								recs_old[i]->fields[j].data.i = rec->fields[x].data.i;
+								positions[i] = 'y';
+							}
 						}
 						break;
 					case TYPE_LONG:
-						if ((*recs_old[i])->fields[j].data.l != rec->fields[x].data.l)
+						if (rec->fields[x].data.l != 0)
 						{
-							(*recs_old[i])->fields[j].data.l = rec->fields[x].data.l;
-							positions[i] = 'y';
+							if (recs_old[i]->fields[j].data.l != rec->fields[x].data.l)
+							{
+								recs_old[i]->fields[j].data.l = rec->fields[x].data.l;
+								positions[i] = 'y';
+							}
 						}
 						break;
 					case TYPE_FLOAT:
-						if ((*recs_old[i])->fields[j].data.f != rec->fields[x].data.f)
+						if (rec->fields[x].data.f != 0.0)
 						{
-							(*recs_old[i])->fields[j].data.f = rec->fields[x].data.f;
-							positions[i] = 'y';
+							if (recs_old[i]->fields[j].data.f != rec->fields[x].data.f)
+							{
+								recs_old[i]->fields[j].data.f = rec->fields[x].data.f;
+								positions[i] = 'y';
+							}
 						}
 						break;
 					case TYPE_STRING:
-						if (strcmp((*recs_old[i])->fields[j].data.s,
-								   rec->fields[x].data.s) != 0)
+						if (strcmp(rec->fields[x].data.s, "null") != 0)
 						{
-							if ((*recs_old[i])->fields[j].data.s != NULL)
+							if (strcmp(recs_old[i]->fields[j].data.s,
+									   rec->fields[x].data.s) != 0)
 							{
-								free((*recs_old[i])->fields[j].data.s);
-								(*recs_old[i])->fields[j].data.s = NULL;
+								if (recs_old[i]->fields[j].data.s != NULL)
+								{
+									free(recs_old[i]->fields[j].data.s);
+									recs_old[i]->fields[j].data.s = NULL;
+								}
+
+								recs_old[i]->fields[j].data.s = strdup(rec->fields[x].data.s);
+								positions[i] = 'y';
 							}
-							(*recs_old[i])->fields[j].data.s = strdup(rec->fields[x].data.s);
-							positions[i] = 'y';
 						}
 						break;
 					case TYPE_BYTE:
-						if ((*recs_old[i])->fields[j].data.b != rec->fields[x].data.b)
+						if (rec->fields[x].data.b != 0.0)
 						{
-							(*recs_old[i])->fields[j].data.b = rec->fields[x].data.b;
-							positions[i] = 'y';
+							if (recs_old[i]->fields[j].data.b != rec->fields[x].data.b)
+							{
+								recs_old[i]->fields[j].data.b = rec->fields[x].data.b;
+								positions[i] = 'y';
+							}
 						}
 						break;
 					case TYPE_DOUBLE:
-						if ((*recs_old[i])->fields[j].data.d != rec->fields[x].data.d)
+						if (rec->fields[x].data.d != 0.0)
 						{
-							(*recs_old[i])->fields[j].data.d = rec->fields[x].data.d;
-							positions[i] = 'y';
+							if (recs_old[i]->fields[j].data.d != rec->fields[x].data.d)
+							{
+								recs_old[i]->fields[j].data.d = rec->fields[x].data.d;
+								positions[i] = 'y';
+							}
 						}
 						break;
 					default:

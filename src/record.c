@@ -79,6 +79,9 @@ void set_field(Record_f *rec, int index, char *field_name, ValueType type, char 
 void clean_up(Record_f *rec, int fields_num)
 {
 	int i;
+	if (!rec)
+		return;
+
 	for (i = 0; i < fields_num; i++)
 	{
 		if (rec->fields[i].field_name)
