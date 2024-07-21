@@ -76,7 +76,11 @@ when you clone or download this repo, you do not have the folders **bin** and **
 [isam.db-C-language-main]$ mkdir bin obj
 ``````
 
-This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on Centos Stream Release 9 kernel v , Fedora 36 kernel v 5.11.17-300.fc34.aarch64.
+This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
+
+- **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
+- **Fedora 36** kernel: v 5.11.17-300.fc34.aarch64.
+
 it has not been tested on Windows or MacOS and other Linux distros bisides the ones mentioned above.
 
 ```plaintext
