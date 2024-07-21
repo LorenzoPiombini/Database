@@ -156,17 +156,19 @@ ________________________________________________________________________________
 the flag that you can provide as for now, are:
 
 ```plaintext
-         -a - add record to a file.
-         -n - create a new database file
-         -f - [required] path to file (file name)
-         -r - look for the record key provided in the specified file. 
-         -d - variables name and type <variableName>:TYPE_INT:12.
-         -D - delete the record  provided for specified file.
-         -R - define a file definition witout values.
-         -k - specify the record id, the program will save, retrice and delete the record based on this id.
-         -t - list of available types. this flag will exit the program.
-         -l - list the file definition specified with -f.
-         -u - update the file specified by -f .
+    -a - add record to a file.
+    -n - create a new database file
+    -f - [required] path to file (file name)
+    -r - look for the record key provided in the specified file. 
+    -d - variables name and type <variableName>:TYPE_INT:12.
+    -D - delete the record  provided for specified file.
+    -R - define a file definition witout values.
+    -k - specify the record id, the program will save, retrice and delete the record based on this id.
+    -t - list of available types. this flag will exit the program.
+    -l - list the file definition specified with -f.
+    -u - update the file specified by -f .
+    -e - delete the file specified by -f .
+
 ```
 
 now the  file is created, and the base definition would be made by 3 variables code, price and discount.
