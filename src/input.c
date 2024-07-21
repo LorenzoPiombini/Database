@@ -18,6 +18,7 @@ void print_usage(char *argv[])
         printf("\t -t - list of available types. this flag will exit the program.\n");
         printf("\t -l - list the file definition specified with -f.\n");
         printf("\t -u - update the file specified by -f .\n");
+        printf("\t -e - delete the file specified by -f .\n");
 }
 
 void print_types()
@@ -37,7 +38,7 @@ void print_types()
 }
 int check_input_and_values(char *file_path, char *data_to_add, char *fileds_and_type, char *key, char *argv[],
                            unsigned char del, unsigned char list_def, unsigned char new_file,
-                           unsigned char update)
+                           unsigned char update, unsigned char del_file)
 {
 
         if (!file_path)
@@ -68,6 +69,13 @@ int check_input_and_values(char *file_path, char *data_to_add, char *fileds_and_
         if (new_file && list_def)
         {
                 printf("option -l can`t be used on new file, or at file creation.\n\n");
+                print_usage(argv);
+                return 0;
+        }
+
+        if (del_file && (new_file || list_def || data_to_add || fileds_and_type || update || key))
+        {
+                printf("you cannot ise option -e with other options! Only -ef <fileName>.\n");
                 print_usage(argv);
                 return 0;
         }

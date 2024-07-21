@@ -20,8 +20,9 @@ int main(int argc, char *argv[])
 		print_usage(argv);
 		return 1;
 	}
-
+	/* file descriptors */
 	int fd_index = -1, fd_data = -1;
+
 	/*----------- bool values-------------------*/
 
 	unsigned char new_file = 0;
@@ -86,7 +87,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!check_input_and_values(file_path, data_to_add, fileds_and_type, key,
-								argv, del, list_def, new_file, update))
+								argv, del, list_def, new_file, update, del_file))
 	{
 		return 1;
 	}
@@ -100,9 +101,10 @@ int main(int argc, char *argv[])
 		fd_data = create_file(files[1]);
 
 		/* file_error_handler will close the file descriptors if there are issues */
+		/* -------------- and print error messages to the console ----------------*/
 		if (file_error_handler(2, fd_index, fd_data) != 0)
 		{
-			printf("Error in creating or opening the files\n");
+			printf("main.c l 86,87.\n");
 			free(files[0]), free(files[1]), free(files);
 			return 1;
 		}
@@ -113,7 +115,7 @@ int main(int argc, char *argv[])
 
 			if (fields_count > MAX_FIELD_NR)
 			{
-				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+				printf("Too many fields, max %d fields each file definition.\n", MAX_FIELD_NR);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -126,7 +128,7 @@ int main(int argc, char *argv[])
 			Schema sch = {fields_count, NULL, NULL};
 			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
 			{
-				printf("can't create file definition");
+				printf("can't create file definition main.c l 111.\n");
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -222,7 +224,7 @@ int main(int argc, char *argv[])
 
 			if (!rec)
 			{
-				printf("error creating the record");
+				printf("error creating the record, main.c l 201.\n");
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -234,6 +236,7 @@ int main(int argc, char *argv[])
 			//	print_schema(sch);
 			if (!create_header(&hd))
 			{
+				printf("main.c l 214.\n");
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
@@ -246,6 +249,7 @@ int main(int argc, char *argv[])
 			size_t hd_st = compute_size_header(hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
+				printf("File definition is bigger than the limit. main.c l 225\n");
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
@@ -256,6 +260,7 @@ int main(int argc, char *argv[])
 
 			if (!write_header(fd_data, &hd))
 			{
+				printf("can`t write header, main.c l 236.\n");
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -266,7 +271,7 @@ int main(int argc, char *argv[])
 
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
-				printf("padding failed!\n");
+				printf("padding failed. main.c l 244.\n");
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
@@ -288,7 +293,7 @@ int main(int argc, char *argv[])
 
 			if (!write_file(fd_data, rec, 0, update))
 			{
-				printf("error, could not write to the file %s\n", file_path);
+				printf("write to file %s failed, main.c l 266.\n", file_path);
 				clean_up(rec, fields_count);
 				free(buffer), free(buf_t), free(buf_v);
 				destroy_hasht(&ht);
@@ -300,7 +305,7 @@ int main(int argc, char *argv[])
 
 			if (!ht.write(fd_index, &ht))
 			{
-				printf("could not write the file.\n");
+				printf("write to index file failed, main.c l 278.\n");
 				clean_up(rec, fields_count);
 				free(buffer), free(buf_t), free(buf_v);
 				destroy_hasht(&ht);
@@ -330,7 +335,7 @@ int main(int argc, char *argv[])
 			size_t hd_st = compute_size_header(hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
-				printf("File definition is bigger than the limit.\n");
+				printf("File definition is bigger than the limit. main.c l 303\n");
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -339,6 +344,7 @@ int main(int argc, char *argv[])
 
 			if (!write_empty_header(fd_data, &hd))
 			{
+				printf("main.c l 313.\n");
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -347,7 +353,7 @@ int main(int argc, char *argv[])
 
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
-				printf("padding failed!\n");
+				printf("padding failed. main.c l 322.\n");
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -359,7 +365,7 @@ int main(int argc, char *argv[])
 
 			if (!ht.write(fd_index, &ht))
 			{
-				printf("could not write the file.\n");
+				printf("write to index file failed, main.c l 334.\n", file_path);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -386,7 +392,7 @@ int main(int argc, char *argv[])
 		/* file_error_handler will close the file descriptors if there are issues */
 		if (file_error_handler(2, fd_index, fd_data) != 0)
 		{
-			printf("Error in creating or opening the files\n");
+			printf("Error in creating or opening the files, main.c l 357,358.\n");
 			free(files[0]), free(files[1]), free(files);
 			return 1;
 		}
@@ -394,7 +400,7 @@ int main(int argc, char *argv[])
 		if (del_file)
 		{ /*delete file */
 			delete_file(2, files[0], files[1]);
-			printf("file %s, deleted", file_path);
+			printf("file %s, deleted.\n", file_path);
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
 			return 0;
@@ -422,7 +428,7 @@ int main(int argc, char *argv[])
 
 			if (!ht.write(fd_index, &ht))
 			{
-				printf("could not write index file.\n");
+				printf("could not write index file. main.c l 393.\n");
 				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
 				destroy_hasht(&ht);
@@ -467,7 +473,7 @@ int main(int argc, char *argv[])
 
 			if (!rec)
 			{
-				printf("error creating the record.\n");
+				printf("error creating the record. main.c l 425\n");
 				free(buffer), free(buf_t), free(buf_v);
 				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 				return 1;
@@ -488,7 +494,7 @@ int main(int argc, char *argv[])
 
 				if (begin_in_file(fd_data) == -1)
 				{
-					printf("failed to set file pointer (main.c l 279).\n");
+					printf("failed to set file pointer (main.c l 454).\n");
 					free(buffer), free(buf_t), free(buf_v);
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					clean_up(rec, fields_count);
@@ -497,7 +503,7 @@ int main(int argc, char *argv[])
 
 				if (!write_header(fd_data, &hd))
 				{
-					printf("failed to update the header.(main.c l 287)\n");
+					printf("failed to update the header.(main.c l 462)\n");
 					free(buffer), free(buf_t), free(buf_v);
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					clean_up(rec, fields_count);
@@ -510,7 +516,7 @@ int main(int argc, char *argv[])
 
 			if (eof == -1)
 			{
-				printf("could not reach EOF for %s.dat", file_path);
+				printf("could not reach EOF for %s.dat mian.c l 472", file_path);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				clean_up(rec, fields_count);
@@ -530,7 +536,7 @@ int main(int argc, char *argv[])
 
 			if (!write_file(fd_data, rec, 0, update))
 			{
-				printf("could not write to %s.dat", file_path);
+				printf("could not write to %s.dat main.c l 493", file_path);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				clean_up(rec, fields_count);
@@ -544,10 +550,14 @@ int main(int argc, char *argv[])
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
 			free(files[0]), free(files[1]), free(files);
-			if (ht.write(fd_index, &ht))
-				printf("index written!\n");
-			else
-				printf("could not write the file.\n");
+			if (!ht.write(fd_index, &ht))
+			{
+				printf("could not write index file. main.c l 509.\n");
+				clean_up(rec, fields_count);
+				close_file(2, fd_index, fd_data);
+				destroy_hasht(&ht);
+				return 1;
+			}
 
 			clean_up(rec, fields_count);
 			close_file(2, fd_index, fd_data);
@@ -592,7 +602,7 @@ int main(int argc, char *argv[])
 				size_t hd_st = compute_size_header(hd);
 				if (hd_st > MAX_HD_SIZE)
 				{
-					printf("header is out of safety boundries, main.c l 425 (update file)\n");
+					printf("header is bigger than the limit, main.c l 554 \n");
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					free(buffer), free(buf_t), free(buf_v);
 					clean_up(rec, rec->fields_num);
@@ -601,7 +611,7 @@ int main(int argc, char *argv[])
 
 				if (!write_header(fd_data, &hd))
 				{
-					printf("can`t write header, main.c l 426 (update file).\n");
+					printf("can`t write header, main.c l 564.\n");
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					free(buffer), free(buf_t), free(buf_v);
 					clean_up(rec, rec->fields_num);
@@ -612,7 +622,7 @@ int main(int argc, char *argv[])
 				int bg_f = begin_in_file(fd_data);
 				if (bg_f == -1)
 				{
-					printf("failed to move file pointer at the beginning, main.c l 447.\n");
+					printf("failed to move file pointer, main.c l 574.\n");
 					free(buffer), free(buf_t), free(buf_v);
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
@@ -630,7 +640,7 @@ int main(int argc, char *argv[])
 
 			if (!read_index_file(fd_index, &ht))
 			{
-				printf("index file reading failed.\n");
+				printf("index file reading failed. main.c l 593.\n");
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				return 1;
@@ -653,7 +663,7 @@ int main(int argc, char *argv[])
 
 			if (find_record == -1)
 			{
-				perror("error looking for record in file.\n");
+				perror("error looking for record in file. main.c l 615.\n");
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				return 1;
@@ -662,7 +672,7 @@ int main(int argc, char *argv[])
 			Record_f *rec_old = read_file(fd_data, file_path);
 			if (!rec_old)
 			{
-				printf("no memory for record.\n");
+				printf("reading record failed main.c l 622.\n");
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				return 1;
@@ -673,7 +683,7 @@ int main(int argc, char *argv[])
 
 			if (updated_rec_pos == -1)
 			{
-				perror("error reading update record position (main.c l 467).\n");
+				printf("reading  update record position failed (main.c l 634).\n");
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				clean_up(rec_old, rec_old->fields_num);
@@ -682,7 +692,6 @@ int main(int argc, char *argv[])
 
 			Record_f **recs_old = NULL;
 			off_t *pos_u = NULL;
-			printf("the other piece of the record is at %ld\n", updated_rec_pos);
 			if (updated_rec_pos > 0)
 			{
 				int index = 2;
@@ -691,7 +700,7 @@ int main(int argc, char *argv[])
 				free(buffer);
 				if (!recs_old)
 				{
-					printf("calloc faild main.c l 535 Record_f**, update file.\n");
+					printf("calloc failed main.c l 647.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec_old, rec_old->fields_num);
 					clean_up(rec, rec->fields_num);
@@ -701,7 +710,7 @@ int main(int argc, char *argv[])
 				pos_u = calloc(pos_i, sizeof(off_t));
 				if (!pos_u)
 				{
-					printf("calloc failed, position old rec, main.c l 524.\n");
+					printf("calloc failed, main.c l 657.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec_old, rec_old->fields_num);
 					clean_up(rec, rec->fields_num);
@@ -722,7 +731,7 @@ int main(int argc, char *argv[])
 
 				if (find_record_position(fd_data, updated_rec_pos) == -1)
 				{
-					printf("can`t find offset, main.c l 541.\n");
+					printf("can`t find offset, main.c l 676.\n");
 					close_file(2, fd_index, fd_data);
 					free(pos_u);
 					clean_up(rec, rec->fields_num);
@@ -742,7 +751,7 @@ int main(int argc, char *argv[])
 				Record_f *rec_old_s = read_file(fd_data, file_path);
 				if (!rec_old_s)
 				{
-					printf("error reading file, main.c l 556.\n");
+					printf("error reading file, main.c l 692.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					free(pos_u);
@@ -768,7 +777,7 @@ int main(int argc, char *argv[])
 
 					if (!recs_old_n)
 					{
-						printf("realloc failed, main.c l 576.\n");
+						printf("realloc failed, main.c l 713.\n");
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						clean_up(rec, rec->fields_num);
@@ -788,7 +797,7 @@ int main(int argc, char *argv[])
 					off_t *pos_u_n = realloc(pos_u, pos_i * sizeof(off_t));
 					if (!pos_u_n)
 					{
-						printf("realloc failed for positions, main.c l 594.\n");
+						printf("realloc failed for positions, main.c l 731.\n");
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						clean_up(rec, rec->fields_num);
@@ -809,7 +818,7 @@ int main(int argc, char *argv[])
 					Record_f *rec_old_new = read_file(fd_data, file_path);
 					if (!rec_old_new)
 					{
-						printf("error reading file, main.c l 612.\n");
+						printf("error reading file, main.c l 749.\n");
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						clean_up(rec, rec->fields_num);
@@ -834,7 +843,7 @@ int main(int argc, char *argv[])
 
 				if (!positions)
 				{
-					printf("calloc failed for position char array, mian.c l 754.\n");
+					printf("calloc failed, main.c l 770.\n");
 					close_file(2, fd_index, fd_data);
 					free(pos_u);
 					clean_up(rec, rec->fields_num);
@@ -858,7 +867,7 @@ int main(int argc, char *argv[])
 
 				if (positions[0] != 'n' && positions[0] != 'y')
 				{
-					printf("check on fields failed, update, main.c l 633.\n");
+					printf("check on fields failed,  main.c l 792.\n");
 					close_file(2, fd_index, fd_data);
 					free(pos_u), free(positions);
 					clean_up(rec, rec->fields_num);
@@ -880,10 +889,9 @@ int main(int argc, char *argv[])
 				{
 					if (positions[i] == 'n')
 						continue;
-					printf("position on file is %ld", pos_u[i]);
 					if (find_record_position(fd_data, pos_u[i]) == -1)
 					{
-						printf("error file pointer, update, main.c l 785.\n");
+						printf("error file pointer, main.c l 815.\n");
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						clean_up(rec, rec->fields_num);
@@ -906,7 +914,7 @@ int main(int argc, char *argv[])
 
 					if (!write_file(fd_data, recs_old[i], right_update_pos, update))
 					{
-						printf("error write file, update, main.c l 820.\n");
+						printf("error write file, main.c l 835.\n");
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						free(positions);
@@ -948,7 +956,7 @@ int main(int argc, char *argv[])
 			free(buffer);
 			if (comp_rr == 0)
 			{
-				printf("could not compare the records for update. main.c l 497\n");
+				printf(" compare records failed,  main.c l 870\n");
 				close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				clean_up(rec_old, rec_old->fields_num);
@@ -961,13 +969,12 @@ int main(int argc, char *argv[])
 
 			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLD)
 			{
-				printf("this is the path.\n");
 				// set the position back to the record
 				find_record = find_record_position(fd_data, offset);
 
 				if (find_record == -1)
 				{
-					perror("error looking for record in file.\n");
+					perror("error lseek record, main.c l 890.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -977,7 +984,7 @@ int main(int argc, char *argv[])
 				// write the updated record to the file
 				if (!write_file(fd_data, rec_old, 0, update))
 				{
-					printf("could not write to %s", files[1]);
+					printf("could not write to %s, main.c l 901.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -998,7 +1005,7 @@ int main(int argc, char *argv[])
 				off_t eof = go_to_EOF(fd_data);
 				if (eof == -1)
 				{
-					printf("error file pointer, main.c l 673.\n");
+					printf("error file pointer, main.c l 919.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1011,7 +1018,7 @@ int main(int argc, char *argv[])
 
 				if (find_record == -1)
 				{
-					printf("can't find record, main.c l 918.\n");
+					printf(" seek record failed, main.c l 932.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1022,7 +1029,7 @@ int main(int argc, char *argv[])
 				// update the old record :
 				if (!write_file(fd_data, rec_old, eof, update))
 				{
-					printf("can't write record, main.c l 931.\n");
+					printf("can't write record, main.c l 945.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1035,17 +1042,17 @@ int main(int argc, char *argv[])
 				printf("eof is %ld\n", eof);
 				if (eof == -1)
 				{
-					printf("error file pointer, main.c l 673.\n");
+					printf("error file pointer, main.c l 957.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
 					clean_up(new_rec, new_rec->fields_num);
 					return 1;
 				}
-
+				/*passing update as 0 becuase is a "new_rec", (right most paramaters) */
 				if (!write_file(fd_data, new_rec, 0, 0))
-				{ /*passing update as 0 becuase is a "new_rec"*/
-					printf("can't write record, main.c l 933.\n");
+				{
+					printf("can't write record, main.c l 968.\n");
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1070,7 +1077,7 @@ int main(int argc, char *argv[])
 
 		if (!read_header(fd_data, &hd))
 		{
-			printf("failed to read header, main.c l 846.\n");
+			printf("failed to read header, main.c l 992.\n");
 			close_file(2, fd_index, fd_data);
 			clean_schema(&sch); // it might not be neccessery to free schema, but the function is safe
 			return 1;
@@ -1091,7 +1098,7 @@ int main(int argc, char *argv[])
 
 			if (!read_index_file(fd_index, &ht))
 			{
-				printf("index file reading failed.");
+				printf("reading index file failed, main.c l 1011.\n");
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -1112,7 +1119,7 @@ int main(int argc, char *argv[])
 
 			if (find_record == -1)
 			{
-				perror("error looking for record in file");
+				perror("seek record failed, main.c l 1031.\n");
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -1121,7 +1128,7 @@ int main(int argc, char *argv[])
 
 			if (!rec)
 			{
-				printf("no memory for record.\n");
+				printf("read record failed, main.c l 1039.\n");
 				close_file(2, fd_data, fd_index);
 				return 1;
 			}
@@ -1129,7 +1136,7 @@ int main(int argc, char *argv[])
 			off_t update_rec_pos = get_update_offset(fd_data);
 			if (update_rec_pos == -1)
 			{
-				printf("can't read offset update record, main.c l 902.\n");
+				printf("seek offset update record failed, main.c l 1044.\n");
 				clean_up(rec, rec->fields_num);
 				close_file(2, fd_data, fd_index);
 				return 1;
@@ -1144,7 +1151,7 @@ int main(int argc, char *argv[])
 				recs = calloc(counter, sizeof(Record_f *));
 				if (!recs)
 				{
-					printf("no memory for Record_f** recs, main.c l 868.\n");
+					printf("calloc failed, main.c l 1057.\n");
 					clean_up(rec, rec->fields_num);
 					close_file(2, fd_data, fd_index);
 					return 1;
@@ -1164,7 +1171,7 @@ int main(int argc, char *argv[])
 
 					if (!recs)
 					{
-						printf("no memory for realloc record array, main.c l 871.\n");
+						printf("realloc failed, main.c l 1074.\n");
 						int i = 0;
 						for (i = 0; i < counter; i++)
 						{
@@ -1180,7 +1187,7 @@ int main(int argc, char *argv[])
 
 					if (find_record == -1)
 					{
-						perror("error looking for updated record position main.c l 870.\n");
+						perror("seek updated record failed, main.c l 1088.\n");
 						int i = 0;
 						for (i = 0; i < counter; i++)
 						{
@@ -1196,7 +1203,7 @@ int main(int argc, char *argv[])
 
 					if (!rec_n)
 					{
-						printf("no memory for updated record, main.c l 903.\n");
+						printf("read record failed, main.c l 1102.\n");
 						int i = 0;
 						for (i = 0; i < counter; i++)
 						{

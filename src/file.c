@@ -348,8 +348,11 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 		case TYPE_STRING:
 			if (!update)
 			{
+				off_t bg_pos = get_file_offset(fd);
+
+				printf("position inside the writing process 1st time: %ld.", bg_pos);
 				lt = strlen(rec->fields[i].data.s) + 1;
-				buff_update = (strlen(rec->fields[i].data.s) * 2) + 1;
+				buff_update = (lt * 2);
 				buff_w = calloc(buff_update, sizeof(char));
 
 				if (!buff_w)
@@ -375,6 +378,9 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 			else
 			{
 				off_t bg_pos = get_file_offset(fd);
+
+				printf("position inside the writing process: %ld.", bg_pos);
+
 				if (read(fd, &lt, sizeof(lt)) < 0 ||
 					read(fd, &buff_update, sizeof(buff_update)) < 0)
 				{
@@ -464,7 +470,7 @@ off_t get_update_offset(int fd)
 	off_t urec_pos = 0;
 	if (read(fd, &urec_pos, sizeof(urec_pos)) == -1)
 	{
-		perror("could not read the update record position (file.c l 365).\n");
+		perror("could not read the update record position (file.c l 424).\n");
 		return -1;
 	}
 
@@ -481,14 +487,14 @@ Record_f *read_file(int fd, char *file_name)
 	int fields_num_r = 0;
 	if (read(fd, &fields_num_r, sizeof(fields_num_r)) < 0)
 	{
-		perror("could not read fields number.\n");
+		perror("could not read fields number, file.c l 440.\n");
 		return NULL;
 	}
 	Record_f *rec = create_record(file_name, fields_num_r);
 
 	if (!rec)
 	{
-		printf("could not allocate for Record.\n");
+		printf("create record failed, file.c l 444.\n");
 		return NULL;
 	}
 
@@ -502,7 +508,7 @@ Record_f *read_file(int fd, char *file_name)
 
 		if (read(fd, &lt, sizeof(lt)) < 0)
 		{
-			perror("could not read size of field name");
+			perror("could not read size of field name, file.c l 458.\n");
 			clean_up(rec, fields_num_r);
 			return NULL;
 		}
@@ -511,15 +517,15 @@ Record_f *read_file(int fd, char *file_name)
 
 		if (!rec->fields[i].field_name)
 		{
-			printf("no memory for field name line 377 read\n");
-			clean_up(rec, fields_num_r);
+			printf("no memory for field name, file.cl 466.\n");
+			clean_up(rec, rec->fields_num);
 			return NULL;
 		}
 
 		if (read(fd, rec->fields[i].field_name, lt) < 0)
 		{
-			perror("could not read field name");
-			clean_up(rec, fields_num_r);
+			perror("could not read field name, file.c l 472");
+			clean_up(rec, rec->fields_num);
 			return NULL;
 		}
 
@@ -528,8 +534,8 @@ Record_f *read_file(int fd, char *file_name)
 
 		if (read(fd, &type_r, sizeof(type_r)) < 0)
 		{
-			perror("could not read type from file.");
-			clean_up(rec, fields_num_r);
+			perror("could not read type file.c l 481.");
+			clean_up(rec, rec->fields_num);
 			return NULL;
 		}
 
@@ -540,39 +546,39 @@ Record_f *read_file(int fd, char *file_name)
 		case TYPE_INT:
 			if (read(fd, &rec->fields[i].data.i, sizeof(int)) < 0)
 			{
-				perror("could not read type int.");
-				clean_up(rec, fields_num_r);
+				perror("could not read type int file.c 491.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 			break;
 		case TYPE_LONG:
 			if (read(fd, &rec->fields[i].data.l, sizeof(long)) < 0)
 			{
-				perror("could not read type int.");
-				clean_up(rec, fields_num_r);
+				perror("could not read type long, file.c 498.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 			break;
 		case TYPE_FLOAT:
 			if (read(fd, &rec->fields[i].data.f, sizeof(float)) < 0)
 			{
-				perror("could not read type int.");
-				clean_up(rec, fields_num_r);
+				perror("could not read type float, file.c l 505.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 			break;
 		case TYPE_STRING:
 			if (read(fd, &l, sizeof(l)) < 0)
 			{
-				perror("could not read size of type STRING(char *)");
-				clean_up(rec, fields_num_r);
+				perror("could not read size of string(char*), file.c l 512.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 
 			if (read(fd, &buff_update, sizeof(buff_update)) < 0)
 			{
-				perror("could not read size of type STRING(char *)");
-				clean_up(rec, fields_num_r);
+				perror("could not read size of buff_update file.c l 518.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -580,23 +586,23 @@ Record_f *read_file(int fd, char *file_name)
 
 			if (!rec->fields[i].data.s)
 			{
-				perror("memory for string in reding file");
-				clean_up(rec, fields_num_r);
+				printf("calloc failed file.c l 524.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 
 			char *all_buf = calloc(buff_update, sizeof(char));
 			if (!all_buf)
 			{
-				printf("no memory reading buff_up file.c l 445.\n");
-				clean_up(rec, fields_num_r);
+				printf("calloc failed file.c l 532.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 
 			if (read(fd, all_buf, buff_update) < 0)
 			{
-				perror("could not read type string.");
-				clean_up(rec, fields_num_r);
+				perror("could not read buffer string, file.c l 539.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -607,16 +613,16 @@ Record_f *read_file(int fd, char *file_name)
 		case TYPE_BYTE:
 			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) < 0)
 			{
-				perror("could not read type byte.");
-				clean_up(rec, fields_num_r);
+				perror("could not read type byte, file.c l 550.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 			break;
 		case TYPE_DOUBLE:
 			if (read(fd, &rec->fields[i].data.d, sizeof(double)) < 0)
 			{
-				perror("could not read type int.");
-				clean_up(rec, fields_num_r);
+				perror("could not read type double, file.c l 557.\n");
+				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 			break;
