@@ -95,7 +95,7 @@ $(BINDIR)/GET:
   fi
 ``````
 
-change the line echo *"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \* with your path.
+change the line echo ***"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \*** with your path.
 
 This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
@@ -104,53 +104,13 @@ This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using
 
 it has not been tested on Windows or MacOS and other Linux distros bisides the ones mentioned above.
 
-```plaintext
--$ make clean
-```
-
-this is the output you'll see:
-
-```plaintext
-rm -f obj/*.o
-rm -f bin/*
-rm *.dat *.inx
-rm *core*
-rm: cannot remove '*core*': No such file or directory
-make: *** [Makefile:22: clean] Error 1
-```
-
-to compile the program you just run the make command inside of the project directory:
-
-```plaintext
-project-$ make
-```
-
-output:
-
-``````plaintext
-gcc -c src/debug.c -o obj/debug.o -Iinclude -g
-gcc -c src/file.c -o obj/file.o -Iinclude -g
-gcc -c src/hash_tbl.c -o obj/hash_tbl.o -Iinclude -g
-gcc -c src/input.c -o obj/input.o -Iinclude -g
-gcc -c src/lock.c -o obj/lock.o -Iinclude -g
-gcc -c src/main.c -o obj/main.o -Iinclude -g
-gcc -c src/parse.c -o obj/parse.o -Iinclude -g
-gcc -c src/record.c -o obj/record.o -Iinclude -g
-gcc -c src/sort.c -o obj/sort.o -Iinclude -g
-gcc -c src/str_op.c -o obj/str_op.o -Iinclude -g
-gcc -o bin/isam.db obj/debug.o obj/file.o obj/hash_tbl.o obj/input.o obj/lock.o obj/main.o obj/parse.o obj/record.o obj/sort.o obj/str_op.o
-
-``````
-
-now you have the program is compiled and we can run it.
-
 ## How It Works
 
 Users can dynamically specify the attributes of a business entity by defining each field's name, type, and initial value using a simple format.
 
 ### Example Usage
 
-Here's how you can define a file dinamically:
+Here's how you can define a file:
 if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat(and a file person.inx), with only the variables name, last name and age with the type, in the header of the file:
 
 ```plaintext
