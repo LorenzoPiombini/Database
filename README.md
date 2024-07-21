@@ -4,9 +4,10 @@ This ISAM database program enables dynamic creation of file definitions at runti
 
 ## Features
 
-- **Dynamic File Definition**: Easily define file fields dynamically at runtime by specifying field names, types, and initial values.
-- **Supports Multiple Data Types**: Supports a variety of data types including integers, long, floats, strings, bytes, and doubles.
-
+- **Dynamic File Definition**: Easily define file dynamically at runtime by specifying field names, types, and initial values, without hard coding each files.
+- **Supports Multiple Data Types**: Supports integers, long, floats, strings, bytes, and doubles.
+- **CRUD**: You can easily add, update and delete records form the files.
+  
 ## Get Started
 
 To get started, you can either clone the repository or download the files directly to your machine.
@@ -76,10 +77,30 @@ when you clone or download this repo, you do not have the folders **bin** and **
 [isam.db-C-language-main]$ mkdir bin obj
 ``````
 
+take a loook at the Makefile, for the GET and LIST command you will need to change the path for them to work:
+
+``````plaintext
+$(BINDIR)/GET:
+  @if [ !  -f $@ ]; then \
+    echo "Creating $@ . . ."; \
+    echo "#!/bin/bash" > $@; \
+    echo "#Check if both arguments are provided" >> $@; \
+    echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ]; then" >> $@; \
+    echo "echo \"Usage: GET [file name] [record_id]\"" >> $@; \
+    echo "exit 1" >> $@; \
+    echo "fi" >> $@; \
+    echo "" >> $@; \
+    echo "/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \
+    chmod +x $@; \
+  fi
+``````
+
+change the line echo *"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \* with your path.
+
 This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
 - **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
-- **Fedora 36** kernel: v 5.11.17-300.fc34.aarch64.
+- **Fedora 36** kernel: 5.11.17-300.fc34.aarch64.
 
 it has not been tested on Windows or MacOS and other Linux distros bisides the ones mentioned above.
 
