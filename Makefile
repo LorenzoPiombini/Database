@@ -67,7 +67,48 @@ $(BINDIR)/LIST:
 		chmod +x $@; \
 	fi
 
-install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST
-	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)
+$(BINDIR)/FILE:
+	@if [ ! -f $@ ]; then \
+		echo "Creating $@ . . ."; \
+		echo "#!/usr/bin/env python3" > $@; \
+		echo "import sys" >> $@; \
+		echo "import subprocess" >> $@; \
+		echo "def transform_input(input_string):" >> $@; \
+		echo "    # Dictionary of replacements" >> $@; \
+		echo "    replacements = {" >> $@; \
+		echo "        't_b': 'TYPE_BYTE'," >> $@; \
+		echo "        't_d': 'TYPE_DOUBLE'," >> $@; \
+		echo "        't_f': 'TYPE_FLOAT'," >> $@; \
+		echo "        't_l': 'TYPE_LONG'," >> $@; \
+		echo "        't_i': 'TYPE_INT'," >> $@; \
+		echo "        't_s': 'TYPE_STRING'" >> $@; \
+		echo "    }" >> $@; \
+		echo "    parts = input_string.split(':')" >> $@; \
+		echo "    transformed_parts = []" >> $@; \
+		echo "    for part in parts:" >> $@; \
+		echo "        if part in replacements:" >> $@; \
+		echo "            part = replacements[part]" >> $@; \
+		echo "        transformed_parts.append(part)" >> $@; \
+		echo "    transformed_string = ':'.join(transformed_parts)" >> $@; \
+		echo "    return transformed_string" >> $@; \
+		echo "def execute_command(filename, transformed_string):" >> $@; \
+		echo "    command = f\"/home/lpiombini/Cprog/low_IO/bin/isam.db -nf {filename} -R '{transformed_string}'\"" >> $@; \
+		echo "    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)" >> $@; \
+		echo "    if result.returncode == 0:" >> $@; \
+		echo "        print(result.stdout.decode())" >> $@; \
+		echo "    else:" >> $@; \
+		echo "        print('Error:', result.stderr.decode())" >> $@; \
+		echo "if __name__ == '__main__':" >> $@; \
+		echo "    if len(sys.argv) != 3:" >> $@; \
+		echo "        print('Usage: ./FILE \'<filename>\' \'<string>\'')" >> $@; \
+		echo "        sys.exit(1)" >> $@; \
+		echo "    filename = sys.argv[1]" >> $@; \
+		echo "    input_string = sys.argv[2]" >> $@; \
+		echo "    transformed_string = transform_input(input_string)" >> $@; \
+		echo "    execute_command(filename, transformed_string)" >> $@; \
+		chmod +x $@; \
+	fi
+install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE
+	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)
 
 .PHONY: default test clean install 
