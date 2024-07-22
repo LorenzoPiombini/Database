@@ -92,7 +92,7 @@ $(BINDIR)/FILE:
 		echo "    transformed_string = ':'.join(transformed_parts)" >> $@; \
 		echo "    return transformed_string" >> $@; \
 		echo "def execute_command(filename, transformed_string):" >> $@; \
-		echo "    command = f\"/home/lpiombini/Cprog/low_IO/bin/isam.db -nf {filename} -R '{transformed_string}'\"" >> $@; \
+		echo "    command = f\"/your/own/path/${TARGET} -nf {filename} -R '{transformed_string}'\"" >> $@; \
 		echo "    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)" >> $@; \
 		echo "    if result.returncode == 0:" >> $@; \
 		echo "        print(result.stdout.decode())" >> $@; \
