@@ -36,6 +36,9 @@ To get started, you can either clone the repository or download the files direct
   - LIST expects one argument *file name*.
     - this command will display the file definition for the specified file.
     - if you execute LIST with no arguments will display the usage instruction.
+  - FILES expects two argument *file name* and *paramters string*.
+    - this command will create a new file with definition as per the *paramters string*.
+    - if you execute FILE with no arguments will display the usage instruction.
 
 you need root privilege to run the install and clean rules.
 
@@ -95,7 +98,7 @@ $(BINDIR)/GET:
   fi
 ``````
 
-change the line echo ***"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \*** with your path.
+change the line echo ***"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \*** with your path, and the same apply to the python scripts.
 
 This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
