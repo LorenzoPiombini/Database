@@ -272,7 +272,6 @@ int create_header(Header_d *hd)
 	if (hd->sch_d.fields_name == NULL ||
 		hd->sch_d.types == NULL)
 	{
-
 		printf("\nschema is NULL.\ncould not create header.\n");
 		return 0;
 	}
@@ -1223,4 +1222,103 @@ void find_fields_to_update(Record_f **recs_old, char *positions, Record_f *rec, 
 			}
 		}
 	}
+}
+
+unsigned char create_new_fields_from_schema(Record_f **recs_old, Record_f *rec, Schema *sch, int index,
+											Record_f **new_rec, char *file_path)
+{
+	int i = 0;
+	unsigned char sum = 0;
+	for (i = 0; i < index; i++)
+		sum += recs_old[i]->fields_num;
+
+	unsigned char elements = sch->fields_num - sum;
+	*new_rec = create_record(file_path, elements);
+
+	if (!*new_rec)
+	{
+		printf("create record failed, parse.c l 1183.\n");
+		return 0;
+	}
+	i = 0;
+	register unsigned char j = 0, x = 0, n_i = 0, found = 0;
+	for (j = 0; j < sch->fields_num; j++)
+	{
+		if (i == index)
+		{
+			switch (sch->types[j])
+			{
+			case TYPE_INT:
+			case TYPE_BYTE:
+			case TYPE_LONG:
+				set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "0");
+				break;
+			case TYPE_FLOAT:
+			case TYPE_DOUBLE:
+				set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "0.0");
+				break;
+			case TYPE_STRING:
+				set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "null");
+				break;
+			default:
+				printf("invalid type %d.", sch->types[j]);
+				return 0;
+			}
+			continue;
+		}
+
+		for (x = 0; x < recs_old[i]->fields_num; x++)
+		{
+			if (strcmp(recs_old[i]->fields[x].field_name, sch->fields_name[j]) == 0)
+			{
+				++found;
+				break;
+			}
+		}
+		if (found == recs_old[i]->fields_num)
+		{
+			found = 0;
+			i++;
+		}
+	}
+
+	/* setting the proper value for the new part of the schema */
+
+	for (j = 0; j < rec->fields_num; j++)
+	{
+		for (x = 0; x < (*new_rec)->fields_num; x++)
+		{
+			if (strcmp(rec->fields[j].field_name, (*new_rec)->fields[x].field_name) == 0)
+			{
+				switch (rec->fields[j].type)
+				{
+				case TYPE_INT:
+					(*new_rec)->fields[x].data.i = rec->fields[j].data.i;
+					break;
+				case TYPE_BYTE:
+					(*new_rec)->fields[x].data.b = rec->fields[j].data.b;
+					break;
+				case TYPE_LONG:
+					(*new_rec)->fields[x].data.l = rec->fields[j].data.l;
+					break;
+				case TYPE_FLOAT:
+					(*new_rec)->fields[x].data.f = rec->fields[j].data.f;
+					break;
+				case TYPE_DOUBLE:
+					(*new_rec)->fields[x].data.d = rec->fields[j].data.d;
+					break;
+				case TYPE_STRING:
+					free((*new_rec)->fields[x].data.s);
+					(*new_rec)->fields[x].data.s = NULL;
+					(*new_rec)->fields[x].data.s = strdup(rec->fields[j].data.s);
+					break;
+				default:
+					printf("data type not suprted: %d.", rec->fields[j].type);
+					return 0;
+				}
+			}
+		}
+	}
+
+	return 1;
 }

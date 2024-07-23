@@ -348,9 +348,9 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 		case TYPE_STRING:
 			if (!update)
 			{
-				off_t bg_pos = get_file_offset(fd);
+				//	  off_t bg_pos = get_file_offset(fd);
 
-				printf("position inside the writing process 1st time: %ld.", bg_pos);
+				//	printf("position inside the writing process 1st time: %ld.", bg_pos);
 				lt = strlen(rec->fields[i].data.s) + 1;
 				buff_update = (lt * 2);
 				buff_w = calloc(buff_update, sizeof(char));
@@ -379,7 +379,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 			{
 				off_t bg_pos = get_file_offset(fd);
 
-				printf("position inside the writing process: %ld.", bg_pos);
+				//	printf("position inside the writing process: %ld.", bg_pos);
 
 				if (read(fd, &lt, sizeof(lt)) < 0 ||
 					read(fd, &buff_update, sizeof(buff_update)) < 0)

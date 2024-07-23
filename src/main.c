@@ -1051,7 +1051,7 @@ int main(int argc, char *argv[])
 					 was already set at line 846*/
 				}
 
-				if (check == SCHEMA_NW && !update)
+				if (check == SCHEMA_NW && update)
 				{
 					/* store the EOF value*/
 					off_t eof = 0;
@@ -1073,7 +1073,7 @@ int main(int argc, char *argv[])
 						}
 					}
 
-					/*here you have to find the position of the last piece of the record*/
+					/*find the position of the last piece of the record*/
 					if (find_record_position(fd_data, pos_u[index - 1]) == -1)
 					{
 						printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
@@ -1091,27 +1091,8 @@ int main(int argc, char *argv[])
 							free(recs_old);
 						}
 					}
-					/*read the record to move the pointer down */
-					Record_f *temp = read_file(fd_data, file_path);
-					if (!temp)
-					{
-						printf("read file failed, main.c l %d.\n", __LINE__ - 2);
-						close_file(2, fd_index, fd_data);
-						free(pos_u);
-						free(positions);
-						clean_up(rec, rec->fields_num);
-						if (recs_old)
-						{
-							int i = 0;
-							for (i = 0; i < index; i++)
-							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
-							}
-							free(recs_old);
-						}
-					}
-					/*update the position for the next piece of record*/
-					if (write(fd_data, &eof, sizeof(eof)) == -1)
+					/*re-write the record*/
+					if (write_file(fd_data, recs_old[index - 1], eof, update) == -1)
 					{
 						printf("write file failed, main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
@@ -1127,10 +1108,11 @@ int main(int argc, char *argv[])
 							}
 							free(recs_old);
 						}
+						return 1;
 					}
 
 					/*move to EOF*/
-					if ((eof = go_to_EOF(fd_data)) == -1)
+					if ((go_to_EOF(fd_data)) == -1)
 					{
 						printf("file pointer failed, main.c l %d", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
@@ -1191,7 +1173,6 @@ int main(int argc, char *argv[])
 						}
 						return 1;
 					}
-
 					clean_up(new_rec, new_rec->fields_num);
 				}
 

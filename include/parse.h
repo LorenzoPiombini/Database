@@ -40,4 +40,6 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Record_f **new_rec, char *file_path,
 										 unsigned char check, char *buffer, int fields_num);
 void find_fields_to_update(Record_f **recs_old, char *positions, Record_f *rec, int index);
+unsigned char create_new_fields_from_schema(Record_f **recs_old, Record_f *rec, Schema *sch,
+											int index, Record_f **new_rec, char *file_path);
 #endif
