@@ -106,6 +106,9 @@ if you want you can run all the rules at the same time each time you need it:
 [isam.db-C-language-main]$ sudo make clean; make; make test ;sudo  make install 
 ``````
 
+this will clean your current directory, creates the objects, run the tests and create the
+commands to browse the filesystem you created.
+
 This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
 - **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
