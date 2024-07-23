@@ -4,7 +4,7 @@ This ISAM database program enables dynamic creation of file definitions at runti
 
 ## Features
 
-- **Dynamic File Definition**: Easily define file dynamically at runtime by specifying field names, types, and initial values, without hard coding each files.
+- **Dynamic File Definition**: Easily define file dynamically at runtime by specifying field names, types, and initial values, without hard coding each files (fields and variables are the same thing).
 - **Supports Multiple Data Types**: Supports integers, long, floats, strings, bytes, and doubles.
 - **CRUD**: You can easily add, update and delete records form the files.
   
@@ -36,7 +36,7 @@ To get started, you can either clone the repository or download the files direct
   - LIST expects one argument *file name*.
     - this command will display the file definition for the specified file.
     - if you execute LIST with no arguments will display the usage instruction.
-  - FILES expects two argument *file name* and *paramters string*.
+  - FILE expects two argument *file name* and *paramters string*.
     - this command will create a new file with definition as per the *paramters string*.
     - if you execute FILE with no arguments will display the usage instruction.
 
@@ -80,9 +80,9 @@ when you clone or download this repo, you do not have the folders **bin** and **
 [isam.db-C-language-main]$ mkdir bin obj
 ``````
 
-take a loook at the Makefile, for the GET and LIST command you will need to change the path for them to work:
+take a look at the Makefile, for the GET and LIST command you will need to change the path for them to work:
 
-``````plaintext
+``````makefile
 $(BINDIR)/GET:
   @if [ !  -f $@ ]; then \
     echo "Creating $@ . . ."; \
@@ -100,6 +100,12 @@ $(BINDIR)/GET:
 
 change the line echo ***"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \*** with your path, and the same apply to the python scripts.
 
+if you want you can run all the rules at the same time each time you need it:
+
+``````bash
+[isam.db-C-language-main]$ sudo make clean; make; make test ;sudo  make install 
+``````
+
 This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
 - **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
@@ -114,16 +120,20 @@ Users can dynamically specify the attributes of a business entity by defining ea
 ### Example Usage
 
 Here's how you can define a file:
-if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat(and a file person.inx), with only the variables name, last name and age with the type, in the header of the file:
+if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat, and a file person.inx, with only the variables:
+      - name.
+      - last name.
+      - age.
+along with the type for each variable:
 
-```plaintext
-bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
+```bash
+\$ bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
 ```
 
 note the "last name" field, if you want to write field with spaces you have to put the "" around the field name, or you can do the follwing(last_name underscore without ""):
 
-```plaintext
-bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
+```bash
+\$ bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
 ```
 
 now we have an empty file with a definiton, and we can write data to it later.
