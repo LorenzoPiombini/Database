@@ -82,7 +82,7 @@ when you clone or download this repo, you do not have the folders **bin** and **
 
 take a look at the Makefile, for the GET and LIST command you will need to change the path for them to work:
 
-``````makefile
+``````plaintext
 $(BINDIR)/GET:
   @if [ !  -f $@ ]; then \
     echo "Creating $@ . . ."; \
@@ -127,13 +127,13 @@ if you want to create a file definition, you can simply do it without providing 
 along with the type for each variable:
 
 ```bash
-$ bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
+[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
 ```
 
 note the "last name" field, if you want to write field with spaces you have to put the "" around the field name, or you can do the follwing(last_name underscore without ""):
 
 ```bash
-$ bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
+[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
 ```
 
 now we have an empty file with a definiton, and we can write data to it later.
