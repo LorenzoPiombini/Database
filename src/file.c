@@ -143,7 +143,7 @@ off_t find_record_position(int fd, off_t offset)
 	return pos;
 }
 
-int read_index_file(int fd, HashTable *ht)
+unsigned char read_index_file(int fd, HashTable *ht)
 {
 	int size = 0;
 	if (read(fd, &size, sizeof(size)) < 0)
@@ -237,35 +237,38 @@ int read_index_file(int fd, HashTable *ht)
 ssize_t compute_record_size(Record_f *rec, unsigned char update)
 {
 	register unsigned char i = 0;
-	ssize_t sum = 0;
-	sum += sizeof(rec->fields_num);
+	ssize_t sum = (ssize_t)sizeof(ssize_t);
+	sum += (ssize_t)sizeof(rec->fields_num);
 
 	for (i = 0; i < rec->fields_num; i++)
 	{
+		sum += (ssize_t)strlen(rec->fields[i].field_name) + (ssize_t)sizeof(size_t);
+		sum += (ssize_t)sizeof(rec->fields[i].type);
+
 		switch (rec->fields[i].type)
 		{
 		case TYPE_INT:
-			sum += sizeof(rec->fields[i].data.i);
+			sum += (ssize_t)sizeof(rec->fields[i].data.i);
 			break;
 		case TYPE_LONG:
-			sum += sizeof(rec->fields[i].data.l);
+			sum += (ssize_t)sizeof(rec->fields[i].data.l);
 			break;
 		case TYPE_FLOAT:
-			sum += sizeof(rec->fields[i].data.f);
+			sum += (ssize_t)sizeof(rec->fields[i].data.f);
 			break;
 		case TYPE_STRING:
 			// account for '/0' and the size of each size_t wrote for each string
 			if (!update)
-				sum += (strlen(rec->fields[i].data.s) * 2) + 1 + sizeof(size_t);
+				sum += (ssize_t)(strlen(rec->fields[i].data.s) * 2) + (ssize_t)1 + (ssize_t)sizeof(size_t);
 			else
-				sum += strlen(rec->fields[i].data.s) + 1;
+				sum += (ssize_t)strlen(rec->fields[i].data.s) + (ssize_t)1;
 
 			break;
 		case TYPE_BYTE:
-			sum += sizeof(rec->fields[i].data.b);
+			sum += (ssize_t)sizeof(rec->fields[i].data.b);
 			break;
 		case TYPE_DOUBLE:
-			sum += sizeof(rec->fields[i].data.d);
+			sum += (ssize_t)sizeof(rec->fields[i].data.d);
 			break;
 		default:
 			printf("type not supported!\n");
@@ -349,7 +352,6 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 			if (!update)
 			{
 				//	  off_t bg_pos = get_file_offset(fd);
-
 				//	printf("position inside the writing process 1st time: %ld.", bg_pos);
 				lt = strlen(rec->fields[i].data.s) + 1;
 				buff_update = (lt * 2);
@@ -357,7 +359,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 
 				if (!buff_w)
 				{
-					printf("calloc failed, (file.c l 289).\n");
+					printf("calloc failed, file.c l %d", __LINE__ - 3);
 					return 0;
 				}
 
@@ -443,6 +445,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 		}
 	}
 
+	//	printf("the off set before writing the update pos is %ld.\n",get_file_offset(fd));
 	if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
 	{
 		perror("writing off_t for future update");

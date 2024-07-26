@@ -20,7 +20,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!rec)
 		{
-			printf("unable to create the record");
+			printf("create record failed, parse.c l %d.\n", __LINE__ - 4);
 			return NULL;
 		}
 	}
@@ -28,17 +28,17 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	char **names = get_fileds_name(buffer, fields_num, 3);
 	if (!names)
 	{
-		printf("Error in getting the fields name.\n");
-		clean_up(rec, fields_num);
+		printf("get_fields_name failed, parse.c l %d.\n", __LINE__ - 4);
+		clean_up(rec, rec->fields_num);
 		return NULL;
 	}
 
 	if (sch && check_sch == 0)
 	{ /* true when a new file is created */
-		char **sch_names = malloc(fields_num * sizeof(char *));
+		char **sch_names = calloc(fields_num, sizeof(char *));
 		if (!sch_names)
 		{
-			printf("no memory for Schema fileds name.");
+			printf("calloc failed, parse.c l %d.\n", __LINE__ - 3);
 			clean_up(rec, fields_num);
 			free_strs(fields_num, 1, names);
 			return NULL;
@@ -53,7 +53,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 			if (!sch->fields_name[j])
 			{
-				printf("strdup failed, schema creation field.\n");
+				printf("strdup failed, parse.c l %d.\n", __LINE__ - 4);
 				clean_up(rec, fields_num);
 				free_strs(fields_num, 1, names);
 				return NULL;
@@ -65,7 +65,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (!types_i)
 	{
-		printf("Error in getting the fields types");
+		printf("get_values_types failed, parse.c l %d.\n", __LINE__ - 4);
 		clean_up(rec, fields_num);
 		free_strs(fields_num, 1, names);
 		return NULL;
@@ -77,8 +77,8 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!sch_types)
 		{
-			printf("No memory for schema types.\n");
-			clean_up(rec, fields_num);
+			printf("calloc failed, parse.c l %d.\n", __LINE__ - 4);
+			clean_up(rec, rec->fields_num);
 			free_strs(fields_num, 1, names);
 			return NULL;
 		}
@@ -95,7 +95,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (!values)
 	{
-		printf("Error in getting the fields value");
+		printf("get_values failed, parse.c l %d.\n", __LINE__ - 3);
 		free(types_i);
 		clean_up(rec, fields_num);
 		free_strs(fields_num, 1, names);
@@ -108,7 +108,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (!reorder_rtl)
 	{
-		printf("failed to reorder like header schema.(parse.c l 91)\n");
+		printf("sort_input_like_header_schema failed, parse.c l %d.\n", __LINE__ - 4);
 		free(types_i);
 		clean_up(rec, fields_num);
 		free_strs(fields_num, 2, names, values);
@@ -121,7 +121,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!reorder_rtl)
 		{
-			printf("failed to reorder like header schema.(parse.c l 101)\n");
+			printf("sort_input_like_header_schema failed, parse.c l %d.\n", __LINE__ - 4);
 			free(types_i);
 			clean_up(rec, fields_num);
 			free_strs(fields_num, 2, names, values);
@@ -132,7 +132,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!temp_name)
 		{ /*do not free sch->fields_name */
-			printf("can`t perform realloc. (parse.c l 138).\n");
+			printf("realloc failed, parse.c l %d.\n", __LINE__ - 4);
 			free(types_i);
 			clean_up(rec, fields_num);
 			free_strs(fields_num, 2, names, values);
@@ -143,7 +143,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!types_n)
 		{ /*do not free sch->fields_name */
-			printf("can't perform realloc. (parse.c l 146)");
+			printf("realloc failed, parse.c l %d.\n", __LINE__ - 4);
 			free(types_i);
 			clean_up(rec, fields_num);
 			free_strs(fields_num, 2, names, values);
@@ -171,11 +171,11 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	}
 
 	if (check_sch == SCHEMA_CT)
-	{
+	{ /*the input contain one or more BUT NOT ALL, fields in the schema*/
 		Record_f *temp = create_record(file_path, sch->fields_num);
 		if (!temp)
 		{
-			printf("no memory for temp record parse.c l 174.\n");
+			printf("create record failed, parse.c l %d.\n", __LINE__ - 4);
 			clean_up(rec, fields_num);
 			return NULL;
 		}
@@ -272,7 +272,7 @@ int create_header(Header_d *hd)
 	if (hd->sch_d.fields_name == NULL ||
 		hd->sch_d.types == NULL)
 	{
-		printf("\nschema is NULL.\ncould not create header.\n");
+		printf("\nschema is NULL.\ncreate header failed, parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -289,6 +289,7 @@ int write_empty_header(int fd, Header_d *hd)
 	if (write(fd, &id, sizeof(id)) == -1)
 	{
 		perror("write header id.\n");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -296,6 +297,7 @@ int write_empty_header(int fd, Header_d *hd)
 	if (write(fd, &vs, sizeof(vs)) == -1)
 	{
 		perror("write header version.\n");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -304,6 +306,7 @@ int write_empty_header(int fd, Header_d *hd)
 	if (write(fd, &fn, sizeof(fn)) == -1)
 	{
 		perror("writing fields number header.");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -315,7 +318,7 @@ int write_header(int fd, Header_d *hd)
 	if (hd->sch_d.fields_name == NULL ||
 		hd->sch_d.types == NULL)
 	{
-		printf("schema is NULL.\ncould not create header.\n");
+		printf("\nschema is NULL.\ncreate header failed, parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -323,6 +326,7 @@ int write_header(int fd, Header_d *hd)
 	if (write(fd, &id, sizeof(id)) == -1)
 	{
 		perror("write header id.\n");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -330,6 +334,7 @@ int write_header(int fd, Header_d *hd)
 	if (write(fd, &vs, sizeof(vs)) == -1)
 	{
 		perror("write header version.\n");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -339,6 +344,7 @@ int write_header(int fd, Header_d *hd)
 	if (write(fd, &fn, sizeof(fn)) == -1)
 	{
 		perror("writing fields number header.");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -353,12 +359,14 @@ int write_header(int fd, Header_d *hd)
 			if (write(fd, &l_end, sizeof(l_end)) == -1)
 			{
 				perror("write size of name in header.\n");
+				printf("parse.c l %d.\n", __LINE__ - 3);
 				return 0;
 			}
 
 			if (write(fd, hd->sch_d.fields_name[i], l) == -1)
 			{
 				perror("write name of field in header.\n");
+				printf("parse.c l %d.\n", __LINE__ - 3);
 				return 0;
 			}
 		}
@@ -370,6 +378,7 @@ int write_header(int fd, Header_d *hd)
 		if (write(fd, &type, sizeof(type)) == -1)
 		{
 			perror("writing types from header.\n");
+			printf("parse.c l %d.\n", __LINE__ - 3);
 			return 0;
 		}
 	}
@@ -383,6 +392,7 @@ int read_header(int fd, Header_d *hd)
 	if (read(fd, &id, sizeof(id)) == -1)
 	{
 		perror("reading id from header.\n");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -398,6 +408,7 @@ int read_header(int fd, Header_d *hd)
 	if (read(fd, &vs, sizeof(vs)) == -1)
 	{
 		perror("reading version from header.\n");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -415,6 +426,7 @@ int read_header(int fd, Header_d *hd)
 	if (read(fd, &field_n, sizeof(field_n)) == -1)
 	{
 		perror("reading field_number header.\n");
+		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 	hd->sch_d.fields_num = (unsigned short)ntohs(field_n);
@@ -430,7 +442,7 @@ int read_header(int fd, Header_d *hd)
 
 	if (!names)
 	{
-		printf("no memory for fields name, reading header.\n");
+		printf("calloc failed, parse.c l %d.\n", __LINE__ - 4);
 		return 0;
 	}
 
@@ -443,7 +455,7 @@ int read_header(int fd, Header_d *hd)
 		if (read(fd, &l_end, sizeof(l_end)) == -1)
 		{
 			perror("reading size of field name.\n");
-			clean_schema(&hd->sch_d);
+			printf("parse.c l %d.\n", __LINE__ - 3);
 			return 0;
 		}
 		size_t l = (size_t)ntohl(l_end);
@@ -452,14 +464,14 @@ int read_header(int fd, Header_d *hd)
 		char *field = malloc(l);
 		if (!field)
 		{
-			printf("no memory for field name, reading from header.\n");
-			clean_schema(&hd->sch_d);
+			printf("malloc failed, parse.c l %d.\n", __LINE__ - 4);
 			return 0;
 		}
 
 		if (read(fd, field, l) == -1)
 		{
 			perror("reading name filed from header.\n");
+			printf("parse.c l %d.\n", __LINE__ - 3);
 			clean_schema(&hd->sch_d);
 			free(field);
 			return 0;
@@ -471,8 +483,7 @@ int read_header(int fd, Header_d *hd)
 
 		if (!hd->sch_d.fields_name[i])
 		{
-			printf("strdup failed in dupolicating name field form header.");
-			clean_schema(&hd->sch_d);
+			printf("strdup failed, parse.c l %d.\n", __LINE__ - 5);
 			return 0;
 		}
 	}
@@ -480,8 +491,7 @@ int read_header(int fd, Header_d *hd)
 	ValueType *types_h = calloc(hd->sch_d.fields_num, sizeof(ValueType));
 	if (!types_h)
 	{
-		printf("no memory for types. reading header.\n");
-		clean_schema(&hd->sch_d);
+		printf("calloc failed, parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -492,7 +502,7 @@ int read_header(int fd, Header_d *hd)
 		if (read(fd, &type, sizeof(type)) == -1)
 		{
 			perror("reading types from header.");
-			clean_schema(&hd->sch_d);
+			printf("parse.c l %d.\n", __LINE__ - 3);
 			return 0;
 		}
 
@@ -511,7 +521,7 @@ unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d 
 
 	if (!copy_sch)
 	{
-		printf("could not perform calloc (parse.c l 366).\n");
+		printf("calloc failed, parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
@@ -866,8 +876,13 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 		}
 	}
 	else
-	{
-		*rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &hd->sch_d, 0);
+	{ /* in this case the SCHEMA IS ALWAYS NEW*/
+		*rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &hd->sch_d, SCHEMA_NW);
+		if (*rec)
+		{
+			return SCHEMA_NW;
+		}
+		return 0;
 	}
 
 	return 1;

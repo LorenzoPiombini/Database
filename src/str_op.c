@@ -7,18 +7,20 @@
 #include "record.h"
 #include "parse.h"
 
-char **two_file_path(char *filePath)
+char **two_file_path(char *file_path)
 {
-	char *dat = ".dat";
-	char *ind = ".inx";
+	static char *dat = ".dat";
+	static char *ind = ".inx";
+	//	static char *gl_path = "/u/db/";
 
-	size_t len = strlen(filePath) + strlen(ind) + 1;
-	char *index = (char *)malloc(len * sizeof(char));
-	char *data = (char *)malloc(len * sizeof(char));
+	size_t len = strlen(file_path) + strlen(ind) + 1;
+
+	char *index = calloc(len, sizeof(char));
+	char *data = calloc(len, sizeof(char));
 
 	if (!index || !data)
 	{
-		perror("memory");
+		printf("calloc failed. str_op.c l %d", __LINE__ - 3);
 
 		if (!index)
 		{
@@ -32,18 +34,18 @@ char **two_file_path(char *filePath)
 		return NULL;
 	}
 
-	strcpy(index, filePath);
+	strncpy(index, file_path, strlen(file_path));
 	strcat(index, ind);
 
-	strcpy(data, filePath);
+	strncpy(data, file_path, strlen(file_path));
 	strcat(data, dat);
 
-	char **arr = malloc(2 * sizeof(char *));
+	char **arr = calloc(2, sizeof(char *));
 	if (!arr)
 	{
 		free(index);
 		free(data);
-		perror("array memory");
+		printf("array memory, str_op.c l %d.\n", __LINE__ - 4);
 		return NULL;
 	}
 
@@ -53,10 +55,9 @@ char **two_file_path(char *filePath)
 	return arr;
 }
 
-int count_fields(char *fields)
+int count_fields(char *fields, const char *target)
 {
 	int c = 0;
-	const char *target = "TYPE_";
 	const char *p = fields;
 
 	while ((p = strstr(p, target)) != NULL)
@@ -70,6 +71,7 @@ int count_fields(char *fields)
 
 int get_type(char *s)
 {
+
 	if (strcmp(s, "TYPE_INT") == 0)
 	{
 		return 0;
@@ -91,6 +93,30 @@ int get_type(char *s)
 		return 4;
 	}
 	else if (strcmp(s, "TYPE_DOUBLE") == 0)
+	{
+		return 6;
+	}
+	else if (strcmp(s, "t_i") == 0)
+	{
+		return 0;
+	}
+	else if (strcmp(s, "t_l") == 0)
+	{
+		return 1;
+	}
+	else if (strcmp(s, "t_f") == 0)
+	{
+		return 2;
+	}
+	else if (strcmp(s, "t_s") == 0)
+	{
+		return 3;
+	}
+	else if (strcmp(s, "t_b") == 0)
+	{
+		return 4;
+	}
+	else if (strcmp(s, "t_d") == 0)
 	{
 		return 6;
 	}
