@@ -13,11 +13,12 @@ off_t go_to_EOF(int fd);
 off_t find_record_position(int fd, off_t offset);
 void delete_file(unsigned short count, ...);
 off_t begin_in_file(int fd);
-int read_index_file(int fd, HashTable *ht);
+unsigned char read_index_file(int fd, HashTable *ht);
 int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update);
 ssize_t compute_record_size(Record_f *rec, unsigned char update);
 off_t get_update_offset(int fd);
 Record_f *read_file(int fd, char *file_name);
 int file_error_handler(int count, ...);
 int padding_file(int fd, int bytes, size_t hd_st);
+ssize_t get_record_size(int fd);
 #endif
