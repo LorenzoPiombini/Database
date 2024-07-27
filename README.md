@@ -23,6 +23,8 @@ To get started, you can either clone the repository or download the files direct
   - adding the correct data to an existing file.
   - adding partial but correct data to an existing file.
   - deleting data from an existing file
+- **memory**:
+  - checks the memory allocations for all the cases in tests.
 - **clean**:
   - delete all the files created.
   - delete all core files dumped for debugging.
