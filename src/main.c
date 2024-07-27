@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	unsigned char list_def = 0;
 	unsigned char del_file = 0;
 	unsigned char build = 0;
-
+	unsigned char list_keys = 0;
 	/*------------------------------------------*/
 	int c = 0;
 	char *file_path = NULL;
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 	char *txt_f = NULL;
 	int bucket_ht = 0;
 
-	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:uleb:s:")) != -1)
+	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:uleb:s:x")) != -1)
 	{
 		switch (c)
 		{
@@ -90,6 +90,9 @@ int main(int argc, char *argv[])
 		case 's':
 			bucket_ht = atoi(optarg);
 			break;
+		case 'x':
+			list_keys = 1;
+			break;
 		default:
 			printf("Unknow option -%c\n", c);
 			return 1;
@@ -120,7 +123,7 @@ int main(int argc, char *argv[])
 		/* -------------- and print error messages to the console ----------------*/
 		if (file_error_handler(2, fd_index, fd_data) != 0)
 		{
-			printf("main.c l %d.\n", __LINE__ - 6);
+			printf("%s:%d.\n", __FILE__, __LINE__ - 6);
 			free(files[0]), free(files[1]), free(files);
 			return 1;
 		}
@@ -144,7 +147,7 @@ int main(int argc, char *argv[])
 			Schema sch = {fields_count, NULL, NULL};
 			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
 			{
-				printf("can't create file definition main.c l %d.\n", __LINE__ - 1);
+				printf("can't create file definition %s:%d.\n", __FILE__, __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -178,7 +181,7 @@ int main(int argc, char *argv[])
 
 			if (!write_header(fd_data, &hd))
 			{
-				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				free(buf_sdf), free(buf_t);
 				clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
@@ -191,7 +194,7 @@ int main(int argc, char *argv[])
 
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
-				printf("padding failed. main.c l %d.\n", __LINE__ - 1);
+				printf("padding failed. %s:%d.\n", __FILE__, __LINE__ - 1);
 				free(buf_sdf), free(buf_t);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -205,7 +208,7 @@ int main(int argc, char *argv[])
 
 			if (!ht.write(fd_index, &ht))
 			{
-				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				free(buf_sdf), free(buf_t);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -243,7 +246,7 @@ int main(int argc, char *argv[])
 
 			if (!rec)
 			{
-				printf("error creating the record, main.c l %d.\n", __LINE__ - 1);
+				printf("error creating the record, %s:%d.\n", __FILE__, __LINE__ - 1);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -255,7 +258,7 @@ int main(int argc, char *argv[])
 			//	print_schema(sch);
 			if (!create_header(&hd))
 			{
-				printf("main.c l %d.\n", __LINE__ - 1);
+				printf("%s:%d.\n", __FILE__, __LINE__ - 1);
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
@@ -279,7 +282,7 @@ int main(int argc, char *argv[])
 
 			if (!write_header(fd_data, &hd))
 			{
-				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -290,7 +293,7 @@ int main(int argc, char *argv[])
 
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
-				printf("padding failed. main.c l %d.\n", __LINE__ - 1);
+				printf("padding failed. %s:%d.\n", __FILE__, __LINE__ - 1);
 				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
@@ -313,7 +316,7 @@ int main(int argc, char *argv[])
 
 			if (!write_file(fd_data, rec, 0, update))
 			{
-				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				clean_up(rec, fields_count);
 				free(buffer), free(buf_t), free(buf_v);
 				destroy_hasht(&ht);
@@ -325,7 +328,7 @@ int main(int argc, char *argv[])
 
 			if (!ht.write(fd_index, &ht))
 			{
-				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				clean_up(rec, fields_count);
 				free(buffer), free(buf_t), free(buf_v);
 				destroy_hasht(&ht);
@@ -364,7 +367,7 @@ int main(int argc, char *argv[])
 
 			if (!write_empty_header(fd_data, &hd))
 			{
-				printf("main.c l %d.\n", __LINE__ - 1);
+				printf("%s:%d.\n", __FILE__, __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -373,7 +376,7 @@ int main(int argc, char *argv[])
 
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
-				printf("padding failed. main.c l %d.\n", __LINE__ - 1);
+				printf("padding failed. %s:%d.\n", __FILE__, __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -386,7 +389,7 @@ int main(int argc, char *argv[])
 
 			if (!ht.write(fd_index, &ht))
 			{
-				printf("write to index file failed, main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -413,7 +416,7 @@ int main(int argc, char *argv[])
 		/* file_error_handler will close the file descriptors if there are issues */
 		if (file_error_handler(2, fd_index, fd_data) != 0)
 		{
-			printf("Error in creating or opening files, main.c l %d.\n", __LINE__ - 5);
+			printf("Error in creating or opening files,%s:%d.\n", __FILE__, __LINE__ - 1);
 			free(files[0]), free(files[1]), free(files);
 			return 1;
 		}
@@ -451,7 +454,7 @@ int main(int argc, char *argv[])
 
 			if (!ht.write(fd_index, &ht))
 			{
-				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
 				destroy_hasht(&ht);
@@ -1367,6 +1370,32 @@ int main(int argc, char *argv[])
 			print_schema(hd.sch_d);
 			close_file(2, fd_index, fd_data);
 			clean_schema(&hd.sch_d);
+			return 0;
+		}
+
+		if (list_keys)
+		{
+			HashTable ht = {0, NULL};
+
+			if (!read_index_file(fd_index, &ht))
+			{
+				printf("reading index file failed, main.c l %d.\n", __LINE__ - 1);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			char **key_a = keys(&ht);
+			int end = len(ht), i = 0, j = 0;
+			for (i = 0, j = i; i < end; i++)
+			{
+				printf("%d. %s\n", ++j, key_a[i]);
+				if (i > 0 && (i % 20 == 0))
+					printf("press any key. . .\n"), getchar();
+			}
+
+			destroy_hasht(&ht);
+			close_file(2, fd_index, fd_data);
+			free_strs(end, 1, key_a);
 			return 0;
 		}
 

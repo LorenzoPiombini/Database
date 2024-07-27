@@ -310,6 +310,11 @@ int is_file_name_valid(char *str)
 	return 1;
 }
 
-int key_generator(Record_f rec)
+void strip(const char c, char *str)
 {
+	size_t l = strlen(str);
+	int i = 0;
+	for (i = 0; i < l; i++)
+		if (str[i] == c)
+			str[i] = ' ';
 }
