@@ -120,19 +120,23 @@ it has not been tested on Windows or MacOS and other Linux distros bisides the o
 
 ## How It Works
 
-Users can dynamically specify the attributes of a business entity by defining each field's name, type, and initial value using a simple format.
+you can dynamically create **Files** at run time, you will provide either  the field(s)(variable(s)) names with the type and value, or simply the name of the fileds and the type.
 
 ### Example Usage
 
 Here's how you can define a file:
-if you want to create a file definition, you can simply do it without providing values, the following example will create a file named person.dat, and a file person.inx, with only the variables:
-      - name.
-      - last name.
-      - age.
-along with the type for each variable:
+if you want to create a file, without providing values, you can choose one ofthe following commands:
 
 ```bash
-[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
+[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:"lastname":TYPE_STRING:age:TYPE_BYTE
+```
+
+```bash
+[isam.db-C-language-main]$ bin/isam.db -nf person -R name:t_s:lastname:t_s:age:t_b
+```
+
+```bash
+[isam.db-C-language-main]$ FILE person name:t_s:lastname:t_s:age:t_b
 ```
 
 note the "last name" field, if you want to write field with spaces you have to put the "" around the field name, or you can do the follwing(last_name underscore without ""):
