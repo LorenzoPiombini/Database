@@ -41,16 +41,10 @@ typedef struct
 	char *file_name;
 	int fields_num;
 	Field *fields;
-
 } Record_f;
 
 Record_f *create_record(char *file_name, int fields_num);
 void set_field(Record_f *rec, int index, char *field_name, ValueType type, char *value);
 void clean_up(Record_f *rec, int fields_num);
-
-typedef struct
-{
-	HashTable *ht;
-} Index;
 
 #endif
