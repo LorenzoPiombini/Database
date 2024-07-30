@@ -575,17 +575,17 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 
 	if (!types_i)
 	{
-		printf("could not get types from input(parse.c l 287).\n");
+		printf("could not get types from input, parse.c:%d.\n", __LINE__ - 4);
 		free(names_cs);
 		free(types_cs);
 		return 0;
 	}
 
 	char **names = get_fileds_name(names_cs, fields_n, 3);
-
 	if (!names)
 	{
-		printf("could not get fields name from input(parse.c l 287).\n");
+		printf("could not get fields name from input, parse.c:%d.\n", __LINE__ - 3);
+		;
 		free(names_cs), free(types_cs), free(types_i);
 		return 0;
 	}
@@ -844,7 +844,7 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 
 	if (!read_header(fd_data, hd))
 	{
-		printf("can`t read the header, parse.c l 770.\n");
+		printf("can`t read the header, parse.c:%d.\n", __LINE__ - 2);
 		return 0;
 	}
 
@@ -871,7 +871,7 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 									  buf_t, buf_v, &hd->sch_d, SCHEMA_CT);
 			return SCHEMA_CT;
 		default:
-			printf("no processable option for the SCHEMA. parse.c l 703");
+			printf("check is %d -> no processable option for the SCHEMA. parse.c:%d.\n", check, __LINE__ - 17);
 			return 0;
 		}
 	}

@@ -38,13 +38,12 @@ int main(int argc, char *argv[])
 	char *file_path = NULL;
 	char *record_id = NULL;
 	char *data_to_add = NULL;
-	char *fileds_and_type = NULL;
 	char *key = NULL;
 	char *schema_def = NULL;
 	char *txt_f = NULL;
 	int bucket_ht = 0;
 
-	while ((c = getopt(argc, argv, "ntf:r:d:a:k:D:R:uleb:s:x")) != -1)
+	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:x")) != -1)
 	{
 		switch (c)
 		{
@@ -56,12 +55,6 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 			file_path = optarg;
-			break;
-		case 'r':
-			record_id = optarg;
-			break;
-		case 'd':
-			fileds_and_type = optarg;
 			break;
 		case 'k':
 			key = optarg;
@@ -99,16 +92,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (!check_input_and_values(file_path, data_to_add, key,
+								argv, del, list_def, new_file, update, del_file, build))
+	{
+		return 1;
+	}
+
 	if (build)
 	{
 		if (build_from_txt_file(file_path, txt_f))
 			return 0;
-	}
-
-	if (!check_input_and_values(file_path, data_to_add, fileds_and_type, key,
-								argv, del, list_def, new_file, update, del_file))
-	{
-		return 1;
 	}
 
 	if (new_file)
@@ -225,10 +218,10 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		if (fileds_and_type)
+		if (data_to_add)
 		{ /* creates a file with full definitons (fields and value)*/
 
-			int fields_count = count_fields(fileds_and_type, TYPE_) + count_fields(fileds_and_type, T_);
+			int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
 
 			if (fields_count > MAX_FIELD_NR)
 			{
@@ -237,9 +230,9 @@ int main(int argc, char *argv[])
 				close_file(2, fd_index, fd_data);
 			}
 
-			char *buffer = strdup(fileds_and_type);
-			char *buf_t = strdup(fileds_and_type);
-			char *buf_v = strdup(fileds_and_type);
+			char *buffer = strdup(data_to_add);
+			char *buf_t = strdup(data_to_add);
+			char *buf_v = strdup(data_to_add);
 
 			Schema sch = {0, NULL, NULL};
 			Record_f *rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &sch, 0);
@@ -909,14 +902,14 @@ int main(int argc, char *argv[])
 				}
 				/* this function check all records from the file
 				   against the new record setting the values that we have to update
-				   and populate the char array positions, if an element contain 'y'
-				   you have to update the record at that index position. */
+				   and populates the char array positions. If an element contain 'y'
+				   you have to update the record at that index position of 'y'. */
 
 				find_fields_to_update(recs_old, positions, rec, index);
 
 				if (positions[0] != 'n' && positions[0] != 'y')
 				{
-					printf("check on fields failed,  main.c l %d.\n", __LINE__ - 1);
+					printf("check on fields failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
 					free(pos_u), free(positions);
 					clean_schema(&hd.sch_d);
@@ -990,7 +983,6 @@ int main(int argc, char *argv[])
 							return 1;
 						}
 					}
-
 					if (!write_file(fd_data, recs_old[i], right_update_pos, update))
 					{
 						printf("error write file, main.c l %d.\n", __LINE__ - 1);
@@ -1285,11 +1277,11 @@ int main(int argc, char *argv[])
 			/*updating the record but we need to write some data in another place in the file*/
 			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLDN)
 			{
-				// get EOF position (update record position)
-				off_t eof = go_to_EOF(fd_data);
-				if (eof == -1)
+
+				off_t eof = 0;
+				if ((eof = go_to_EOF(fd_data)) == -1)
 				{
-					printf("error file pointer, main.c l %d.\n", __LINE__ - 2);
+					printf("file pointer failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1297,7 +1289,7 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 
-				// the position back to the record
+				// put the position back to the record
 				if (find_record_position(fd_data, offset) == -1)
 				{
 					printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
@@ -1311,7 +1303,7 @@ int main(int argc, char *argv[])
 				// update the old record :
 				if (!write_file(fd_data, rec_old, eof, update))
 				{
-					printf("can't write record, main.c l %d.\n", __LINE__ - 1);
+					printf("can't write record, %s:%d.\n", __FILE__, __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1319,12 +1311,10 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 
-				// set position at EOF
 				eof = go_to_EOF(fd_data);
-				// printf("eof is %ld\n", eof);
 				if (eof == -1)
 				{
-					printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+					printf("error file pointer, main.c l %d.\n", __LINE__ - 2);
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1385,15 +1375,22 @@ int main(int argc, char *argv[])
 			}
 
 			char **key_a = keys(&ht);
+			char keyboard = '0';
 			int end = len(ht), i = 0, j = 0;
 			for (i = 0, j = i; i < end; i++)
 			{
 				printf("%d. %s\n", ++j, key_a[i]);
 				if (i > 0 && (i % 20 == 0))
-					printf("press any key. . .\n"), getchar();
+					printf("press return key. . .\n"
+						   "enter q to quit . . .\n"),
+						keyboard = (char)getc(stdin);
+
+				if (keyboard == 'q')
+					break;
 			}
 
 			destroy_hasht(&ht);
+			clean_schema(&hd.sch_d);
 			close_file(2, fd_index, fd_data);
 			free_strs(end, 1, key_a);
 			return 0;
@@ -1401,7 +1398,7 @@ int main(int argc, char *argv[])
 
 		clean_schema(&hd.sch_d);
 
-		if (record_id)
+		if (key)
 		{
 			HashTable ht = {0, NULL};
 
@@ -1412,7 +1409,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			off_t offset = get(record_id, &ht); /*look for the key in the ht */
+			off_t offset = get(key, &ht); /*look for the key in the ht */
 
 			if (offset == -1)
 			{
@@ -1517,7 +1514,7 @@ int main(int argc, char *argv[])
 					Record_f *rec_n = read_file(fd_data, file_path);
 					if (!rec_n)
 					{
-						printf("read record failed, main.c l %d.\n", __LINE__ - 1);
+						printf("read record failed, main.c l %d.\n", __LINE__ - 2);
 						int i = 0;
 						for (i = 0; i < counter; i++)
 						{
