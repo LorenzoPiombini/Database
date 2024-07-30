@@ -125,10 +125,10 @@ you can dynamically create **Files** at run time, you will provide either  the f
 ### Example Usage
 
 Here's how you can define a file:
-if you want to create a file, without providing values, you can choose one ofthe following commands:
+if you want to create a file, without providing values, you can choose one of the following commands:
 
 ```bash
-[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:"lastname":TYPE_STRING:age:TYPE_BYTE
+[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
 ```
 
 ```bash
@@ -138,6 +138,13 @@ if you want to create a file, without providing values, you can choose one ofthe
 ```bash
 [isam.db-C-language-main]$ FILE person name:t_s:lastname:t_s:age:t_b
 ```
+
+thisthree commands are correct and each will create a file with the follwing variables:
+
+- name.
+- lastname or last name.
+- age.
+
 
 note the "last name" field, if you want to write field with spaces you have to put the "" around the field name, or you can do the follwing(last_name underscore without ""):
 
