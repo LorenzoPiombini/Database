@@ -27,18 +27,19 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 		return 0;
 	}
 
+	recs += SFT_B;
 	/*load the txt file in memory */
 	char buf[line_buf];
 	char **lines = calloc(recs, sizeof(char *));
 	if (!lines)
 	{
-		printf("calloc failed, build.c:%d", __LINE__ - 2);
+		printf("calloc failed, %s:%d", __FILE__, __LINE__ - 2);
 		return 0;
 	}
 
-	printf("copying file system...\nthis might take a few minutes\n");
+	printf("copying file system...\nthis might take a few minutes.\n");
 	int i = 0;
-
+	printf("position in text file is %ld\n.", ftell(fp));
 	while (fgets(buf, sizeof(buf), fp))
 	{
 		buf[strcspn(buf, "\n")] = '\0';
@@ -155,7 +156,7 @@ int get_number_value_from_txt_file(FILE *fp)
 
 	if (!is_num)
 	{
-		printf("first line is not a number, build.c:%d", __LINE__ - 1);
+		printf("first line is not a number, %s:%d.\n", __FILE__, __LINE__ - 1);
 		return 0;
 	}
 

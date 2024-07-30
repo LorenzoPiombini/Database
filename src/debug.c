@@ -2,6 +2,7 @@
 #include <string.h>
 #include "debug.h"
 #include "record.h"
+#include "str_op.h"
 
 void loop_str_arr(char **str, int len)
 {
@@ -32,6 +33,7 @@ void print_record(int count, Record_f **recs)
 
                 for (i = 0; i < rec->fields_num; i++)
                 {
+                        strip('"', rec->fields[i].field_name);
                         printf("%-*s\t", max++, rec->fields[i].field_name);
                         switch (rec->fields[i].type)
                         {
@@ -45,6 +47,7 @@ void print_record(int count, Record_f **recs)
                                 printf("%.2f\n", rec->fields[i].data.f);
                                 break;
                         case TYPE_STRING:
+                                strip('"', rec->fields[i].data.s);
                                 printf("%s\n", rec->fields[i].data.s);
                                 break;
                         case TYPE_BYTE:

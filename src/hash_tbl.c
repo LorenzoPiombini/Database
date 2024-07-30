@@ -21,6 +21,8 @@ void print_hash_table(HashTable tbl)
 			}
 			node = node->next;
 		}
+		if (i > 0 && (i % 30 == 0))
+			printf("\npress any key . . ."), getchar();
 	}
 }
 
@@ -200,8 +202,9 @@ char **keys(HashTable *ht)
 		Node *temp = ht->dataMap[i];
 		while (temp != NULL)
 		{
-			keys_arr[index++] = temp->key;
+			keys_arr[index] = strdup(temp->key);
 			temp = temp->next;
+			++index;
 		}
 	}
 
