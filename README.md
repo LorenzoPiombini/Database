@@ -154,47 +154,35 @@ note the "last name" field in the first option: if you want to writes field with
 the program will replace the underscore in last_name with a space (' ').
 using underscores it is not racccomended becuase the software rely on strings like "TYPE_FLOAT" or "t_s" to assign the correct type to the fields.
 
-now we have an empty file with a definiton, and we can write data to it later.
+now we have an empty file with a definiton, and we can write data to it.
 
-you can also create file and provide values to the fields at the same time, let's break it in two step:
+you can also create files and provide values to the fields in one entry:
 
 ```plaintext
-code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0
+
+[isam.db-C-language-main]$ bin/isam.db -nf item -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
 
 ```
 
-The line above, sets up three fields:
+This command sets up three fields:
 
-code: A string (char*) with the value "man78-g-hus".
+- code: a string (char*) with the value "man78-g-hus".
 
-price: A float with the value 33.56.
+- price: a float with the value 33.56.
 
-discount: A float with the value 0.0.
+- discount: a float with the value 0.0.
 
-to put it all together this will create a new file:
+the flag -k provides an id for the record that you are adding or creating, you will use this key for CRUD operation, once the record is created you will not able to use that key for new records in the same file.
 
-```plaintext
-bin/isam.db -nf item -d code:TYPE_STRING:man78-g-hus:price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
-```
-
-note the flag -k, this provide an id for the record that you are adding or creating, you will use this key for CRUD operation.
-
-## Note
-
-Currently, you must manually supply a key for CRUD operations. Future versions will aim to automate key management.
-___________________________________________________________________________________
-
-the flag that you can provide as for now, are:
+the flag that you can provide are:
 
 ```plaintext
     -a - add record to a file.
     -n - create a new database file
     -f - [required] path to file (file name)
-    -r - look for the record key provided in the specified file. 
-    -d - variables name and type <variableName>:TYPE_INT:12.
-    -D - delete the record  provided for specified file.
+    -D - delete the record  provided for the specified file.
     -R - define a file definition witout values.
-    -k - specify the record id, the program will save, retrice and delete the record based on this id.
+    -k - specify the record id, the program will perform CRUD operations using this this id.
     -t - list of available types. this flag will exit the program.
     -l - list the file definition specified with -f.
     -u - update the file specified by -f .
