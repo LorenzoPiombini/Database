@@ -162,3 +162,72 @@ int get_number_value_from_txt_file(FILE *fp)
 
 	return atoi(buffer);
 }
+
+unsigned char create_system_from_txt_file(char *txt_f)
+{
+	FILE *fp = fopen(txt_f, "r");
+	if (!fp)
+	{
+		printf("failed to open %s. %s:%d.", txt_f, F, L - 3);
+		return 0;
+	}
+	int lines = 0, i = 0;
+	int size = return_bigger_buffer(fp, &lines);
+	char buffer[size];
+	char **files_n = calloc(lines, sizeof(char *));
+	char **schemas = calloc(lines, sizeof(char *));
+	char *save = NULL;
+
+	while (fgets(buffer, sizeof(buffer), fp))
+	{
+		buffer[strcspn(buffer, "\n")] = '\0';
+		if (buffer[0] == '\0')
+			continue;
+
+		files_n[i] = strdup(strtok_r(buffer, "|", &save));
+		schemas[i] = strdup(strtok_r(NULL, "|", &save));
+		i++;
+		save = NULL;
+	}
+
+	fclose(fp);
+
+	/* create file */
+	printf("%s\n", schemas[4]);
+	int j = 0;
+	for (j = 0; j < i; j++)
+	{
+		char **files = two_file_path(files_n[j]);
+		int fd_index = create_file(files[0]);
+		int fd_data = create_file(files[1]);
+
+		if (!create_file_with_schema(fd_data, fd_index, schemas[j], 0))
+		{
+			delete_file(2, files[0], files[1]);
+			free_strs(2, 1, files);
+			close_file(2, fd_data, fd_index);
+			return 0;
+		}
+
+		free_strs(2, 1, files);
+		close_file(2, fd_index, fd_data);
+	}
+
+	free_strs(lines, 2, files_n, schemas);
+	return 1;
+}
+
+int return_bigger_buffer(FILE *fp, int *lines)
+{
+	char buffer[5000];
+	int max = 0;
+	while (fgets(buffer, sizeof(buffer), fp) != NULL)
+	{
+		(*lines)++;
+		int temp = 0;
+		if ((temp = (strcspn(buffer, "\n") + 1)) > max)
+			max = temp;
+	}
+	rewind(fp);
+	return max + 10;
+}

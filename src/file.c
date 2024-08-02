@@ -137,7 +137,7 @@ off_t find_record_position(int fd, off_t offset)
 	if (pos == -1)
 	{
 		perror("seeking offset.\n");
-		return (off_t)-1;
+		return pos;
 	}
 
 	return pos;
@@ -299,10 +299,16 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 	}
 
 	register unsigned char i = 0;
+	/* ----------these variables are used to handle the strings-------- */
+	/* now each string fields can be updated regardless the string size */
+	/* ----------some realities might required such a feature----------- */
+
 	size_t lt = 0, new_lt = 0;
 	off_t str_loc = 0, af_str_loc_pos = 0, eof = 0;
 	size_t buff_update = 0, __n_buff_update = 0;
 	off_t move_to = 0, bg_pos = 0;
+
+	/*--------------------------------------------------*/
 	char *buff_w = NULL;
 	for (i = 0; i < rec->fields_num; i++)
 	{
@@ -369,7 +375,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 					write(fd, buff_w, buff_update) < 0)
 				{
 					perror("write file failed: ");
-					printf(" %s:%d", __FILE__, __LINE__);
+					printf(" %s:%d", F, L - 2);
 					free(buff_w);
 					return 0;
 				}
@@ -379,46 +385,63 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 			else
 			{
 				/*save the satrting offset for the string record*/
-				bg_pos = get_file_offset(fd);
+				if ((bg_pos = get_file_offset(fd)) == -1)
+				{
+					__er_file_pointer(F, L - 2);
+					return 0;
+				}
+
 				/*read pos of new str if any*/
 				if (read(fd, &str_loc, sizeof(str_loc)) == -1)
 				{
 					perror("can't read string location: ");
-					printf(" %s:%d", __FILE__, __LINE__ - 3);
+					printf(" %s:%d", F, L - 3);
 					return 0;
 				}
 
 				/*store record  beginning pos*/
-				af_str_loc_pos = get_file_offset(fd);
+				if ((af_str_loc_pos = get_file_offset(fd)) == -1)
+				{
+					__er_file_pointer(F, L - 2);
+					return 0;
+				}
 
 				if (read(fd, &lt, sizeof(lt)) < 0 ||
 					read(fd, &buff_update, sizeof(buff_update)) < 0)
 				{
 					perror("can't read safety buffer before writing string.\n");
-					printf("%s:%d", __FILE__, __LINE__ - 3);
+					printf("%s:%d", F, L - 3);
 					return 0;
 				}
 
 				/*save the end offset of the first string record */
-				go_back_to = get_file_offset(fd) + sizeof(buff_update);
+				if ((go_back_to = get_file_offset(fd)) == -1)
+				{
+					__er_file_pointer(F, L - 2);
+					return 0;
+				}
 
+				go_back_to += sizeof(buff_update);
 				if (str_loc > 0)
 				{
 					if (find_record_position(fd, str_loc) == -1)
 					{
-						perror("file pointer:");
-						printf(" %s:%d.\n", __FILE__, __LINE__);
+						__er_file_pointer(F, L - 2);
 						return 0;
 					}
 					/* in the case of a regular buffure update we have to	*/
 					/*	 to save the off_t to get back to it later	*/
-					move_to = get_file_offset(fd);
+					if ((move_to = get_file_offset(fd)) == -1)
+					{
+						__er_file_pointer(F, L - 2);
+						return 0;
+					}
 
 					if (read(fd, &lt, sizeof(lt)) < 0 ||
 						read(fd, &buff_update, sizeof(buff_update)) < 0)
 					{
 						perror("read file.\n");
-						printf("%s:%d", __FILE__, __LINE__ - 3);
+						printf("%s:%d", F, L - 3);
 						return 0;
 					}
 				}
@@ -430,8 +453,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 
 					if ((eof = go_to_EOF(fd)) == -1)
 					{
-						perror("file pointer.\n");
-						printf("%s:%d", __FILE__, __LINE__ - 3);
+						__er_file_pointer(F, L - 2);
 						return 0;
 					}
 					__n_buff_update = buff_update;
@@ -439,7 +461,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 					buff_w = calloc(__n_buff_update, sizeof(char));
 					if (!buff_w)
 					{
-						printf("calloc failed, %s:%d.\n", __FILE__, __LINE__ - 3);
+						printf("calloc failed, %s:%d.\n", F, L - 3);
 						return 0;
 					}
 				}
@@ -448,7 +470,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 					buff_w = calloc(buff_update, sizeof(char));
 					if (!buff_w)
 					{
-						printf("calloc failed, %s:%d.\n", __FILE__, __LINE__ - 3);
+						printf("calloc failed, %s:%d.\n", F, L - 3);
 						return 0;
 					}
 				}
@@ -460,8 +482,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 				{
 					if (find_record_position(fd, af_str_loc_pos) == -1)
 					{
-						perror("file pointer: \n");
-						printf("%s:%d", __FILE__, __LINE__ - 3);
+						__er_file_pointer(F, L - 3);
 						free(buff_w);
 						return 0;
 					}
@@ -470,8 +491,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 				{
 					if (find_record_position(fd, move_to) == -1)
 					{
-						perror("file pointer: ");
-						printf(", %s:%d", __FILE__, __LINE__ - 3);
+						__er_file_pointer(F, L - 3);
 						free(buff_w);
 						return 0;
 					}
@@ -496,8 +516,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 					/*go at the beginning of the str record*/
 					if (find_record_position(fd, bg_pos) == -1)
 					{
-						perror("file pointer: ");
-						printf(" %s:%d", __FILE__, __LINE__ - 3);
+						__er_file_pointer(F, L - 2);
 						free(buff_w);
 						return 0;
 					}
@@ -506,7 +525,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 					if (write(fd, &eof, sizeof(eof)) == -1)
 					{
 						perror("write file: ");
-						printf(" %s:%d", __FILE__, __LINE__ - 3);
+						printf(" %s:%d", F, L - 3);
 						return 0;
 					}
 
@@ -515,8 +534,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 
 					if (find_record_position(fd, go_back_to) == -1)
 					{
-						perror("file pointer: ");
-						printf(" %s:%d", __FILE__, __LINE__ - 3);
+						__er_file_pointer(F, L - 2);
 						free(buff_w);
 						return 0;
 					}
@@ -525,8 +543,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 				{ /*Make sure that in all cases we go back to the end of the 1st record*/
 					if (find_record_position(fd, go_back_to) == -1)
 					{
-						perror("file pointer: ");
-						printf(" %s:%d", __FILE__, __LINE__ - 3);
+						__er_file_pointer(F, L - 2);
 						free(buff_w);
 						return 0;
 					}
@@ -557,7 +574,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 	if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
 	{
 		perror("writing off_t for future update");
-		printf(" %s:%d", __FILE__, __LINE__ - 3);
+		printf(" %s:%d", F, L - 3);
 		return 0;
 	}
 
@@ -687,20 +704,22 @@ Record_f *read_file(int fd, char *file_name)
 			if (read(fd, &str_loc, sizeof(str_loc)) == -1)
 			{
 				perror("can't read string location: ");
-				printf(" %s:%d", __FILE__, __LINE__ - 3);
+				printf(" %s:%d", F, L - 3);
 				return 0;
 			}
 
 			if (read(fd, &l, sizeof(l)) < 0)
 			{
-				perror("could not read size of string(char*), file.c l 512.\n");
+				perror("read from file failed: ");
+				printf("%s:%d.\n", F, L - 2);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
 
 			if (read(fd, &buff_update, sizeof(buff_update)) < 0)
 			{
-				perror("could not read size of buff_update file.c l 518.\n");
+				perror("read from file failed: ");
+				printf("%s:%d.\n", F, L - 2);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
@@ -712,8 +731,7 @@ Record_f *read_file(int fd, char *file_name)
 				/* get current position, we might have to get back to this */
 				if (find_record_position(fd, str_loc) == -1)
 				{
-					perror("file pointer: ");
-					printf("%s:%d", __FILE__, __LINE__ - 3);
+					__er_file_pointer(F, L - 2);
 					clean_up(rec, rec->fields_num);
 					return NULL;
 				}
@@ -721,7 +739,7 @@ Record_f *read_file(int fd, char *file_name)
 				if (read(fd, &l, sizeof(l)) < 0)
 				{
 					perror("read file: ");
-					printf("%s:%d", __FILE__, __LINE__ - 2);
+					printf("%s:%d", F, L - 2);
 					clean_up(rec, rec->fields_num);
 					return NULL;
 				}
@@ -729,7 +747,7 @@ Record_f *read_file(int fd, char *file_name)
 				if (read(fd, &buff_update, sizeof(buff_update)) < 0)
 				{
 					perror("read file: ");
-					printf("%s:%d", __FILE__, __LINE__ - 2);
+					printf("%s:%d", F, L - 2);
 					clean_up(rec, rec->fields_num);
 					return NULL;
 				}
@@ -738,7 +756,7 @@ Record_f *read_file(int fd, char *file_name)
 
 			if (!rec->fields[i].data.s)
 			{
-				printf("calloc failed: %s:%d.\n", __FILE__, __LINE__ - 3);
+				printf("calloc failed: %s:%d.\n", F, L - 3);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
@@ -767,8 +785,7 @@ Record_f *read_file(int fd, char *file_name)
 			{
 				if (find_record_position(fd, move_to) == -1)
 				{
-					perror("file pointer: ");
-					printf("%s:%d", __FILE__, __LINE__ - 3);
+					__er_file_pointer(F, L - 2);
 					clean_up(rec, rec->fields_num);
 					return NULL;
 				}
@@ -778,7 +795,8 @@ Record_f *read_file(int fd, char *file_name)
 		case TYPE_BYTE:
 			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) < 0)
 			{
-				perror("could not read type byte, file.c l 550.\n");
+				perror("could not read type byte: ");
+				printf(" %s:%d.\n", F, L - 2);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
@@ -786,7 +804,8 @@ Record_f *read_file(int fd, char *file_name)
 		case TYPE_DOUBLE:
 			if (read(fd, &rec->fields[i].data.d, sizeof(double)) < 0)
 			{
-				perror("could not read type double, file.c l 557.\n");
+				perror("could not read type double:");
+				printf(" %s:%d.\n", F, L - 2);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
