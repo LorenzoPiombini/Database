@@ -10,6 +10,7 @@ void print_usage(char *argv[])
         printf("\t -a - add record to a file.\n");
         printf("\t -n - create a new database file\n");
         printf("\t -f - [required] path to file (file name)\n");
+        printf("\t -c - creates the files specified in the txt file.\n");
         printf("\t -D - delete the record  provided for specified file.\n");
         printf("\t -R - define a file definition witout values.\n");
         printf("\t -k - specify the record id, the program will save, retrice and delete the record based on this id.\n");
@@ -36,12 +37,22 @@ void print_types(void)
         printf("\tTYPE_DOUBLE, floating point number, %ld bytes (%ld bits).\n",
                sizeof(double), 8 * sizeof(double));
 }
+
 int check_input_and_values(char *file_path, char *data_to_add, char *key, char *argv[],
                            unsigned char del, unsigned char list_def, unsigned char new_file,
-                           unsigned char update, unsigned char del_file, unsigned char build)
+                           unsigned char update, unsigned char del_file, unsigned char build,
+                           unsigned char create)
 {
 
-        if (!file_path)
+        if (create && (file_path || del || update || del_file || list_def ||
+                       new_file || key || data_to_add || build))
+        {
+                printf("option -c must be used by itself.\n");
+                printf(" -c <txt-with-files-definitions>.\n");
+                return 0;
+        }
+
+        if (!file_path && !create)
         {
                 print_usage(argv);
                 return 0;
@@ -55,10 +66,13 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                 return 0;
         }
 
-        if (!is_file_name_valid(file_path))
+        if (file_path)
         {
-                printf("file name or path not valid");
-                return 0;
+                if (!is_file_name_valid(file_path))
+                {
+                        printf("file name or path not valid");
+                        return 0;
+                }
         }
 
         if ((data_to_add || update) && !key)

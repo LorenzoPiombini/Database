@@ -148,3 +148,76 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 	clean_up(rec, rec->fields_num);
 	return 1;
 }
+
+unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_def, int bucket_ht)
+{
+	int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
+
+	if (fields_count > MAX_FIELD_NR)
+	{
+		printf("Too many fields, max %d fields each file definition.\n", MAX_FIELD_NR);
+		return 0;
+	}
+
+	char *buf_sdf = strdup(schema_def);
+	char *buf_t = strdup(schema_def);
+
+	Schema sch = {fields_count, NULL, NULL};
+	if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
+	{
+		free(buf_sdf), free(buf_t);
+		printf("can't create file definition %s:%d.\n", __FILE__, __LINE__ - 1);
+		return 0;
+	}
+
+	Header_d hd = {0, 0, sch};
+
+	if (!create_header(&hd))
+	{
+		free(buf_sdf), free(buf_t);
+		clean_schema(&sch);
+		return 0;
+	}
+
+	// print_size_header(hd);
+	size_t hd_st = compute_size_header(hd);
+	if (hd_st >= MAX_HD_SIZE)
+	{
+		printf("File definition is bigger than the limit.\n");
+		free(buf_sdf), free(buf_t);
+		clean_schema(&sch);
+		return 0;
+	}
+
+	if (!write_header(fd_data, &hd))
+	{
+		printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+		free(buf_sdf), free(buf_t);
+		clean_schema(&sch);
+		return 0;
+	}
+
+	clean_schema(&sch);
+
+	if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
+	{
+		printf("padding failed. %s:%d.\n", __FILE__, __LINE__ - 1);
+		free(buf_sdf), free(buf_t);
+		return 0;
+	}
+
+	int bucket = bucket_ht > 0 ? bucket_ht : 7;
+	Node **dataMap = calloc(bucket, sizeof(Node *));
+	HashTable ht = {bucket, dataMap, write_ht};
+
+	if (!ht.write(fd_index, &ht))
+	{
+		printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+		free(buf_sdf), free(buf_t);
+		return 0;
+	}
+
+	free(buf_sdf), free(buf_t);
+	destroy_hasht(&ht);
+	return 1;
+}
