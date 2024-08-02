@@ -33,6 +33,8 @@ int main(int argc, char *argv[])
 	unsigned char del_file = 0;
 	unsigned char build = 0;
 	unsigned char list_keys = 0;
+	unsigned char create = 0;
+
 	/*------------------------------------------*/
 	int c = 0;
 	char *file_path = NULL;
@@ -43,7 +45,7 @@ int main(int argc, char *argv[])
 	char *txt_f = NULL;
 	int bucket_ht = 0;
 
-	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:x")) != -1)
+	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:xc:")) != -1)
 	{
 		switch (c)
 		{
@@ -86,6 +88,9 @@ int main(int argc, char *argv[])
 		case 'x':
 			list_keys = 1;
 			break;
+		case 'c':
+			create = 1, txt_f = optarg;
+			break;
 		default:
 			printf("Unknow option -%c\n", c);
 			return 1;
@@ -93,15 +98,29 @@ int main(int argc, char *argv[])
 	}
 
 	if (!check_input_and_values(file_path, data_to_add, key,
-								argv, del, list_def, new_file, update, del_file, build))
+								argv, del, list_def, new_file, update, del_file, build, create))
 	{
 		return 1;
+	}
+
+	if (create)
+	{
+		if (!create_system_from_txt_file(txt_f))
+		{
+			return 1;
+		}
+		printf("system created!\n");
+		return 0;
 	}
 
 	if (build)
 	{
 		if (build_from_txt_file(file_path, txt_f))
+		{
 			return 0;
+		}
+
+		return 1;
 	}
 
 	if (new_file)
@@ -414,6 +433,24 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
+		/* this is to ensure the file is a db file */
+		Schema sch = {0, NULL, NULL};
+		Header_d hd = {0, 0, sch};
+		if (!read_header(fd_data, &hd))
+		{
+			free(files[0]), free(files[1]), free(files);
+			return 1;
+		}
+
+		/* if the file is a db file reset the file pointer at the beginning */
+		if (begin_in_file(fd_data) == -1)
+		{
+			__er_file_pointer(F, L - 2);
+			clean_schema(&hd.sch_d);
+			free(files[0]), free(files[1]), free(files);
+			return 1;
+		}
+
 		if (del_file)
 		{ /*delete file */
 			delete_file(2, files[0], files[1]);
@@ -441,7 +478,7 @@ int main(int argc, char *argv[])
 			printf("record %s deleted!.\n", record_id);
 			free(record_del->key);
 			free(record_del);
-			print_hash_table(ht);
+			// print_hash_table(ht);
 			close_file(1, fd_index);
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
@@ -477,8 +514,6 @@ int main(int argc, char *argv[])
 			char *buf_v = strdup(data_to_add);
 
 			Record_f *rec = NULL;
-			Schema sch = {0, NULL, NULL};
-			Header_d hd = {0, 0, sch};
 
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
 														   fd_data, file_path, &rec, &hd);
@@ -515,7 +550,7 @@ int main(int argc, char *argv[])
 
 				if (begin_in_file(fd_data) == -1)
 				{ /*set the file pointer at the start*/
-					printf("file pointerfailed,  main.c l %d.\n", __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					free(buffer), free(buf_t), free(buf_v);
 					free(files[0]), free(files[1]), free(files);
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
@@ -538,7 +573,7 @@ int main(int argc, char *argv[])
 			off_t eof = go_to_EOF(fd_data);
 			if (eof == -1)
 			{
-				printf("file pointer failed, main.c l %d.\n", __LINE__ - 2);
+				__er_file_pointer(F, L - 1);
 				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
@@ -637,7 +672,7 @@ int main(int argc, char *argv[])
 
 				if (begin_in_file(fd_data) == -1)
 				{
-					printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					free(buffer), free(buf_t), free(buf_v);
 					clean_up(rec, rec->fields_num);
@@ -656,7 +691,7 @@ int main(int argc, char *argv[])
 				/* setting the file position back to the top*/
 				if (begin_in_file(fd_data) == -1)
 				{
-					printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					free(buffer), free(buf_t), free(buf_v);
 					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
@@ -695,7 +730,7 @@ int main(int argc, char *argv[])
 			destroy_hasht(&ht);
 			if (find_record_position(fd_data, offset) == -1)
 			{
-				printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+				__er_file_pointer(F, L - 1);
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_schema(&hd.sch_d);
 				clean_up(rec, rec->fields_num);
@@ -716,7 +751,7 @@ int main(int argc, char *argv[])
 			off_t updated_rec_pos = get_update_offset(fd_data);
 			if (updated_rec_pos == -1)
 			{
-				printf("file pointer failed, main.c l %d.\n", __LINE__ - 2);
+				__er_file_pointer(F, L - 1);
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				clean_up(rec_old, rec_old->fields_num);
@@ -767,7 +802,7 @@ int main(int argc, char *argv[])
 
 				if (find_record_position(fd_data, updated_rec_pos) == -1)
 				{
-					printf("can`t find offset, main.c l %d.\n", __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
 					free(pos_u);
 					clean_schema(&hd.sch_d);
@@ -937,7 +972,7 @@ int main(int argc, char *argv[])
 					++updates;
 					if (find_record_position(fd_data, pos_u[i]) == -1)
 					{
-						printf("error file pointer, main.c l %d.\n", __LINE__ - 1);
+						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						clean_up(rec, rec->fields_num);
@@ -1031,7 +1066,7 @@ int main(int argc, char *argv[])
 					off_t eof = go_to_EOF(fd_data); /* file pointer to the end*/
 					if (eof == -1)
 					{
-						printf("file pointer failed, main.c l %d.\n", __LINE__ - 2);
+						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						clean_schema(&hd.sch_d);
 						free(pos_u);
@@ -1072,8 +1107,8 @@ int main(int argc, char *argv[])
 					}
 
 					clean_up(new_rec, new_rec->fields_num);
-					/*the position of this new record in the old part of the record
-					 was already set at line 846*/
+					/*the position of new_rec in the old part of the record
+					 was already set at line 898*/
 				}
 
 				if (check == SCHEMA_NW && updates == 0)
@@ -1082,7 +1117,7 @@ int main(int argc, char *argv[])
 					off_t eof = 0;
 					if ((eof = go_to_EOF(fd_data)) == -1)
 					{
-						printf("file pointer failed, main.c l %d", __LINE__ - 1);
+						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						free(positions);
@@ -1100,9 +1135,10 @@ int main(int argc, char *argv[])
 
 					/*find the position of the last piece of the record*/
 					off_t initial_pos = 0;
+
 					if ((initial_pos = find_record_position(fd_data, pos_u[index - 1])) == -1)
 					{
-						printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						free(positions);
@@ -1120,9 +1156,9 @@ int main(int argc, char *argv[])
 
 					ssize_t rec_st = get_record_size(fd_data);
 					find_record_position(fd_data, pos_u[index - 1]);
-					printf("record size is %ld\n", rec_st);
-					printf("initial record pos is %ld\n", initial_pos);
-					printf("the offset of the updatePos should be %ld", rec_st + (ssize_t)initial_pos);
+					//	printf("record size is %ld\n", rec_st);
+					//	printf("initial record pos is %ld\n",initial_pos);
+					// printf("the offset of the updatePos should be %ld", rec_st + (ssize_t)initial_pos);
 
 					/*re-write the record*/
 					if (write_file(fd_data, recs_old[index - 1], eof, update) == -1)
@@ -1147,7 +1183,7 @@ int main(int argc, char *argv[])
 					/*move to EOF*/
 					if ((go_to_EOF(fd_data)) == -1)
 					{
-						printf("file pointer failed, main.c l %d", __LINE__ - 1);
+						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						free(positions);
@@ -1250,7 +1286,7 @@ int main(int argc, char *argv[])
 				// set the position back to the record
 				if (find_record_position(fd_data, offset) == -1)
 				{
-					printf("error lseek record, main.c l %d.\n", __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1281,7 +1317,7 @@ int main(int argc, char *argv[])
 				off_t eof = 0;
 				if ((eof = go_to_EOF(fd_data)) == -1)
 				{
-					printf("file pointer failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1292,7 +1328,7 @@ int main(int argc, char *argv[])
 				// put the position back to the record
 				if (find_record_position(fd_data, offset) == -1)
 				{
-					printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1314,7 +1350,7 @@ int main(int argc, char *argv[])
 				eof = go_to_EOF(fd_data);
 				if (eof == -1)
 				{
-					printf("error file pointer, main.c l %d.\n", __LINE__ - 2);
+					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
 					clean_up(rec, rec->fields_num);
 					clean_up(rec_old, rec_old->fields_num);
@@ -1344,17 +1380,6 @@ int main(int argc, char *argv[])
 		}
 
 		/*	 reading the file to show data  	*/
-		Schema sch = {0, NULL, NULL};
-		Header_d hd = {0, 0, sch};
-
-		begin_in_file(fd_data); /* ensure starts at the 1st position  in the file*/
-		if (!read_header(fd_data, &hd))
-		{
-			printf("failed to read header, main.c l %d.\n", __LINE__ - 1);
-			close_file(2, fd_index, fd_data);
-			clean_schema(&sch); // it might not be neccessery to free schema, but the function is safe
-			return 1;
-		}
 		if (list_def)
 		{ /* show file definitions */
 			print_schema(hd.sch_d);
@@ -1366,7 +1391,6 @@ int main(int argc, char *argv[])
 		if (list_keys)
 		{
 			HashTable ht = {0, NULL};
-
 			if (!read_index_file(fd_index, &ht))
 			{
 				printf("reading index file failed, main.c l %d.\n", __LINE__ - 1);
@@ -1422,7 +1446,7 @@ int main(int argc, char *argv[])
 			destroy_hasht(&ht);
 			if (find_record_position(fd_data, offset) == -1)
 			{
-				printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+				__er_file_pointer(F, L - 1);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -1439,7 +1463,7 @@ int main(int argc, char *argv[])
 			off_t update_rec_pos = get_update_offset(fd_data);
 			if (update_rec_pos == -1)
 			{
-				printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+				close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				close_file(2, fd_data, fd_index);
 				return 1;
@@ -1466,7 +1490,7 @@ int main(int argc, char *argv[])
 				//  again for the reading process to be successful
 				if (find_record_position(fd_data, offt_rec_up_pos) == -1)
 				{
-					printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+					__er_file_pointer(F, L - 1);
 					int i = 0;
 					for (i = 0; i < counter; i++)
 					{
@@ -1481,7 +1505,6 @@ int main(int argc, char *argv[])
 				while ((update_rec_pos = get_update_offset(fd_data)) > 0)
 				{
 					counter++;
-
 					recs = realloc(recs, counter * sizeof(Record_f *));
 					if (!recs)
 					{
@@ -1499,7 +1522,7 @@ int main(int argc, char *argv[])
 
 					if (find_record_position(fd_data, update_rec_pos) == -1)
 					{
-						printf("file pointer failed, main.c l %d.\n", __LINE__ - 1);
+						__er_file_pointer(F, L - 1);
 						int i = 0;
 						for (i = 0; i < counter; i++)
 						{

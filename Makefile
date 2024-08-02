@@ -10,11 +10,11 @@ default: $(TARGET)
 
 
 test:	
-	./$(TARGET) -nf test -d name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
-	./$(TARGET) -d code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -nf item -k ui7
-	 ./$(TARGET) -nf test7789 -d name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6
+	./$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
+	./$(TARGET) -a  code:t_s:"man78-g-hus":price:t_f:33.56:discount:TYPE_FLOAT:0.0 -nf item -k ui7
+	 ./$(TARGET) -nf test7789 -a  name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6
 	./$(TARGET) -f test -D pi90
-	./$(TARGET) -nf prova -d code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
+	./$(TARGET) -nf prova -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
 	
 	./$(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
 	./$(TARGET) -f item -a price:TYPE_FLOAT:67.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"met90-x-us":unit:TYPE_STRING:"each":weight:TYPE_DOUBLE:45.43 -k ui9
@@ -75,7 +75,7 @@ $(BINDIR)/GET:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
-		echo "$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \
+		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -f \"\$$1\" -k \"\$$2\"" >> $@; \
 		chmod +x $@; \
 	fi
 $(BINDIR)/LIST:
@@ -95,50 +95,40 @@ $(BINDIR)/LIST:
 $(BINDIR)/FILE:
 	@if [ ! -f $@ ]; then \
 		echo "Creating $@ . . ."; \
-		echo "#!/usr/bin/env python3" > $@; \
-		echo "import sys" >> $@; \
-		echo "import subprocess" >> $@; \
-		echo "" >> $@; \
-		echo "def transform_input(input_string):" >> $@; \
-		echo "    # Dictionary of replacements" >> $@; \
-		echo "    replacements = {" >> $@; \
-		echo "        't_b': 'TYPE_BYTE'," >> $@; \
-		echo "        't_d': 'TYPE_DOUBLE'," >> $@; \
-		echo "        't_f': 'TYPE_FLOAT'," >> $@; \
-		echo "        't_l': 'TYPE_LONG'," >> $@; \
-		echo "        't_i': 'TYPE_INT'," >> $@; \
-		echo "        't_s': 'TYPE_STRING'" >> $@; \
-		echo "    }" >> $@; \
-		echo "" >> $@; \
-		echo "    parts = input_string.split(':')" >> $@; \
-		echo "    transformed_parts = []" >> $@; \
-		echo "" >> $@; \
-		echo "    for part in parts:" >> $@; \
-		echo "        if part in replacements:" >> $@; \
-		echo "            part = replacements[part]" >> $@; \
-		echo "            transformed_parts.append(part)" >> $@; \
-		echo "            transformed_string = ':'.join(transformed_parts)" >> $@; \
-		echo "" >> $@; \
-		echo "    return transformed_string" >> $@; \
-		echo "" >> $@; \
-		echo "def execute_command(filename, transformed_string):" >> $@; \
-		echo "    command = f\"/home/lpiombini/Cprog/low_IO/$(TARGET) -nf {filename} -R '{transformed_string}'\"" >> $@; \
-		echo "    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)" >> $@; \
-		echo "    if result.returncode == 0:" >> $@; \
-		echo "        print(result.stdout.decode())" >> $@; \
-		echo "    else:" >> $@; \
-		echo "        print('Error:', result.stderr.decode())" >> $@; \
-		echo "if __name__ == '__main__':" >> $@; \
-		echo "    if len(sys.argv) != 3:" >> $@; \
-		echo "        print('Usage: ./FILE \'<filename>\' \'<string>\'')" >> $@; \
-		echo "        sys.exit(1)" >> $@; \
-		echo "    filename = sys.argv[1]" >> $@; \
-		echo "    input_string = sys.argv[2]" >> $@; \
-		echo "    transformed_string = transform_input(input_string)" >> $@; \
-		echo "    execute_command(filename, transformed_string)" >> $@; \
+		echo "#!/bin/bash" > $@; \
+		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ]; then" >> $@; \
+		echo "echo \"Usage: FILE [file name] [fields name and type]\"" >> $@; \
+		echo "exit 1" >> $@; \
+		echo "fi" >> $@; \
+		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -nf \"\$$1\" -R \"\$$2\"" >> $@; \
 		chmod +x $@; \
 	fi
-install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE
-	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)
+
+$(BINDIR)/WRITE:
+	@if [ ! -f $@ ]; then \
+		echo "Creating $@ . . ."; \
+		echo "#!/bin/bash" > $@; \
+		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ] || [ -z \"\$$3\" ]; then" >> $@; \
+		echo "echo \"Usage: FILE [file name] [fields name and type] [key]\"" >> $@; \
+		echo "exit 1" >> $@; \
+		echo "fi" >> $@; \
+		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -f \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
+		chmod +x $@; \
+	fi
+
+$(BINDIR)/KEYS:
+	@if [ ! -f $@ ]; then \
+		echo "Creating $@ . . ."; \
+		echo "#!/bin/bash" > $@; \
+		echo "if [ -z \"\$$1\" ]; then" >> $@; \
+		echo "echo \"Usage: KEYS [file name]\"" >> $@; \
+		echo "exit 1" >> $@; \
+		echo "fi" >> $@; \
+		echo "" >> $@; \
+		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -xf \"\$$1\"" >> $@; \
+		chmod +x $@; \
+	fi
+install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE
+	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)
 
 .PHONY: default test memory clean install 
