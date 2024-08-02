@@ -41,6 +41,12 @@ To get started, you can either clone the repository or download the files direct
   - FILE expects two argument *file name* and *paramters string*.
     - this command will create a new file with definition as per the *paramters string*.
     - if you execute FILE with no arguments will display the usage instruction.
+  - KEYS expects one argument *file name*.
+    - this command will list the keys id for the file.
+    - if you execute KEYS with no arguments will display the usage instruction.
+  - WRITE expects three arguments *file name*, *paramters string* and the *key* for the record that we want to write to file.
+    - this command will list write data to the file specified.
+    - if you execute KEYS with no arguments will display the usage instruction.
 
 you need root privilege to run the install and clean rules.
 
