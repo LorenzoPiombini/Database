@@ -616,6 +616,11 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	}
 	else if (hd.sch_d.fields_num < fields_n)
 	{ /* case where the header needs to be updated */
+		if (((fields_n - hd.sch_d.fields_num) + hd.sch_d.fields_num) > MAX_FIELD_NR)
+		{
+			printf("cannot add the new fileds, limit is %d fields.\n", MAX_FIELD_NR);
+			return SCHEMA_ERR;
+		}
 		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
 
 		switch (ck_rst)
@@ -841,14 +846,6 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 {
 
 	// check if the schema on the file is equal to the input Schema.
-
-	if (!read_header(fd_data, hd))
-	{
-		printf("can`t read the header, parse.c:%d.\n", __LINE__ - 2);
-		return 0;
-	}
-
-	// print_schema(hd.sch_d);
 
 	if (hd->sch_d.fields_num != 0)
 	{

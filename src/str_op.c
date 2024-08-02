@@ -138,6 +138,7 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count)
 	{
+		strip('_', s);
 		names_f[j] = strdup(s);
 		if (!names_f[j])
 		{
@@ -215,7 +216,18 @@ ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 		{
 			j++, types[j] = get_type(s);
 		}
-		i++;
+		if (steps != 3 && i == 2)
+		{
+			i++;
+		}
+		else if (steps != 3 && i == 3)
+		{
+			i--;
+		}
+		else
+		{
+			i++;
+		}
 	}
 	return types;
 }
