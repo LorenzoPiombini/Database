@@ -44,8 +44,9 @@ int main(int argc, char *argv[])
 	char *schema_def = NULL;
 	char *txt_f = NULL;
 	int bucket_ht = 0;
+	int indexes = 0;
 
-	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:xc:")) != -1)
+	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:xc:i:")) != -1)
 	{
 		switch (c)
 		{
@@ -90,6 +91,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			create = 1, txt_f = optarg;
+			break;
+		case 'i':
+			indexes = atoi(optarg);
 			break;
 		default:
 			printf("Unknow option -%c\n", c);
@@ -213,14 +217,13 @@ int main(int argc, char *argv[])
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
-
+			/*  write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
-			Node **dataMap = calloc(bucket, sizeof(Node *));
-			HashTable ht = {bucket, dataMap, write_ht};
+			int index_num = indexes > 0 ? indexes : 5;
 
-			if (!ht.write(fd_index, &ht))
+			if (!write_index_file_head(fd_index, index_num))
 			{
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("write to file failed, %s:%d", F, L - 2);
 				free(buf_sdf), free(buf_t);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -228,12 +231,41 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
+			int i = 0;
+			for (i = 0; i < index_num; i++)
+			{
+				Node **dataMap = calloc(bucket, sizeof(Node *));
+				if (!dataMap)
+				{
+					printf("calloc failed. %s:%d.\n", F, L - 3);
+					free(buf_sdf), free(buf_t);
+					close_file(2, fd_index, fd_data);
+					delete_file(2, files[0], files[1]);
+					free(files[0]), free(files[1]), free(files);
+					return 1;
+				}
+
+				HashTable ht = {bucket, dataMap, write_ht};
+
+				if (!write_index_body(fd_index, i, &ht) == -1)
+				{
+					printf("write to file failed. %s:%d.\n", F, L - 2);
+					free(buf_sdf), free(buf_t);
+					destroy_hasht(&ht);
+					close_file(2, fd_index, fd_data);
+					delete_file(2, files[0], files[1]);
+					free(files[0]), free(files[1]), free(files);
+					return 1;
+				}
+
+				destroy_hasht(&ht);
+			}
+
 			printf("File created successfully!\n");
 
 			free(buf_sdf), free(buf_t);
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
-			destroy_hasht(&ht);
 			return 0;
 		}
 
@@ -247,6 +279,8 @@ int main(int argc, char *argv[])
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
+				delete_file(2, files[0], files[1]);
+				return 1;
 			}
 
 			char *buffer = strdup(data_to_add);
@@ -256,10 +290,10 @@ int main(int argc, char *argv[])
 			Schema sch = {0, NULL, NULL};
 			Record_f *rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &sch, 0);
 
+			free(buffer), free(buf_t), free(buf_v);
 			if (!rec)
 			{
 				printf("error creating the record, %s:%d.\n", __FILE__, __LINE__ - 1);
-				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -271,7 +305,6 @@ int main(int argc, char *argv[])
 			if (!create_header(&hd))
 			{
 				printf("%s:%d.\n", __FILE__, __LINE__ - 1);
-				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -284,7 +317,6 @@ int main(int argc, char *argv[])
 			if (hd_st >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");
-				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -295,7 +327,6 @@ int main(int argc, char *argv[])
 			if (!write_header(fd_data, &hd))
 			{
 				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
-				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				clean_up(rec, fields_count), clean_schema(&sch);
@@ -306,7 +337,6 @@ int main(int argc, char *argv[])
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
 				printf("padding failed. %s:%d.\n", __FILE__, __LINE__ - 1);
-				free(buffer), free(buf_t), free(buf_v);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -316,44 +346,78 @@ int main(int argc, char *argv[])
 
 			clean_schema(&sch);
 
+			/*  write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
-			Node **dataMap = calloc(bucket, sizeof(Node *));
-			HashTable ht = {bucket, dataMap, write_ht};
+			int index_num = indexes > 0 ? indexes : 5;
 
-			off_t offset = get_file_offset(fd_data);
-
-			set(key, offset, &ht); /*create a new key value pair in the hash table*/
-
-			// print_hash_table(ht);
-
-			if (!write_file(fd_data, rec, 0, update))
+			if (!write_index_file_head(fd_index, index_num))
 			{
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("write to file failed, %s:%d", F, L - 2);
 				clean_up(rec, fields_count);
-				free(buffer), free(buf_t), free(buf_v);
-				destroy_hasht(&ht);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
-			if (!ht.write(fd_index, &ht))
+			int i = 0;
+			for (i = 0; i < index_num; i++)
 			{
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
-				clean_up(rec, fields_count);
-				free(buffer), free(buf_t), free(buf_v);
+				Node **dataMap = calloc(bucket, sizeof(Node *));
+				if (!dataMap)
+				{
+					printf("calloc failed. %s:%d.\n", F, L - 3);
+					clean_up(rec, fields_count);
+					close_file(2, fd_index, fd_data);
+					delete_file(2, files[0], files[1]);
+					free(files[0]), free(files[1]), free(files);
+					return 1;
+				}
+
+				HashTable ht = {bucket, dataMap, write_ht};
+
+				if (i == 0)
+				{
+					off_t offset = get_file_offset(fd_data);
+					if (offset == -1)
+					{
+						__er_file_pointer(F, L - 3);
+						clean_up(rec, fields_count);
+						close_file(2, fd_index, fd_data);
+						delete_file(2, files[0], files[1]);
+						free(files[0]), free(files[1]), free(files);
+						return 1;
+					}
+					set(key, offset, &ht); /*create a new key value pair in the hash table*/
+
+					if (!write_file(fd_data, rec, 0, update))
+					{
+						printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+						clean_up(rec, fields_count);
+						destroy_hasht(&ht);
+						close_file(2, fd_index, fd_data);
+						delete_file(2, files[0], files[1]);
+						free(files[0]), free(files[1]), free(files);
+						return 1;
+					}
+				}
+
+				if (!write_index_body(fd_index, i, &ht) == -1)
+				{
+					printf("write to file failed. %s:%d.\n", F, L - 2);
+					clean_up(rec, fields_count);
+					destroy_hasht(&ht);
+					close_file(2, fd_index, fd_data);
+					delete_file(2, files[0], files[1]);
+					free(files[0]), free(files[1]), free(files);
+					return 1;
+				}
+
 				destroy_hasht(&ht);
-				close_file(2, fd_index, fd_data);
-				delete_file(2, files[0], files[1]);
-				free(files[0]), free(files[1]), free(files);
-				return 1;
 			}
 
 			printf("File created successfully.\n");
 			clean_up(rec, fields_count); // this free the memory allocated for the record
-			free(buffer), free(buf_t), free(buf_v);
-			destroy_hasht(&ht);
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
 			return 0;
@@ -395,22 +459,48 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
+			/*  write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
-			Node **dataMap = calloc(bucket, sizeof(Node *));
-			HashTable ht = {bucket, dataMap, write_ht};
+			int index_num = indexes > 0 ? indexes : 5;
 
-			if (!ht.write(fd_index, &ht))
+			if (!write_index_file_head(fd_index, index_num))
 			{
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("write to file failed, %s:%d", F, L - 2);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
+			int i = 0;
+			for (i = 0; i < index_num; i++)
+			{
+				Node **dataMap = calloc(bucket, sizeof(Node *));
+				if (!dataMap)
+				{
+					printf("calloc failed. %s:%d.\n", F, L - 3);
+					close_file(2, fd_index, fd_data);
+					delete_file(2, files[0], files[1]);
+					free(files[0]), free(files[1]), free(files);
+					return 1;
+				}
+
+				HashTable ht = {bucket, dataMap, write_ht};
+
+				if (!write_index_body(fd_index, i, &ht) == -1)
+				{
+					printf("write to file failed. %s:%d.\n", F, L - 2);
+					close_file(2, fd_index, fd_data);
+					delete_file(2, files[0], files[1]);
+					free(files[0]), free(files[1]), free(files);
+					return 1;
+				}
+
+				destroy_hasht(&ht);
+			}
+
 			printf("File created successfully.\n");
 
-			destroy_hasht(&ht);
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
 			return 0;
@@ -462,38 +552,82 @@ int main(int argc, char *argv[])
 
 		if (del)
 		{ /* delete the record specified by the -D option, in the index file*/
-			HashTable ht = {0, NULL, write_ht};
-			read_index_file(fd_index, &ht);
+			HashTable *ht = NULL;
+			int index = 0;
+			int *p_index = &index;
+			/* load al indexes in memory */
+			read_all_index_file(fd_index, &ht, p_index);
 
-			Node *record_del = delete (record_id, &ht);
+			Node *record_del = delete (record_id, &ht[0]);
 			if (!record_del)
 			{
 				printf("record %s not found.\n", record_id);
 				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
-				destroy_hasht(&ht);
+				if (ht)
+				{
+					int i = 0;
+					for (i = 0; i < index; i++)
+					{
+						destroy_hasht(&ht[i]);
+					}
+					free(ht);
+				}
 				return 1;
 			}
 
 			printf("record %s deleted!.\n", record_id);
 			free(record_del->key);
 			free(record_del);
-			// print_hash_table(ht);
 			close_file(1, fd_index);
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
-			if (!ht.write(fd_index, &ht))
+			/*  write the index file */
+
+			if (!write_index_file_head(fd_index, index))
 			{
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("write to file failed, %s:%d", F, L - 2);
 				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
-				destroy_hasht(&ht);
+				if (ht)
+				{
+					int i = 0;
+					for (i = 0; i < index; i++)
+					{
+						destroy_hasht(&ht[i]);
+					}
+					free(ht);
+				}
 				return 1;
+			}
+
+			int i = 0;
+			for (i = 0; i < index; i++)
+			{
+
+				if (!write_index_body(fd_index, i, &ht[i]) == -1)
+				{
+					printf("write to file failed. %s:%d.\n", F, L - 2);
+					free(files[0]), free(files[1]), free(files);
+					close_file(2, fd_index, fd_data);
+					if (ht)
+					{
+						int i = 0;
+						for (i = 0; i < index; i++)
+						{
+							destroy_hasht(&ht[i]);
+						}
+						free(ht);
+					}
+					return 1;
+				}
+
+				destroy_hasht(&ht[i]);
 			}
 
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
-			destroy_hasht(&ht);
+			free(ht);
 			return 0;
 		}
 
@@ -578,18 +712,38 @@ int main(int argc, char *argv[])
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
+				return 1;
 			}
 
-			HashTable ht = {0, NULL, write_ht};
-			read_index_file(fd_index, &ht);
+			HashTable *ht = NULL;
+			int index = 0;
+			int *p_index = &index;
+			/* load al indexes in memory */
+			if (!read_all_index_file(fd_index, &ht, p_index))
+			{
+				printf("read file failed. %s:%d.\n", F, L - 2);
+				close_file(2, fd_index, fd_data);
+				free(files[0]), free(files[1]), free(files);
+				clean_up(rec, rec->fields_num);
+				free(buffer), free(buf_t), free(buf_v);
+				return 1;
+			}
 
-			if (!set(key, eof, &ht))
+			if (!set(key, eof, &ht[0]))
 			{
 				close_file(2, fd_index, fd_data);
 				free(files[0]), free(files[1]), free(files);
 				clean_up(rec, rec->fields_num);
 				free(buffer), free(buf_t), free(buf_v);
-				destroy_hasht(&ht);
+				if (ht)
+				{
+					int i = 0;
+					for (i = 0; i < index; i++)
+					{
+						destroy_hasht(&ht[i]);
+					}
+					free(ht);
+				}
 				return 1;
 			}
 
@@ -599,29 +753,69 @@ int main(int argc, char *argv[])
 				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
-				destroy_hasht(&ht);
 				clean_up(rec, rec->fields_num);
+				if (ht)
+				{
+					int i = 0;
+					for (i = 0; i < index; i++)
+					{
+						destroy_hasht(&ht[i]);
+					}
+					free(ht);
+				}
 				return 1;
 			}
 
 			free(buffer), free(buf_t), free(buf_v);
 			close_file(1, fd_index);
+			clean_up(rec, rec->fields_num);
 
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
 			free(files[0]), free(files[1]), free(files);
-			if (!ht.write(fd_index, &ht))
+			/* write the new indexes to file */
+
+			if (!write_index_file_head(fd_index, index))
 			{
-				printf("could not write index file. main.c l %d.\n", __LINE__ - 1);
+				printf("write to file failed, %s:%d", F, L - 2);
 				close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
-				destroy_hasht(&ht);
+				if (ht)
+				{
+					int i = 0;
+					for (i = 0; i < index; i++)
+					{
+						destroy_hasht(&ht[i]);
+					}
+					free(ht);
+				}
 				return 1;
 			}
 
+			int i = 0;
+			for (i = 0; i < index; i++)
+			{
+
+				if (!write_index_body(fd_index, i, &ht[i]) == -1)
+				{
+					printf("write to file failed. %s:%d.\n", F, L - 2);
+					close_file(2, fd_index, fd_data);
+					if (ht)
+					{
+						int i = 0;
+						for (i = 0; i < index; i++)
+						{
+							destroy_hasht(&ht[i]);
+						}
+						free(ht);
+					}
+					return 1;
+				}
+
+				destroy_hasht(&ht[i]);
+			}
+
 			close_file(2, fd_index, fd_data);
-			clean_up(rec, rec->fields_num);
-			destroy_hasht(&ht);
+			free(ht);
 			return 0;
 		}
 
@@ -1391,14 +1585,15 @@ int main(int argc, char *argv[])
 		if (list_keys)
 		{
 			HashTable ht = {0, NULL};
-			if (!read_index_file(fd_index, &ht))
+			HashTable *p_ht = &ht;
+			if (!read_index_zero(fd_index, &p_ht))
 			{
 				printf("reading index file failed, main.c l %d.\n", __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
-			char **key_a = keys(&ht);
+			char **key_a = keys(p_ht);
 			char keyboard = '0';
 			int end = len(ht), i = 0, j = 0;
 			for (i = 0, j = i; i < end; i++)
@@ -1413,7 +1608,7 @@ int main(int argc, char *argv[])
 					break;
 			}
 
-			destroy_hasht(&ht);
+			destroy_hasht(p_ht);
 			clean_schema(&hd.sch_d);
 			close_file(2, fd_index, fd_data);
 			free_strs(end, 1, key_a);
@@ -1425,25 +1620,25 @@ int main(int argc, char *argv[])
 		if (key)
 		{
 			HashTable ht = {0, NULL};
-
-			if (!read_index_file(fd_index, &ht))
+			HashTable *p_ht = &ht;
+			if (!read_index_zero(fd_index, &p_ht))
 			{
 				printf("reading index file failed, main.c l %d.\n", __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
-			off_t offset = get(key, &ht); /*look for the key in the ht */
+			off_t offset = get(key, p_ht); /*look for the key in the ht */
 
 			if (offset == -1)
 			{
 				printf("record not found.\n");
-				destroy_hasht(&ht);
+				destroy_hasht(p_ht);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
-			destroy_hasht(&ht);
+			destroy_hasht(p_ht);
 			if (find_record_position(fd_data, offset) == -1)
 			{
 				__er_file_pointer(F, L - 1);

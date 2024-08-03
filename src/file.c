@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "file.h"
-#include "debug.h" // take i t out once your done
+#include "debug.h" // take it out once your done
 #include "common.h"
 #include "str_op.h"	  //not to happy about this
 #include "hash_tbl.h" // not to happy about this
@@ -136,15 +136,235 @@ off_t find_record_position(int fd, off_t offset)
 	off_t pos = lseek(fd, offset, SEEK_SET);
 	if (pos == -1)
 	{
-		perror("seeking offset.\n");
+		perror("seeking offset.");
 		return pos;
 	}
 
 	return pos;
 }
 
+off_t move_in_file_bytes(int fd, off_t offset)
+{
+	off_t current_p = get_file_offset(fd);
+	off_t move_to = current_p + offset;
+	off_t pos = 0;
+	if ((pos = lseek(fd, move_to, SEEK_SET)) == -1)
+	{
+		perror("seeking offset.");
+		return pos;
+	}
+
+	return pos;
+}
+
+unsigned char write_index_file_head(int fd, int index_num)
+{
+
+	int i = 0;
+	off_t pos = 0;
+
+	if (write(fd, &index_num, sizeof(index_num)) == -1)
+	{
+		printf("write to file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	for (i = 0; i < index_num; i++)
+	{
+		if (write(fd, &pos, sizeof(pos)) == -1)
+		{
+			printf("write to file failed, %s:%d.\n", F, L - 2);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+unsigned char write_index_body(int fd, int i, HashTable *ht)
+{
+	off_t pos = 0;
+	if (write(fd, &i, sizeof(i)) == -1)
+	{
+		printf("write to file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	if ((pos = get_file_offset(fd)) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	if (!ht->write(fd, ht))
+	{
+		printf("write to file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	if (begin_in_file(fd) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	if (find_record_position(fd, sizeof(int)) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	if (i != 0)
+	{
+		if (move_in_file_bytes(fd, i * sizeof(pos)) == -1)
+		{
+			__er_file_pointer(F, L - 2);
+			return 0;
+		}
+	}
+
+	if (write(fd, &pos, sizeof(pos)) == -1)
+	{
+		printf("write to file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	if (go_to_EOF(fd) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+	return 1;
+}
+
+unsigned char read_index_zero(int fd, HashTable **ht)
+{
+	if (begin_in_file(fd) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	if (find_record_position(fd, sizeof(int)) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	off_t index_zero_p = 0;
+	if (read(fd, &index_zero_p, sizeof(index_zero_p)) == -1)
+	{
+		perror("read from file failed. ");
+		printf(" %s:%d.\n", F, L - 3);
+		return 0;
+	}
+
+	if (index_zero_p == 0)
+	{
+		printf("wrong reading from file, check position. %s:%d.\n", F, L - 9);
+		return 0;
+	}
+
+	if (find_record_position(fd, index_zero_p) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	if (!read_index_file(fd, *ht))
+	{
+		printf("read from file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	return 1;
+}
+unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
+{
+	if (begin_in_file(fd) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	int array_size = 0;
+	if (read(fd, &array_size, sizeof(array_size)) == -1)
+	{
+		printf("read from file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	if (array_size == 0)
+	{
+		printf("read from file failed. check pointer file. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	*p_index = array_size;
+	*ht = calloc(array_size, sizeof(HashTable));
+
+	if (!*ht)
+	{
+		printf("calloc failed. %s:%d.\n", F, L - 3);
+		return 0;
+	}
+	int i = 0;
+	for (i = 0; i < array_size; i++)
+	{
+		HashTable ht_n = {0, NULL, write_ht};
+		(*ht)[i] = ht_n;
+	}
+
+	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
+	if (move_in_file_bytes(fd, move_to) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	off_t here = get_file_offset(fd);
+
+	for (i = 0; i < array_size; i++)
+	{
+		if (read_index_file(fd, &((*ht)[i])) == -1)
+		{
+			printf("read from file failed. %s:%d.\n", F, L - 2);
+			if (*ht)
+			{
+				int j = 0;
+				for (j = 0; j < i; j++)
+				{
+					destroy_hasht(&((*ht)[j]));
+				}
+				free(*ht);
+			}
+			return 0;
+		}
+
+		if ((array_size - i) > 1)
+		{
+			int index = 0;
+			if (read(fd, &index, sizeof(index)) == -1)
+			{
+				printf("read from file failed. %s:%d.\n", F, L - 2);
+				if (*ht)
+				{
+					int j = 0;
+					for (j = 0; j < i; j++)
+					{
+						destroy_hasht(&((*ht)[j]));
+					}
+					free(*ht);
+				}
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
 unsigned char read_index_file(int fd, HashTable *ht)
 {
+
 	int size = 0;
 	if (read(fd, &size, sizeof(size)) < 0)
 	{
