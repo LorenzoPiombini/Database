@@ -172,13 +172,16 @@ you can also create files and provide values to the fields in one entry:
 
 This command sets up three fields:
 
-- code: a string (char*) with the value "man78-g-hus".
+- code: a string with the value "man78-g-hus".
 
 - price: a float with the value 33.56.
 
 - discount: a float with the value 0.0.
 
 the flag -k provides an id for the record that you are adding or creating, you will use this key for CRUD operation, once the record is created you will not able to use that key for new records in the same file.
+
+if you do not specify a number of indexes with option **-i** the index file will have 5 indexes by default, index 0 will contain all the keys for the data file, and the other indexes you can use it as you please.
+the indexes are zeored number, meaning if you have five indexes they will be 0, 1, 2, 3, 4.
 
 the flag that you can provide are:
 
@@ -193,6 +196,7 @@ the flag that you can provide are:
     -l - list the file definition specified with -f.
     -u - update the file specified by -f .
     -e - delete the file specified by -f .
+    -i - specifiy the number of indexes in the index file.
 
 ```
 
