@@ -46,7 +46,7 @@ To get started, you can either clone the repository or download the files direct
     - if you execute KEYS with no arguments will display the usage instruction.
   - WRITE expects three arguments *file name*, *paramters string* and the *key* for the record that we want to write to file.
     - this command will list write data to the file specified.
-    - if you execute KEYS with no arguments will display the usage instruction.
+    - if you execute WRITE with no arguments will display the usage instruction.
 
 you need root privilege to run the install and clean rules.
 
@@ -199,8 +199,6 @@ the flag that you can provide are:
     -i - specifiy the number of indexes in the index file.
 
 ```
-
-now the  file is created, and the base definition would be made by 3 variables code, price and discount.
 
 this base definition cannot change anymore, you can add to it (up to 200 fields foor each file), but everytime you add a record to a file, you need to provide at least the correct definition. if you try to do the follwing ( notes the different flag -a for adding to an existing file):
 
