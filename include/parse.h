@@ -35,6 +35,7 @@ unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d 
 unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd);
 int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, char **names, char **values, ValueType *types_i);
 unsigned char ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int fields_num);
+unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_tm, Schema *sch);
 int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, Schema *sch);
 unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_count, int fd_data, char *file_path, Record_f **rec, Header_d *hd);
 unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Record_f **new_rec, char *file_path,

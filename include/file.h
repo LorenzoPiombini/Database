@@ -16,7 +16,7 @@ off_t begin_in_file(int fd);
 off_t move_in_file_bytes(int fd, off_t offset);
 unsigned char write_index_file_head(int fd, int index_num);
 unsigned char write_index_body(int fd, int i, HashTable *ht);
-unsigned char read_index_zero(int fd, HashTable **ht);
+unsigned char read_index_nr(int i_num, int fd, HashTable **ht);
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index);
 unsigned char read_index_file(int fd, HashTable *ht);
 int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update);
