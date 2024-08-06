@@ -201,7 +201,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		int fd_index = create_file(files[0]);
 		int fd_data = create_file(files[1]);
 
-		if (!create_file_with_schema(fd_data, fd_index, schemas[j], 0))
+		if (!create_file_with_schema(fd_data, fd_index, schemas[j], 0, 0))
 		{
 			delete_file(2, files[0], files[1]);
 			free_strs(2, 1, files);

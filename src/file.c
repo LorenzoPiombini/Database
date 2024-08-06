@@ -237,7 +237,7 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 	return 1;
 }
 
-unsigned char read_index_zero(int fd, HashTable **ht)
+unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 {
 	if (begin_in_file(fd) == -1)
 	{
@@ -245,27 +245,46 @@ unsigned char read_index_zero(int fd, HashTable **ht)
 		return 0;
 	}
 
-	if (find_record_position(fd, sizeof(int)) == -1)
+	int array_size = 0;
+	if (read(fd, &array_size, sizeof(array_size)) == -1)
+	{
+		printf("read from file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	if (array_size == 0)
+	{
+		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
+		return 0;
+	}
+
+	if (array_size <= i_num)
+	{
+		printf("index number out of bound.\n");
+		return 0;
+	}
+
+	off_t move_to = i_num * sizeof(off_t);
+	if (move_in_file_bytes(fd, move_to) == -1)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
-	off_t index_zero_p = 0;
-	if (read(fd, &index_zero_p, sizeof(index_zero_p)) == -1)
+	off_t index_pos = 0;
+	if (read(fd, &index_pos, sizeof(index_pos)) == -1)
 	{
-		perror("read from file failed. ");
-		printf(" %s:%d.\n", F, L - 3);
+		printf("read from fiel failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
-	if (index_zero_p == 0)
+	if (index_pos == 0)
 	{
-		printf("wrong reading from file, check position. %s:%d.\n", F, L - 9);
+		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
 
-	if (find_record_position(fd, index_zero_p) == -1)
+	if (find_record_position(fd, index_pos) == -1)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
@@ -279,6 +298,7 @@ unsigned char read_index_zero(int fd, HashTable **ht)
 
 	return 1;
 }
+
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 {
 	if (begin_in_file(fd) == -1)

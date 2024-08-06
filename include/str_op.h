@@ -3,7 +3,7 @@
 #include "record.h"
 
 #define TYPE_ "TYPE_"
-#define T_ "t_"
+#define T_ ":t_"
 
 char **two_file_path(char *file_path);
 int count_fields(char *fields, const char *target);

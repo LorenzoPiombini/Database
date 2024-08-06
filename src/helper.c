@@ -149,7 +149,7 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 	return 1;
 }
 
-unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_def, int bucket_ht)
+unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_def, int bucket_ht, int indexes)
 {
 	int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
 
@@ -206,18 +206,41 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 		return 0;
 	}
 
+	/*  write the index file */
 	int bucket = bucket_ht > 0 ? bucket_ht : 7;
-	Node **dataMap = calloc(bucket, sizeof(Node *));
-	HashTable ht = {bucket, dataMap, write_ht};
+	int index_num = indexes > 0 ? indexes : 5;
 
-	if (!ht.write(fd_index, &ht))
+	if (!write_index_file_head(fd_index, index_num))
 	{
-		printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+		printf("write to file failed, %s:%d", F, L - 2);
 		free(buf_sdf), free(buf_t);
 		return 0;
 	}
 
+	int i = 0;
+	for (i = 0; i < index_num; i++)
+	{
+		Node **dataMap = calloc(bucket, sizeof(Node *));
+		if (!dataMap)
+		{
+			printf("calloc failed. %s:%d.\n", F, L - 3);
+			free(buf_sdf), free(buf_t);
+			return 0;
+		}
+
+		HashTable ht = {bucket, dataMap, write_ht};
+
+		if (!write_index_body(fd_index, i, &ht) == -1)
+		{
+			printf("write to file failed. %s:%d.\n", F, L - 2);
+			free(buf_sdf), free(buf_t);
+			destroy_hasht(&ht);
+			return 0;
+		}
+
+		destroy_hasht(&ht);
+	}
+
 	free(buf_sdf), free(buf_t);
-	destroy_hasht(&ht);
 	return 1;
 }
