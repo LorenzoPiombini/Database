@@ -135,7 +135,6 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 		return NULL;
 	}
 	char *cp_fv = fields_name;
-
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count)
 	{
 		strip('_', s);
@@ -151,13 +150,6 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 			return NULL;
 		}
 
-		if ((strlen(names_f[j]) > MAX_FIELD_LT))
-		{
-			printf("%s, this fields is longer than the system limit! max %d per field name.\n",
-				   names_f[j], MAX_FIELD_LT);
-			oversized_f = 1;
-		}
-
 		j++;
 
 		strtok_r(NULL, ":", &cp_fv);
@@ -166,15 +158,6 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 			strtok_r(NULL, ":", &cp_fv);
 	}
 
-	if (oversized_f)
-	{
-		int i = 0;
-		for (i = 0; i < fields_count; i++)
-			if (names_f[i])
-				free(names_f[i]);
-		free(names_f);
-		return NULL;
-	}
 	return names_f;
 }
 

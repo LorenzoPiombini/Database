@@ -764,6 +764,182 @@ unsigned char ck_schema_contain_input(char **names, ValueType *types_i, Header_d
 	return SCHEMA_ERR;
 }
 
+unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, Schema *sch)
+{
+	char **names = get_fileds_name(buffer, fields_num, 2);
+
+	if (!names)
+	{
+		printf("Error in getting the fields name");
+		return 0;
+	}
+
+	ValueType *types_i = get_value_types(buf_t, fields_num, 2);
+
+	if (!types_i)
+	{
+		printf("Error in getting the fields types");
+		free_strs(fields_num, 1, names);
+		return 0;
+	}
+	int i = 0, j = 0, x = 0, found = 0;
+	int actual_fields = 0;
+	unsigned char new_fields = 0;
+
+	char pos[fields_num]; /* to store the field position that are already in the schema*/
+	for (i = 0; i < fields_num; i++)
+		pos[i] = 'n';
+
+	for (i = 0; i < sch->fields_num; i++)
+	{
+		for (j = 0; j < fields_num; j++)
+		{
+			if (strcmp(sch->fields_name[i], names[j]) == 0)
+			{
+				new_fields = 1;
+				found++;
+				pos[x] = j; /* save the position of the field that is already in the schema*/
+				x++;
+			}
+
+			if (found == fields_num)
+			{
+				printf("fields already exist.\n");
+				free_strs(fields_num, 1, names);
+				free(types_i);
+				return 0;
+			}
+		}
+	}
+
+	actual_fields = fields_num - found;
+
+	/* char** and ValueTypes will be used if any of the fields are already in the schema */
+	/* -------------- so we do not need to add them or add them twice  ------------------*/
+	char **names_n = NULL;
+	ValueType *types_i_n = NULL;
+
+	if (new_fields) /* check which fields are already in the schema if any */
+	{
+		for (i = 0; i < fields_num; i++)
+		{
+			if (pos[i] == 'n')
+				continue;
+
+			int ind = pos[i];
+			free(names[ind]);
+			names[ind] = NULL;
+		}
+
+		names_n = calloc(actual_fields, sizeof(char *));
+		if (!names_n)
+		{
+			printf("calloc failed. %s:%d.\n", F, L - 3);
+			free_strs(fields_num, 1, names);
+			free(types_i);
+			return 0;
+		}
+
+		types_i_n = calloc(actual_fields, sizeof(int));
+		if (!types_i_n)
+		{
+			printf("calloc failed. %s:%d.\n", F, L - 3);
+			free_strs(fields_num, 1, names);
+			free(types_i);
+			free(names_n);
+			return 0;
+		}
+
+		for (i = 0, j = 0; i < fields_num; i++)
+		{
+			if (names[i])
+			{
+				names_n[j] = NULL;
+				names_n[j] = strdup(names[i]);
+				types_i_n[j] = types_i[i];
+				j++;
+				free(names[i]);
+				names[i] = NULL;
+			}
+		}
+
+		free(names);
+		free(types_i);
+	}
+
+	char **new_names = realloc(sch->fields_name, (sch->fields_num + actual_fields) * sizeof(char *));
+	if (!new_names)
+	{
+		printf("realloc failed. %s:%d", F, L - 3);
+		free_strs(fields_num, 1, names);
+		free(types_i);
+		return 0;
+	}
+
+	sch->fields_name = new_names;
+
+	ValueType *new_types = realloc(sch->types, (sch->fields_num + actual_fields) * sizeof(int));
+	if (!new_types)
+	{
+		printf("realloc failed. %s:%d", F, L - 3);
+		free_strs(fields_num, 1, names);
+		free(types_i);
+		return 0;
+	}
+
+	sch->types = new_types;
+
+	if (new_fields)
+		printf("new field added: ");
+
+	for (i = sch->fields_num, j = 0; i < sch->fields_num + actual_fields; i++)
+	{
+		sch->fields_name[i] = NULL;
+		if (names_n)
+		{
+			if (names_n[j])
+			{
+				printf("%s, ", names_n[j]);
+				sch->fields_name[i] = strdup(names_n[j]);
+				sch->types[i] = types_i_n[j];
+				free(names_n[j]);
+				names_n[j] = NULL;
+				j++;
+			}
+		}
+		else if (names)
+		{
+			if (names[j])
+			{
+
+				sch->fields_name[i] = strdup(names[j]);
+				sch->types[i] = types_i[j];
+				free(names[j]);
+				names[j] = NULL;
+				j++;
+			}
+		}
+	}
+
+	if (new_fields)
+		printf("\n");
+
+	sch->fields_num += actual_fields;
+
+	if (!new_fields)
+	{
+		free(names);
+		free(types_i);
+	}
+	else
+	{
+		free(names_n);
+		free(types_i_n);
+	}
+
+	return 1;
+}
+
 int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, Schema *sch)
 {
 

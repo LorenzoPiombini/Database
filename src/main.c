@@ -182,7 +182,6 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			// print_size_header(hd);
 			size_t hd_st = compute_size_header(hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
@@ -544,14 +543,67 @@ int main(int argc, char *argv[])
 		if (del_file)
 		{ /*delete file */
 			delete_file(2, files[0], files[1]);
+			clean_schema(&hd.sch_d);
 			printf("file %s, deleted.\n", file_path);
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
 			return 0;
 		}
 
+		if (schema_def)
+		{
+			free(files[0]), free(files[1]), free(files);
+			/*check if the fields are in limit*/
+			int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
+
+			if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > 200)
+			{
+				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+				clean_schema(&hd.sch_d);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			/*add field provided to the schema*/
+			char *buffer = strdup(schema_def);
+			char *buff_t = strdup(schema_def);
+
+			if (!add_fields_to_schema(fields_count, buffer, buff_t, &hd.sch_d))
+			{
+				printf("add fields to chema failed. %s:%d;\n", F, L - 2);
+				clean_schema(&hd.sch_d);
+				close_file(2, fd_index, fd_data);
+				free(buffer), free(buff_t);
+				return 1;
+			}
+
+			free(buffer), free(buff_t);
+			/*here you know that the file is at the beginning*/
+			size_t hd_st = compute_size_header(hd);
+			if (hd_st >= MAX_HD_SIZE)
+			{
+				printf("File definition is bigger than the limit.\n");
+				clean_schema(&hd.sch_d);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			if (!write_header(fd_data, &hd))
+			{
+				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				clean_schema(&hd.sch_d);
+				close_file(2, fd_index, fd_data);
+				return 1;
+			}
+
+			printf("data added to schema!\n");
+			clean_schema(&hd.sch_d);
+			close_file(2, fd_index, fd_data);
+			return 0;
+		}
 		if (del)
 		{ /* delete the record specified by the -D option, in the index file*/
+			clean_schema(&hd.sch_d);
 			HashTable *ht = NULL;
 			int index = 0;
 			int *p_index = &index;
@@ -639,6 +691,7 @@ int main(int argc, char *argv[])
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 				free(files[0]), free(files[1]), free(files);
+				clean_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -820,6 +873,7 @@ int main(int argc, char *argv[])
 		}
 
 		free(files[0]), free(files[1]), free(files);
+
 		if (update && data_to_add && key)
 		{ /* updating an existing record */
 
@@ -829,6 +883,7 @@ int main(int argc, char *argv[])
 			if (fields_count > MAX_FIELD_NR)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+				clean_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -838,9 +893,6 @@ int main(int argc, char *argv[])
 			char *buf_v = strdup(data_to_add);
 
 			Record_f *rec = NULL;
-			Schema sch = {0, NULL, NULL};
-			Header_d hd = {0, 0, sch};
-			// printf("before perform check in update paths");
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
 														   fd_data, file_path, &rec, &hd);
 			if (check == SCHEMA_ERR || check == 0)
@@ -892,24 +944,23 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 			}
-			/* from here you have to change all error printf statements*/
 			free(buf_t), free(buf_v);
-			HashTable ht = {0, NULL};
-
 			// 2 - if schema is good load the old record into memory and update the fields if any
 			// -- at this point you already checked the header, and you have an updated header,
 			//	an updated record in memory
 
-			if (!read_index_file(fd_index, &ht))
+			HashTable ht = {0, NULL};
+			HashTable *p_ht = &ht;
+			if (!read_index_nr(0, fd_index, &p_ht))
 			{
-				printf("index file reading failed. main.c l %d.\n", __LINE__ - 1);
+				printf("index file reading failed. %s:%d.\n", F, L - 1);
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				clean_schema(&hd.sch_d);
 				return 1;
 			}
 
-			off_t offset = get(key, &ht); /*look for the key in the ht */
+			off_t offset = get(key, p_ht); /*look for the key in the ht */
 
 			if (offset == -1)
 			{
@@ -917,11 +968,11 @@ int main(int argc, char *argv[])
 				free(buffer), close_file(2, fd_index, fd_data);
 				clean_up(rec, rec->fields_num);
 				clean_schema(&hd.sch_d);
-				destroy_hasht(&ht);
+				destroy_hasht(p_ht);
 				return 1;
 			}
 
-			destroy_hasht(&ht);
+			destroy_hasht(p_ht);
 			if (find_record_position(fd_data, offset) == -1)
 			{
 				__er_file_pointer(F, L - 1);
@@ -1314,6 +1365,7 @@ int main(int argc, char *argv[])
 						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
+						clean_schema(&hd.sch_d);
 						free(positions);
 						clean_up(rec, rec->fields_num);
 						if (recs_old)
@@ -1335,6 +1387,7 @@ int main(int argc, char *argv[])
 						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
+						clean_schema(&hd.sch_d);
 						free(positions);
 						clean_up(rec, rec->fields_num);
 						if (recs_old)
@@ -1360,6 +1413,7 @@ int main(int argc, char *argv[])
 						printf("write file failed, main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
+						clean_schema(&hd.sch_d);
 						free(positions);
 						clean_up(rec, rec->fields_num);
 						if (recs_old)
@@ -1381,6 +1435,7 @@ int main(int argc, char *argv[])
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						free(positions);
+						clean_schema(&hd.sch_d);
 						clean_up(rec, rec->fields_num);
 						if (recs_old)
 						{
@@ -1414,7 +1469,6 @@ int main(int argc, char *argv[])
 						}
 						return 1;
 					}
-
 					/*write the actual new data*/
 					if (!write_file(fd_data, new_rec, 0, 0))
 					{
@@ -1586,7 +1640,7 @@ int main(int argc, char *argv[])
 		{
 			HashTable ht = {0, NULL};
 			HashTable *p_ht = &ht;
-			if (!read_index_zero(fd_index, &p_ht))
+			if (!read_index_nr(0, fd_index, &p_ht))
 			{
 				printf("reading index file failed, main.c l %d.\n", __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
@@ -1621,7 +1675,7 @@ int main(int argc, char *argv[])
 		{
 			HashTable ht = {0, NULL};
 			HashTable *p_ht = &ht;
-			if (!read_index_zero(fd_index, &p_ht))
+			if (!read_index_nr(0, fd_index, &p_ht))
 			{
 				printf("reading index file failed, main.c l %d.\n", __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
