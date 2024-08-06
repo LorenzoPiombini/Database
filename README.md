@@ -47,6 +47,9 @@ To get started, you can either clone the repository or download the files direct
   - WRITE expects three arguments *file name*, *paramters string* and the *key* for the record that we want to write to file.
     - this command will list write data to the file specified.
     - if you execute WRITE with no arguments will display the usage instruction.
+  - UPDATE expects three arguments *file name*, *paramters string* and the *key* for the record that we want to update in the file.
+    - this command will update the record specified.
+    - if you execute UPDATE with no arguments will display the usage instruction.
 
 you need root privilege to run the install and clean rules.
 
@@ -88,7 +91,7 @@ when you clone or download this repo, you do not have the folders **bin** and **
 [isam.db-C-language-main]$ mkdir bin obj
 ``````
 
-take a look at the Makefile, for the GET and LIST command you will need to change the path for them to work:
+take a look at the Makefile, for some of the commands you will need to change the path for them to work:
 
 ``````plaintext
 $(BINDIR)/GET:
@@ -106,8 +109,7 @@ $(BINDIR)/GET:
   fi
 ``````
 
-change the line echo ***"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \*** with your path, and the same apply to the python scripts.
-
+change the line echo ***"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \*** with your path.
 if you want you can run all the rules at the same time each time you need it:
 
 ``````bash
@@ -131,7 +133,6 @@ you can dynamically create **Files** at run time, you will provide either  the f
 ### Example Usage
 
 Here's how you can define a file:
-if you want to create a file, without providing values, you can choose one of the following commands:
 
 ```bash
 [isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
@@ -151,14 +152,14 @@ this three commands are correct and each will create a file with the follwing va
 - lastname or last name.
 - age.
 
-note the "last name" field in the first option: if you want to writes field with spaces you have to put the "" around the field name, or you can do the following(last_name underscore without ""):
+if you want to writes field with spaces you have to put the "" around the field name, or you can do the following(last_name underscore without ""):
 
 ```bash
 [isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
 ```
 
 the program will replace the underscore in last_name with a space (' ').
-using underscores it is not racccomended becuase the software rely on strings like "TYPE_FLOAT" or "t_s" to assign the correct type to the fields.
+you can't use colon (":") in the fields names.
 
 now we have an empty file with a definiton, and we can write data to it.
 
