@@ -45,8 +45,9 @@ int main(int argc, char *argv[])
 	char *txt_f = NULL;
 	int bucket_ht = 0;
 	int indexes = 0;
+	int index_nr = 0;
 
-	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:xc:i:")) != -1)
+	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:x:c:i:")) != -1)
 	{
 		switch (c)
 		{
@@ -87,7 +88,7 @@ int main(int argc, char *argv[])
 			bucket_ht = atoi(optarg);
 			break;
 		case 'x':
-			list_keys = 1;
+			list_keys = 1, index_nr = atoi(optarg);
 			break;
 		case 'c':
 			create = 1, txt_f = optarg;
@@ -1640,7 +1641,7 @@ int main(int argc, char *argv[])
 		{
 			HashTable ht = {0, NULL};
 			HashTable *p_ht = &ht;
-			if (!read_index_nr(0, fd_index, &p_ht))
+			if (!read_index_nr(index_nr, fd_index, &p_ht))
 			{
 				printf("reading index file failed, main.c l %d.\n", __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
