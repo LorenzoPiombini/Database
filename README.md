@@ -29,7 +29,7 @@ To get started, you can either clone the repository or download the files direct
   - delete all the files created.
   - delete all core files dumped for debugging.
   - delete all the objects created and the binary executable isam.db
-  - delete the commands created by the install rule, GET and LIST
+  - delete the commands created by the install rule, GET, LIST, KEYS, DEL, WRITE, UPDATE
 - **install**:
 - creates the follwing commands:
   - GET expects two arguments *file name* and the *record identifier* (key).
