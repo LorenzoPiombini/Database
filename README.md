@@ -191,17 +191,23 @@ the indexes are zeored number, meaning if you have five indexes they will be 0, 
 the flag that you can provide are:
 
 ```plaintext
-    -a - add record to a file.
-    -n - create a new database file
-    -f - [required] path to file (file name)
-    -D - delete the record  provided for the specified file.
-    -R - define a file definition witout values.
-    -k - specify the record id, the program will perform CRUD operations using this this id.
-    -t - list of available types. this flag will exit the program.
-    -l - list the file definition specified with -f.
-    -u - update the file specified by -f .
-    -e - delete the file specified by -f .
-    -i - specifiy the number of indexes in the index file.
+-a - add record to a file.
+-n - create a new database file
+-f - [required] path to file (file name)
+-c - creates the files specified in the txt file.
+-D - specify the index where you want to delete the record.
+-R - define a file definition witout values.
+-k - specify the record id, the program will perform CRUD ops based on this id.
+-t - list of available types. this flag will exit the program.
+-l - list the file definition specified with -f.
+-u - update the file specified by -f .
+-e - delete the file specified by -f .
+-x - list the keys value for the file specified by -f .
+-b - specify the file name (txt,csv,tab delimited file) to build from .
+-o - add options to a CRUD operation .
+-s - specify how many buckets the HashTable (index) will have.
+-i - specify how many indexes the file will have.
+ 
 
 ```
 
