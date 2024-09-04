@@ -29,6 +29,7 @@ Node *delete(char *key, HashTable *tbl);
 
 int set(char *key, off_t value, HashTable *tbl);
 
+void free_ht_array(HashTable *ht, int l);
 void destroy_hasht(HashTable *tbl); // free memory
 
 off_t get(char *key, HashTable *tbl);

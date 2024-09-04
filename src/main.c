@@ -34,20 +34,20 @@ int main(int argc, char *argv[])
 	unsigned char build = 0;
 	unsigned char list_keys = 0;
 	unsigned char create = 0;
-
+	unsigned char options = 0;
 	/*------------------------------------------*/
 	int c = 0;
 	char *file_path = NULL;
-	char *record_id = NULL;
 	char *data_to_add = NULL;
 	char *key = NULL;
 	char *schema_def = NULL;
 	char *txt_f = NULL;
+	char *option = NULL;
 	int bucket_ht = 0;
 	int indexes = 0;
 	int index_nr = 0;
 
-	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:x:c:i:")) != -1)
+	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
 	{
 		switch (c)
 		{
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 			key = optarg;
 			break;
 		case 'D':
-			del = 1, record_id = optarg; // 1 is marking del as true
+			del = 1, index_nr = atoi(optarg); // 1 is marking del as true
 			break;
 		case 't':
 			print_types();
@@ -95,6 +95,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			indexes = atoi(optarg);
+			break;
+		case 'o':
+			options = 1, option = optarg;
 			break;
 		default:
 			printf("Unknow option -%c\n", c);
@@ -602,19 +605,118 @@ int main(int argc, char *argv[])
 			close_file(2, fd_index, fd_data);
 			return 0;
 		}
+
 		if (del)
-		{ /* delete the record specified by the -D option, in the index file*/
+		{
 			clean_schema(&hd.sch_d);
+			if (options)
+			{
+				if (option)
+				{
+					switch (convert_options(option))
+					{
+					case ALL:
+					{
+						int ind = 0, *p_i_nr = &ind;
+						if (!indexes_on_file(fd_index, p_i_nr))
+						{
+							printf("er index nr,%s:%d.\n", F, L - 4);
+							free(files[0]);
+							free(files[1]);
+							free(files);
+							close_file(2,
+									   fd_index, fd_data);
+							return 1;
+						}
+
+						int buc_t = 0, *pbuck = &buc_t;
+						if (!nr_bucket(fd_index, pbuck))
+						{
+							printf("er index nr,%s:%d.\n", F, L - 4);
+							free(files[0]);
+							free(files[1]);
+							free(files);
+							close_file(2,
+									   fd_index, fd_data);
+							return 1;
+						}
+						/* create *p_i_nr of ht and write them to file*/
+						HashTable *ht = calloc(*p_i_nr,
+											   sizeof(HashTable));
+						if (!ht)
+						{
+							printf("calloc failed ,%s:%d.\n", F, L - 4);
+							free(files[0]);
+							free(files[1]);
+							free(files);
+							close_file(2,
+									   fd_index, fd_data);
+							return 1;
+						}
+						int i = 0;
+						for (i = 0; i < *p_i_nr; i++)
+						{
+							HashTable ht_n = {*pbuck,
+											  NULL, write_ht};
+							ht[i] = ht_n;
+						}
+
+						close_file(1, fd_index);
+						// opening with O_TRUNC
+						fd_index = open_file(files[0], 1);
+
+						/*  write the index file */
+
+						if (!write_index_file_head(fd_index, *p_i_nr))
+						{
+							printf("write to file failed, %s:%d", F, L - 2);
+							free(files[0]), free(files[1]), free(files);
+							close_file(2, fd_index, fd_data);
+							free(ht);
+							return 1;
+						}
+
+						for (i = 0; i < *p_i_nr; i++)
+						{
+
+							if (!write_index_body(fd_index, i, &ht[i]) == -1)
+							{
+								printf("write to file failed. %s:%d.\n", F, L - 2);
+								free(files[0]), free(files[1]), free(files);
+								close_file(2, fd_index, fd_data);
+								free(ht);
+								return 1;
+							}
+						}
+
+						free(files[0]), free(files[1]), free(files);
+						close_file(2, fd_index, fd_data);
+						free(ht);
+						printf("all record deleted from %s file.\n", file_path);
+						return 0;
+					}
+					default:
+						printf("options not valid.\n");
+						free(files[0]);
+						free(files[1]);
+						free(files);
+						close_file(2, fd_index, fd_data);
+						return 1;
+					}
+				}
+			}
+
+			/* delete the record specified by the -D option, in the index file*/
 			HashTable *ht = NULL;
 			int index = 0;
 			int *p_index = &index;
 			/* load al indexes in memory */
 			read_all_index_file(fd_index, &ht, p_index);
 
-			Node *record_del = delete (record_id, &ht[0]);
+			Node *record_del = delete (key, &ht[index_nr]);
 			if (!record_del)
 			{
-				printf("record %s not found.\n", record_id);
+				printf("record %s not found.\n", key);
 				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
 				if (ht)
@@ -629,7 +731,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			printf("record %s deleted!.\n", record_id);
+			printf("record %s deleted!.\n", key);
 			free(record_del->key);
 			free(record_del);
 			close_file(1, fd_index);

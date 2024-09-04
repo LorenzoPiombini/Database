@@ -299,6 +299,50 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 	return 1;
 }
 
+unsigned char indexes_on_file(int fd, int *p_i_nr)
+{
+	if (begin_in_file(fd) == -1)
+	{
+		__er_file_pointer(F, L - 2);
+		return 0;
+	}
+
+	int array_size = 0;
+	if (read(fd, &array_size, sizeof(array_size)) == -1)
+	{
+		printf("read from file failed. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	if (array_size == 0)
+	{
+		printf("read from file failed. check pointer file. %s:%d.\n", F, L - 2);
+		return 0;
+	}
+
+	*p_i_nr = array_size;
+	return 1;
+}
+
+unsigned char nr_bucket(int fd, int *p_buck)
+{
+	HashTable ht = {0, NULL}, *pht = &ht;
+
+	if (!read_index_nr(0, fd, &pht))
+	{
+		printf("read from file failed. %s:%d.\n", F, L - 2);
+		if (ht.size > 0)
+		{
+			destroy_hasht(&ht);
+		}
+		return 0;
+	}
+
+	*p_buck = ht.size;
+	destroy_hasht(&ht);
+	return 1;
+}
+
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 {
 	if (begin_in_file(fd) == -1)

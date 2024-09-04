@@ -6,6 +6,7 @@
 #include "str_op.h"
 #include "record.h"
 #include "parse.h"
+#include "debug.h"
 
 char **two_file_path(char *file_path)
 {
@@ -312,4 +313,71 @@ void strip(const char c, char *str)
 	for (i = 0; i < l; i++)
 		if (str[i] == c)
 			str[i] = ' ';
+}
+
+char return_first_char(char *str)
+{
+	return str[0];
+}
+
+char return_last_char(char *str)
+{
+	size_t l = strlen(str);
+	return str[l];
+}
+
+size_t number_of_digit(int n)
+{
+	if (n < 10)
+	{
+		return 1;
+	}
+	else if (n >= 10 && n < 100)
+	{
+		return 2;
+	}
+	else if (n >= 100 && n < 1000)
+	{
+		return 3;
+	}
+	else if (n >= 1000 && n < 10000)
+	{
+		return 4;
+	}
+	else if (n >= 10000 && n < 100000)
+	{
+		return 5;
+	}
+	else if (n >= 100000 && n < 1000000)
+	{
+		return 6;
+	}
+	else if (n >= 1000000 && n < 1000000000)
+	{
+		return 7;
+	}
+	else if (n >= 1000000000)
+	{
+		return 10;
+	}
+}
+unsigned char assemble_key(char ***key, int n, char c, char *str)
+{
+	size_t len = number_of_digit(n) + strlen(str) + 2; /* 1 is the char c, and 1 is for '\0' so + 2*/
+
+	*(*key) = calloc(len, sizeof(char));
+	if (!*(*key))
+	{
+		printf("calloc failed. %s:%d", F, L - 2);
+		return 0;
+	}
+
+	if (snprintf(*(*key), len, "%c%d%s", c, n, str) < 0)
+	{
+		printf("key generation failed. %s:%d.\n", F, L - 2);
+		free(key);
+		return 0;
+	}
+
+	return 1;
 }

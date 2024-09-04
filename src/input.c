@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include "input.h"
 #include "str_op.h"
 
@@ -11,7 +12,7 @@ void print_usage(char *argv[])
         printf("\t -n - create a new database file\n");
         printf("\t -f - [required] path to file (file name)\n");
         printf("\t -c - creates the files specified in the txt file.\n");
-        printf("\t -D - delete the record  provided for specified file.\n");
+        printf("\t -D - specify the index where you want to delete the record.\n");
         printf("\t -R - define a file definition witout values.\n");
         printf("\t -k - specify the record id, the program will save, retrice and delete the record based on this id.\n");
         printf("\t -t - list of available types. this flag will exit the program.\n");
@@ -97,4 +98,21 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
         }
 
         return 1;
+}
+
+int convert_options(char *options)
+{
+        size_t l = strlen(options);
+        int i = 0;
+        for (i = 0; i < l; i++)
+        {
+                options[i] = tolower(options[i]);
+        }
+
+        if (strcmp(options, ALL_OP) == 0)
+        {
+                return ALL;
+        }
+
+        return -1;
 }

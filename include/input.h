@@ -3,6 +3,7 @@
 
 #include "record.h"
 
+#define ALL_OP "all"
 void print_usage(char *argv[]);
 int check_input_and_values(char *file_path, char *data_to_add, char *key, char *argv[],
                            unsigned char del, unsigned char list_def, unsigned char new_file,
@@ -10,5 +11,10 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                            unsigned char create);
 
 void print_types(void);
+int convert_options(char *options);
+typedef enum
+{
+    ALL
+} Option_t;
 
 #endif

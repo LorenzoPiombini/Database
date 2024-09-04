@@ -14,4 +14,8 @@ void free_strs(int count, int fields_num, ...);
 char **get_values(char *fields_input, int fields_count);
 int is_file_name_valid(char *str);
 void strip(const char c, char *str);
+char return_first_char(char *str);
+char return_last_char(char *str);
+unsigned char assemble_key(char ***key, int n, char c, char *str);
+size_t number_of_digit(int n);
 #endif
