@@ -171,7 +171,7 @@ you can also create files and provide values to the fields in one entry:
 
 ```plaintext
 
-[isam.db-C-language-main]$ bin/isam.db -nf item -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k jj6
+[isam.db-C-language-main]$ bin/isam.db -nf item -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -k ui7
 
 ```
 
@@ -188,6 +188,28 @@ the flag -k provides an id for the record that you are adding or creating, you w
 if you do not specify a number of indexes with option **-i** the index file will have 5 indexes by default, index 0 will contain all the keys for the data file, and the other indexes you can use it as you please.
 the indexes are zeored number, meaning if you have five indexes they will be 0, 1, 2, 3, 4.
 
+this base definition cannot change anymore, you can add to it (up to 200 fields for each file), but as for now you cannot change a definition, that means that the field *code*, in our example, will always be and must be a string; new versions will have more flexibility, and will allow the users to change fields type.
+
+now you have a file called item.dat and a file named item.inx which will be the index file (an Hash table).
+to retrive the data you can run the follwing:
+
+```plain text
+[isam.db-C-language-main]$ GET item ui7
+```
+
+this comand will display on the the terminal:
+
+```plain text
+#################################################################
+
+the Record data are: 
+code    man78-g-hus
+price    33.56
+discount  0.00
+
+#################################################################
+
+```
 the flag that you can provide are:
 
 ```plaintext
@@ -211,28 +233,9 @@ the flag that you can provide are:
 
 ```
 
-this base definition cannot change anymore, you can add to it (up to 200 fields foor each file), but everytime you add a record to a file, you need to provide at least the correct definition. if you try to do the follwing ( notes the different flag -a for adding to an existing file):
-
-```plain text
-bin/isam.db -f item -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_STRING:0.0 -k jj7
-```
-
-this will fail, the program check the new input against the header, thus, it  knows that discount is supposed to be a float, the message will be:
-
-```plain text
-Schema different than file definition.
-Files Closed successfully!
-```
-
-now you have a file called item.dat and a file named item.inx which will be the index file (an Hash table).
-to retrive the data you run the follwing:
 
 ```plain text
 bin/isam.db -f item -r jj6
 ```
 
 this will display the data to the stdout, if found.
-
-## STILL DEVELOPING
-
-I am making this project to better learn C, it is based on a system that i work with, which is very poerfull but it is build with a custom lenguage and it is a barrier for new developers, so I've decided to create a system in C, a very well known lenguage, this is still a work in porgress, and help is very much appreciated. THANKS!
