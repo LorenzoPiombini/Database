@@ -51,6 +51,10 @@ To get started, you can either clone the repository or download the files direct
   - UPDATE expects three arguments *file name*, *paramters string* and the *key* for the record that we want to update in the file.
     - this command will update the record specified.
     - if you execute UPDATE with no arguments will display the usage instruction.
+  - DEL expects two or three arguments *file name*, the *key* for the record that we want to delete in the file and you can specify the *index number* to delete the data in that specific index - if you do not specify the index the key value pair will be deleted from index 0 -.
+    - this command will delate the record specified  by the *key*.
+  - DELa expects one argument *file name*, and will delate all the indexes data.
+    - this command will delate the record specified  by the *key*.
 
 you need root privilege to run the install and clean rules.
 
