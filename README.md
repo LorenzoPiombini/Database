@@ -210,6 +210,7 @@ discount  0.00
 #################################################################
 
 ```
+
 the flag that you can provide are:
 
 ```plaintext
@@ -232,10 +233,3 @@ the flag that you can provide are:
  
 
 ```
-
-
-```plain text
-bin/isam.db -f item -r jj6
-```
-
-this will display the data to the stdout, if found.
