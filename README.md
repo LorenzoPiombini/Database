@@ -233,3 +233,23 @@ the flag that you can provide are:
  
 
 ```
+
+## Index File structure
+
+the index file is organized in this way:
+    - number of indexes (int)
+    - position of index 0 (off_t)
+    - position of index 1 (off_t)
+    - position of index 2 (off_t)
+    - position of index 3 (off_t)
+    - position of index 4 (off_t)
+    - index 0 size (int)
+    - index 0 (HashTable)
+    - index 1 size (int)
+    - index 1 (HashTable)
+    - index 2 size (int)
+    - index 2 (HashTable)
+    - index 3 size (int)
+    - index 3 (HashTable)
+    - index 4 size (int)
+    - index 4 (HashTable)
