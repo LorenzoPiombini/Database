@@ -254,3 +254,6 @@ the index file is organized in this way:
 - index 3 (HashTable)
 - index 4 size (int)
 - index 4 (HashTable)
+
+this is the layout of the index file, you can choose the number of indexes, but if you don't specify
+a value, the standard number of indexes will be set to 5.
