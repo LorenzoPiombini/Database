@@ -14,13 +14,16 @@ void print_usage(char *argv[])
         printf("\t -c - creates the files specified in the txt file.\n");
         printf("\t -D - specify the index where you want to delete the record.\n");
         printf("\t -R - define a file definition witout values.\n");
-        printf("\t -k - specify the record id, the program will save, retrice and delete the record based on this id.\n");
+        printf("\t -k - specify the record id, the program will perform CRUD ops based on this id.\n");
         printf("\t -t - list of available types. this flag will exit the program.\n");
         printf("\t -l - list the file definition specified with -f.\n");
         printf("\t -u - update the file specified by -f .\n");
         printf("\t -e - delete the file specified by -f .\n");
         printf("\t -x - list the keys value for the file specified by -f .\n");
         printf("\t -b - specify the file name (txt,csv,tab delimited file) to build from .\n");
+        printf("\t -o - add options to a CRUD operation .\n");
+        printf("\t -s - specify how many buckets the HashTable (index) will have.\n");
+        printf("\t -i - specify how many indexes the file will have.\n");
 }
 
 void print_types(void)

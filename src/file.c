@@ -6,11 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <byteswap.h>
+#include <arpa/inet.h>
 #include "file.h"
-#include "debug.h" // take it out once your done
 #include "common.h"
-#include "str_op.h"	  //not to happy about this
-#include "hash_tbl.h" // not to happy about this
+#include "float_endian.h"
+#include "debug.h"
+#include "hash_tbl.h"
 
 int open_file(char *fileName, int use_trunc)
 {
@@ -25,7 +27,7 @@ int open_file(char *fileName, int use_trunc)
 		fd = open(fileName, O_WRONLY | O_TRUNC | O_NOFOLLOW, S_IRWXU);
 	}
 
-	if (fd == -1)
+	if (fd == STATUS_ERROR)
 	{
 		printf("file %s ", fileName);
 		perror("open");
@@ -38,7 +40,7 @@ int open_file(char *fileName, int use_trunc)
 int create_file(char *fileName)
 {
 	int fd = open(fileName, O_RDONLY | O_NOFOLLOW);
-	if (fd != -1)
+	if (fd != STATUS_ERROR)
 	{
 		printf("File already exist.\n");
 		close(fd);
@@ -47,7 +49,7 @@ int create_file(char *fileName)
 
 	fd = open(fileName, O_RDWR | O_CREAT | O_NOFOLLOW, S_IRWXU);
 
-	if (fd == -1)
+	if (fd == STATUS_ERROR)
 	{
 		perror("open");
 		return -1;
@@ -97,7 +99,7 @@ off_t begin_in_file(int fd)
 {
 
 	off_t pos = lseek(fd, 0, SEEK_SET);
-	if (pos == -1)
+	if (pos == STATUS_ERROR)
 	{
 		perror("set begin in file");
 		return pos;
@@ -110,10 +112,10 @@ off_t get_file_offset(int fd)
 
 	off_t offset = lseek(fd, 0, SEEK_CUR);
 
-	if (offset == (off_t)-1)
+	if (offset == STATUS_ERROR)
 	{
 		perror("get offset: ");
-		return (off_t)-1;
+		return offset;
 	}
 
 	return offset;
@@ -122,7 +124,7 @@ off_t get_file_offset(int fd)
 off_t go_to_EOF(int fd)
 {
 	off_t eof = lseek(fd, 0, SEEK_END);
-	if (eof == -1)
+	if (eof == STATUS_ERROR)
 	{
 		perror("could not find end of file");
 		return eof;
@@ -134,7 +136,7 @@ off_t go_to_EOF(int fd)
 off_t find_record_position(int fd, off_t offset)
 {
 	off_t pos = lseek(fd, offset, SEEK_SET);
-	if (pos == -1)
+	if (pos == STATUS_ERROR)
 	{
 		perror("seeking offset.");
 		return pos;
@@ -148,7 +150,7 @@ off_t move_in_file_bytes(int fd, off_t offset)
 	off_t current_p = get_file_offset(fd);
 	off_t move_to = current_p + offset;
 	off_t pos = 0;
-	if ((pos = lseek(fd, move_to, SEEK_SET)) == -1)
+	if ((pos = lseek(fd, move_to, SEEK_SET)) == STATUS_ERROR)
 	{
 		perror("seeking offset.");
 		return pos;
@@ -163,7 +165,8 @@ unsigned char write_index_file_head(int fd, int index_num)
 	int i = 0;
 	off_t pos = 0;
 
-	if (write(fd, &index_num, sizeof(index_num)) == -1)
+	uint32_t in = htonl((uint32_t)index_num);
+	if (write(fd, &in, sizeof(in)) == -1)
 	{
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -171,7 +174,8 @@ unsigned char write_index_file_head(int fd, int index_num)
 
 	for (i = 0; i < index_num; i++)
 	{
-		if (write(fd, &pos, sizeof(pos)) == -1)
+		uint64_t p_n = bswap_64(pos);
+		if (write(fd, &p_n, sizeof(p_n)) == -1)
 		{
 			printf("write to file failed, %s:%d.\n", F, L - 2);
 			return 0;
@@ -184,7 +188,9 @@ unsigned char write_index_file_head(int fd, int index_num)
 unsigned char write_index_body(int fd, int i, HashTable *ht)
 {
 	off_t pos = 0;
-	if (write(fd, &i, sizeof(i)) == -1)
+
+	uint32_t i_n = htonl(i);
+	if (write(fd, &i_n, sizeof(i_n)) == -1)
 	{
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -223,13 +229,14 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 		}
 	}
 
-	if (write(fd, &pos, sizeof(pos)) == -1)
+	uint64_t p_n = bswap_64(pos);
+	if (write(fd, &p_n, sizeof(p_n)) == -1)
 	{
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
-	if (go_to_EOF(fd) == -1)
+	if (go_to_EOF(fd) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
@@ -239,19 +246,20 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 
 unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 {
-	if (begin_in_file(fd) == -1)
+	if (begin_in_file(fd) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
-	int array_size = 0;
-	if (read(fd, &array_size, sizeof(array_size)) == -1)
+	uint32_t a_s = 0;
+	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR)
 	{
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
+	int array_size = (int)ntohl(a_s);
 	if (array_size == 0)
 	{
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
@@ -265,26 +273,27 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 	}
 
 	off_t move_to = i_num * sizeof(off_t);
-	if (move_in_file_bytes(fd, move_to) == -1)
+	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
-	off_t index_pos = 0;
-	if (read(fd, &index_pos, sizeof(index_pos)) == -1)
+	uint64_t i_p = 0;
+	if (read(fd, &i_p, sizeof(i_p)) == STATUS_ERROR)
 	{
 		printf("read from fiel failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
+	off_t index_pos = (off_t)bswap_64(i_p);
 	if (index_pos == 0)
 	{
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
 
-	if (find_record_position(fd, index_pos) == -1)
+	if (find_record_position(fd, index_pos) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
@@ -301,22 +310,23 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 
 unsigned char indexes_on_file(int fd, int *p_i_nr)
 {
-	if (begin_in_file(fd) == -1)
+	if (begin_in_file(fd) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
-	int array_size = 0;
-	if (read(fd, &array_size, sizeof(array_size)) == -1)
+	uint32_t a_s = 0;
+	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR)
 	{
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
+	int array_size = (int)ntohl(a_s);
 	if (array_size == 0)
 	{
-		printf("read from file failed. check pointer file. %s:%d.\n", F, L - 2);
+		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
 
@@ -345,28 +355,29 @@ unsigned char nr_bucket(int fd, int *p_buck)
 
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 {
-	if (begin_in_file(fd) == -1)
+	if (begin_in_file(fd) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
-	int array_size = 0;
-	if (read(fd, &array_size, sizeof(array_size)) == -1)
+	uint32_t a_s = 0;
+	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR)
 	{
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
+	int array_size = (int)ntohl(a_s);
 	if (array_size == 0)
 	{
-		printf("read from file failed. check pointer file. %s:%d.\n", F, L - 2);
+		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
 
 	*p_index = array_size;
-	*ht = calloc(array_size, sizeof(HashTable));
 
+	*ht = calloc(array_size, sizeof(HashTable));
 	if (!*ht)
 	{
 		printf("calloc failed. %s:%d.\n", F, L - 3);
@@ -380,17 +391,15 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	}
 
 	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
-	if (move_in_file_bytes(fd, move_to) == -1)
+	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
-	off_t here = get_file_offset(fd);
-
 	for (i = 0; i < array_size; i++)
 	{
-		if (read_index_file(fd, &((*ht)[i])) == -1)
+		if (read_index_file(fd, &((*ht)[i])) == STATUS_ERROR)
 		{
 			printf("read from file failed. %s:%d.\n", F, L - 2);
 			if (*ht)
@@ -407,19 +416,9 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 
 		if ((array_size - i) > 1)
 		{
-			int index = 0;
-			if (read(fd, &index, sizeof(index)) == -1)
+			if (move_in_file_bytes(fd, sizeof(int)) == STATUS_ERROR)
 			{
-				printf("read from file failed. %s:%d.\n", F, L - 2);
-				if (*ht)
-				{
-					int j = 0;
-					for (j = 0; j < i; j++)
-					{
-						destroy_hasht(&((*ht)[j]));
-					}
-					free(*ht);
-				}
+				__er_file_pointer(F, L - 2);
 				return 0;
 			}
 		}
@@ -429,40 +428,44 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 unsigned char read_index_file(int fd, HashTable *ht)
 {
 
-	int size = 0;
-	if (read(fd, &size, sizeof(size)) < 0)
+	uint32_t s_n = 0;
+	if (read(fd, &s_n, sizeof(s_n)) < 0)
 	{
 		perror("reading Index file");
 		return 0; // false
 	}
 
+	int size = (int)ntohl(s_n);
 	Node **dataMap = calloc(size, sizeof(Node *));
 
 	if (!dataMap)
 	{
-		perror("memory");
+		perror("calloc failed");
 		return 0;
 	}
 
 	ht->size = size;
 	ht->dataMap = dataMap;
 
-	int ht_l = 0;
-	if (read(fd, &ht_l, sizeof(ht_l)) == -1)
+	uint32_t ht_ln = 0;
+	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR)
 	{
 		perror("reading ht length");
 		free(dataMap);
 		return 0;
 	}
 
+	int ht_l = (int)ntohl(ht_ln);
 	register int i = 0;
 	for (i = 0; i < ht_l; i++)
 	{
-		size_t key_l = 0;
+		uint64_t key_l = 0l;
 
 		if (read(fd, &key_l, sizeof(key_l)) > 0)
 		{
-			char *key = malloc(key_l + 1);
+			size_t size = (size_t)bswap_64(key_l);
+
+			char *key = calloc(size + 1, sizeof(char));
 
 			if (!key)
 			{
@@ -471,9 +474,9 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				return 0;
 			}
 
-			off_t value = 0l;
-			if (read(fd, key, key_l) < 0 ||
-				read(fd, &value, sizeof(value)) < 0)
+			uint64_t v_n = 0l;
+			if (read(fd, key, size + 1) < 0 ||
+				read(fd, &v_n, sizeof(v_n)) < 0)
 			{
 
 				perror("reading index file");
@@ -482,7 +485,8 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				return 0;
 			}
 
-			key[key_l] = '\0';
+			off_t value = (off_t)bswap_64(v_n);
+			key[size] = '\0';
 			Node *newNode = malloc(sizeof(Node));
 
 			if (!newNode)
@@ -518,65 +522,12 @@ unsigned char read_index_file(int fd, HashTable *ht)
 	return 1; // true
 }
 
-ssize_t compute_record_size(Record_f *rec, unsigned char update)
-{
-	register unsigned char i = 0;
-	ssize_t sum = (ssize_t)sizeof(ssize_t);
-	sum += (ssize_t)sizeof(rec->fields_num);
-
-	for (i = 0; i < rec->fields_num; i++)
-	{
-		sum += (ssize_t)strlen(rec->fields[i].field_name) + (ssize_t)sizeof(size_t);
-		sum += (ssize_t)sizeof(rec->fields[i].type);
-
-		switch (rec->fields[i].type)
-		{
-		case TYPE_INT:
-			sum += (ssize_t)sizeof(rec->fields[i].data.i);
-			break;
-		case TYPE_LONG:
-			sum += (ssize_t)sizeof(rec->fields[i].data.l);
-			break;
-		case TYPE_FLOAT:
-			sum += (ssize_t)sizeof(rec->fields[i].data.f);
-			break;
-		case TYPE_STRING:
-			// account for '/0' and the size of each size_t wrote for each string
-			if (!update)
-				sum += (ssize_t)(strlen(rec->fields[i].data.s) * 2) + (ssize_t)1 + (ssize_t)sizeof(size_t);
-			else
-				sum += (ssize_t)strlen(rec->fields[i].data.s) + (ssize_t)1;
-
-			break;
-		case TYPE_BYTE:
-			sum += (ssize_t)sizeof(rec->fields[i].data.b);
-			break;
-		case TYPE_DOUBLE:
-			sum += (ssize_t)sizeof(rec->fields[i].data.d);
-			break;
-		default:
-			printf("type not supported!\n");
-			return -1;
-		}
-	}
-	return sum;
-}
-
 int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 {
 	off_t go_back_to = 0;
-	// ssize_t size = compute_record_size(rec, update);
-	// if(size == -1){
-	//	printf("cannot write to the file, unknown type(s).\n");
-	//	return 0;
-	//	}
 
-	// if(write(fd,&size, sizeof(size)) == -1 ){
-	//	perror("write size of record to file");
-	//	return 0;
-	// }
-
-	if (write(fd, &rec->fields_num, sizeof(rec->fields_num)) < 0)
+	uint32_t rfn_ne = htonl((uint32_t)rec->fields_num);
+	if (write(fd, &rfn_ne, sizeof(rfn_ne)) < 0)
 	{
 		perror("could not write fields number");
 		return 0;
@@ -596,53 +547,66 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 	char *buff_w = NULL;
 	for (i = 0; i < rec->fields_num; i++)
 	{
-		size_t l = strlen(rec->fields[i].field_name);
-		if (write(fd, &l, sizeof(l)) < 0)
+		size_t str_l = strlen(rec->fields[i].field_name);
+		uint64_t str_l_ne = bswap_64((uint64_t)str_l);
+		if (write(fd, &str_l_ne, sizeof(str_l_ne)) < 0)
 		{
 			perror("write size name");
 			return 0;
 		}
 
-		if (write(fd, rec->fields[i].field_name, l) < 0)
+		if (write(fd, rec->fields[i].field_name, str_l) < 0)
 		{
 			perror("write field name");
 			return 0;
 		}
 
-		if (write(fd, &rec->fields[i].type, sizeof(rec->fields[i].type)) < 0)
+		uint32_t type_ne = htonl((uint32_t)rec->fields[i].type);
+		if (write(fd, &type_ne, sizeof(type_ne)) < 0)
 		{
 			perror("could not write fields type");
 			return 0;
 		}
-
 		switch (rec->fields[i].type)
 		{
 		case TYPE_INT:
-			if (write(fd, &rec->fields[i].data.i, sizeof(rec->fields[i].data.i)) < 0)
+		{
+			uint32_t i_ne = htonl(rec->fields[i].data.i);
+			if (write(fd, &i_ne, sizeof(i_ne)) < 0)
 			{
 				perror("error in writing int type to file.\n");
 				return 0;
 			}
 			break;
+		}
 		case TYPE_LONG:
-			if (write(fd, &rec->fields[i].data.l, sizeof(rec->fields[i].data.l)) < 0)
+		{
+			uint64_t l_ne = bswap_64((uint64_t)rec->fields[i].data.l);
+			if (write(fd, &l_ne, sizeof(l_ne)) < 0)
 			{
 				perror("error in writing long type to file.\n");
 				return 0;
 			}
 			break;
+		}
 		case TYPE_FLOAT:
-			if (write(fd, &rec->fields[i].data.f, sizeof(rec->fields[i].data.f)) < 0)
+		{
+			uint32_t f = htonf(rec->fields[i].data.f);
+			if (write(fd, &f, sizeof(f)) < 0)
 			{
 				perror("error in writing float type.\n");
 				return 0;
 			}
 			break;
+		}
 		case TYPE_STRING:
+		{
 			if (!update)
 			{
-				lt = strlen(rec->fields[i].data.s) + 1;
-				buff_update = (lt * 2);
+				lt = strlen(rec->fields[i].data.s);
+				buff_update = lt * 2;
+
+				lt++, buff_update++; /* adding 1 for '\0'*/
 				buff_w = calloc(buff_update, sizeof(char));
 
 				if (!buff_w)
@@ -653,9 +617,13 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 
 				strncpy(buff_w, rec->fields[i].data.s, lt - 1);
 
-				if (write(fd, &str_loc, sizeof(str_loc)) < 0 ||
-					write(fd, &lt, sizeof(lt)) < 0 ||
-					write(fd, &buff_update, sizeof(buff_update)) < 0 ||
+				uint64_t l_ne = bswap_64(lt);
+				uint64_t bu_ne = bswap_64(buff_update);
+				uint64_t str_loc_ne = bswap_64(str_loc);
+
+				if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
+					write(fd, &l_ne, sizeof(l_ne)) < 0 ||
+					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 					write(fd, buff_w, buff_update) < 0)
 				{
 					perror("write file failed: ");
@@ -669,51 +637,61 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 			else
 			{
 				/*save the satrting offset for the string record*/
-				if ((bg_pos = get_file_offset(fd)) == -1)
+				if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR)
 				{
 					__er_file_pointer(F, L - 2);
 					return 0;
 				}
 
 				/*read pos of new str if any*/
-				if (read(fd, &str_loc, sizeof(str_loc)) == -1)
+				uint64_t str_loc_ne = 0;
+				if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
 				{
 					perror("can't read string location: ");
 					printf(" %s:%d", F, L - 3);
 					return 0;
 				}
+				str_loc = (off_t)bswap_64(str_loc_ne);
 
 				/*store record  beginning pos*/
-				if ((af_str_loc_pos = get_file_offset(fd)) == -1)
+				if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
 				{
 					__er_file_pointer(F, L - 2);
 					return 0;
 				}
 
-				if (read(fd, &lt, sizeof(lt)) < 0 ||
-					read(fd, &buff_update, sizeof(buff_update)) < 0)
+				uint64_t bu_ne = 0;
+				uint64_t l_ne = 0;
+				if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+					read(fd, &bu_ne, sizeof(bu_ne)) < 0)
 				{
 					perror("can't read safety buffer before writing string.\n");
 					printf("%s:%d", F, L - 3);
 					return 0;
 				}
 
+				buff_update = (off_t)bswap_64(bu_ne);
+				lt = (off_t)bswap_64(l_ne);
+
 				/*save the end offset of the first string record */
-				if ((go_back_to = get_file_offset(fd)) == -1)
+				if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
 				{
 					__er_file_pointer(F, L - 2);
 					return 0;
 				}
 
-				go_back_to += sizeof(buff_update);
+				/*add the buffer size to this file off_t*/
+				/*so we can reposition right after the 1st string after the writing */
+				go_back_to += buff_update;
 				if (str_loc > 0)
 				{
-					if (find_record_position(fd, str_loc) == -1)
+					/*set the file pointer to str_loc*/
+					if (find_record_position(fd, str_loc) == STATUS_ERROR)
 					{
 						__er_file_pointer(F, L - 2);
 						return 0;
 					}
-					/* in the case of a regular buffure update we have to	*/
+					/* in the case of a regular buffer update we have	*/
 					/*	 to save the off_t to get back to it later	*/
 					if ((move_to = get_file_offset(fd)) == -1)
 					{
@@ -721,25 +699,33 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 						return 0;
 					}
 
-					if (read(fd, &lt, sizeof(lt)) < 0 ||
-						read(fd, &buff_update, sizeof(buff_update)) < 0)
+					uint64_t bu_ne = 0;
+					uint64_t l_ne = 0;
+					if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+						read(fd, &bu_ne, sizeof(bu_ne)) < 0)
 					{
 						perror("read file.\n");
 						printf("%s:%d", F, L - 3);
 						return 0;
 					}
+
+					buff_update = (off_t)bswap_64(bu_ne);
+					lt = (off_t)bswap_64(l_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
 
 				if (new_lt > buff_update)
 				{
-
-					if ((eof = go_to_EOF(fd)) == -1)
+					/*if the new length is bigger then the buffer,set the file*/
+					/*pointer to the end of the file to write the new data*/
+					if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
 					{
 						__er_file_pointer(F, L - 2);
 						return 0;
 					}
+
+					/*expand the buff_update only for the bytes needed*/
 					__n_buff_update = buff_update;
 					__n_buff_update += (new_lt - buff_update);
 					buff_w = calloc(__n_buff_update, sizeof(char));
@@ -773,7 +759,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 				}
 				else if (str_loc > 0 && (__n_buff_update == 0))
 				{
-					if (find_record_position(fd, move_to) == -1)
+					if (find_record_position(fd, move_to) == STATUS_ERROR)
 					{
 						__er_file_pointer(F, L - 3);
 						free(buff_w);
@@ -781,10 +767,14 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 					}
 				}
 
+				/*write the data to file -- we are set on the write position*/
 				lt = new_lt;
 				buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-				if (write(fd, &lt, sizeof(lt)) < 0 ||
-					write(fd, &buff_update, sizeof(buff_update)) < 0 ||
+				l_ne = bswap_64(lt);
+				bu_ne = bswap_64(buff_update);
+
+				if (write(fd, &l_ne, sizeof(lt)) < 0 ||
+					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 					write(fd, buff_w, buff_update) < 0)
 				{
 					perror("error in writing type string (char *)file.\n");
@@ -794,19 +784,20 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 
 				free(buff_w);
 
+				/*if eof is bigger than 0 means we updated the string*/
+				/*we need to save the off_t of the new written data*/
 				if (eof > 0)
 				{
-					update_off_t = get_file_offset(fd);
 					/*go at the beginning of the str record*/
-					if (find_record_position(fd, bg_pos) == -1)
+					if (find_record_position(fd, bg_pos) == STATUS_ERROR)
 					{
 						__er_file_pointer(F, L - 2);
-						free(buff_w);
 						return 0;
 					}
 
 					/*update new string position*/
-					if (write(fd, &eof, sizeof(eof)) == -1)
+					uint64_t eof_ne = bswap_64((uint64_t)eof);
+					if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 					{
 						perror("write file: ");
 						printf(" %s:%d", F, L - 3);
@@ -816,38 +807,43 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 					/*set file pointer to the end of the 1st string rec*/
 					/*this step is crucial to avoid losing data        */
 
-					if (find_record_position(fd, go_back_to) == -1)
+					if (find_record_position(fd, go_back_to) == STATUS_ERROR)
 					{
 						__er_file_pointer(F, L - 2);
-						free(buff_w);
 						return 0;
 					}
 				}
 				else if (str_loc > 0)
 				{ /*Make sure that in all cases we go back to the end of the 1st record*/
-					if (find_record_position(fd, go_back_to) == -1)
+					if (find_record_position(fd, go_back_to) == STATUS_ERROR)
 					{
 						__er_file_pointer(F, L - 2);
-						free(buff_w);
 						return 0;
 					}
 				}
 			}
 			break;
+		}
 		case TYPE_BYTE:
-			if (write(fd, &rec->fields[i].data.b, sizeof(rec->fields[i].data.b)) < 0)
+		{
+			uint16_t b_ne = htonb(rec->fields[i].data.b);
+			if (write(fd, &b_ne, sizeof(b_ne)) < 0)
 			{
 				perror("error in writing type byte to file.\n");
 				return 0;
 			}
 			break;
+		}
 		case TYPE_DOUBLE:
-			if (write(fd, &rec->fields[i].data.d, sizeof(rec->fields[i].data.d)) < 0)
+		{
+			uint64_t d_ne = htond(rec->fields[i].data.d);
+			if (write(fd, &d_ne, sizeof(d_ne)) < 0)
 			{
 				perror("error in writing double to file.\n");
 				return 0;
 			}
 			break;
+		}
 		default:
 			break;
 		}
@@ -855,7 +851,8 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 
 	//	printf("the off set before writing the update pos is %ld.\n",get_file_offset(fd));
 
-	if (write(fd, &update_off_t, sizeof(update_off_t)) == -1)
+	uint64_t uot_ne = bswap_64((uint64_t)update_off_t);
+	if (write(fd, &uot_ne, sizeof(uot_ne)) == STATUS_ERROR)
 	{
 		perror("writing off_t for future update");
 		printf(" %s:%d", F, L - 3);
@@ -880,32 +877,28 @@ ssize_t get_record_size(int fd)
 
 off_t get_update_offset(int fd)
 {
-	off_t urec_pos = 0;
-	if (read(fd, &urec_pos, sizeof(urec_pos)) == -1)
+	uint64_t urec_ne = 0;
+	if (read(fd, &urec_ne, sizeof(urec_ne)) == STATUS_ERROR)
 	{
 		perror("could not read the update record position (file.c l 424).\n");
 		return -1;
 	}
 
-	return urec_pos;
+	return (off_t)bswap_64(urec_ne);
 }
 
 Record_f *read_file(int fd, char *file_name)
 {
-	//	ssize_t size = get_record_size(fd);
-	off_t go_back_to = 0;
 
-	// if(size == -1)
-	//	return NULL;
-
-	int fields_num_r = 0;
-	if (read(fd, &fields_num_r, sizeof(fields_num_r)) < 0)
+	uint32_t rfn_ne = 0;
+	if (read(fd, &rfn_ne, sizeof(rfn_ne)) < 0)
 	{
 		perror("could not read fields number:");
 		printf(" %s:%d.\n", __FILE__, __LINE__ - 1);
 		return NULL;
 	}
 
+	int fields_num_r = htonl(rfn_ne);
 	Record_f *rec = create_record(file_name, fields_num_r);
 	if (!rec)
 	{
@@ -920,16 +913,18 @@ Record_f *read_file(int fd, char *file_name)
 	size_t l = 0;
 	for (i = 0; i < rec->fields_num; i++)
 	{
-		size_t lt = 0;
 
-		if (read(fd, &lt, sizeof(lt)) < 0)
+		uint64_t str_l_ne = 0;
+		if (read(fd, &str_l_ne, sizeof(str_l_ne)) < 0)
 		{
 			perror("could not read size of field name, file.c l 458.\n");
 			clean_up(rec, fields_num_r);
 			return NULL;
 		}
+		size_t lt = (size_t)bswap_64(str_l_ne);
+
 		//	printf("size is %ld",lt);
-		rec->fields[i].field_name = malloc(lt + 1);
+		rec->fields[i].field_name = calloc(lt + 1, sizeof(char));
 
 		if (!rec->fields[i].field_name)
 		{
@@ -946,53 +941,69 @@ Record_f *read_file(int fd, char *file_name)
 		}
 
 		rec->fields[i].field_name[lt] = '\0';
-		ValueType type_r;
-
-		if (read(fd, &type_r, sizeof(type_r)) < 0)
+		uint32_t ty_ne = 0;
+		if (read(fd, &ty_ne, sizeof(ty_ne)) < 0)
 		{
 			perror("could not read type file.c l 481.");
 			clean_up(rec, rec->fields_num);
 			return NULL;
 		}
 
-		rec->fields[i].type = type_r;
-
+		rec->fields[i].type = (ValueType)ntohl(ty_ne);
+		// keep writing endianness from here
 		switch (rec->fields[i].type)
 		{
 		case TYPE_INT:
-			if (read(fd, &rec->fields[i].data.i, sizeof(int)) < 0)
+		{
+			uint32_t i_ne = 0;
+			if (read(fd, &i_ne, sizeof(uint32_t)) < 0)
 			{
 				perror("could not read type int file.c 491.\n");
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
+			rec->fields[i].data.i = (int)ntohl(i_ne);
 			break;
+		}
 		case TYPE_LONG:
-			if (read(fd, &rec->fields[i].data.l, sizeof(long)) < 0)
+		{
+			uint64_t l_ne = 0;
+			if (read(fd, &l_ne, sizeof(l_ne)) < 0)
 			{
 				perror("could not read type long, file.c 498.\n");
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
+
+			rec->fields[i].data.l = (long)bswap_64(l_ne);
 			break;
+		}
 		case TYPE_FLOAT:
-			if (read(fd, &rec->fields[i].data.f, sizeof(float)) < 0)
+		{
+			uint32_t f_ne = 0;
+			if (read(fd, &f_ne, sizeof(uint32_t)) < 0)
 			{
 				perror("could not read type float, file.c l 505.\n");
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
+
+			rec->fields[i].data.f = ntohf(f_ne);
 			break;
+		}
 		case TYPE_STRING:
-			/*read pos of new str if any*/
-			if (read(fd, &str_loc, sizeof(str_loc)) == -1)
+		{ /*read pos of new str if any*/
+			uint64_t str_loc_ne = 0;
+			if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == -1)
 			{
 				perror("can't read string location: ");
 				printf(" %s:%d", F, L - 3);
 				return 0;
 			}
+			str_loc = (size_t)bswap_64(str_loc_ne);
 
-			if (read(fd, &l, sizeof(l)) < 0)
+			uint64_t l_ne = 0;
+			if (read(fd, &l_ne, sizeof(l_ne)) < 0)
 			{
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
@@ -1000,19 +1011,24 @@ Record_f *read_file(int fd, char *file_name)
 				return NULL;
 			}
 
-			if (read(fd, &buff_update, sizeof(buff_update)) < 0)
+			l = (size_t)bswap_64(l_ne);
+
+			uint64_t bu_up_ne = 0;
+			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
 			{
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
+
+			buff_update = (size_t)bswap_64(bu_up_ne);
 
 			if (str_loc > 0)
 			{
 				/*save the offset past the buff_w*/
-				move_to = get_file_offset(fd) + sizeof(buff_update);
-				/* get current position, we might have to get back to this */
+				move_to = get_file_offset(fd) + buff_update;
+				/*move to (other)string location*/
 				if (find_record_position(fd, str_loc) == -1)
 				{
 					__er_file_pointer(F, L - 2);
@@ -1020,7 +1036,9 @@ Record_f *read_file(int fd, char *file_name)
 					return NULL;
 				}
 
-				if (read(fd, &l, sizeof(l)) < 0)
+				uint64_t l_ne = 0;
+				uint64_t bu_up_ne = 0;
+				if (read(fd, &l_ne, sizeof(l_ne)) < 0)
 				{
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
@@ -1028,13 +1046,16 @@ Record_f *read_file(int fd, char *file_name)
 					return NULL;
 				}
 
-				if (read(fd, &buff_update, sizeof(buff_update)) < 0)
+				if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
 				{
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
 					clean_up(rec, rec->fields_num);
 					return NULL;
 				}
+
+				l = (size_t)bswap_64(l_ne);
+				buff_update = (size_t)bswap_64(bu_up_ne);
 			}
 			rec->fields[i].data.s = calloc(l, sizeof(char));
 
@@ -1053,6 +1074,7 @@ Record_f *read_file(int fd, char *file_name)
 				return NULL;
 			}
 
+			/*read the actual string*/
 			if (read(fd, all_buf, buff_update) < 0)
 			{
 				perror("could not read buffer string, file.c l 539.\n");
@@ -1076,24 +1098,35 @@ Record_f *read_file(int fd, char *file_name)
 			}
 
 			break;
+		}
 		case TYPE_BYTE:
-			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) < 0)
+		{
+			uint16_t b_ne = 0;
+			if (read(fd, &b_ne, sizeof(b_ne)) < 0)
 			{
 				perror("could not read type byte: ");
 				printf(" %s:%d.\n", F, L - 2);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
+
+			rec->fields[i].data.b = ntohb(b_ne);
 			break;
+		}
 		case TYPE_DOUBLE:
-			if (read(fd, &rec->fields[i].data.d, sizeof(double)) < 0)
+		{
+			uint64_t d_ne = 0;
+			if (read(fd, &d_ne, sizeof(d_ne)) < 0)
 			{
 				perror("could not read type double:");
 				printf(" %s:%d.\n", F, L - 2);
 				clean_up(rec, rec->fields_num);
 				return NULL;
 			}
+
+			rec->fields[i].data.d = ntohd(d_ne);
 			break;
+		}
 		default:
 			break;
 		}
@@ -1134,10 +1167,12 @@ int padding_file(int fd, int bytes, size_t hd_st)
 {
 
 	short actual_pd = (short)(bytes - (int)hd_st);
-	unsigned char padding[actual_pd];
+	uint16_t padding[actual_pd];
 	short i = 0;
+	unsigned char c = '0';
+	uint16_t c_ne = htonb(c);
 	for (i = 0; i < (bytes - hd_st); i++)
-		padding[i] = '0';
+		padding[i] = c_ne;
 
 	if (write(fd, &padding, sizeof(padding)) == -1)
 	{

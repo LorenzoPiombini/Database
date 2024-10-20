@@ -98,3 +98,54 @@ void clean_up(Record_f *rec, int fields_num)
 	free(rec->file_name);
 	free(rec);
 }
+
+void print_record(int count, Record_f **recs)
+{
+
+	int i = 0, j = 0, max = 0;
+	printf("#################################################################\n\n");
+	printf("the Record data are: \n");
+
+	for (j = 0; j < count; j++)
+	{
+		Record_f *rec = recs[j];
+		for (i = 0; i < rec->fields_num; i++)
+		{
+			if (max < (int)strlen(rec->fields[i].field_name))
+			{
+				max = (int)strlen(rec->fields[i].field_name);
+			}
+		}
+
+		for (i = 0; i < rec->fields_num; i++)
+		{
+			strip('"', rec->fields[i].field_name);
+			printf("%-*s\t", max++, rec->fields[i].field_name);
+			switch (rec->fields[i].type)
+			{
+			case TYPE_INT:
+				printf("%d\n", rec->fields[i].data.i);
+				break;
+			case TYPE_LONG:
+				printf("%ld\n", rec->fields[i].data.l);
+				break;
+			case TYPE_FLOAT:
+				printf("%.2f\n", rec->fields[i].data.f);
+				break;
+			case TYPE_STRING:
+				strip('"', rec->fields[i].data.s);
+				printf("%s\n", rec->fields[i].data.s);
+				break;
+			case TYPE_BYTE:
+				printf("%u\n", rec->fields[i].data.b);
+				break;
+			case TYPE_DOUBLE:
+				printf("%.2f\n", rec->fields[i].data.d);
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	printf("\n#################################################################\n\n");
+}

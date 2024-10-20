@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
 
 				HashTable ht = {bucket, dataMap, write_ht};
 
-				if (!write_index_body(fd_index, i, &ht) == -1)
+				if (write_index_body(fd_index, i, &ht) == -1)
 				{
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					free(buf_sdf), free(buf_t);
@@ -280,9 +280,9 @@ int main(int argc, char *argv[])
 			if (fields_count > MAX_FIELD_NR)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
 				close_file(2, fd_index, fd_data);
-				delete_file(2, files[0], files[1]);
 				return 1;
 			}
 
@@ -405,7 +405,7 @@ int main(int argc, char *argv[])
 					}
 				}
 
-				if (!write_index_body(fd_index, i, &ht) == -1)
+				if (write_index_body(fd_index, i, &ht) == -1)
 				{
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					clean_up(rec, fields_count);
@@ -446,7 +446,7 @@ int main(int argc, char *argv[])
 
 			if (!write_empty_header(fd_data, &hd))
 			{
-				printf("%s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("%s:%d.\n", F, L - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -455,7 +455,7 @@ int main(int argc, char *argv[])
 
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
-				printf("padding failed. %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("padding failed. %s:%d.\n", F, L - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -490,7 +490,7 @@ int main(int argc, char *argv[])
 
 				HashTable ht = {bucket, dataMap, write_ht};
 
-				if (!write_index_body(fd_index, i, &ht) == -1)
+				if (write_index_body(fd_index, i, &ht) == -1)
 				{
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					close_file(2, fd_index, fd_data);
@@ -574,7 +574,6 @@ int main(int argc, char *argv[])
 
 			if (!add_fields_to_schema(fields_count, buffer, buff_t, &hd.sch_d))
 			{
-				printf("add fields to chema failed. %s:%d;\n", F, L - 2);
 				clean_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				free(buffer), free(buff_t);
@@ -679,7 +678,7 @@ int main(int argc, char *argv[])
 						for (i = 0; i < *p_i_nr; i++)
 						{
 
-							if (!write_index_body(fd_index, i, &ht[i]) == -1)
+							if (write_index_body(fd_index, i, &ht[i]) == -1)
 							{
 								printf("write to file failed. %s:%d.\n", F, L - 2);
 								free(files[0]), free(files[1]), free(files);
@@ -760,7 +759,7 @@ int main(int argc, char *argv[])
 			for (i = 0; i < index; i++)
 			{
 
-				if (!write_index_body(fd_index, i, &ht[i]) == -1)
+				if (write_index_body(fd_index, i, &ht[i]) == -1)
 				{
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					free(files[0]), free(files[1]), free(files);
@@ -828,7 +827,6 @@ int main(int argc, char *argv[])
 			if (check == SCHEMA_NW)
 			{ /*if the schema is new we update the header*/
 				// check the header size
-				// printf("header size is: %ld",compute_size_header(hd));
 				if (compute_size_header(hd) >= MAX_HD_SIZE)
 				{
 					printf("File definition is bigger than the limit.\n");
@@ -951,7 +949,7 @@ int main(int argc, char *argv[])
 			for (i = 0; i < index; i++)
 			{
 
-				if (!write_index_body(fd_index, i, &ht[i]) == -1)
+				if (write_index_body(fd_index, i, &ht[i]) == -1)
 				{
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					close_file(2, fd_index, fd_data);
@@ -972,6 +970,7 @@ int main(int argc, char *argv[])
 
 			close_file(2, fd_index, fd_data);
 			free(ht);
+			printf("record %s wrote succesfully.\n", key);
 			return 0;
 		}
 
@@ -1095,7 +1094,6 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			off_t update_p_position = get_file_offset(fd_data);
 			off_t updated_rec_pos = get_update_offset(fd_data);
 			if (updated_rec_pos == -1)
 			{
@@ -1504,11 +1502,7 @@ int main(int argc, char *argv[])
 						}
 					}
 
-					ssize_t rec_st = get_record_size(fd_data);
 					find_record_position(fd_data, pos_u[index - 1]);
-					//	printf("record size is %ld\n", rec_st);
-					//	printf("initial record pos is %ld\n",initial_pos);
-					// printf("the offset of the updatePos should be %ld", rec_st + (ssize_t)initial_pos);
 
 					/*re-write the record*/
 					if (write_file(fd_data, recs_old[index - 1], eof, update) == -1)
@@ -1826,7 +1820,6 @@ int main(int argc, char *argv[])
 
 			if (update_rec_pos > 0)
 			{
-				off_t cp_urc = update_rec_pos;
 				recs = calloc(counter, sizeof(Record_f *));
 				if (!recs)
 				{

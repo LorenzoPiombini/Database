@@ -121,12 +121,12 @@ int get_type(char *s)
 	{
 		return 6;
 	}
+	return -1;
 }
 
 char **get_fileds_name(char *fields_name, int fields_count, int steps)
 {
-	int i = 0, j = 0;
-	unsigned char oversized_f = 0;
+	int j = 0;
 	char **names_f = calloc(fields_count, sizeof(char *));
 	char *s = NULL;
 
@@ -295,7 +295,7 @@ int is_file_name_valid(char *str)
 {
 	int i = 0;
 	size_t l = strlen(str);
-	for (i; i < l; i++)
+	for (i = 0; i < l; i++)
 	{
 		if (ispunct(str[i]))
 			return 0;
@@ -360,6 +360,8 @@ size_t number_of_digit(int n)
 	{
 		return 10;
 	}
+
+	return -1;
 }
 unsigned char assemble_key(char ***key, int n, char c, char *str)
 {

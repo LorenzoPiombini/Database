@@ -1,10 +1,10 @@
-TARGET = bin/isam.db
+TARGET = /usr/local/bin/isam.db
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
-SCRIPTS = GET FILE LIST 
+SCRIPTS = GET FILE LIST WRITE UPDATE DEL DELa KEYS 
 
 default: $(TARGET)
 
@@ -13,7 +13,7 @@ test:
 	./$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
 	./$(TARGET) -a  code:t_s:"man78-g-hus":price:t_f:33.56:discount:TYPE_FLOAT:0.0 -nf item -k ui7
 	 ./$(TARGET) -nf test7789 -a  name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6
-	./$(TARGET) -f test -D pi90
+	./$(TARGET) -f test -k pi90 -D 0
 	./$(TARGET) -nf prova -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
 	
 	./$(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
@@ -53,7 +53,7 @@ memory:
 	$(MAKE) pause
 
 clean:
-	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE
+	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	rm -f obj/*.o 
 	rm -f bin/*
 	rm *.dat *.inx
@@ -63,7 +63,7 @@ $(TARGET): $(OBJ)
 	gcc -o $@ $?
 
 obj/%.o : src/%.c
-	gcc -g -c $< -o $@ -Iinclude 
+	gcc -Wall -g3 -c $< -o $@ -Iinclude 
 
 
 
@@ -77,7 +77,7 @@ $(BINDIR)/GET:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
-		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -f \"\$$1\" -k \"\$$2\"" >> $@; \
+		echo "$(TARGET) -f \"\$$1\" -k \"\$$2\"" >> $@; \
 		chmod +x $@; \
 	fi
 $(BINDIR)/LIST:
@@ -90,7 +90,7 @@ $(BINDIR)/LIST:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
-		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -lf \"\$$1\"" >> $@; \
+		echo "$(TARGET) -lf \"\$$1\"" >> $@; \
 		chmod +x $@; \
 	fi
 
@@ -106,7 +106,7 @@ $(BINDIR)/FILE:
 		echo "if [ -e \"\$$1.dat\" ]; then" >> $@; \
 		echo "	 /home/lpiombini/Cprog/low_IO/$(TARGET) -f \"\$$1\" -R \"\$$2\"" >> $@; \
 		echo "else" >> $@; \
-		echo "	 /home/lpiombini/Cprog/low_IO/$(TARGET) -nf \"\$$1\" -R \"\$$2\"" >> $@; \
+		echo "$(TARGET) -nf \"\$$1\" -R \"\$$2\"" >> $@; \
 		echo "fi" >> $@; \
 		chmod +x $@; \
 	fi
@@ -119,7 +119,7 @@ $(BINDIR)/WRITE:
 		echo "echo \"Usage: WRITE [file name] [fields name and type] [key]\"" >> $@; \
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
-		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -f \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
+		echo "$(TARGET) -f \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
 		chmod +x $@; \
 	fi
 
@@ -131,7 +131,7 @@ $(BINDIR)/UPDATE:
 		echo "echo \"Usage: UPDATE [file name] [fields name and type] [key]\"" >> $@; \
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
-		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
+		echo "$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
 		chmod +x $@; \
 	fi
 $(BINDIR)/KEYS:
@@ -143,10 +143,46 @@ $(BINDIR)/KEYS:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
-		echo "/home/lpiombini/Cprog/low_IO/$(TARGET) -xf \"\$$1\"" >> $@; \
+		echo "value=\"\$$2\"" >> $@; \
+		echo "if [ -z \"\$$2\" ]; then" >> $@; \
+		echo "value=0" >> $@; \
+		echo "fi" >> $@; \
+		echo "$(TARGET) -f \"\$$1\" -x \"\$$value\"" >> $@; \
 		chmod +x $@; \
 	fi
-install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE
-	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)
+$(BINDIR)/DEL:
+	@if [ ! -f $@ ]; then \
+		echo "Creating $@ . . ."; \
+		echo "#!/bin/bash" > $@; \
+		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ]; then" >> $@; \
+		echo "echo \"Usage: DEL [file name] [key] [index_number]\"" >> $@; \
+		echo "echo \"index number is not mandatory\"" >> $@; \
+		echo "echo \"if index_number is not specified index 0 is used\"" >> $@; \
+		echo "exit 1" >> $@; \
+		echo "fi" >> $@; \
+		echo "" >> $@; \
+		echo "value=\"\$$3\"" >> $@; \
+		echo "if [ -z \"\$$3\" ]; then" >> $@; \
+		echo "value=0" >> $@; \
+		echo "fi" >> $@; \
+		echo "" >> $@; \
+		echo "$(TARGET) -f \"\$$1\" -k \"\$$2\" -D \"\$$value\"" >> $@; \
+		chmod +x $@; \
+	fi
+
+$(BINDIR)/DELa:
+	@if [ ! -f $@ ]; then \
+		echo "Creating $@ . . ."; \
+		echo "#!/bin/bash" > $@; \
+		echo "if [ -z \"\$$1\" ]; then" >> $@; \
+		echo "echo \"Usage: DELa [file name]\"" >> $@; \
+   		echo "exit 1" >> $@; \
+   		echo "fi" >> $@; \
+		echo "$(TARGET) -f \"\$$1\" -D 0 -o all" >> $@; \
+		chmod +x $@; \
+	fi
+
+install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
+	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa $(BINDIR) 
 
 .PHONY: default test memory clean install 

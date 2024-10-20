@@ -230,7 +230,7 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 
 		HashTable ht = {bucket, dataMap, write_ht};
 
-		if (!write_index_body(fd_index, i, &ht) == -1)
+		if (write_index_body(fd_index, i, &ht) == -1)
 		{
 			printf("write to file failed. %s:%d.\n", F, L - 2);
 			free(buf_sdf), free(buf_t);
