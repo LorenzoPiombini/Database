@@ -25,7 +25,6 @@ off_t get_update_offset(int fd);
 Record_f *read_file(int fd, char *file_name);
 int file_error_handler(int count, ...);
 int padding_file(int fd, int bytes, size_t hd_st);
-ssize_t get_record_size(int fd);
 unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);
 #endif

@@ -146,12 +146,14 @@ int get_number_value_from_txt_file(FILE *fp)
 	{
 		buffer[strcspn(buffer, "\n")] = '\0';
 
-		for (i = 0; i < buffer[i] == '\0'; i++)
+		for (i = 0; buffer[i] != '\0'; i++)
+		{
 			if (!isdigit(buffer[i]))
 			{
 				is_num = 0;
 				break;
 			}
+		}
 	}
 
 	if (!is_num)
@@ -176,6 +178,8 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	char buffer[size];
 	char **files_n = calloc(lines, sizeof(char *));
 	char **schemas = calloc(lines, sizeof(char *));
+	int buckets[lines];
+	int indexes[lines];
 	char *save = NULL;
 
 	while (fgets(buffer, sizeof(buffer), fp))
@@ -186,6 +190,8 @@ unsigned char create_system_from_txt_file(char *txt_f)
 
 		files_n[i] = strdup(strtok_r(buffer, "|", &save));
 		schemas[i] = strdup(strtok_r(NULL, "|", &save));
+		buckets[i] = atoi(strtok_r(NULL, "|", &save));
+		indexes[i] = atoi(strtok_r(NULL, "|", &save));
 		i++;
 		save = NULL;
 	}
@@ -193,7 +199,6 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	fclose(fp);
 
 	/* create file */
-	printf("%s\n", schemas[4]);
 	int j = 0;
 	for (j = 0; j < i; j++)
 	{
@@ -201,7 +206,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		int fd_index = create_file(files[0]);
 		int fd_data = create_file(files[1]);
 
-		if (!create_file_with_schema(fd_data, fd_index, schemas[j], 0, 0))
+		if (!create_file_with_schema(fd_data, fd_index, schemas[j], buckets[j], indexes[j]))
 		{
 			delete_file(2, files[0], files[1]);
 			free_strs(2, 1, files);

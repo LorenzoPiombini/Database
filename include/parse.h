@@ -43,4 +43,7 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 void find_fields_to_update(Record_f **recs_old, char *positions, Record_f *rec, int index);
 unsigned char create_new_fields_from_schema(Record_f **recs_old, Record_f *rec, Schema *sch,
 											int index, Record_f **new_rec, char *file_path);
+void print_schema(Schema sch);
+void print_header(Header_d hd);
+size_t compute_size_header(Header_d hd);
 #endif
