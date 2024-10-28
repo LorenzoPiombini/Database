@@ -1,13 +1,12 @@
-# ISAM Database in C
+# Database in C
 
-This ISAM database program enables dynamic creation of file definitions at runtime,  without the need to hardcode each type.
+This database utility enables dynamic creation of file definitions at runtime,  without the need to hardcode each file, every time you need to add one. the software will allow you to browse the file databse that it creates, will also install shared libraries on your machine that will be needed to develop a working system on this databes concept, you can develop pretty much anything on this file db.
 
-## Features
+as for now, this software is ment to be for **Linux/Unix** systems, and it has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
-- **Dynamic File Definition**: Easily define file dynamically at runtime by specifying field names, types, and initial values, without hard coding each files (fields and variables are the same thing).
-- **Supports Multiple Data Types**: Supports integers, long, floats, strings, bytes, and doubles.
-- **CRUD**: You can easily add, update and delete records form the files.
-  
+- **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
+- **Fedora 36** kernel: 5.11.17-300.fc34.aarch64.
+
 ## Get Started
 
 To get started, you can either clone the repository or download the files directly to your machine.
@@ -31,7 +30,7 @@ To get started, you can either clone the repository or download the files direct
   - delete all the objects created and the binary executable isam.db
   - delete the commands created by the install rule, GET, LIST, KEYS, DEL, WRITE, UPDATE
 - **install**:
-- creates the follwing commands:
+- creates the following commands:
   - GET expects two arguments *file name* and the *record identifier* (key).
     - this command will fetch the specified record *(if found)* and will display it.
     - if you execute GET with no arguments will display the usage instruction.
@@ -57,79 +56,6 @@ To get started, you can either clone the repository or download the files direct
 
 you need root privilege to run the install and clean rules.
 
-organize your project structure as shown below:
-
-``````plaintext
-your-project-folder:
-  |__\bin
-  |__\include
-  |    |_______common.h
-  |    |_______debug.h
-  |    |_______file.h
-  |    |_______hash_tbl.h
-  |    |_______input.h
-  |    |_______lock.h
-  |    |_______ parse.h
-  |    |_______record.h
-  |    |_______sort.h
-  |    |_______str_op.h
-  |__\Makefile
-  |__\obj
-  |__\src
-     |_______debug.c
-     |_______ file.c
-     |_______ hash_tbl.c
-     |_______ input.c
-     |_______lock.c
-     |_______main.c
-     |_______parse.c
-     |_______record.c
-     |_______sort.c
-     |_______str_op.c
-
-``````
-
-when you clone or download this repo, you do not have the folders **bin** and **obj**, you have to create them:
-
-``````plaintext
-[isam.db-C-language-main]$ mkdir bin obj
-``````
-
-take a look at the Makefile, for some of the commands you will need to change the path for them to work:
-
-``````plaintext
-$(BINDIR)/GET:
-  @if [ !  -f $@ ]; then \
-    echo "Creating $@ . . ."; \
-    echo "#!/bin/bash" > $@; \
-    echo "#Check if both arguments are provided" >> $@; \
-    echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ]; then" >> $@; \
-    echo "echo \"Usage: GET [file name] [record_id]\"" >> $@; \
-    echo "exit 1" >> $@; \
-    echo "fi" >> $@; \
-    echo "" >> $@; \
-    echo "/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \
-    chmod +x $@; \
-  fi
-``````
-
-change the line echo ***"/put/your/target/full/path/here/$(TARGET) -f \"\$$1\" -r \"\$$2\"" >> $@; \*** with your path.
-if you want you can run all the rules at the same time each time you need it:
-
-``````bash
-[isam.db-C-language-main]$ sudo make clean; make; make test ;sudo  make install 
-``````
-
-this will clean your current directory, creates the objects, run the tests and create the
-commands to browse the filesystem you created.
-
-This C software has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
-
-- **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
-- **Fedora 36** kernel: 5.11.17-300.fc34.aarch64.
-
-it has not been tested on Windows or MacOS and other Linux distros bisides the ones mentioned above.
-
 ## How It Works
 
 you can dynamically create **Files** at run time, you will provide either  the field(s)(variable(s)) names with the type and value, or simply the name of the fileds and the type.
@@ -139,7 +65,7 @@ you can dynamically create **Files** at run time, you will provide either  the f
 Here's how you can define a file:
 
 ```bash
-[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
+[isam.db-C-language-main]$ isam.db -nf person -R name:TYPE_STRING:"last name":TYPE_STRING:age:TYPE_BYTE
 ```
 
 ```bash
@@ -159,7 +85,7 @@ this three commands are correct and each will create a file with the follwing va
 if you want to writes field with spaces you have to put the "" around the field name, or you can do the following(last_name underscore without ""):
 
 ```bash
-[isam.db-C-language-main]$ bin/isam.db -nf person -R name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
+[isam.db-C-language-main]$ bin/isam.db -nf person -a name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
 ```
 
 the program will replace the underscore in last_name with a space (' ').

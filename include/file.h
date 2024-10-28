@@ -2,8 +2,7 @@
 #define FILE_H
 
 #include "record.h"
-
-typedef struct HashTable HashTable;
+#include "hash_tbl.h"
 
 int open_file(char *fileName, int use_trunc);
 int create_file(char *fileName);
@@ -19,8 +18,8 @@ unsigned char write_index_body(int fd, int i, HashTable *ht);
 unsigned char read_index_nr(int i_num, int fd, HashTable **ht);
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index);
 unsigned char read_index_file(int fd, HashTable *ht);
+size_t record_size_on_disk(void *rec_f);
 int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update);
-ssize_t compute_record_size(Record_f *rec, unsigned char update);
 off_t get_update_offset(int fd);
 Record_f *read_file(int fd, char *file_name);
 int file_error_handler(int count, ...);

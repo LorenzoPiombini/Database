@@ -45,5 +45,5 @@ unsigned char create_new_fields_from_schema(Record_f **recs_old, Record_f *rec, 
 											int index, Record_f **new_rec, char *file_path);
 void print_schema(Schema sch);
 void print_header(Header_d hd);
-size_t compute_size_header(Header_d hd);
+size_t compute_size_header(void *header);
 #endif

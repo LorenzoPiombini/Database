@@ -1,8 +1,6 @@
 #ifndef FLOAT_ENDIAN_H
 #define FLOAT_ENDIAN_H
 
-#include <stdint.h>
-
 /*assign a value to the double to get the corrisponding value int*/
 typedef union
 {
@@ -19,7 +17,7 @@ typedef union
 
 typedef union
 {
-    short int i;
+    uint16_t i;
     unsigned char c;
 } one_byte_interpreter;
 
