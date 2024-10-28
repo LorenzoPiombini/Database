@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <semaphore.h>
 #include "common.h"
 #include "file.h"
 #include "record.h"
@@ -143,7 +147,6 @@ int main(int argc, char *argv[])
 		/* -------------- and print error messages to the console ----------------*/
 		if (file_error_handler(2, fd_index, fd_data) != 0)
 		{
-			printf("%s:%d.\n", __FILE__, __LINE__ - 6);
 			free(files[0]), free(files[1]), free(files);
 			return 1;
 		}
@@ -165,6 +168,7 @@ int main(int argc, char *argv[])
 			char *buf_t = strdup(schema_def);
 
 			Schema sch = {fields_count, NULL, NULL};
+
 			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
 			{
 				printf("can't create file definition %s:%d.\n", __FILE__, __LINE__ - 1);
@@ -186,7 +190,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			size_t hd_st = compute_size_header(hd);
+			size_t hd_st = compute_size_header((void *)&hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");
@@ -300,23 +304,22 @@ int main(int argc, char *argv[])
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
+				clean_schema(&sch);
 				return 1;
 			}
 
 			Header_d hd = {0, 0, sch};
-			//	print_schema(sch);
 			if (!create_header(&hd))
 			{
-				printf("%s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("%s:%d.\n", F, L - 1);
 				clean_up(rec, fields_count), clean_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
-			// print_size_header(hd);
 
-			size_t hd_st = compute_size_header(hd);
+			size_t hd_st = compute_size_header((void *)&hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");
@@ -395,7 +398,7 @@ int main(int argc, char *argv[])
 
 					if (!write_file(fd_data, rec, 0, update))
 					{
-						printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+						printf("write to file failed, %s:%d.\n", F, L - 1);
 						clean_up(rec, fields_count);
 						destroy_hasht(&ht);
 						close_file(2, fd_index, fd_data);
@@ -434,7 +437,7 @@ int main(int argc, char *argv[])
 			Schema sch = {0, NULL, NULL};
 			Header_d hd = {HEADER_ID_SYS, VS, sch};
 
-			size_t hd_st = compute_size_header(hd);
+			size_t hd_st = compute_size_header((void *)&hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");
@@ -512,6 +515,18 @@ int main(int argc, char *argv[])
 	else
 	{ /*file already exist. we can perform CRUD operation*/
 
+		/* check if there is a shared memory object
+		   if there is, we map it to the lock_info* so we can read and write to the struct
+		   data to share with the main program */
+
+		lock_info *shared_locks = NULL;
+		int fd_mo = shm_open(SH_ILOCK, O_RDWR, 0666);
+		if (fd_mo != -1)
+		{
+			shared_locks = mmap(NULL, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE,
+								PROT_READ | PROT_WRITE, MAP_SHARED, fd_mo, 0);
+		}
+
 		/*creates two name from the file_path => from "str_op.h" */
 		char **files = two_file_path(file_path);
 
@@ -529,6 +544,26 @@ int main(int argc, char *argv[])
 		/* this is to ensure the file is a db file */
 		Schema sch = {0, NULL, NULL};
 		Header_d hd = {0, 0, sch};
+
+		if (shared_locks)
+		{
+			int lock_pos = 0, *plp = &lock_pos;
+			if (!aquire_lock_smo(&shared_locks, plp, files[1], 0, NULL, RD_HEADER, fd_data))
+			{
+				printf("can't acquire lock, %s:%d", F, L - 2);
+				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+				{
+					printf("failed to unmap shared memeory object, %s:%d.\n", F, L - 2);
+					close_file(3, fd_index, fd_data, fd_mo);
+					free_strs(2, 1, files);
+					return 0;
+				}
+				close_file(3, fd_index, fd_data, fd_mo);
+				free_strs(2, 1, files);
+				return 0;
+			}
+		}
+
 		if (!read_header(fd_data, &hd))
 		{
 			free(files[0]), free(files[1]), free(files);
@@ -582,7 +617,7 @@ int main(int argc, char *argv[])
 
 			free(buffer), free(buff_t);
 			/*here you know that the file is at the beginning*/
-			size_t hd_st = compute_size_header(hd);
+			size_t hd_st = compute_size_header((void *)&hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");
@@ -817,7 +852,7 @@ int main(int argc, char *argv[])
 
 			if (!rec)
 			{
-				printf("error creating record, main.c l %d\n", __LINE__ - 1);
+				printf("error creating record, %s:%d\n", F, L - 1);
 				free(buffer), free(buf_t), free(buf_v);
 				free(files[0]), free(files[1]), free(files);
 				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
@@ -827,7 +862,7 @@ int main(int argc, char *argv[])
 			if (check == SCHEMA_NW)
 			{ /*if the schema is new we update the header*/
 				// check the header size
-				if (compute_size_header(hd) >= MAX_HD_SIZE)
+				if (compute_size_header((void *)&hd) >= MAX_HD_SIZE)
 				{
 					printf("File definition is bigger than the limit.\n");
 					free(buffer), free(buf_t), free(buf_v);
@@ -1008,7 +1043,7 @@ int main(int argc, char *argv[])
 
 			if (check == SCHEMA_NW)
 			{
-				size_t hd_st = compute_size_header(hd);
+				size_t hd_st = compute_size_header((void *)&hd);
 				if (hd_st > MAX_HD_SIZE)
 				{
 					printf("header is bigger than the limit, main.c l %d\n", __LINE__ - 2);

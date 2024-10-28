@@ -3,9 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include "build.h"
-#include "hash_tbl.h"
-#include "helper.h"
 #include "file.h"
+#include "helper.h"
 #include "str_op.h"
 #include "debug.h"
 

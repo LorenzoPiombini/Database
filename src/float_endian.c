@@ -20,9 +20,11 @@ float ntohf(uint32_t u_i)
 uint16_t htonb(unsigned char c)
 {
     one_byte_interpreter ubi;
+    ubi.i = 0;
     ubi.c = c;
     return htons(ubi.i);
 }
+
 unsigned char ntohb(uint16_t ui)
 {
     one_byte_interpreter ubi;

@@ -8,11 +8,11 @@
 #include <stdarg.h>
 #include <byteswap.h>
 #include <arpa/inet.h>
+#include <math.h>
 #include "file.h"
 #include "common.h"
 #include "float_endian.h"
 #include "debug.h"
-#include "hash_tbl.h"
 
 int open_file(char *fileName, int use_trunc)
 {
@@ -522,6 +522,51 @@ unsigned char read_index_file(int fd, HashTable *ht)
 	return 1; // true
 }
 
+size_t record_size_on_disk(void *rec_f)
+{
+	size_t rec_size = 0;
+	Record_f *rec = (Record_f *)rec_f;
+
+	rec_size += sizeof(rec->fields_num);
+	/*each field name length*/
+	rec_size += (sizeof(uint64_t) * rec->fields_num);
+
+	/*each field type*/
+	rec_size += (sizeof(uint32_t) * rec->fields_num);
+
+	for (int i = 0; i < rec->fields_num; i++)
+	{
+		/*actual name length wrote to disk*/
+		rec_size += strlen(rec->fields[i].field_name);
+
+		switch (rec->fields[i].type)
+		{
+		case TYPE_INT:
+		case TYPE_FLOAT:
+			rec_size += sizeof(uint32_t);
+			break;
+		case TYPE_LONG:
+		case TYPE_DOUBLE:
+			rec_size += sizeof(uint64_t);
+			break;
+		case TYPE_BYTE:
+			rec_size += sizeof(uint16_t);
+			break;
+		case TYPE_STRING:
+			rec_size += (sizeof(uint64_t) * 3);
+			rec_size += (strlen(rec->fields[i].data.s) * 2) + 1;
+			break;
+		default:
+			printf("unknown type");
+			return -1;
+		}
+	}
+
+	/*any eventual update position*/
+	rec_size += sizeof(uint64_t);
+	return rec_size;
+}
+
 int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 {
 	off_t go_back_to = 0;
@@ -567,6 +612,7 @@ int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
 			perror("could not write fields type");
 			return 0;
 		}
+
 		switch (rec->fields[i].type)
 		{
 		case TYPE_INT:
@@ -1166,12 +1212,18 @@ int file_error_handler(int count, ...)
 int padding_file(int fd, int bytes, size_t hd_st)
 {
 
-	short actual_pd = (short)(bytes - (int)hd_st);
+	unsigned short actual_pd = (short)(bytes - (int)hd_st);
+	double pd_intermediete = (double)actual_pd / (double)sizeof(uint16_t);
+
+	pd_intermediete = (pd_intermediete);
+	actual_pd = (unsigned short)pd_intermediete;
+
 	uint16_t padding[actual_pd];
+
 	short i = 0;
 	unsigned char c = '0';
 	uint16_t c_ne = htonb(c);
-	for (i = 0; i < (bytes - hd_st); i++)
+	for (i = 0; i < actual_pd; i++)
 		padding[i] = c_ne;
 
 	if (write(fd, &padding, sizeof(padding)) == -1)

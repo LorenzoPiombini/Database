@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "hash_tbl.h"
+#include "debug.h"
 
 void print_hash_table(HashTable tbl)
 {
@@ -273,4 +274,44 @@ void free_nodes(Node **dataMap, int size)
 	}
 
 	free(dataMap);
+}
+
+unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
+{
+	if (!src)
+	{
+		printf("no data to copy.\n");
+		return 0;
+	}
+
+	if (mode == 1)
+	{
+		destroy_hasht(dest);
+		Node **data_map = calloc(src->size, sizeof(Node *));
+		if (!data_map)
+		{
+			printf("calloc failed,%s:%d.\n", F, L - 2);
+			return 0;
+		}
+
+		(*dest).size = src->size;
+		(*dest).dataMap = data_map;
+	}
+
+	register int i = 0;
+	for (i = 0; i < src->size; i++)
+	{
+		if (src->dataMap[i])
+		{
+			set(src->dataMap[i]->key, src->dataMap[i]->value, dest);
+			Node *next = src->dataMap[i]->next;
+			while (next)
+			{
+				set(next->key, next->value, dest);
+				next = next->next;
+			}
+		}
+	}
+
+	return 1;
 }

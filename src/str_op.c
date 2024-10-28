@@ -3,16 +3,15 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <limits.h>
 #include "str_op.h"
 #include "record.h"
-#include "parse.h"
 #include "debug.h"
 
 char **two_file_path(char *file_path)
 {
 	static char *dat = ".dat";
 	static char *ind = ".inx";
-	//	static char *gl_path = "/u/db/";
 
 	size_t len = strlen(file_path) + strlen(ind) + 1;
 
@@ -326,6 +325,59 @@ char return_last_char(char *str)
 	return str[l];
 }
 
+size_t digits_with_decimal(float n)
+{
+	char buf[20];
+	if (snprintf(buf, 20, "%.2f", n) < 0)
+	{
+		printf("snprintf failed %s:%d.\n", F, L - 2);
+		return -1;
+	}
+
+	size_t i = 0;
+	for (i = 0; i < 20; i++)
+	{
+		if (buf[i] == '.')
+			return ++i;
+	}
+
+	return (size_t)-1;
+}
+
+unsigned char is_floaintg_point(char *str)
+{
+	size_t l = strlen(str);
+	int i = 0, point = 0;
+	for (i = 0; i < l; i++)
+	{
+		if (isdigit(str[i]))
+		{
+			if (str[i] == '.')
+				return 1;
+		}
+		else if (str[i] == '.')
+		{
+			point++;
+		}
+		else
+		{
+			return 0;
+		}
+	}
+
+	return point == 1;
+}
+unsigned char is_integer(char *str)
+{
+	size_t l = strlen(str);
+	int i = 0;
+	for (i = 0; i < l; i++)
+		if (!isdigit(str[i]))
+			return 0;
+
+	return 1;
+}
+
 size_t number_of_digit(int n)
 {
 	if (n < 10)
@@ -382,4 +434,94 @@ unsigned char assemble_key(char ***key, int n, char c, char *str)
 	}
 
 	return 1;
+}
+
+float __round(float n)
+{
+	char buff[20];
+	if (snprintf(buff, 20, "%f", n) < 0)
+		return -1;
+
+	size_t digit = 0;
+
+	if ((digit = digits_with_decimal(n) + 2) > 20)
+		return -1;
+
+	int num = buff[digit];
+	if (num > 5)
+	{
+		n += 0.01;
+	}
+
+	return n;
+}
+
+unsigned char is_number_in_limits(char *value)
+{
+	if (!value)
+		return 0;
+
+	size_t l = strlen(value);
+	unsigned char negative = value[0] == '-';
+	int ascii_value = 0;
+
+	if (is_integer(value))
+	{
+
+		for (int i = 0; i < l; i++)
+			ascii_value += (int)value[i];
+
+		if (negative)
+		{
+			if (-1 * ascii_value < -1 * ASCII_INT_MIN)
+			{
+				if (-1 * ascii_value < -1 * ASCII_LONG_MIN)
+					return 0;
+				else
+					return IN_LONG;
+			}
+
+			return IN_INT;
+		}
+
+		if (ascii_value > ASCII_INT_MAX)
+		{
+			if (ascii_value > ASCII_LONG_MAX)
+				return 0;
+			else
+				return IN_LONG;
+		}
+
+		return IN_INT;
+	}
+
+	if (is_floaintg_point(value))
+	{
+		for (int i = 0; i < l; i++)
+			ascii_value += (int)value[i];
+
+		if (negative)
+		{
+			if (-1 * ascii_value < -1 * ASCII_FLT_MAX_NEGATIVE)
+			{
+				if (-1 * ascii_value < -1 * ASCII_DBL_MAX_NEGATIVE)
+					return 0;
+				else
+					return IN_DOUBLE;
+			}
+
+			return IN_FLOAT;
+		}
+
+		if (ascii_value > ASCII_FLT_MAX)
+		{
+			if (ascii_value > ASCII_DBL_MAX)
+				return 0;
+			else
+				return IN_DOUBLE;
+		}
+		return IN_FLOAT;
+	}
+
+	return 0;
 }

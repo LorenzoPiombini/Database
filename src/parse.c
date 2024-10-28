@@ -33,6 +33,32 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		return NULL;
 	}
 
+	/*check if the fields name are correct- if not - input is incorrect */
+	for (int i = 0; i < fields_num; i++)
+	{
+		if (names[i] == NULL)
+		{
+			printf("invalid input.\n");
+			printf("input syntax: fieldName:TYPE:value\n");
+			clean_up(rec, rec->fields_num);
+			free_strs(fields_num, 1, names);
+			return NULL;
+		}
+		else if (strstr(names[i], "TYPE STRING") ||
+				 strstr(names[i], "TYPE LONG") ||
+				 strstr(names[i], "TYPE INT") ||
+				 strstr(names[i], "TYPE BYTE") ||
+				 strstr(names[i], "TYPE FLOAT") ||
+				 strstr(names[i], "TYPE DOUBLE"))
+		{
+			printf("invalid input.\n");
+			printf("input syntax: fieldName:TYPE:value\n");
+			clean_up(rec, rec->fields_num);
+			free_strs(fields_num, 1, names);
+			return NULL;
+		}
+	}
+
 	if (sch && check_sch == 0)
 	{ /* true when a new file is created */
 		char **sch_names = calloc(fields_num, sizeof(char *));
@@ -121,7 +147,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 		if (!reorder_rtl)
 		{
-			printf("sort_input_like_header_schema failed, parse.c l %d.\n", __LINE__ - 4);
+			printf("sort_input_like_header_schema failed, %s:%d.\n", F, L - 4);
 			free(types_i);
 			clean_up(rec, fields_num);
 			free_strs(fields_num, 2, names, values);
@@ -188,7 +214,14 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 				if (strcmp(sch->fields_name[i], names[j]) == 0)
 				{
 					//	printf("before set_field: %s, %s ,\n",names[j],values[j]);
-					set_field(temp, i, names[j], types_i[j], values[j]);
+					if (!set_field(temp, i, names[j], types_i[j], values[j]))
+					{
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(types_i);
+						free_strs(fields_num, 2, names, values);
+						clean_up(temp, sch->fields_num);
+						return NULL;
+					}
 					//	printf("after set_field: %s, %s ,\n",names[j],values[j]);
 					found++;
 				}
@@ -203,14 +236,35 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 				case TYPE_INT:
 				case TYPE_LONG:
 				case TYPE_BYTE:
-					set_field(temp, i, sch->fields_name[i], sch->types[i], number);
+					if (!set_field(temp, i, sch->fields_name[i], sch->types[i], number))
+					{
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(types_i);
+						free_strs(fields_num, 2, names, values);
+						clean_up(temp, sch->fields_num);
+						return NULL;
+					}
 					break;
 				case TYPE_STRING:
-					set_field(temp, i, sch->fields_name[i], sch->types[i], str);
+					if (!set_field(temp, i, sch->fields_name[i], sch->types[i], str))
+					{
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(types_i);
+						free_strs(fields_num, 2, names, values);
+						clean_up(temp, sch->fields_num);
+						return NULL;
+					}
 					break;
 				case TYPE_FLOAT:
 				case TYPE_DOUBLE:
-					set_field(temp, i, sch->fields_name[i], sch->types[i], fp);
+					if (!set_field(temp, i, sch->fields_name[i], sch->types[i], fp))
+					{
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(types_i);
+						free_strs(fields_num, 2, names, values);
+						clean_up(temp, sch->fields_num);
+						return NULL;
+					}
 					break;
 				default:
 					printf("type no supported! %d.\n", sch->types[i]);
@@ -233,7 +287,14 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		register unsigned char i = 0;
 		for (i = 0; i < fields_num; i++)
 		{
-			set_field(rec, i, names[i], types_i[i], values[i]);
+			if (!set_field(rec, i, names[i], types_i[i], values[i]))
+			{
+				printf("set_field failed %s:%d.\n", F, L - 2);
+				free(types_i);
+				free_strs(fields_num, 2, names, values);
+				clean_up(rec, rec->fields_num);
+				return NULL;
+			}
 		}
 	}
 
@@ -322,7 +383,7 @@ int write_header(int fd, Header_d *hd)
 		return 0;
 	}
 
-	uint32_t id = htonl(hd->id_n); /*converting the endianess*/
+	uint32_t id = htonl(hd->id_n); /*converting the endianness*/
 	if (write(fd, &id, sizeof(id)) == -1)
 	{
 		perror("write header id.\n");
@@ -397,7 +458,6 @@ int read_header(int fd, Header_d *hd)
 	}
 
 	id = ntohl(id); /*changing the bytes to host endianess*/
-	// printf("id is %x\n",id);
 	if (id != HEADER_ID_SYS)
 	{
 		printf("this is not a db file.\n");
@@ -1270,7 +1330,6 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 				continue;
 
 			names[j] = strdup(rec->fields[i].field_name);
-			//	printf("%s\n",names[i]);
 			types_i[j] = rec->fields[i].type;
 			char buffer[64];
 
@@ -1304,12 +1363,16 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 				return 0;
 			}
 			j++;
-			// printf("%s\n",values[j-1]);
 		}
-		// printf("before setting fields in the new rec.\n");
 		for (i = 0; i < elements; i++)
 		{
-			set_field(*new_rec, i, names[i], types_i[i], values[i]);
+			if (!set_field(*new_rec, i, names[i], types_i[i], values[i]))
+			{
+				printf("set_field failed, %s:%d.\n", F, L - 2);
+				free_strs(elements, 2, names, values);
+				free(types_i);
+				return 0;
+			}
 		}
 
 		free_strs(elements, 2, names, values);
@@ -1439,14 +1502,26 @@ unsigned char create_new_fields_from_schema(Record_f **recs_old, Record_f *rec, 
 			case TYPE_INT:
 			case TYPE_BYTE:
 			case TYPE_LONG:
-				set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "0");
+				if (!set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "0"))
+				{
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return 0;
+				}
 				break;
 			case TYPE_FLOAT:
 			case TYPE_DOUBLE:
-				set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "0.0");
+				if (!set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "0.0"))
+				{
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return 0;
+				}
 				break;
 			case TYPE_STRING:
-				set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "null");
+				if (!set_field(*new_rec, n_i, sch->fields_name[j], sch->types[j], "null"))
+				{
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return 0;
+				}
 				break;
 			default:
 				printf("invalid type %d.", sch->types[j]);
@@ -1562,23 +1637,25 @@ void print_header(Header_d hd)
 	print_schema(hd.sch_d);
 }
 
-size_t compute_size_header(Header_d hd)
+size_t compute_size_header(void *header)
 {
 	size_t sum = 0;
 
-	sum += sizeof(hd.id_n) + sizeof(hd.version) + sizeof(hd.sch_d.fields_num) + sizeof(hd.sch_d);
+	Header_d *hd = (Header_d *)header;
+
+	sum += sizeof(hd->id_n) + sizeof(hd->version) + sizeof(hd->sch_d.fields_num) + sizeof(hd->sch_d);
 	int i = 0;
 
-	for (i = 0; i < hd.sch_d.fields_num; i++)
+	for (i = 0; i < hd->sch_d.fields_num; i++)
 	{
-		if (hd.sch_d.fields_name[i])
+		if (hd->sch_d.fields_name[i])
 		{
-			sum += strlen(hd.sch_d.fields_name[i]);
+			sum += strlen(hd->sch_d.fields_name[i]);
 		}
 
-		sum += sizeof(hd.sch_d.types[i]);
+		sum += sizeof(hd->sch_d.types[i]);
 	}
 
-	sum += hd.sch_d.fields_num; // acounting for n '\0'
+	sum += hd->sch_d.fields_num; // acounting for n '\0'
 	return sum;
 }

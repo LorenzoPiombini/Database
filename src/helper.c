@@ -8,7 +8,6 @@
 #include "file.h"
 #include "str_op.h"
 #include "debug.h"
-#include "hash_tbl.h"
 
 unsigned char create_empty_file(int fd_data, int fd_index, int bucket_ht)
 {
@@ -16,7 +15,7 @@ unsigned char create_empty_file(int fd_data, int fd_index, int bucket_ht)
 	Schema sch = {0, NULL, NULL};
 	Header_d hd = {HEADER_ID_SYS, VS, sch};
 
-	size_t hd_st = compute_size_header(hd);
+	size_t hd_st = compute_size_header((void *)&hd);
 	if (hd_st >= MAX_HD_SIZE)
 	{
 		printf("File definition is bigger than the limit.\n");
@@ -90,7 +89,7 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 	{ /*if the schema is new we update the header*/
 		// check the header size
 		// printf("header size is: %ld",compute_size_header(hd));
-		if (compute_size_header(hd) >= MAX_HD_SIZE)
+		if (compute_size_header((void *)&hd) >= MAX_HD_SIZE)
 		{
 			printf("File definition is bigger than the limit.\n");
 			free(buffer), free(buf_t), free(buf_v);
@@ -180,7 +179,7 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 	}
 
 	// print_size_header(hd);
-	size_t hd_st = compute_size_header(hd);
+	size_t hd_st = compute_size_header((void *)&hd);
 	if (hd_st >= MAX_HD_SIZE)
 	{
 		printf("File definition is bigger than the limit.\n");
