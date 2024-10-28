@@ -1,13 +1,22 @@
 TARGET = /usr/local/bin/isam.db
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
+OBJlibf = obj/debug.o  obj/file.o  obj/float_endian.o  obj/hash_tbl.o  obj/record.o  obj/str_op.o
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
+
+LIBNAMEf = file
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBf = lib$(LIBNAMEf).so
 
 SCRIPTS = GET FILE LIST WRITE UPDATE DEL DELa KEYS 
 
 default: $(TARGET)
 
+
+library:
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 
 test:	
 	$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
@@ -56,12 +65,14 @@ clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	rm -f obj/*.o 
 	rm -f bin/*
-	rm -f $(TARGET)
+	sudo rm -f $(TARGET)
 	rm *.dat *.inx
 	rm *core*
 	 
 $(TARGET): $(OBJ)
-	gcc -o $@ $?
+	sudo gcc -o $@ $?
+
+
 
 obj/%.o : src/%.c
 	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude  
@@ -184,6 +195,10 @@ $(BINDIR)/DELa:
 	fi
 
 install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
+	install -d $(INCLUDEDIR)
+	install -m 644 include/file.h $(INCLUDEDIR)/
+	install -m 755 $(SHAREDLIBf) $(LIBDIR)
+	ldconfig
 	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa $(BINDIR) 
 
-.PHONY: default test memory clean install 
+.PHONY: default test memory clean install library
