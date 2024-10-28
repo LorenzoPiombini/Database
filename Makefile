@@ -10,18 +10,18 @@ default: $(TARGET)
 
 
 test:	
-	./$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
-	./$(TARGET) -a  code:t_s:"man78-g-hus":price:t_f:33.56:discount:TYPE_FLOAT:0.0 -nf item -k ui7
-	 ./$(TARGET) -nf test7789 -a  name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6
-	./$(TARGET) -f test -k pi90 -D 0
-	./$(TARGET) -nf prova -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
+	$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
+	$(TARGET) -a  code:t_s:"man78-g-hus":price:t_f:33.56:discount:TYPE_FLOAT:0.0 -nf item -k ui7
+	$(TARGET) -nf test7789 -a  name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6
+	$(TARGET) -f test -k pi90 -D 0
+	$(TARGET) -nf prova -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
 	
-	./$(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
-	./$(TARGET) -f item -a price:TYPE_FLOAT:67.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"met90-x-us":unit:TYPE_STRING:"each":weight:TYPE_DOUBLE:45.43 -k ui9
-	./$(TARGET) -nf cmc 
-	./$(TARGET) -f item -a code:TYPE_STRING:nhy-X-it -k ui10
-	./$(TARGET) -f item -a code:TYPE_STRING:pio-u-ES:weight:TYPE_DOUBLE:10.9 -k ui11
-	./$(TARGET) -f item -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k ui10
+	$(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
+	$(TARGET) -f item -a price:TYPE_FLOAT:67.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"met90-x-us":unit:TYPE_STRING:"each":weight:TYPE_DOUBLE:45.43 -k ui9
+	$(TARGET) -nf cmc 
+	$(TARGET) -f item -a code:TYPE_STRING:nhy-X-it -k ui10
+	$(TARGET) -f item -a code:TYPE_STRING:pio-u-ES:weight:TYPE_DOUBLE:10.9 -k ui11
+	$(TARGET) -f item -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k ui10
 
 pause:
 	@bash -c 'read -p "Press any key to continue..." -n 1 -s'
@@ -33,10 +33,10 @@ memory:
 	$(MAKE) pause
 	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf test7789 -a name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6     
 	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f test -D pi90
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f test -D0 -k pi90
 	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf prova  -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
-	$(MAKE) pause
+#	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf prova  -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
+#	$(MAKE) pause
 	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
 	$(MAKE) pause
 	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a price:TYPE_FLOAT:67.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"met90-x-us":unit:TYPE_STRING:"each":weight:TYPE_DOUBLE:45.43 -k ui9
@@ -56,6 +56,7 @@ clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	rm -f obj/*.o 
 	rm -f bin/*
+	rm -f $(TARGET)
 	rm *.dat *.inx
 	rm *core*
 	 
@@ -63,7 +64,7 @@ $(TARGET): $(OBJ)
 	gcc -o $@ $?
 
 obj/%.o : src/%.c
-	gcc -Wall -g3 -c $< -o $@ -Iinclude 
+	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude  
 
 
 
@@ -104,7 +105,7 @@ $(BINDIR)/FILE:
 		echo "fi" >> $@; \
 		echo "" >> $@; \
 		echo "if [ -e \"\$$1.dat\" ]; then" >> $@; \
-		echo "	 /home/lpiombini/Cprog/low_IO/$(TARGET) -f \"\$$1\" -R \"\$$2\"" >> $@; \
+		echo "	 $(TARGET) -f \"\$$1\" -R \"\$$2\"" >> $@; \
 		echo "else" >> $@; \
 		echo "$(TARGET) -nf \"\$$1\" -R \"\$$2\"" >> $@; \
 		echo "fi" >> $@; \
