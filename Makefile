@@ -1,7 +1,10 @@
 TARGET = /usr/local/bin/isam.db
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
-OBJlibf = obj/debug.o  obj/file.o  obj/float_endian.o  obj/hash_tbl.o  obj/record.o  obj/str_op.o
+OBJlibf = obj/debug.o  obj/file.o  obj/float_endian.o  obj/hash_tbl.o
+OBJlibs = obj/debug.o  obj/str_op.o
+OBJlibr = obj/debug.o  obj/record.o
+OBJlibp = obj/debug.o  obj/sort.o obj/parse.o
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
@@ -10,13 +13,31 @@ LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBf = lib$(LIBNAMEf).so
 
+LIBNAMEs = strOP
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBs = lib$(LIBNAMEs).so
+
+LIBNAMEr = record
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBr = lib$(LIBNAMEr).so
+
+LIBNAMEp = parse
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBp = lib$(LIBNAMEp).so
+
 SCRIPTS = GET FILE LIST WRITE UPDATE DEL DELa KEYS 
 
 default: $(TARGET)
 
 
 library:
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBs) $(OBJlibs)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBr) $(OBJlibr)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 
 test:	
 	$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
@@ -44,8 +65,8 @@ memory:
 	$(MAKE) pause
 	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f test -D0 -k pi90
 	$(MAKE) pause
-#	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf prova  -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
-#	$(MAKE) pause
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf prova  -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
+	$(MAKE) pause
 	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
 	$(MAKE) pause
 	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a price:TYPE_FLOAT:67.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"met90-x-us":unit:TYPE_STRING:"each":weight:TYPE_DOUBLE:45.43 -k ui9
@@ -63,6 +84,9 @@ memory:
 
 clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
+	sudo rm -f $(INCLUDEDIR)/file.c $(INCLUDEDIR)/str_op.c $(INCLUDEDIR)/record.c $(INCLUDEDIR)/record.h 
+	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) 
+	sudo ldconfig
 	rm -f obj/*.o 
 	rm -f bin/*
 	sudo rm -f $(TARGET)
@@ -196,9 +220,11 @@ $(BINDIR)/DELa:
 
 install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	install -d $(INCLUDEDIR)
-	install -m 644 include/file.h $(INCLUDEDIR)/
+	install -m 644 include/file.h include/str_op.h include/record.h include/parse.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
+	install -m 755 $(SHAREDLIBs) $(LIBDIR)
+	install -m 755 $(SHAREDLIBr) $(LIBDIR)
+	install -m 755 $(SHAREDLIBp) $(LIBDIR)
 	ldconfig
-	sudo install -m 755 $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa $(BINDIR) 
 
 .PHONY: default test memory clean install library
