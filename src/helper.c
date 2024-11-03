@@ -72,7 +72,7 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 
 	if (check == SCHEMA_ERR || check == 0)
 	{
-		clean_schema(&hd.sch_d);
+		free_schema(&hd.sch_d);
 		free(buffer), free(buf_t), free(buf_v);
 		return 0;
 	}
@@ -81,7 +81,7 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 	{
 		printf("error creating record, helper.c l %d\n", __LINE__ - 1);
 		free(buffer), free(buf_t), free(buf_v);
-		clean_schema(&hd.sch_d);
+		free_schema(&hd.sch_d);
 		return 0;
 	}
 
@@ -93,8 +93,8 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 		{
 			printf("File definition is bigger than the limit.\n");
 			free(buffer), free(buf_t), free(buf_v);
-			clean_schema(&hd.sch_d);
-			clean_up(rec, rec->fields_num);
+			free_schema(&hd.sch_d);
+			free_record(rec, rec->fields_num);
 			return 0;
 		}
 
@@ -102,8 +102,8 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 		{ /*set the file pointer at the start*/
 			printf("file pointer failed, helper.c l %d.\n", __LINE__ - 1);
 			free(buffer), free(buf_t), free(buf_v);
-			clean_schema(&hd.sch_d);
-			clean_up(rec, rec->fields_num);
+			free_schema(&hd.sch_d);
+			free_record(rec, rec->fields_num);
 			return 0;
 		}
 
@@ -111,25 +111,25 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 		{
 			printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
 			free(buffer), free(buf_t), free(buf_v);
-			clean_schema(&hd.sch_d);
-			clean_up(rec, rec->fields_num);
+			free_schema(&hd.sch_d);
+			free_record(rec, rec->fields_num);
 			return 0;
 		}
 	}
 
-	clean_schema(&hd.sch_d);
+	free_schema(&hd.sch_d);
 	off_t eof = go_to_EOF(fd_data);
 	if (eof == -1)
 	{
 		printf("file pointer failed, helper.c l %d.\n", __LINE__ - 2);
 		free(buffer), free(buf_t), free(buf_v);
-		clean_up(rec, rec->fields_num);
+		free_record(rec, rec->fields_num);
 		return 0;
 	}
 
 	if (!set(key, eof, ht))
 	{
-		clean_up(rec, rec->fields_num);
+		free_record(rec, rec->fields_num);
 		free(buffer), free(buf_t), free(buf_v);
 		return ALREADY_KEY;
 	}
@@ -138,13 +138,13 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 	{
 		printf("write to file failed, helper.c l %d.\n", __LINE__ - 1);
 		free(buffer), free(buf_t), free(buf_v);
-		clean_up(rec, rec->fields_num);
+		free_record(rec, rec->fields_num);
 		return 0;
 	}
 
 	free(buffer), free(buf_t), free(buf_v);
 	// fd_index = open_file(files[0],1); //opening with O_TRUNC
-	clean_up(rec, rec->fields_num);
+	free_record(rec, rec->fields_num);
 	return 1;
 }
 
@@ -174,7 +174,7 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 	if (!create_header(&hd))
 	{
 		free(buf_sdf), free(buf_t);
-		clean_schema(&sch);
+		free_schema(&sch);
 		return 0;
 	}
 
@@ -184,7 +184,7 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 	{
 		printf("File definition is bigger than the limit.\n");
 		free(buf_sdf), free(buf_t);
-		clean_schema(&sch);
+		free_schema(&sch);
 		return 0;
 	}
 
@@ -192,11 +192,11 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 	{
 		printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 		free(buf_sdf), free(buf_t);
-		clean_schema(&sch);
+		free_schema(&sch);
 		return 0;
 	}
 
-	clean_schema(&sch);
+	free_schema(&sch);
 
 	if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 	{

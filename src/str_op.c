@@ -5,7 +5,6 @@
 #include <stdarg.h>
 #include <limits.h>
 #include "str_op.h"
-#include "record.h"
 #include "debug.h"
 
 char **two_file_path(char *file_path)
@@ -120,6 +119,7 @@ int get_type(char *s)
 	{
 		return 6;
 	}
+
 	return -1;
 }
 
@@ -161,6 +161,33 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 	return names_f;
 }
 
+unsigned char check_fields_integrity(char **names, int fields_count)
+{
+	for (int i = 0; i < fields_count; i++)
+	{
+		if ((fields_count - i) == 1)
+			break;
+
+		for (int j = 0; j < fields_count; j++)
+		{
+			if (((fields_count - i) > 1) && ((fields_count - j) > 1))
+			{
+				if (j == i)
+					continue;
+
+				int l_i = strlen(names[i]);
+				int l_j = strlen(names[j]);
+				if (l_i == l_j)
+				{
+					if (strncmp(names[i], names[j], l_j) == 0)
+						return 0;
+				}
+			}
+		}
+	}
+	return 1;
+}
+
 ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 {
 	int i = steps == 3 ? 0 : 1;
@@ -184,6 +211,11 @@ ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 	if (s)
 	{
 		types[j] = get_type(s);
+		if (types[j] == -1)
+		{
+			free(types);
+			return NULL;
+		}
 		i++;
 	}
 	else
@@ -198,7 +230,14 @@ ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 		if ((i % 3 == 0) && (j < fields_count - 1))
 		{
 			j++, types[j] = get_type(s);
+			if (types[j] == -1)
+			{
+				printf("check input format: fieldName:TYPE:value.\n");
+				free(types);
+				return NULL;
+			}
 		}
+
 		if (steps != 3 && i == 2)
 		{
 			i++;

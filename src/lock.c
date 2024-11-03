@@ -107,13 +107,13 @@ unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
 		- compute_bytes, pointer to a fucntion used to compute the bytes to lock in the file
 		- mode, define which operation we want to perform on the file, and it is used to
 			compute how many bytes to lock in the file.
-		- fd_data, file descriptor for the data file.
+		- fd, file descriptor for file, can be fd_index or fd_data.
 
 	@return:
 		aquire_lock_smo() return 1 if it succeeds, 0 if it fails.
 */
 unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
-							  char *file_n, off_t start, compute_bytes cb, int mode, int fd_data)
+							  char *file_n, off_t start, compute_bytes cb, int mode, int fd)
 {
 
 	if (!*shared_locks)
@@ -156,6 +156,14 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 					(*shared_locks)[i].lock.l_len = MAX_HD_SIZE;
 					break;
 				}
+				case WR_HEADER:
+				{
+					(*shared_locks)[i].lock.l_type = F_WRLCK;
+					(*shared_locks)[i].lock.l_whence = SEEK_SET;
+					(*shared_locks)[i].lock.l_start = start;
+					(*shared_locks)[i].lock.l_len = MAX_HD_SIZE;
+					break;
+				}
 				default:
 					printf("unknown mode.\n");
 					break;
@@ -169,16 +177,39 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 
 	if (*lock_pos == 0)
 	{
-		(*shared_locks)[*lock_pos].lock.l_type = F_RDLCK;
-		(*shared_locks)[*lock_pos].lock.l_whence = SEEK_SET;
-		(*shared_locks)[*lock_pos].lock.l_start = start;
-		(*shared_locks)[*lock_pos].lock.l_len = MAX_HD_SIZE;
-		if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n), "%s", file_n) < 0)
+		switch (mode)
 		{
-			printf("snprintf() failed, %s:%d.\n", F, L - 3);
-			sem_post(sem);
-			sem_close(sem);
-			return 0;
+		case RD_HEADER:
+		{
+			(*shared_locks)[*lock_pos].lock.l_type = F_RDLCK;
+			(*shared_locks)[*lock_pos].lock.l_whence = SEEK_SET;
+			(*shared_locks)[*lock_pos].lock.l_start = start;
+			(*shared_locks)[*lock_pos].lock.l_len = MAX_HD_SIZE;
+			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n), "%s", file_n) < 0)
+			{
+				printf("snprintf() failed, %s:%d.\n", F, L - 3);
+				sem_post(sem);
+				sem_close(sem);
+				return 0;
+			}
+		}
+		case WR_HEADER:
+		{
+			(*shared_locks)[*lock_pos].lock.l_type = F_WRLCK;
+			(*shared_locks)[*lock_pos].lock.l_whence = SEEK_SET;
+			(*shared_locks)[*lock_pos].lock.l_start = start;
+			(*shared_locks)[*lock_pos].lock.l_len = MAX_HD_SIZE;
+			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n), "%s", file_n) < 0)
+			{
+				printf("snprintf() failed, %s:%d.\n", F, L - 3);
+				sem_post(sem);
+				sem_close(sem);
+				return 0;
+			}
+		}
+		default:
+			printf("unknown mode.\n");
+			break;
 		}
 	}
 
@@ -187,6 +218,7 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 	return 1;
 }
 
+unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos);
 unsigned char is_locked(int fd, off_t rec_offset, off_t rec_size)
 {
 	struct flock lock;

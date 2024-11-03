@@ -199,7 +199,7 @@ unsigned char set_field(Record_f *rec, int index, char *field_name, ValueType ty
 	return 1;
 }
 
-void clean_up(Record_f *rec, int fields_num)
+void free_record(Record_f *rec, int fields_num)
 {
 	int i;
 	if (!rec)
@@ -282,7 +282,7 @@ void free_record_array(int len, Record_f ***recs)
 		{
 			if ((*recs)[i])
 			{
-				clean_up((*recs)[i], (*recs)[i]->fields_num);
+				free_record((*recs)[i], (*recs)[i]->fields_num);
 			}
 		}
 	}
@@ -348,55 +348,85 @@ unsigned char copy_rec(Record_f *src, Record_f **dest)
 			if (snprintf(data, 30, "%d", src->fields[i].data.i) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
-				clean_up((*dest), (*dest)->fields_num);
+				free_record((*dest), (*dest)->fields_num);
 				return 0;
 			}
-			set_field(*dest, i, src->fields[i].field_name,
-					  src->fields[i].type, data);
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_fields() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
 			break;
 		case TYPE_STRING:
-			set_field(*dest, i, src->fields[i].field_name,
-					  src->fields[i].type, src->fields[i].data.s);
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, src->fields[i].data.s))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
 			break;
 		case TYPE_LONG:
 			if (snprintf(data, 30, "%ld", src->fields[i].data.l) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
-				clean_up((*dest), (*dest)->fields_num);
+				free_record((*dest), (*dest)->fields_num);
 				return 0;
 			}
-			set_field(*dest, i, src->fields[i].field_name,
-					  src->fields[i].type, data);
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
 			break;
 		case TYPE_FLOAT:
 			if (snprintf(data, 30, "%.2f", src->fields[i].data.f) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
-				clean_up((*dest), (*dest)->fields_num);
+				free_record((*dest), (*dest)->fields_num);
 				return 0;
 			}
-			set_field(*dest, i, src->fields[i].field_name,
-					  src->fields[i].type, data);
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
 			break;
 		case TYPE_BYTE:
 			if (snprintf(data, 30, "%d", src->fields[i].data.b) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
-				clean_up((*dest), (*dest)->fields_num);
+				free_record((*dest), (*dest)->fields_num);
 				return 0;
 			}
-			set_field(*dest, i, src->fields[i].field_name,
-					  src->fields[i].type, data);
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
 			break;
 		case TYPE_DOUBLE:
 			if (snprintf(data, 30, "%.2f", src->fields[i].data.d) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
-				clean_up((*dest), (*dest)->fields_num);
+				free_record((*dest), (*dest)->fields_num);
 				return 0;
 			}
-			set_field(*dest, i, src->fields[i].field_name,
-					  src->fields[i].type, data);
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
 			break;
 		default:
 			printf("type not supported, %s:%d.\n", F, L - 27);

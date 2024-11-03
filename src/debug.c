@@ -1,8 +1,5 @@
 #include <stdio.h>
-#include <string.h>
 #include "debug.h"
-#include "record.h"
-#include "str_op.h"
 
 void loop_str_arr(char **str, int len)
 {

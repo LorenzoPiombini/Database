@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
 			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
 			{
-				printf("can't create file definition %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("can't create file definition %s:%d.\n", F, L - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 			if (!create_header(&hd))
 			{
 				free(buf_sdf), free(buf_t);
-				clean_schema(&sch);
+				free_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 			{
 				printf("File definition is bigger than the limit.\n");
 				free(buf_sdf), free(buf_t);
-				clean_schema(&sch);
+				free_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -204,16 +204,16 @@ int main(int argc, char *argv[])
 
 			if (!write_header(fd_data, &hd))
 			{
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", F, L - 1);
 				free(buf_sdf), free(buf_t);
-				clean_schema(&sch);
+				free_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
-			clean_schema(&sch);
+			free_schema(&sch);
 
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
-				clean_schema(&sch);
+				free_schema(&sch);
 				return 1;
 			}
 
@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
 			if (!create_header(&hd))
 			{
 				printf("%s:%d.\n", F, L - 1);
-				clean_up(rec, fields_count), clean_schema(&sch);
+				free_record(rec, fields_count), free_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
 			if (hd_st >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");
-				clean_up(rec, fields_count), clean_schema(&sch);
+				free_record(rec, fields_count), free_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
 				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
-				clean_up(rec, fields_count), clean_schema(&sch);
+				free_record(rec, fields_count), free_schema(&sch);
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
@@ -343,14 +343,14 @@ int main(int argc, char *argv[])
 			if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
 			{
 				printf("padding failed. %s:%d.\n", __FILE__, __LINE__ - 1);
-				clean_up(rec, fields_count), clean_schema(&sch);
+				free_record(rec, fields_count), free_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
-			clean_schema(&sch);
+			free_schema(&sch);
 
 			/*  write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
 			if (!write_index_file_head(fd_index, index_num))
 			{
 				printf("write to file failed, %s:%d", F, L - 2);
-				clean_up(rec, fields_count);
+				free_record(rec, fields_count);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
@@ -373,7 +373,7 @@ int main(int argc, char *argv[])
 				if (!dataMap)
 				{
 					printf("calloc failed. %s:%d.\n", F, L - 3);
-					clean_up(rec, fields_count);
+					free_record(rec, fields_count);
 					close_file(2, fd_index, fd_data);
 					delete_file(2, files[0], files[1]);
 					free(files[0]), free(files[1]), free(files);
@@ -388,7 +388,7 @@ int main(int argc, char *argv[])
 					if (offset == -1)
 					{
 						__er_file_pointer(F, L - 3);
-						clean_up(rec, fields_count);
+						free_record(rec, fields_count);
 						close_file(2, fd_index, fd_data);
 						delete_file(2, files[0], files[1]);
 						free(files[0]), free(files[1]), free(files);
@@ -399,7 +399,7 @@ int main(int argc, char *argv[])
 					if (!write_file(fd_data, rec, 0, update))
 					{
 						printf("write to file failed, %s:%d.\n", F, L - 1);
-						clean_up(rec, fields_count);
+						free_record(rec, fields_count);
 						destroy_hasht(&ht);
 						close_file(2, fd_index, fd_data);
 						delete_file(2, files[0], files[1]);
@@ -411,7 +411,7 @@ int main(int argc, char *argv[])
 				if (write_index_body(fd_index, i, &ht) == -1)
 				{
 					printf("write to file failed. %s:%d.\n", F, L - 2);
-					clean_up(rec, fields_count);
+					free_record(rec, fields_count);
 					destroy_hasht(&ht);
 					close_file(2, fd_index, fd_data);
 					delete_file(2, files[0], files[1]);
@@ -423,7 +423,7 @@ int main(int argc, char *argv[])
 			}
 
 			printf("File created successfully.\n");
-			clean_up(rec, fields_count); // this free the memory allocated for the record
+			free_record(rec, fields_count); // this free the memory allocated for the record
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
 			return 0;
@@ -517,7 +517,7 @@ int main(int argc, char *argv[])
 
 		/* check if there is a shared memory object
 		   if there is, we map it to the lock_info* so we can read and write to the struct
-		   data to share with the main program */
+		   data to share with the main program any lock to the file*/
 
 		lock_info *shared_locks = NULL;
 		int fd_mo = shm_open(SH_ILOCK, O_RDWR, 0666);
@@ -574,15 +574,17 @@ int main(int argc, char *argv[])
 		if (begin_in_file(fd_data) == -1)
 		{
 			__er_file_pointer(F, L - 2);
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			free(files[0]), free(files[1]), free(files);
 			return 1;
 		}
 
+		/*TODO release the lock here*/
+
 		if (del_file)
 		{ /*delete file */
 			delete_file(2, files[0], files[1]);
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			printf("file %s, deleted.\n", file_path);
 			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
@@ -598,7 +600,7 @@ int main(int argc, char *argv[])
 			if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > 200)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-				clean_schema(&hd.sch_d);
+				free_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -609,40 +611,43 @@ int main(int argc, char *argv[])
 
 			if (!add_fields_to_schema(fields_count, buffer, buff_t, &hd.sch_d))
 			{
-				clean_schema(&hd.sch_d);
+				free_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				free(buffer), free(buff_t);
 				return 1;
 			}
 
 			free(buffer), free(buff_t);
+
 			/*here you know that the file is at the beginning*/
 			size_t hd_st = compute_size_header((void *)&hd);
 			if (hd_st >= MAX_HD_SIZE)
 			{
 				printf("File definition is bigger than the limit.\n");
-				clean_schema(&hd.sch_d);
+				free_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
+			/*TODO: aquire lock WR_HEADER */
 			if (!write_header(fd_data, &hd))
 			{
 				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
-				clean_schema(&hd.sch_d);
+				free_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
+			/*TODO: release WR_HEADER lock */
 			printf("data added to schema!\n");
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			close_file(2, fd_index, fd_data);
 			return 0;
 		}
 
 		if (del)
 		{
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			if (options)
 			{
 				if (option)
@@ -828,7 +833,7 @@ int main(int argc, char *argv[])
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 				free(files[0]), free(files[1]), free(files);
-				clean_schema(&hd.sch_d);
+				free_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -845,7 +850,7 @@ int main(int argc, char *argv[])
 			if (check == SCHEMA_ERR || check == 0)
 			{
 				free(files[0]), free(files[1]), free(files);
-				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+				free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 				free(buffer), free(buf_t), free(buf_v);
 				return 1;
 			}
@@ -855,7 +860,7 @@ int main(int argc, char *argv[])
 				printf("error creating record, %s:%d\n", F, L - 1);
 				free(buffer), free(buf_t), free(buf_v);
 				free(files[0]), free(files[1]), free(files);
-				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+				free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
@@ -866,8 +871,8 @@ int main(int argc, char *argv[])
 				{
 					printf("File definition is bigger than the limit.\n");
 					free(buffer), free(buf_t), free(buf_v);
-					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 
@@ -876,8 +881,8 @@ int main(int argc, char *argv[])
 					__er_file_pointer(F, L - 1);
 					free(buffer), free(buf_t), free(buf_v);
 					free(files[0]), free(files[1]), free(files);
-					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 
@@ -886,13 +891,13 @@ int main(int argc, char *argv[])
 					printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
 					free(files[0]), free(files[1]), free(files);
 					free(buffer), free(buf_t), free(buf_v);
-					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 			}
 
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			off_t eof = go_to_EOF(fd_data);
 			if (eof == -1)
 			{
@@ -900,7 +905,7 @@ int main(int argc, char *argv[])
 				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return 1;
 			}
 
@@ -913,7 +918,7 @@ int main(int argc, char *argv[])
 				printf("read file failed. %s:%d.\n", F, L - 2);
 				close_file(2, fd_index, fd_data);
 				free(files[0]), free(files[1]), free(files);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				free(buffer), free(buf_t), free(buf_v);
 				return 1;
 			}
@@ -922,7 +927,7 @@ int main(int argc, char *argv[])
 			{
 				close_file(2, fd_index, fd_data);
 				free(files[0]), free(files[1]), free(files);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				free(buffer), free(buf_t), free(buf_v);
 				if (ht)
 				{
@@ -942,7 +947,7 @@ int main(int argc, char *argv[])
 				free(files[0]), free(files[1]), free(files);
 				free(buffer), free(buf_t), free(buf_v);
 				close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				if (ht)
 				{
 					int i = 0;
@@ -957,7 +962,7 @@ int main(int argc, char *argv[])
 
 			free(buffer), free(buf_t), free(buf_v);
 			close_file(1, fd_index);
-			clean_up(rec, rec->fields_num);
+			free_record(rec, rec->fields_num);
 
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
@@ -1020,7 +1025,7 @@ int main(int argc, char *argv[])
 			if (fields_count > MAX_FIELD_NR)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-				clean_schema(&hd.sch_d);
+				free_schema(&hd.sch_d);
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -1034,7 +1039,7 @@ int main(int argc, char *argv[])
 														   fd_data, file_path, &rec, &hd);
 			if (check == SCHEMA_ERR || check == 0)
 			{
-				clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+				free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 				free(buffer), free(buf_t), free(buf_v);
 				return 1;
 			}
@@ -1047,27 +1052,27 @@ int main(int argc, char *argv[])
 				if (hd_st > MAX_HD_SIZE)
 				{
 					printf("header is bigger than the limit, main.c l %d\n", __LINE__ - 2);
-					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					free(buffer), free(buf_t), free(buf_v);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 
 				if (begin_in_file(fd_data) == -1)
 				{
 					__er_file_pointer(F, L - 1);
-					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					free(buffer), free(buf_t), free(buf_v);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 
 				if (!write_header(fd_data, &hd))
 				{
 					printf("can`t write header, main.c l %d.\n", __LINE__ - 1);
-					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
 					free(buffer), free(buf_t), free(buf_v);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 
@@ -1076,8 +1081,8 @@ int main(int argc, char *argv[])
 				{
 					__er_file_pointer(F, L - 1);
 					free(buffer), free(buf_t), free(buf_v);
-					clean_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d), close_file(2, fd_index, fd_data);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 			}
@@ -1092,8 +1097,8 @@ int main(int argc, char *argv[])
 			{
 				printf("index file reading failed. %s:%d.\n", F, L - 1);
 				free(buffer), close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
-				clean_schema(&hd.sch_d);
+				free_record(rec, rec->fields_num);
+				free_schema(&hd.sch_d);
 				return 1;
 			}
 
@@ -1103,8 +1108,8 @@ int main(int argc, char *argv[])
 			{
 				printf("record not found.\n");
 				free(buffer), close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
-				clean_schema(&hd.sch_d);
+				free_record(rec, rec->fields_num);
+				free_schema(&hd.sch_d);
 				destroy_hasht(p_ht);
 				return 1;
 			}
@@ -1114,8 +1119,8 @@ int main(int argc, char *argv[])
 			{
 				__er_file_pointer(F, L - 1);
 				free(buffer), close_file(2, fd_index, fd_data);
-				clean_schema(&hd.sch_d);
-				clean_up(rec, rec->fields_num);
+				free_schema(&hd.sch_d);
+				free_record(rec, rec->fields_num);
 				return 1;
 			}
 
@@ -1124,8 +1129,8 @@ int main(int argc, char *argv[])
 			{
 				printf("reading record failed main.c l %d.\n", __LINE__ - 2);
 				free(buffer), close_file(2, fd_index, fd_data);
-				clean_schema(&hd.sch_d);
-				clean_up(rec, rec->fields_num);
+				free_schema(&hd.sch_d);
+				free_record(rec, rec->fields_num);
 				return 1;
 			}
 
@@ -1134,9 +1139,9 @@ int main(int argc, char *argv[])
 			{
 				__er_file_pointer(F, L - 1);
 				free(buffer), close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
-				clean_up(rec_old, rec_old->fields_num);
-				clean_schema(&hd.sch_d);
+				free_record(rec, rec->fields_num);
+				free_record(rec_old, rec_old->fields_num);
+				free_schema(&hd.sch_d);
 				return 1;
 			}
 
@@ -1152,9 +1157,9 @@ int main(int argc, char *argv[])
 				{
 					printf("calloc failed main.c l %d.\n", __LINE__ - 3);
 					close_file(2, fd_index, fd_data);
-					clean_schema(&hd.sch_d);
-					clean_up(rec_old, rec_old->fields_num);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d);
+					free_record(rec_old, rec_old->fields_num);
+					free_record(rec, rec->fields_num);
 					return 1;
 				}
 
@@ -1163,16 +1168,16 @@ int main(int argc, char *argv[])
 				{
 					printf("calloc failed, main.c l %d.\n", __LINE__ - 2);
 					close_file(2, fd_index, fd_data);
-					clean_schema(&hd.sch_d);
-					clean_up(rec_old, rec_old->fields_num);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d);
+					free_record(rec_old, rec_old->fields_num);
+					free_record(rec, rec->fields_num);
 					if (recs_old)
 					{
 						int i = 0;
 						for (i = 0; i < index; i++)
 						{
 							if (recs_old[i])
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 						}
 						free(recs_old);
 					}
@@ -1186,15 +1191,15 @@ int main(int argc, char *argv[])
 					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
 					free(pos_u);
-					clean_schema(&hd.sch_d);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d);
+					free_record(rec, rec->fields_num);
 					if (recs_old)
 					{
 						int i = 0;
 						for (i = 0; i < index; i++)
 						{
 							if (recs_old[i])
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 						}
 						free(recs_old);
 					}
@@ -1206,15 +1211,15 @@ int main(int argc, char *argv[])
 				{
 					printf("error reading file, main.c l %d.\n", __LINE__ - 2);
 					close_file(2, fd_index, fd_data);
-					clean_schema(&hd.sch_d);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d);
+					free_record(rec, rec->fields_num);
 					free(pos_u);
 					if (recs_old)
 					{
 						int i = 0;
 						for (i = 0; i < index; i++)
 						{
-							clean_up(recs_old[i], recs_old[i]->fields_num);
+							free_record(recs_old[i], recs_old[i]->fields_num);
 						}
 						free(recs_old);
 					}
@@ -1235,14 +1240,14 @@ int main(int argc, char *argv[])
 						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
-						clean_schema(&hd.sch_d);
-						clean_up(rec, rec->fields_num);
+						free_schema(&hd.sch_d);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1256,14 +1261,14 @@ int main(int argc, char *argv[])
 						printf("realloc failed for positions, main.c l %d.\n", __LINE__ - 2);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
-						clean_schema(&hd.sch_d);
-						clean_up(rec, rec->fields_num);
+						free_schema(&hd.sch_d);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1278,14 +1283,14 @@ int main(int argc, char *argv[])
 						printf("error reading file, main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
-						clean_schema(&hd.sch_d);
-						clean_up(rec, rec->fields_num);
+						free_schema(&hd.sch_d);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1304,13 +1309,13 @@ int main(int argc, char *argv[])
 					printf("calloc failed, main.c l %d.\n", __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
 					free(pos_u);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					if (recs_old)
 					{
 						int i = 0;
 						for (i = 0; i < index; i++)
 						{
-							clean_up(recs_old[i], recs_old[i]->fields_num);
+							free_record(recs_old[i], recs_old[i]->fields_num);
 						}
 						free(recs_old);
 					}
@@ -1328,14 +1333,14 @@ int main(int argc, char *argv[])
 					printf("check on fields failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
 					free(pos_u), free(positions);
-					clean_schema(&hd.sch_d);
-					clean_up(rec, rec->fields_num);
+					free_schema(&hd.sch_d);
+					free_record(rec, rec->fields_num);
 					if (recs_old)
 					{
 						int i = 0;
 						for (i = 0; i < index; i++)
 						{
-							clean_up(recs_old[i], recs_old[i]->fields_num);
+							free_record(recs_old[i], recs_old[i]->fields_num);
 						}
 						free(recs_old);
 					}
@@ -1356,15 +1361,15 @@ int main(int argc, char *argv[])
 						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
-						clean_up(rec, rec->fields_num);
-						clean_schema(&hd.sch_d);
+						free_record(rec, rec->fields_num);
+						free_schema(&hd.sch_d);
 						free(positions);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1384,15 +1389,15 @@ int main(int argc, char *argv[])
 							printf("error file pointer, main.c l %d.\n", __LINE__ - 2);
 							close_file(2, fd_index, fd_data);
 							free(pos_u);
-							clean_up(rec, rec->fields_num);
-							clean_schema(&hd.sch_d);
+							free_record(rec, rec->fields_num);
+							free_schema(&hd.sch_d);
 							free(positions);
 							if (recs_old)
 							{
 								int i = 0;
 								for (i = 0; i < index; i++)
 								{
-									clean_up(recs_old[i], recs_old[i]->fields_num);
+									free_record(recs_old[i], recs_old[i]->fields_num);
 								}
 								free(recs_old);
 							}
@@ -1403,16 +1408,16 @@ int main(int argc, char *argv[])
 					{
 						printf("error write file, main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
-						clean_schema(&hd.sch_d);
+						free_schema(&hd.sch_d);
 						free(pos_u);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1428,16 +1433,16 @@ int main(int argc, char *argv[])
 					{
 						printf("create new fileds failed,  main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
-						clean_schema(&hd.sch_d);
+						free_schema(&hd.sch_d);
 						free(pos_u);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1449,17 +1454,17 @@ int main(int argc, char *argv[])
 					{
 						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
-						clean_schema(&hd.sch_d);
+						free_schema(&hd.sch_d);
 						free(pos_u);
 						free(positions);
-						clean_up(new_rec, new_rec->fields_num);
-						clean_up(rec, rec->fields_num);
+						free_record(new_rec, new_rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1470,24 +1475,24 @@ int main(int argc, char *argv[])
 					{
 						printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
-						clean_schema(&hd.sch_d);
-						clean_up(new_rec, new_rec->fields_num);
+						free_schema(&hd.sch_d);
+						free_record(new_rec, new_rec->fields_num);
 						free(pos_u);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
 						return 1;
 					}
 
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 					/*the position of new_rec in the old part of the record
 					 was already set at line 898*/
 				}
@@ -1501,15 +1506,15 @@ int main(int argc, char *argv[])
 						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
-						clean_schema(&hd.sch_d);
+						free_schema(&hd.sch_d);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1523,15 +1528,15 @@ int main(int argc, char *argv[])
 						__er_file_pointer(F, L - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
-						clean_schema(&hd.sch_d);
+						free_schema(&hd.sch_d);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1545,15 +1550,15 @@ int main(int argc, char *argv[])
 						printf("write file failed, main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
-						clean_schema(&hd.sch_d);
+						free_schema(&hd.sch_d);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1567,14 +1572,14 @@ int main(int argc, char *argv[])
 						close_file(2, fd_index, fd_data);
 						free(pos_u);
 						free(positions);
-						clean_schema(&hd.sch_d);
-						clean_up(rec, rec->fields_num);
+						free_schema(&hd.sch_d);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1586,16 +1591,16 @@ int main(int argc, char *argv[])
 					{
 						printf("create new fields failed,  main.c l %d.\n", __LINE__ - 2);
 						close_file(2, fd_index, fd_data);
-						clean_schema(&hd.sch_d);
+						free_schema(&hd.sch_d);
 						free(pos_u);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
@@ -1606,44 +1611,44 @@ int main(int argc, char *argv[])
 					{
 						printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
 						close_file(2, fd_index, fd_data);
-						clean_schema(&hd.sch_d);
-						clean_up(new_rec, new_rec->fields_num);
+						free_schema(&hd.sch_d);
+						free_record(new_rec, new_rec->fields_num);
 						free(pos_u);
 						free(positions);
-						clean_up(rec, rec->fields_num);
+						free_record(rec, rec->fields_num);
 						if (recs_old)
 						{
 							int i = 0;
 							for (i = 0; i < index; i++)
 							{
-								clean_up(recs_old[i], recs_old[i]->fields_num);
+								free_record(recs_old[i], recs_old[i]->fields_num);
 							}
 							free(recs_old);
 						}
 						return 1;
 					}
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 				}
 
-				clean_schema(&hd.sch_d);
+				free_schema(&hd.sch_d);
 				printf("record %s updated!\n", key);
 				close_file(2, fd_index, fd_data);
 				free(pos_u);
 				free(positions);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				if (recs_old)
 				{
 					int i = 0;
 					for (i = 0; i < index; i++)
 					{
-						clean_up(recs_old[i], recs_old[i]->fields_num);
+						free_record(recs_old[i], recs_old[i]->fields_num);
 					}
 					free(recs_old);
 				}
 				return 0;
 			}
 
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 			Record_f *new_rec = NULL;
 			unsigned char comp_rr = compare_old_rec_update_rec(&rec_old, rec, &new_rec, file_path, check, buffer, fields_count);
@@ -1652,11 +1657,11 @@ int main(int argc, char *argv[])
 			{
 				printf(" compare records failed,  main.c l %d.\n", __LINE__ - 4);
 				close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
-				clean_up(rec_old, rec_old->fields_num);
+				free_record(rec, rec->fields_num);
+				free_record(rec_old, rec_old->fields_num);
 				if (new_rec)
 				{
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 				}
 				return 1;
 			}
@@ -1668,8 +1673,8 @@ int main(int argc, char *argv[])
 				{
 					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
-					clean_up(rec_old, rec_old->fields_num);
+					free_record(rec, rec->fields_num);
+					free_record(rec_old, rec_old->fields_num);
 					return 1;
 				}
 
@@ -1678,15 +1683,15 @@ int main(int argc, char *argv[])
 				{
 					printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
-					clean_up(rec_old, rec_old->fields_num);
+					free_record(rec, rec->fields_num);
+					free_record(rec_old, rec_old->fields_num);
 					return 1;
 				}
 
 				printf("record %s updated!\n", key);
 				close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
-				clean_up(rec_old, rec_old->fields_num);
+				free_record(rec, rec->fields_num);
+				free_record(rec_old, rec_old->fields_num);
 				return 0;
 			}
 
@@ -1699,9 +1704,9 @@ int main(int argc, char *argv[])
 				{
 					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
-					clean_up(rec_old, rec_old->fields_num);
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(rec, rec->fields_num);
+					free_record(rec_old, rec_old->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 					return 1;
 				}
 
@@ -1710,9 +1715,9 @@ int main(int argc, char *argv[])
 				{
 					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
-					clean_up(rec_old, rec_old->fields_num);
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(rec, rec->fields_num);
+					free_record(rec_old, rec_old->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 					return 1;
 				}
 
@@ -1721,9 +1726,9 @@ int main(int argc, char *argv[])
 				{
 					printf("can't write record, %s:%d.\n", __FILE__, __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
-					clean_up(rec_old, rec_old->fields_num);
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(rec, rec->fields_num);
+					free_record(rec_old, rec_old->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 					return 1;
 				}
 
@@ -1732,9 +1737,9 @@ int main(int argc, char *argv[])
 				{
 					__er_file_pointer(F, L - 1);
 					close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
-					clean_up(rec_old, rec_old->fields_num);
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(rec, rec->fields_num);
+					free_record(rec_old, rec_old->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 					return 1;
 				}
 				/*passing update as 0 becuase is a "new_rec", (right most paramaters) */
@@ -1742,17 +1747,17 @@ int main(int argc, char *argv[])
 				{
 					printf("can't write record, main.c l %d.\n", __LINE__ - 1);
 					close_file(2, fd_index, fd_data);
-					clean_up(rec, rec->fields_num);
-					clean_up(rec_old, rec_old->fields_num);
-					clean_up(new_rec, new_rec->fields_num);
+					free_record(rec, rec->fields_num);
+					free_record(rec_old, rec_old->fields_num);
+					free_record(new_rec, new_rec->fields_num);
 					return 1;
 				}
 
 				printf("record %s updated!\n", key);
 				close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
-				clean_up(rec_old, rec_old->fields_num);
-				clean_up(new_rec, new_rec->fields_num);
+				free_record(rec, rec->fields_num);
+				free_record(rec_old, rec_old->fields_num);
+				free_record(new_rec, new_rec->fields_num);
 				return 0;
 			}
 
@@ -1764,7 +1769,7 @@ int main(int argc, char *argv[])
 		{ /* show file definitions */
 			print_schema(hd.sch_d);
 			close_file(2, fd_index, fd_data);
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			return 0;
 		}
 
@@ -1795,13 +1800,13 @@ int main(int argc, char *argv[])
 			}
 
 			destroy_hasht(p_ht);
-			clean_schema(&hd.sch_d);
+			free_schema(&hd.sch_d);
 			close_file(2, fd_index, fd_data);
 			free_strs(end, 1, key_a);
 			return 0;
 		}
 
-		clean_schema(&hd.sch_d);
+		free_schema(&hd.sch_d);
 
 		if (key)
 		{
@@ -1845,7 +1850,7 @@ int main(int argc, char *argv[])
 			if (update_rec_pos == -1)
 			{
 				close_file(2, fd_index, fd_data);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				close_file(2, fd_data, fd_index);
 				return 1;
 			}
@@ -1859,7 +1864,7 @@ int main(int argc, char *argv[])
 				if (!recs)
 				{
 					printf("calloc failed, main.c l %d.\n", __LINE__ - 2);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					close_file(2, fd_data, fd_index);
 					return 1;
 				}
@@ -1875,7 +1880,7 @@ int main(int argc, char *argv[])
 					for (i = 0; i < counter; i++)
 					{
 						if (recs[i])
-							clean_up(recs[i], recs[i]->fields_num);
+							free_record(recs[i], recs[i]->fields_num);
 					}
 					free(recs);
 					close_file(2, fd_data, fd_index);
@@ -1893,7 +1898,7 @@ int main(int argc, char *argv[])
 						for (i = 0; i < counter; i++)
 						{
 							if (recs[i])
-								clean_up(recs[i], recs[i]->fields_num);
+								free_record(recs[i], recs[i]->fields_num);
 						}
 						free(recs);
 						close_file(2, fd_data, fd_index);
@@ -1907,7 +1912,7 @@ int main(int argc, char *argv[])
 						for (i = 0; i < counter; i++)
 						{
 							if (recs[i])
-								clean_up(recs[i], recs[i]->fields_num);
+								free_record(recs[i], recs[i]->fields_num);
 						}
 						free(recs);
 						close_file(2, fd_index, fd_data);
@@ -1922,7 +1927,7 @@ int main(int argc, char *argv[])
 						for (i = 0; i < counter; i++)
 						{
 							if (recs[i])
-								clean_up(recs[i], recs[i]->fields_num);
+								free_record(recs[i], recs[i]->fields_num);
 						}
 						free(recs);
 						close_file(2, fd_data, fd_index);
@@ -1935,7 +1940,7 @@ int main(int argc, char *argv[])
 			if (counter == 1)
 			{
 				print_record(1, &rec);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 			}
 			else
 			{
@@ -1944,7 +1949,7 @@ int main(int argc, char *argv[])
 				for (i = 0; i < counter; i++)
 				{
 					if (recs[i])
-						clean_up(recs[i], recs[i]->fields_num);
+						free_record(recs[i], recs[i]->fields_num);
 				}
 				free(recs);
 			}

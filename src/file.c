@@ -964,7 +964,7 @@ Record_f *read_file(int fd, char *file_name)
 		if (read(fd, &str_l_ne, sizeof(str_l_ne)) < 0)
 		{
 			perror("could not read size of field name, file.c l 458.\n");
-			clean_up(rec, fields_num_r);
+			free_record(rec, fields_num_r);
 			return NULL;
 		}
 		size_t lt = (size_t)bswap_64(str_l_ne);
@@ -975,14 +975,14 @@ Record_f *read_file(int fd, char *file_name)
 		if (!rec->fields[i].field_name)
 		{
 			printf("no memory for field name, file.cl 466.\n");
-			clean_up(rec, rec->fields_num);
+			free_record(rec, rec->fields_num);
 			return NULL;
 		}
 
 		if (read(fd, rec->fields[i].field_name, lt) < 0)
 		{
 			perror("could not read field name, file.c l 472");
-			clean_up(rec, rec->fields_num);
+			free_record(rec, rec->fields_num);
 			return NULL;
 		}
 
@@ -991,7 +991,7 @@ Record_f *read_file(int fd, char *file_name)
 		if (read(fd, &ty_ne, sizeof(ty_ne)) < 0)
 		{
 			perror("could not read type file.c l 481.");
-			clean_up(rec, rec->fields_num);
+			free_record(rec, rec->fields_num);
 			return NULL;
 		}
 
@@ -1005,7 +1005,7 @@ Record_f *read_file(int fd, char *file_name)
 			if (read(fd, &i_ne, sizeof(uint32_t)) < 0)
 			{
 				perror("could not read type int file.c 491.\n");
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 			rec->fields[i].data.i = (int)ntohl(i_ne);
@@ -1017,7 +1017,7 @@ Record_f *read_file(int fd, char *file_name)
 			if (read(fd, &l_ne, sizeof(l_ne)) < 0)
 			{
 				perror("could not read type long, file.c 498.\n");
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1030,7 +1030,7 @@ Record_f *read_file(int fd, char *file_name)
 			if (read(fd, &f_ne, sizeof(uint32_t)) < 0)
 			{
 				perror("could not read type float, file.c l 505.\n");
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1053,7 +1053,7 @@ Record_f *read_file(int fd, char *file_name)
 			{
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1064,7 +1064,7 @@ Record_f *read_file(int fd, char *file_name)
 			{
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1078,7 +1078,7 @@ Record_f *read_file(int fd, char *file_name)
 				if (find_record_position(fd, str_loc) == -1)
 				{
 					__er_file_pointer(F, L - 2);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					return NULL;
 				}
 
@@ -1088,7 +1088,7 @@ Record_f *read_file(int fd, char *file_name)
 				{
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					return NULL;
 				}
 
@@ -1096,7 +1096,7 @@ Record_f *read_file(int fd, char *file_name)
 				{
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					return NULL;
 				}
 
@@ -1108,7 +1108,7 @@ Record_f *read_file(int fd, char *file_name)
 			if (!rec->fields[i].data.s)
 			{
 				printf("calloc failed: %s:%d.\n", F, L - 3);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1116,7 +1116,7 @@ Record_f *read_file(int fd, char *file_name)
 			if (!all_buf)
 			{
 				printf("calloc failed file.c l 532.\n");
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1124,7 +1124,7 @@ Record_f *read_file(int fd, char *file_name)
 			if (read(fd, all_buf, buff_update) < 0)
 			{
 				perror("could not read buffer string, file.c l 539.\n");
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1138,7 +1138,7 @@ Record_f *read_file(int fd, char *file_name)
 				if (find_record_position(fd, move_to) == -1)
 				{
 					__er_file_pointer(F, L - 2);
-					clean_up(rec, rec->fields_num);
+					free_record(rec, rec->fields_num);
 					return NULL;
 				}
 			}
@@ -1152,7 +1152,7 @@ Record_f *read_file(int fd, char *file_name)
 			{
 				perror("could not read type byte: ");
 				printf(" %s:%d.\n", F, L - 2);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
@@ -1166,7 +1166,7 @@ Record_f *read_file(int fd, char *file_name)
 			{
 				perror("could not read type double:");
 				printf(" %s:%d.\n", F, L - 2);
-				clean_up(rec, rec->fields_num);
+				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 

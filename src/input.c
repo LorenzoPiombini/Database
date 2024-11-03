@@ -100,6 +100,12 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                 return 0;
         }
 
+        if (del && !key)
+        {
+                printf("missing record key, option -k.\n");
+                print_usage(argv);
+                return 0;
+        }
         return 1;
 }
 
