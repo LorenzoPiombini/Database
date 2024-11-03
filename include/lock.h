@@ -18,18 +18,22 @@ typedef struct
     char file_name[256];
 } lock_info;
 
+/*type of operations performed on a file in the system */
 typedef enum
 {
     RD_HEADER,
     WR_HEADER,
     RD_REC,
-    WR_REC
+    WR_REC,
+    RD_IND,
+    WR_IND
 } mode;
 
 typedef size_t compute_bytes(void *); /*pointer to a fucntion that computes the byte to lock in a file*/
 unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem);
 unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
                               char *file_n, off_t start, compute_bytes cb, int mode, int fd_data);
+unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos);
 unsigned char is_locked(int fd, off_t rec_offset, off_t rec_size);
 unsigned char lock_record(int fd, off_t rec_offset, off_t rec_size, int lock_type);
 unsigned char unlock_record(int fd, off_t rec_offset, off_t rec_size);

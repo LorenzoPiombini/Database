@@ -44,11 +44,12 @@ typedef struct
 
 Record_f *create_record(char *file_name, int fields_num);
 unsigned char set_field(Record_f *rec, int index, char *field_name, ValueType type, char *value);
-void clean_up(Record_f *rec, int fields_num);
+void free_record(Record_f *rec, int fields_num);
 void print_record(int count, Record_f **recs);
 void free_record_array(int len, Record_f ***recs);
 void free_array_of_arrays(int len, Record_f ****array, int *len_ia, int size_ia);
 unsigned char copy_rec(Record_f *src, Record_f **dest);
-// unsigned char get_index_rec_field(char* field_name, Record_f** recs, int recs_len,
+unsigned char get_index_rec_field(char *field_name, Record_f **recs, int recs_len,
+								  int *field_i_r, int *rec_index);
 
 #endif /*record.h*/

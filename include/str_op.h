@@ -27,6 +27,7 @@ char **two_file_path(char *file_path);
 int count_fields(char *fields, const char *target);
 int get_type(char *s);
 char **get_fileds_name(char *fields_name, int fields_count, int steps);
+unsigned char check_fields_integrity(char **names, int fields_count);
 ValueType *get_value_types(char *fields_input, int fields_count, int steps);
 void free_strs(int fields_num, int count, ...);
 char **get_values(char *fields_input, int fields_count);
