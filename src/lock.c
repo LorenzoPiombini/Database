@@ -92,7 +92,7 @@ unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
 	return 1;
 }
 
-/* aquire_lock_smo :
+/* acquire_lock_smo :
 	check if there is a lock for the file_n that we want to read or write to.
 	this function will try to wait for the semaphore, if the shared memory object(smo)
 	is locked from another process, the function will fail (return 0)
@@ -102,18 +102,27 @@ unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
 		- lock_pos, pointer to an integer, if the function aquire a lock this param will
 			return to the caller level the position of the lock in the lock_info array
 			you will use this position to free the lock.
+		- lock_pos_arr, pointer to an integer, if the function aquire a lock this param will
+			return to the caller level the position of the lock like so:
+			lock_info[i].lock[lock_pos_arr].
 		- file_n, a string rapresenting the file name where to place the lock
 		- start, offset position in the file where the function will acquire the lock
-		- compute_bytes, pointer to a fucntion used to compute the bytes to lock in the file
+		- rec_len, record length that you wish to lock (record or bytes)
 		- mode, define which operation we want to perform on the file, and it is used to
 			compute how many bytes to lock in the file.
 		- fd, file descriptor for file, can be fd_index or fd_data.
 
 	@return:
 		aquire_lock_smo() return 1 if it succeeds, 0 if it fails.
+
+		WTLK:
+			another process holds either a read or write lock in the same or overallaping region
+			in the file, or the semaphore is not acquired.
+		MAX_WTLK:
+			we reach the lockable file limit for the system.
 */
-unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
-							  char *file_n, off_t start, compute_bytes cb, int mode, int fd)
+unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *lock_pos_arr,
+							   char *file_n, off_t start, off_t rec_len, int mode, int fd)
 {
 
 	if (!*shared_locks)
@@ -129,13 +138,11 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 
 	if (sem_trywait(sem) == -1)
 	{
-		perror("sem_trywait() failed: ");
-		printf("%s() can't acces the shared memory object, %s:%d.\n", __func__, F, L - 3);
 		sem_close(sem);
-		return 0;
+		return WTLK;
 	}
 
-	/* we can safely access to the shared memory object */
+	/* we can safely access the shared memory object */
 	for (int i = 0; i < MAX_NR_FILE_LOCKABLE; i++)
 	{
 		if ((*shared_locks)[i].file_name[0] != '\0')
@@ -144,24 +151,56 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 			if (strncmp((*shared_locks)[i].file_name, file_n, l) != 0)
 				continue;
 
-			if ((*shared_locks)[i].lock.l_type == F_UNLCK)
+			if ((*shared_locks)[i].lock_num == 0)
 			{
 				switch (mode)
 				{
 				case RD_HEADER:
 				{
-					(*shared_locks)[i].lock.l_type = F_RDLCK;
-					(*shared_locks)[i].lock.l_whence = SEEK_SET;
-					(*shared_locks)[i].lock.l_start = start;
-					(*shared_locks)[i].lock.l_len = MAX_HD_SIZE;
+					(*shared_locks)[i].lock[0].l_type = F_RDLCK;
+					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
+					(*shared_locks)[i].lock[0].l_start = start;
+					(*shared_locks)[i].lock[0].l_len = rec_len;
 					break;
 				}
 				case WR_HEADER:
 				{
-					(*shared_locks)[i].lock.l_type = F_WRLCK;
-					(*shared_locks)[i].lock.l_whence = SEEK_SET;
-					(*shared_locks)[i].lock.l_start = start;
-					(*shared_locks)[i].lock.l_len = MAX_HD_SIZE;
+					(*shared_locks)[i].lock[0].l_type = F_WRLCK;
+					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
+					(*shared_locks)[i].lock[0].l_start = start;
+					(*shared_locks)[i].lock[0].l_len = rec_len;
+					break;
+				}
+				case RD_REC:
+				{
+					(*shared_locks)[i].lock[0].l_type = F_RDLCK;
+					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
+					(*shared_locks)[i].lock[0].l_start = start;
+					(*shared_locks)[i].lock[0].l_len = rec_len;
+					break;
+				}
+				case WR_REC:
+				{
+					(*shared_locks)[i].lock[0].l_type = F_WRLCK;
+					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
+					(*shared_locks)[i].lock[0].l_start = start;
+					(*shared_locks)[i].lock[0].l_len = rec_len;
+					break;
+				}
+				case RD_IND:
+				{
+					(*shared_locks)[i].lock[0].l_type = F_RDLCK;
+					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
+					(*shared_locks)[i].lock[0].l_start = start;
+					(*shared_locks)[i].lock[0].l_len = rec_len;
+					break;
+				}
+				case WR_IND:
+				{
+					(*shared_locks)[i].lock[0].l_type = F_WRLCK;
+					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
+					(*shared_locks)[i].lock[0].l_start = start;
+					(*shared_locks)[i].lock[0].l_len = rec_len;
 					break;
 				}
 				default:
@@ -170,21 +209,158 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 				}
 
 				*lock_pos = i;
+				*lock_pos_arr = 0;
+				(*shared_locks)[i].lock_num++;
 				break;
+			}
+			else if ((*shared_locks)[i].lock_num < MAX_LOCK_IN_FILE)
+			{
+				/* check if one of the process is reading or writing the same region */
+				for (int y = 0; y < MAX_LOCK_IN_FILE; y++)
+				{
+					if ((*shared_locks)[i].lock[y].l_type != F_RDLCK ||
+						(*shared_locks)[i].lock[y].l_type != F_WRLCK)
+						continue;
+
+					if ((*shared_locks)[i].lock[y].l_start == start)
+					{
+						sem_post(sem);
+						sem_close(sem);
+						return WTLK;
+					}
+
+					if (((*shared_locks)[i].lock[y].l_start < start) &&
+						(((*shared_locks)[i].lock[y].l_len +
+						  (*shared_locks)[i].lock[y].l_start) > start))
+					{
+						sem_post(sem);
+						sem_close(sem);
+						return WTLK;
+					}
+
+					if (((*shared_locks)[i].lock[y].l_start > start) &&
+						((start + rec_len) < ((*shared_locks)[i].lock[y].l_len +
+											  (*shared_locks)[i].lock[y].l_start)))
+					{
+						sem_post(sem);
+						sem_close(sem);
+						return WTLK;
+					}
+
+					/*we need to ensure there is no write lock if we want to write to the file*/
+					if ((*shared_locks)[i].lock[y].l_type == F_WRLCK && (mode == WR_HEADER ||
+																		 mode == WR_REC || mode == WR_IND))
+					{
+						sem_post(sem);
+						sem_close(sem);
+						return WTLK;
+					}
+				}
+
+				for (int j = 0; j < MAX_LOCK_IN_FILE; j++)
+				{
+					if ((*shared_locks)[i].lock[j].l_type == F_UNLCK)
+					{
+						switch (mode)
+						{
+						case RD_HEADER:
+						{
+							(*shared_locks)[i].lock[j].l_type = F_RDLCK;
+							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
+							(*shared_locks)[i].lock[j].l_start = start;
+							(*shared_locks)[i].lock[j].l_len = rec_len;
+							break;
+						}
+						case WR_HEADER:
+						{
+							(*shared_locks)[i].lock[j].l_type = F_WRLCK;
+							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
+							(*shared_locks)[i].lock[j].l_start = start;
+							(*shared_locks)[i].lock[j].l_len = rec_len;
+							break;
+						}
+						case RD_REC:
+						{
+							(*shared_locks)[i].lock[j].l_type = F_RDLCK;
+							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
+							(*shared_locks)[i].lock[j].l_start = start;
+							(*shared_locks)[i].lock[j].l_len = rec_len;
+							break;
+						}
+						case WR_REC:
+						{
+							(*shared_locks)[i].lock[j].l_type = F_WRLCK;
+							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
+							(*shared_locks)[i].lock[j].l_start = start;
+							(*shared_locks)[i].lock[j].l_len = rec_len;
+							break;
+						}
+						case RD_IND:
+						{
+							(*shared_locks)[i].lock[j].l_type = F_RDLCK;
+							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
+							(*shared_locks)[i].lock[j].l_start = start;
+							(*shared_locks)[i].lock[j].l_len = rec_len;
+							break;
+						}
+						case WR_IND:
+						{
+							(*shared_locks)[i].lock[j].l_type = F_WRLCK;
+							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
+							(*shared_locks)[i].lock[j].l_start = start;
+							(*shared_locks)[i].lock[j].l_len = rec_len;
+							break;
+						}
+						default:
+							printf("unknown mode.\n");
+							break;
+						}
+
+						*lock_pos = i;
+						*lock_pos_arr = j;
+						(*shared_locks)[i].lock_num++;
+						break;
+					}
+				}
+			}
+			else
+			{ /* we reach the max nr of lockable records in a file */
+				sem_post(sem);
+				sem_close(sem);
+				return MAX_WTLK;
 			}
 		}
 	}
 
-	if (*lock_pos == 0)
+	if ((*lock_pos == 0) && (*shared_locks)[0].file_name[0] != '\0')
 	{
+		unsigned char file_lockable = 0;
+		for (int i = 0; i < MAX_NR_FILE_LOCKABLE; i++)
+		{
+			if ((*shared_locks)[i].file_name[0] == '\0')
+			{
+				*lock_pos = i;
+				file_lockable = 1;
+				break;
+			}
+		}
+
+		if (!file_lockable)
+		{
+			sem_post(sem);
+			sem_close(sem);
+			return MAX_WTLK;
+		}
+
 		switch (mode)
 		{
 		case RD_HEADER:
 		{
-			(*shared_locks)[*lock_pos].lock.l_type = F_RDLCK;
-			(*shared_locks)[*lock_pos].lock.l_whence = SEEK_SET;
-			(*shared_locks)[*lock_pos].lock.l_start = start;
-			(*shared_locks)[*lock_pos].lock.l_len = MAX_HD_SIZE;
+			(*shared_locks)[*lock_pos].lock[0].l_type = F_RDLCK;
+			(*shared_locks)[*lock_pos].lock[0].l_whence = SEEK_SET;
+			(*shared_locks)[*lock_pos].lock[0].l_start = start;
+			(*shared_locks)[*lock_pos].lock[0].l_len = rec_len;
+
 			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n), "%s", file_n) < 0)
 			{
 				printf("snprintf() failed, %s:%d.\n", F, L - 3);
@@ -192,13 +368,15 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 				sem_close(sem);
 				return 0;
 			}
+			break;
 		}
 		case WR_HEADER:
 		{
-			(*shared_locks)[*lock_pos].lock.l_type = F_WRLCK;
-			(*shared_locks)[*lock_pos].lock.l_whence = SEEK_SET;
-			(*shared_locks)[*lock_pos].lock.l_start = start;
-			(*shared_locks)[*lock_pos].lock.l_len = MAX_HD_SIZE;
+			(*shared_locks)[*lock_pos].lock[0].l_type = F_WRLCK;
+			(*shared_locks)[*lock_pos].lock[0].l_whence = SEEK_SET;
+			(*shared_locks)[*lock_pos].lock[0].l_start = start;
+			(*shared_locks)[*lock_pos].lock[0].l_len = MAX_HD_SIZE;
+
 			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n), "%s", file_n) < 0)
 			{
 				printf("snprintf() failed, %s:%d.\n", F, L - 3);
@@ -206,11 +384,15 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 				sem_close(sem);
 				return 0;
 			}
+			break;
 		}
 		default:
 			printf("unknown mode.\n");
 			break;
 		}
+
+		*lock_pos_arr = 0;
+		(*shared_locks)[*lock_pos].lock_num++;
 	}
 
 	sem_post(sem);
@@ -218,7 +400,42 @@ unsigned char aquire_lock_smo(lock_info **shared_locks, int *lock_pos,
 	return 1;
 }
 
-unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos);
+unsigned char release_lock_smo(lock_info **shared_locks, int lock_pos, int lock_pos_arr)
+{
+	if (!*shared_locks)
+		return 0;
+
+	sem_t *sem = sem_open(SEM_MILOCK, 0);
+	if (sem == SEM_FAILED)
+	{
+		perror("sem_open failed: ");
+		printf("%s:%d.\n", F, L - 4);
+		return 0;
+	}
+
+	/*try to acquire the semaphore */
+	if (sem_trywait(sem) == -1)
+	{
+		sem_close(sem);
+		return WTLK;
+	}
+
+	/* it is safe to read the smo*/
+	(*shared_locks)[lock_pos].lock[lock_pos_arr].l_type = F_UNLCK;
+	(*shared_locks)[lock_pos].lock[lock_pos_arr].l_whence = SEEK_SET;
+	/* decrease the lock number on the file*/
+	(*shared_locks)[lock_pos].lock_num--;
+
+	if ((*shared_locks)[lock_pos].lock_num == 0)
+	{
+		memset((*shared_locks)[lock_pos].file_name, 0, sizeof((*shared_locks)[lock_pos].file_name));
+	}
+
+	sem_post(sem);
+	sem_close(sem);
+	return 1;
+}
+
 unsigned char is_locked(int fd, off_t rec_offset, off_t rec_size)
 {
 	struct flock lock;

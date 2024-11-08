@@ -517,7 +517,7 @@ int main(int argc, char *argv[])
 
 		/* check if there is a shared memory object
 		   if there is, we map it to the lock_info* so we can read and write to the struct
-		   data to share with the main program any lock to the file*/
+		   data to share with the main program any lock to the files*/
 
 		lock_info *shared_locks = NULL;
 		int fd_mo = shm_open(SH_ILOCK, O_RDWR, 0666);
@@ -530,43 +530,124 @@ int main(int argc, char *argv[])
 		/*creates two name from the file_path => from "str_op.h" */
 		char **files = two_file_path(file_path);
 
+		/* acquire lock before opning the files (reading header)*/
+
+		int lock_pos = 0, *plp = &lock_pos;
+		int lock_pos_arr = 0, *plpa = &lock_pos;
+		int lock_pos_i = 0, *plp_i = &lock_pos;
+		int lock_pos_arr_i = 0, *plpa_i = &lock_pos;
+		if (shared_locks)
+		{
+			int result_d = 0, result_i = 0;
+			do
+			{
+
+				if ((result_d = acquire_lock_smo(&shared_locks, plp, plpa, files[1], 0, MAX_HD_SIZE, RD_HEADER, fd_data)) == 0 ||
+					(result_i = acquire_lock_smo(&shared_locks, plp_i, plpa_i, files[0], 0, MAX_HD_SIZE, RD_IND, fd_index)) == 0)
+				{
+					printf("can't acquire lock, %s:%d", F, L - 2);
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(1, fd_mo);
+						free_strs(2, 1, files);
+						return 1;
+					}
+					close_file(fd_mo);
+					free_strs(2, 1, files);
+					return 1;
+				}
+			} while (result_i == MAX_WTLK || result_i == WTLK ||
+					 result_d == MAX_WTLK || result_d == WTLK);
+		}
+
 		fd_index = open_file(files[0], 0);
 		fd_data = open_file(files[1], 0);
 
 		/* file_error_handler will close the file descriptors if there are issues */
 		if (file_error_handler(2, fd_index, fd_data) != 0)
 		{
-			printf("Error in creating or opening files,%s:%d.\n", __FILE__, __LINE__ - 1);
-			free(files[0]), free(files[1]), free(files);
+			printf("Error in creating or opening files,%s:%d.\n", F, L - 2);
+			free_strs(2, 1, files);
+			if (shared_locks)
+			{
+
+				int result_i = 0, result_d = 0;
+				do
+				{
+					if ((result_i = release_lock_smo(&shared_locks,
+													 lock_pos_i, lock_pos_arr_i)) == 0 ||
+						(result_d = release_lock_smo(&shared_locks,
+													 lock_pos, lock_pos_arr)) == 0)
+					{
+						printf("release_lock_smo() failed , %s:%d.\n", F, L - 5);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							__er_munmap(F, L - 3);
+							close_file(1, fd_mo);
+							return 1;
+						}
+					}
+				} while (result_i == WTLK || result_d == WTLK);
+
+				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+				{
+					printf("munmap() failed, %s:%d.\n", F, L - 2);
+					close_file(1, fd_mo);
+					return 1;
+				}
+
+				close_file(1, fd_mo);
+				return 1;
+			}
 			return 1;
 		}
 
-		/* this is to ensure the file is a db file */
+		/* ensure the file is a db file */
 		Schema sch = {0, NULL, NULL};
 		Header_d hd = {0, 0, sch};
 
-		if (shared_locks)
-		{
-			int lock_pos = 0, *plp = &lock_pos;
-			if (!aquire_lock_smo(&shared_locks, plp, files[1], 0, NULL, RD_HEADER, fd_data))
-			{
-				printf("can't acquire lock, %s:%d", F, L - 2);
-				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
-				{
-					printf("failed to unmap shared memeory object, %s:%d.\n", F, L - 2);
-					close_file(3, fd_index, fd_data, fd_mo);
-					free_strs(2, 1, files);
-					return 0;
-				}
-				close_file(3, fd_index, fd_data, fd_mo);
-				free_strs(2, 1, files);
-				return 0;
-			}
-		}
-
 		if (!read_header(fd_data, &hd))
 		{
-			free(files[0]), free(files[1]), free(files);
+			free_schema(&hd.sch_d);
+			free_strs(2, 1, files);
+			if (shared_locks)
+			{
+				int result_i = 0, result_d = 0;
+				do
+				{
+					if ((result_d = release_lock_smo(&shared_locks,
+													 lock_pos, lock_pos_arr)) == 0 ||
+						(result_i = release_lock_smo(&shared_locks,
+													 lock_pos_i, lock_pos_arr_i)) == 0)
+					{
+						printf("release_lock_smo() failed, %s:%d.\n", F, L - 2);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							__er_munmap(F, L - 3);
+							close_file(3, fd_index, fd_data, fd_mo);
+							return 1;
+						}
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+
+				} while (result_i == WTLK || result_d == WTLK);
+
+				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+				{
+					__er_munmap(F, L - 3);
+					close_file(3, fd_index, fd_data, fd_mo);
+					return 1;
+				}
+
+				close_file(3, fd_index, fd_data, fd_mo);
+				return 1;
+			}
+
+			close_file(2, fd_index, fd_data);
 			return 1;
 		}
 
@@ -575,32 +656,174 @@ int main(int argc, char *argv[])
 		{
 			__er_file_pointer(F, L - 2);
 			free_schema(&hd.sch_d);
-			free(files[0]), free(files[1]), free(files);
+			free_strs(2, 1, files);
+			if (shared_locks)
+			{
+				int result_i = 0, result_d = 0;
+				do
+				{
+					if ((result_d = release_lock_smo(&shared_locks,
+													 lock_pos, lock_pos_arr)) == 0 ||
+						(result_i = release_lock_smo(&shared_locks,
+													 lock_pos_i, lock_pos_arr_i)) == 0)
+					{
+						printf("release_lock_smo() failed, %s:%d.\n", F, L - 2);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							__er_munmap(F, L - 3);
+							close_file(3, fd_index, fd_data, fd_mo);
+							return 1;
+						}
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+
+				} while (result_i == WTLK || result_d == WTLK);
+
+				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+				{
+					__er_munmap(F, L - 2);
+					close_file(3, fd_index, fd_data, fd_mo);
+					return 1;
+				}
+				close_file(3, fd_index, fd_data, fd_mo);
+				return 1;
+			}
+			close_file(2, fd_index, fd_data);
 			return 1;
 		}
 
-		/*TODO release the lock here*/
+		/*release the lock*/
+		if (shared_locks)
+		{
+			int result_i = 0, result_d = 0;
+			do
+			{
+				if ((result_d = release_lock_smo(&shared_locks, lock_pos, lock_pos_arr)) == 0 ||
+					(result_i = release_lock_smo(&shared_locks, lock_pos_i, lock_pos_arr_i)) == 0)
+				{
+					printf("release_lock_smo() failed, %s:%d.\n", F, L - 2);
+					if (munmap(shared_locks,
+							   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						printf("munmap() failed, %s:%d.\n", F, L - 2);
+						free_schema(&hd.sch_d);
+						close_file(3, fd_index, fd_data, fd_mo);
+						free_strs(2, 1, files);
+						return 1;
+					}
+					free_schema(&hd.sch_d);
+					close_file(3, fd_index, fd_data, fd_mo);
+					free_strs(2, 1, files);
+					return 1;
+				}
+
+			} while (result_i == WTLK || result_d == WTLK);
+		}
 
 		if (del_file)
 		{ /*delete file */
-			delete_file(2, files[0], files[1]);
+
 			free_schema(&hd.sch_d);
+			/* acquire lock */
+			if (shared_locks)
+			{
+				int result_d = 0, result_i = 0;
+				do
+				{
+					if (((result_d = acquire_lock_smo(&shared_locks, plp, plpa, files[1],
+													  0, go_to_EOF(fd_data), WR_REC, fd_data)) == 0) ||
+						((result_i = acquire_lock_smo(&shared_locks, plp_i, plpa_i, files[0],
+													  0, go_to_EOF(fd_index), WR_IND, fd_index)) == 0))
+					{
+						printf("aquire_lock_smo() failed, %s:%d.\n", F, L - 3);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							printf("munmap() failed %s:%d.\n", F, L - 3);
+							close_file(3, fd_index, fd_data, fd_mo);
+							free_strs(2, 1, files);
+							return 1;
+						}
+						free_strs(2, 1, files);
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+
+				} while (result_d == MAX_WTLK || result_d == WTLK ||
+						 result_i == MAX_WTLK || result_i == WTLK);
+			}
+
+			/* we can safely delete the files, here, this process is the only one owning locks
+				for both the index and the data file */
+			delete_file(2, files[0], files[1]);
 			printf("file %s, deleted.\n", file_path);
-			free(files[0]), free(files[1]), free(files);
 			close_file(2, fd_index, fd_data);
+
+			/*release the lock*/
+			if (shared_locks)
+			{
+				int result_d = 0, result_i = 0;
+				do
+				{
+					if ((result_d = release_lock_smo(&shared_locks, *plp, *plpa)) == 0 ||
+						(result_i = release_lock_smo(&shared_locks, lock_pos_i,
+													 lock_pos_arr_i) == 0))
+					{
+						printf("release_lock_smo() failed, %s:%d./n", F, L - 3);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							printf("munmap() failed %s:%d.\n", F, L - 3);
+							close_file(1, fd_mo);
+							free_strs(2, 1, files);
+							return 1;
+						}
+						free_strs(2, 1, files);
+						return 1;
+					}
+
+				} while (result_i == WT_RSLK || result_d == WT_RSLK);
+			}
+
+			if (shared_locks)
+			{
+				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+				{
+					__er_munmap(F, L - 3);
+					close_file(1, fd_mo);
+					free_strs(2, 1, files);
+					return 1;
+				}
+			}
+			close_file(1, fd_mo);
+			free_strs(2, 1, files);
 			return 0;
-		}
+		} /* end of delete file path*/
 
 		if (schema_def)
-		{
-			free(files[0]), free(files[1]), free(files);
+		{ /* add field to schema */
+			/* locks here are released that is why we do not have to release them if an error occurs*/
 			/*check if the fields are in limit*/
 			int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
 
-			if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > 200)
+			if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > MAX_FIELD_NR)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 				free_schema(&hd.sch_d);
+				free_strs(2, 1, files);
+				if (shared_locks)
+				{
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+					close_file(3, fd_index, fd_data, fd_mo);
+					return 1;
+				}
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
@@ -612,8 +835,20 @@ int main(int argc, char *argv[])
 			if (!add_fields_to_schema(fields_count, buffer, buff_t, &hd.sch_d))
 			{
 				free_schema(&hd.sch_d);
-				close_file(2, fd_index, fd_data);
+				free_strs(2, 1, files);
 				free(buffer), free(buff_t);
+				if (shared_locks)
+				{
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+					close_file(3, fd_index, fd_data, fd_mo);
+					return 1;
+				}
+				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
@@ -625,29 +860,157 @@ int main(int argc, char *argv[])
 			{
 				printf("File definition is bigger than the limit.\n");
 				free_schema(&hd.sch_d);
+				free_strs(2, 1, files);
+				if (shared_locks)
+				{
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+					close_file(3, fd_index, fd_data, fd_mo);
+					return 1;
+				}
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
-			/*TODO: aquire lock WR_HEADER */
+			/* acquire lock WR_HEADER */
+			if (shared_locks)
+			{
+				int result = 0;
+				do
+				{
+					if ((result = acquire_lock_smo(&shared_locks, plp, plpa, files[1], 0,
+												   MAX_HD_SIZE, WR_HEADER, fd_data)) == 0)
+					{
+						printf("acquire_lock_smo() failed, %s:%d.\n", F, L - 3);
+						free_schema(&hd.sch_d);
+						free_strs(2, 1, files);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							printf("munmap() failed %s:%d.\n", F, L - 3);
+							close_file(3, fd_mo, fd_index, fd_data);
+							return 1;
+						}
+						close_file(3, fd_index, fd_data);
+						return 1;
+					}
+				} while (result == MAX_WTLK || result == WTLK);
+			}
+
 			if (!write_header(fd_data, &hd))
 			{
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				printf("write to file failed, %s:%d.\n", F, L - 2);
 				free_schema(&hd.sch_d);
+				free_strs(2, 1, files);
+				if (shared_locks)
+				{
+					int result_d = 0;
+					do
+					{
+						if ((result_d = release_lock_smo(&shared_locks,
+														 lock_pos, lock_pos_arr)) == 0)
+						{
+							printf("release_lock_smo() failed, %s:%d.\n", F, L - 2);
+							if (munmap(shared_locks,
+									   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(3, fd_index, fd_data, fd_mo);
+								return 1;
+							}
+							close_file(3, fd_index, fd_data, fd_mo);
+							return 1;
+						}
+
+					} while (result_d == WTLK);
+
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+					close_file(3, fd_index, fd_data, fd_mo);
+					return 1;
+				}
 				close_file(2, fd_index, fd_data);
 				return 1;
 			}
 
-			/*TODO: release WR_HEADER lock */
-			printf("data added to schema!\n");
 			free_schema(&hd.sch_d);
-			close_file(2, fd_index, fd_data);
+			free_strs(2, 1, files);
+			/*release WR_HEADER lock */
+			if (shared_locks)
+			{
+				int result = 0;
+				do
+				{
+					if ((result = release_lock_smo(&shared_locks, *plp, *plpa)) == 0)
+					{
+						printf("release_lock_smo() failed, %s:%d.\n", F, L - 2);
+						free_strs(2, 1, files);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							printf("munmap() failed %s:%d.\n", F, L - 3);
+							close_file(3, fd_index, fd_data, fd_mo);
+							return 1;
+						}
+
+						close_file(3, fd_mo, fd_index, fd_data);
+						return 1;
+					}
+
+				} while (result == WTLK);
+			}
+			printf("data added to schema!\n");
+			/*unmap the memory object*/
+			if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+			{
+				__er_munmap(F, L - 2);
+				close_file(3, fd_index, fd_data, fd_mo);
+				return 1;
+			}
+
+			close_file(3, fd_index, fd_data, fd_mo);
 			return 0;
-		}
+		} /* end of add new fields to schema path*/
 
 		if (del)
-		{
+		{ /* del a record in a file or the all content in the file */
+
 			free_schema(&hd.sch_d);
+			/* acquire lock on index file and data file*/
+			if (shared_locks)
+			{
+				int result_i = 0, result_d = 0;
+				do
+				{
+					if (((result_i = acquire_lock_smo(&shared_locks, plp_i, plpa_i, files[0], 0,
+													  go_to_EOF(fd_index), WR_IND, fd_index)) == 0) ||
+						((result_d = acquire_lock_smo(&shared_locks, plp, plpa, files[1], 0,
+													  go_to_EOF(fd_data), WR_REC, fd_data)) == 0))
+					{
+						printf("acquire_lock_smo() failed, %s:%d.\n", F, L - 2);
+						free_strs(2, 1, files);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							printf("munmap() failed %s:%d.\n", F, L - 3);
+							close_file(3, fd_index, fd_data, fd_mo);
+							return 1;
+						}
+
+						close_file(3, fd_mo, fd_index, fd_data);
+						return 1;
+					}
+				} while (result_d == MAX_WTLK || result_d == WTLK || result_i == MAX_WTLK || result_i == WTLK);
+			}
+
 			if (options)
 			{
 				if (option)
@@ -660,11 +1023,49 @@ int main(int argc, char *argv[])
 						if (!indexes_on_file(fd_index, p_i_nr))
 						{
 							printf("er index nr,%s:%d.\n", F, L - 4);
-							free(files[0]);
-							free(files[1]);
-							free(files);
-							close_file(2,
-									   fd_index, fd_data);
+							free_strs(2, 1, files);
+							if (shared_locks)
+							{
+								int result_d = 0, result_i = 0;
+								do
+								{
+									if ((result_d =
+											 release_lock_smo(&shared_locks,
+															  lock_pos, lock_pos_arr)) == 0 ||
+										(result_i =
+											 release_lock_smo(&shared_locks,
+															  lock_pos_i, lock_pos_arr_i)) == 0)
+									{
+										__er_release_lock_smo(F, L - 4);
+										if (munmap(shared_locks,
+												   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+										{
+											__er_munmap(F, L - 3);
+											close_file(3, fd_index,
+													   fd_data, fd_mo);
+											return 1;
+										}
+										close_file(3, fd_index,
+												   fd_data, fd_mo);
+										return 1;
+									}
+
+								} while (result_d == WTLK ||
+										 result_d == WTLK);
+
+								if (munmap(shared_locks,
+										   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+								{
+									__er_munmap(F, L - 2);
+									close_file(3, fd_index,
+											   fd_data, fd_mo);
+									return 1;
+								}
+								close_file(3, fd_index,
+										   fd_data, fd_mo);
+								return 1;
+							}
+							close_file(2, fd_index, fd_data);
 							return 1;
 						}
 
@@ -672,31 +1073,105 @@ int main(int argc, char *argv[])
 						if (!nr_bucket(fd_index, pbuck))
 						{
 							printf("er index nr,%s:%d.\n", F, L - 4);
-							free(files[0]);
-							free(files[1]);
-							free(files);
-							close_file(2,
-									   fd_index, fd_data);
+							free_strs(2, 1, files);
+							if (shared_locks)
+							{
+								int result_d = 0, result_i = 0;
+								do
+								{
+									if ((result_d =
+											 release_lock_smo(&shared_locks,
+															  lock_pos, lock_pos_arr)) == 0 ||
+										(result_i =
+											 release_lock_smo(&shared_locks,
+															  lock_pos_i, lock_pos_arr_i)) == 0)
+									{
+										__er_release_lock_smo(F, L - 4);
+										if (munmap(shared_locks,
+												   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+										{
+											__er_munmap(F, L - 3);
+											close_file(3, fd_index,
+													   fd_data, fd_mo);
+											return 1;
+										}
+										close_file(3, fd_index,
+												   fd_data, fd_mo);
+										return 1;
+									}
+
+								} while (result_d == WTLK ||
+										 result_d == WTLK);
+
+								if (munmap(shared_locks,
+										   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+								{
+									__er_munmap(F, L - 2);
+									close_file(3, fd_index,
+											   fd_data, fd_mo);
+									return 1;
+								}
+								close_file(3, fd_index,
+										   fd_data, fd_mo);
+								return 1;
+							}
+							close_file(2, fd_index, fd_data);
 							return 1;
 						}
 						/* create *p_i_nr of ht and write them to file*/
-						HashTable *ht = calloc(*p_i_nr,
-											   sizeof(HashTable));
+						HashTable *ht = calloc(*p_i_nr, sizeof(HashTable));
 						if (!ht)
 						{
-							printf("calloc failed ,%s:%d.\n", F, L - 4);
-							free(files[0]);
-							free(files[1]);
-							free(files);
-							close_file(2,
-									   fd_index, fd_data);
+							__er_calloc(F, L - 4);
+							free_strs(2, 1, files);
+							if (shared_locks)
+							{
+								int result_d = 0, result_i = 0;
+								do
+								{
+									if ((result_d =
+											 release_lock_smo(&shared_locks,
+															  lock_pos, lock_pos_arr)) == 0 ||
+										(result_i =
+											 release_lock_smo(&shared_locks,
+															  lock_pos_i, lock_pos_arr_i)) == 0)
+									{
+										__er_release_lock_smo(F, L - 4);
+										if (munmap(shared_locks,
+												   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+										{
+											__er_munmap(F, L - 3);
+											close_file(3, fd_index,
+													   fd_data, fd_mo);
+											return 1;
+										}
+										close_file(3, fd_index,
+												   fd_data, fd_mo);
+										return 1;
+									}
+
+								} while (result_d == WTLK ||
+										 result_d == WTLK);
+
+								if (munmap(shared_locks,
+										   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+								{
+									__er_munmap(F, L - 2);
+									close_file(3, fd_index,
+											   fd_data, fd_mo);
+									return 1;
+								}
+								close_file(3, fd_index,
+										   fd_data, fd_mo);
+								return 1;
+							}
+							close_file(2, fd_index, fd_data);
 							return 1;
 						}
 						int i = 0;
 						for (i = 0; i < *p_i_nr; i++)
 						{
-							HashTable ht_n = {*pbuck,
-											  NULL, write_ht};
+							HashTable ht_n = {*pbuck, NULL, write_ht};
 							ht[i] = ht_n;
 						}
 
@@ -708,37 +1183,190 @@ int main(int argc, char *argv[])
 
 						if (!write_index_file_head(fd_index, *p_i_nr))
 						{
-							printf("write to file failed, %s:%d", F, L - 2);
-							free(files[0]), free(files[1]), free(files);
-							close_file(2, fd_index, fd_data);
+							printf("write to file failed,%s:%d",
+								   F, L - 2);
+							free_strs(2, 1, files);
 							free(ht);
+							if (shared_locks)
+							{
+								int result_d = 0, result_i = 0;
+								do
+								{
+									if ((result_d =
+											 release_lock_smo(&shared_locks,
+															  lock_pos, lock_pos_arr)) == 0 ||
+										(result_i =
+											 release_lock_smo(&shared_locks,
+															  lock_pos_i, lock_pos_arr_i)) == 0)
+									{
+										__er_release_lock_smo(F, L - 4);
+										if (munmap(shared_locks,
+												   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+										{
+											__er_munmap(F, L - 3);
+											close_file(3, fd_index,
+													   fd_data, fd_mo);
+											return 1;
+										}
+										close_file(3, fd_index,
+												   fd_data, fd_mo);
+										return 1;
+									}
+
+								} while (result_d == WTLK ||
+										 result_d == WTLK);
+
+								if (munmap(shared_locks,
+										   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+								{
+									__er_munmap(F, L - 2);
+									close_file(3, fd_index,
+											   fd_data, fd_mo);
+									return 1;
+								}
+								close_file(3, fd_index,
+										   fd_data, fd_mo);
+								return 1;
+							}
+							close_file(2, fd_index, fd_data);
 							return 1;
 						}
 
 						for (i = 0; i < *p_i_nr; i++)
 						{
-
 							if (write_index_body(fd_index, i, &ht[i]) == -1)
 							{
 								printf("write to file failed. %s:%d.\n", F, L - 2);
-								free(files[0]), free(files[1]), free(files);
-								close_file(2, fd_index, fd_data);
+								free_strs(2, 1, files);
 								free(ht);
+								if (shared_locks)
+								{
+									int result_d = 0, result_i = 0;
+									do
+									{
+										if ((result_d =
+												 release_lock_smo(&shared_locks,
+																  lock_pos, lock_pos_arr)) == 0 ||
+											(result_i =
+												 release_lock_smo(&shared_locks,
+																  lock_pos_i, lock_pos_arr_i)) == 0)
+										{
+											__er_release_lock_smo(F, L - 4);
+											if (munmap(shared_locks,
+													   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+											{
+												__er_munmap(F, L - 3);
+												close_file(3, fd_index,
+														   fd_data, fd_mo);
+												return 1;
+											}
+											close_file(3, fd_index,
+													   fd_data, fd_mo);
+											return 1;
+										}
+
+									} while (result_d == WTLK ||
+											 result_d == WTLK);
+
+									if (munmap(shared_locks,
+											   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+									{
+										__er_munmap(F, L - 2);
+										close_file(3, fd_index,
+												   fd_data, fd_mo);
+										return 1;
+									}
+									close_file(3, fd_index,
+											   fd_data, fd_mo);
+									return 1;
+								}
+								close_file(2, fd_index, fd_data);
 								return 1;
 							}
 						}
 
-						free(files[0]), free(files[1]), free(files);
+						free_strs(2, 1, files);
 						close_file(2, fd_index, fd_data);
 						free(ht);
 						printf("all record deleted from %s file.\n", file_path);
+						/* release the lock */
+						if (shared_locks)
+						{
+							int result_i = 0, result_d = 0;
+							do
+							{
+								if ((result_i =
+										 release_lock_smo(&shared_locks,
+														  *plp_i, *plpa_i)) == 0 ||
+									(result_d =
+										 release_lock_smo(&shared_locks,
+														  *plp, *plpa)) == 0)
+								{
+									printf("release_lock_smo() failed,\
+									%s:%d.\n",
+										   F, L - 8);
+									if (munmap(shared_locks,
+											   sizeof(lock_info) *
+												   MAX_NR_FILE_LOCKABLE) == -1)
+									{
+										printf("munmap failed, %s:%d",
+											   F, L - 3);
+										close_file(1, fd_mo);
+										return 1;
+									}
+									return 1;
+								}
+
+							} while (result_d == WTLK || result_i == WTLK);
+						}
+						if (shared_locks)
+						{
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								printf("munmap failed, %s:%d", F, L - 3);
+								close_file(1, fd_mo);
+								return 1;
+							}
+						}
 						return 0;
 					}
 					default:
 						printf("options not valid.\n");
-						free(files[0]);
-						free(files[1]);
-						free(files);
+						free_strs(2, 1, files);
+						if (shared_locks)
+						{
+							int result_d = 0, result_i = 0;
+							do
+							{
+								if ((result_d = release_lock_smo(&shared_locks,
+																 lock_pos, lock_pos_arr)) == 0 ||
+									(result_i = release_lock_smo(&shared_locks,
+																 lock_pos_i, lock_pos_arr_i)) == 0)
+								{
+									__er_release_lock_smo(F, L - 4);
+									if (munmap(shared_locks,
+											   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+									{
+										__er_munmap(F, L - 3);
+										close_file(3, fd_index,
+												   fd_data, fd_mo);
+										return 1;
+									}
+									close_file(3, fd_index, fd_data, fd_mo);
+									return 1;
+								}
+
+							} while (result_d == WTLK || result_i == WTLK);
+
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								printf("munmap failed, %s:%d", F, L - 3);
+								close_file(3, fd_index, fd_data, fd_mo);
+								return 1;
+							}
+						}
 						close_file(2, fd_index, fd_data);
 						return 1;
 					}
@@ -749,15 +1377,48 @@ int main(int argc, char *argv[])
 			HashTable *ht = NULL;
 			int index = 0;
 			int *p_index = &index;
-			/* load al indexes in memory */
-			read_all_index_file(fd_index, &ht, p_index);
+			/* load all indexes in memory */
+			if (!read_all_index_file(fd_index, &ht, p_index))
+			{
+				free_strs(2, 1, files);
+				if (shared_locks)
+				{
+					int result_i = 0, result_d = 0;
+					do
+					{
+						if ((result_i = release_lock_smo(&shared_locks,
+														 *plp_i, *plpa_i)) == 0 ||
+							(result_d = release_lock_smo(&shared_locks,
+														 *plp, *plpa)) == 0)
+						{
+							printf("release_lock_smo() failed,%s:%d.\n", F, L - 8);
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(3, fd_index, fd_data, fd_mo);
+								return 1;
+							}
+							return 1;
+						}
+
+					} while (result_d == WTLK || result_i == WTLK);
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+				}
+				close_file(3, fd_index, fd_data, fd_mo);
+				return 1;
+			}
 
 			Node *record_del = delete (key, &ht[index_nr]);
 			if (!record_del)
 			{
 				printf("record %s not found.\n", key);
-				free(files[0]), free(files[1]), free(files);
-				close_file(2, fd_index, fd_data);
+				free_strs(2, 1, files);
 				if (ht)
 				{
 					int i = 0;
@@ -767,6 +1428,36 @@ int main(int argc, char *argv[])
 					}
 					free(ht);
 				}
+				if (shared_locks)
+				{
+					int result_i = 0, result_d = 0;
+					do
+					{
+						if ((result_i = release_lock_smo(&shared_locks,
+														 *plp_i, *plpa_i)) == 0 ||
+							(result_d = release_lock_smo(&shared_locks,
+														 *plp, *plpa)) == 0)
+						{
+							printf("release_lock_smo() failed,%s:%d.\n", F, L - 8);
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(3, fd_index, fd_data, fd_mo);
+								return 1;
+							}
+							return 1;
+						}
+
+					} while (result_d == WTLK || result_i == WTLK);
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(3, fd_index, fd_data, fd_mo);
+						return 1;
+					}
+				}
+				close_file(3, fd_index, fd_data, fd_mo);
 				return 1;
 			}
 
