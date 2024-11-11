@@ -26,4 +26,5 @@ int file_error_handler(int count, ...);
 int padding_file(int fd, int bytes, size_t hd_st);
 unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);
+off_t get_file_size(int fd, char *file_name);
 #endif

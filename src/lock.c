@@ -26,6 +26,25 @@
 		   };
  */
 
+unsigned char free_memory_object(char *smo_name)
+{
+	if (shm_unlink(smo_name) == STATUS_ERROR)
+	{
+		perror("shm_uinlink failed: ");
+		printf(" %s:%d.\n", F, L - 3);
+		return 0;
+	}
+
+	if (sem_unlink(SEM_MILOCK) == STATUS_ERROR)
+	{
+		perror("sem_uinlink failed: ");
+		printf(" %s:%d.\n", F, L - 3);
+		return 0;
+	}
+
+	return 1;
+}
+
 /* this fucntion makes the lock info avaiable to different processes
 	by creating a shared memory object(SMO) and map a pointer to it,
 	if the function succeed, shared_locks will be used to write and read data from SMO.
@@ -49,7 +68,7 @@ unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
 	{
 		perror("ftruncate(): ");
 		printf(" %s:%d.\n", F, L - 3);
-		if (shm_unlink(SH_ILOCK) == STATUS_ERROR)
+		if (!free_memory_object(SH_ILOCK))
 		{
 			perror("can`t unlink shared memory:");
 			printf(" %s:%d.\n", F, L - 3);
@@ -63,7 +82,7 @@ unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
 	{
 		perror("semaphore creation failed: ");
 		printf("%s:%d.\n", F, L - 4);
-		if (shm_unlink(SH_ILOCK) == STATUS_ERROR)
+		if (!free_memory_object(SH_ILOCK))
 		{
 			perror("can`t unlink shared memory:");
 			printf(" %s:%d.\n", F, L - 3);
@@ -77,7 +96,7 @@ unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
 	{
 		perror("mmap failed: ");
 		printf("%s:%d.\n", F, L - 4);
-		if (shm_unlink(SH_ILOCK) == STATUS_ERROR)
+		if (!free_memory_object(SH_ILOCK))
 		{
 			perror("can`t unlink shared memory:");
 			printf(" %s:%d.\n", F, L - 3);
@@ -156,51 +175,25 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 				switch (mode)
 				{
 				case RD_HEADER:
-				{
-					(*shared_locks)[i].lock[0].l_type = F_RDLCK;
-					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
-					(*shared_locks)[i].lock[0].l_start = start;
-					(*shared_locks)[i].lock[0].l_len = rec_len;
-					break;
-				}
-				case WR_HEADER:
-				{
-					(*shared_locks)[i].lock[0].l_type = F_WRLCK;
-					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
-					(*shared_locks)[i].lock[0].l_start = start;
-					(*shared_locks)[i].lock[0].l_len = rec_len;
-					break;
-				}
 				case RD_REC:
-				{
-					(*shared_locks)[i].lock[0].l_type = F_RDLCK;
-					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
-					(*shared_locks)[i].lock[0].l_start = start;
-					(*shared_locks)[i].lock[0].l_len = rec_len;
-					break;
-				}
-				case WR_REC:
-				{
-					(*shared_locks)[i].lock[0].l_type = F_WRLCK;
-					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
-					(*shared_locks)[i].lock[0].l_start = start;
-					(*shared_locks)[i].lock[0].l_len = rec_len;
-					break;
-				}
 				case RD_IND:
 				{
 					(*shared_locks)[i].lock[0].l_type = F_RDLCK;
 					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
 					(*shared_locks)[i].lock[0].l_start = start;
 					(*shared_locks)[i].lock[0].l_len = rec_len;
+					(*shared_locks)[i].lock[0].l_pid = getpid();
 					break;
 				}
+				case WR_HEADER:
+				case WR_REC:
 				case WR_IND:
 				{
 					(*shared_locks)[i].lock[0].l_type = F_WRLCK;
 					(*shared_locks)[i].lock[0].l_whence = SEEK_SET;
 					(*shared_locks)[i].lock[0].l_start = start;
 					(*shared_locks)[i].lock[0].l_len = rec_len;
+					(*shared_locks)[i].lock[0].l_pid = getpid();
 					break;
 				}
 				default:
@@ -218,15 +211,22 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 				/* check if one of the process is reading or writing the same region */
 				for (int y = 0; y < MAX_LOCK_IN_FILE; y++)
 				{
-					if ((*shared_locks)[i].lock[y].l_type != F_RDLCK ||
+					if ((*shared_locks)[i].lock[y].l_type != F_RDLCK &&
 						(*shared_locks)[i].lock[y].l_type != F_WRLCK)
 						continue;
 
 					if ((*shared_locks)[i].lock[y].l_start == start)
 					{
+						if (!((*shared_locks)[i].lock[y].l_pid == getpid()))
+						{
+							sem_post(sem);
+							sem_close(sem);
+							return WTLK;
+						}
+
 						sem_post(sem);
 						sem_close(sem);
-						return WTLK;
+						return 1;
 					}
 
 					if (((*shared_locks)[i].lock[y].l_start < start) &&
@@ -264,51 +264,25 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 						switch (mode)
 						{
 						case RD_HEADER:
-						{
-							(*shared_locks)[i].lock[j].l_type = F_RDLCK;
-							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
-							(*shared_locks)[i].lock[j].l_start = start;
-							(*shared_locks)[i].lock[j].l_len = rec_len;
-							break;
-						}
 						case WR_HEADER:
-						{
-							(*shared_locks)[i].lock[j].l_type = F_WRLCK;
-							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
-							(*shared_locks)[i].lock[j].l_start = start;
-							(*shared_locks)[i].lock[j].l_len = rec_len;
-							break;
-						}
 						case RD_REC:
 						{
 							(*shared_locks)[i].lock[j].l_type = F_RDLCK;
 							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
 							(*shared_locks)[i].lock[j].l_start = start;
 							(*shared_locks)[i].lock[j].l_len = rec_len;
+							(*shared_locks)[i].lock[0].l_pid = getpid();
 							break;
 						}
 						case WR_REC:
-						{
-							(*shared_locks)[i].lock[j].l_type = F_WRLCK;
-							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
-							(*shared_locks)[i].lock[j].l_start = start;
-							(*shared_locks)[i].lock[j].l_len = rec_len;
-							break;
-						}
 						case RD_IND:
-						{
-							(*shared_locks)[i].lock[j].l_type = F_RDLCK;
-							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
-							(*shared_locks)[i].lock[j].l_start = start;
-							(*shared_locks)[i].lock[j].l_len = rec_len;
-							break;
-						}
 						case WR_IND:
 						{
 							(*shared_locks)[i].lock[j].l_type = F_WRLCK;
 							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
 							(*shared_locks)[i].lock[j].l_start = start;
 							(*shared_locks)[i].lock[j].l_len = rec_len;
+							(*shared_locks)[i].lock[0].l_pid = getpid();
 							break;
 						}
 						default:
@@ -332,7 +306,7 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 		}
 	}
 
-	if ((*lock_pos == 0) && (*shared_locks)[0].file_name[0] != '\0')
+	if (*lock_pos == 0)
 	{
 		unsigned char file_lockable = 0;
 		for (int i = 0; i < MAX_NR_FILE_LOCKABLE; i++)
@@ -355,13 +329,16 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 		switch (mode)
 		{
 		case RD_HEADER:
+		case RD_REC:
+		case RD_IND:
 		{
 			(*shared_locks)[*lock_pos].lock[0].l_type = F_RDLCK;
 			(*shared_locks)[*lock_pos].lock[0].l_whence = SEEK_SET;
 			(*shared_locks)[*lock_pos].lock[0].l_start = start;
 			(*shared_locks)[*lock_pos].lock[0].l_len = rec_len;
+			(*shared_locks)[*lock_pos].lock[0].l_pid = getpid();
 
-			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n), "%s", file_n) < 0)
+			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n) + 1, "%s", file_n) < 0)
 			{
 				printf("snprintf() failed, %s:%d.\n", F, L - 3);
 				sem_post(sem);
@@ -371,13 +348,16 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 			break;
 		}
 		case WR_HEADER:
+		case WR_REC:
+		case WR_IND:
 		{
 			(*shared_locks)[*lock_pos].lock[0].l_type = F_WRLCK;
 			(*shared_locks)[*lock_pos].lock[0].l_whence = SEEK_SET;
 			(*shared_locks)[*lock_pos].lock[0].l_start = start;
 			(*shared_locks)[*lock_pos].lock[0].l_len = MAX_HD_SIZE;
+			(*shared_locks)[*lock_pos].lock[0].l_pid = getpid();
 
-			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n), "%s", file_n) < 0)
+			if (snprintf((*shared_locks)[*lock_pos].file_name, strlen(file_n) + 1, "%s", file_n) < 0)
 			{
 				printf("snprintf() failed, %s:%d.\n", F, L - 3);
 				sem_post(sem);
@@ -400,7 +380,7 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 	return 1;
 }
 
-unsigned char release_lock_smo(lock_info **shared_locks, int lock_pos, int lock_pos_arr)
+unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos, int *lock_pos_arr)
 {
 	if (!*shared_locks)
 		return 0;
@@ -421,18 +401,21 @@ unsigned char release_lock_smo(lock_info **shared_locks, int lock_pos, int lock_
 	}
 
 	/* it is safe to read the smo*/
-	(*shared_locks)[lock_pos].lock[lock_pos_arr].l_type = F_UNLCK;
-	(*shared_locks)[lock_pos].lock[lock_pos_arr].l_whence = SEEK_SET;
+	(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_type = F_UNLCK;
+	(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_whence = SEEK_SET;
 	/* decrease the lock number on the file*/
-	(*shared_locks)[lock_pos].lock_num--;
+	(*shared_locks)[*lock_pos].lock_num--;
 
-	if ((*shared_locks)[lock_pos].lock_num == 0)
+	if ((*shared_locks)[*lock_pos].lock_num == 0)
 	{
-		memset((*shared_locks)[lock_pos].file_name, 0, sizeof((*shared_locks)[lock_pos].file_name));
+		memset((*shared_locks)[*lock_pos].file_name, 0, sizeof((*shared_locks)[*lock_pos].file_name));
 	}
 
 	sem_post(sem);
 	sem_close(sem);
+	/*reset the pointers reference, this make sure the subsequent locks are aquired correctly*/
+	*lock_pos = 0;
+	*lock_pos_arr = 0;
 	return 1;
 }
 

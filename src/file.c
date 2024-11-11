@@ -394,6 +394,7 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR)
 	{
 		__er_file_pointer(F, L - 2);
+		free(*ht);
 		return 0;
 	}
 
@@ -419,6 +420,15 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 			if (move_in_file_bytes(fd, sizeof(int)) == STATUS_ERROR)
 			{
 				__er_file_pointer(F, L - 2);
+				if (*ht)
+				{
+					int j = 0;
+					for (j = 0; j < i; j++)
+					{
+						destroy_hasht(&((*ht)[j]));
+					}
+					free(*ht);
+				}
 				return 0;
 			}
 		}
@@ -1233,4 +1243,31 @@ int padding_file(int fd, int bytes, size_t hd_st)
 	}
 
 	return 1; // succssed
+}
+
+off_t get_file_size(int fd, char *file_name)
+{
+	struct stat st;
+	if (!file_name)
+	{
+		if (fstat(fd, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (off_t)st.st_size;
+	}
+	else
+	{
+		if (stat(file_name, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (off_t)st.st_size;
+	}
 }
