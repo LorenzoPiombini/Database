@@ -6,8 +6,10 @@
 
 void loop_str_arr(char **str, int len);
 void __er_file_pointer(char *file, int line);
+void __er_write_to_file(char *file, int line);
 void __er_calloc(char *file, int line);
 void __er_munmap(char *file, int line);
 void __er_release_lock_smo(char *file, int line);
+void __er_acquire_lock_smo(char *file, int line);
 
 #endif /* debug.h */

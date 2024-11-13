@@ -84,24 +84,24 @@ memory:
 
 clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
-	sudo rm -f $(INCLUDEDIR)/file.c $(INCLUDEDIR)/str_op.c $(INCLUDEDIR)/record.c $(INCLUDEDIR)/record.h 
+	sudo rm -f $(INCLUDEDIR)/file.c $(INCLUDEDIR)/str_op.c $(INCLUDEDIR)/record.c $(INCLUDEDIR)/parse.h 
 	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) 
 	sudo ldconfig
 	rm -f obj/*.o 
 	rm -f bin/*
+	rm *.so
 	sudo rm -f $(TARGET)
 	rm *.dat *.inx
 	rm *core*
 	 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $?
+	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack
 
 
 
 obj/%.o : src/%.c
-	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude  
-
-
+	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fpie -fPIE -pie #-fsanitize=address
+#	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 $(BINDIR)/GET:
 	@if [ !  -f $@ ]; then \

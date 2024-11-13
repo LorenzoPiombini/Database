@@ -29,22 +29,24 @@ char **two_file_path(char *file_path)
 		{
 			free(index);
 		}
-
 		return NULL;
 	}
 
-	strncpy(index, file_path, strlen(file_path));
-	strcat(index, ind);
-
-	strncpy(data, file_path, strlen(file_path));
-	strcat(data, dat);
+	if (snprintf(index, len, "%s%s", file_path, ind) < 0 ||
+		snprintf(data, len, "%s%s", file_path, dat) < 0)
+	{
+		printf("snprintf() failed, %s:%d.\n", F, L - 3);
+		free(index);
+		free(data);
+		return NULL;
+	}
 
 	char **arr = calloc(2, sizeof(char *));
 	if (!arr)
 	{
 		free(index);
 		free(data);
-		printf("array memory, str_op.c l %d.\n", __LINE__ - 4);
+		__er_calloc(F, L - 4);
 		return NULL;
 	}
 
@@ -193,11 +195,14 @@ ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 	int i = steps == 3 ? 0 : 1;
 	int j = 0;
 
+	if (fields_count == 0)
+		return NULL;
+
 	ValueType *types = calloc(fields_count, sizeof(ValueType));
 
 	if (!types)
 	{
-		perror("memory");
+		__er_calloc(F, L - 3);
 		return NULL;
 	}
 

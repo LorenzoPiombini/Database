@@ -195,6 +195,10 @@ void free_ht_array(HashTable *ht, int l)
 }
 void destroy_hasht(HashTable *tbl)
 {
+
+	if (!tbl->dataMap)
+		return;
+
 	int i = 0;
 	for (i = 0; i < tbl->size; i++)
 	{
@@ -208,7 +212,8 @@ void destroy_hasht(HashTable *tbl)
 		}
 	}
 
-	free(tbl->dataMap);
+	if (tbl->dataMap)
+		free(tbl->dataMap);
 }
 
 char **keys(HashTable *ht)

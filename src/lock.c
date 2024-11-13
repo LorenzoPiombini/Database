@@ -209,6 +209,8 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 			else if ((*shared_locks)[i].lock_num < MAX_LOCK_IN_FILE)
 			{
 				/* check if one of the process is reading or writing the same region */
+				/* read is a non destructive operation, we can allowe different processes
+					to read the same region */
 				for (int y = 0; y < MAX_LOCK_IN_FILE; y++)
 				{
 					if ((*shared_locks)[i].lock[y].l_type != F_RDLCK &&
@@ -217,6 +219,14 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 
 					if ((*shared_locks)[i].lock[y].l_start == start)
 					{
+						if ((*shared_locks)[i].lock[y].l_type == F_RDLCK &&
+							(mode == RD_HEADER || mode == RD_REC || mode == RD_IND))
+						{
+							sem_post(sem);
+							sem_close(sem);
+							return 1;
+						}
+
 						if (!((*shared_locks)[i].lock[y].l_pid == getpid()))
 						{
 							sem_post(sem);
@@ -401,21 +411,31 @@ unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 	}
 
 	/* it is safe to read the smo*/
-	(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_type = F_UNLCK;
-	(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_whence = SEEK_SET;
-	/* decrease the lock number on the file*/
-	(*shared_locks)[*lock_pos].lock_num--;
 
-	if ((*shared_locks)[*lock_pos].lock_num == 0)
+	/*if the process owns the lock then release it */
+	if ((*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_pid == getpid())
 	{
-		memset((*shared_locks)[*lock_pos].file_name, 0, sizeof((*shared_locks)[*lock_pos].file_name));
+		(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_type = F_UNLCK;
+		(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_whence = SEEK_SET;
+		/* decrease the lock number on the file*/
+		(*shared_locks)[*lock_pos].lock_num--;
+
+		if ((*shared_locks)[*lock_pos].lock_num == 0)
+		{
+			memset((*shared_locks)[*lock_pos].file_name, 0,
+				   sizeof((*shared_locks)[*lock_pos].file_name));
+		}
+
+		sem_post(sem);
+		sem_close(sem);
+		/*reset the pointers reference, this make sure the subsequent locks are aquired correctly*/
+		*lock_pos = 0;
+		*lock_pos_arr = 0;
+		return 1;
 	}
 
 	sem_post(sem);
 	sem_close(sem);
-	/*reset the pointers reference, this make sure the subsequent locks are aquired correctly*/
-	*lock_pos = 0;
-	*lock_pos_arr = 0;
 	return 1;
 }
 
