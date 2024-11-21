@@ -8,8 +8,8 @@
 #include <string.h>
 #include "lock.h"
 #include "debug.h"
-#include "common.h"
 #include "parse.h"
+#include "common.h"
 
 /*
  *struct flock {
@@ -25,6 +25,8 @@
 			   ...
 		   };
  */
+
+lock_info *shared_locks = NULL;
 
 unsigned char free_memory_object(char *smo_name)
 {
@@ -210,7 +212,8 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 			{
 				/* check if one of the process is reading or writing the same region */
 				/* read is a non destructive operation, we can allowe different processes
-					to read the same region */
+					to read the same region, HOWEVER, a write Lock may be acquired
+					only if there are no locks whatsoever on the file */
 				for (int y = 0; y < MAX_LOCK_IN_FILE; y++)
 				{
 					if ((*shared_locks)[i].lock[y].l_type != F_RDLCK &&
@@ -257,9 +260,9 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 						return WTLK;
 					}
 
-					/*we need to ensure there is no write lock if we want to write to the file*/
-					if ((*shared_locks)[i].lock[y].l_type == F_WRLCK && (mode == WR_HEADER ||
-																		 mode == WR_REC || mode == WR_IND))
+					/*we need to ensure there is no locks are present
+							if we want to write to the file */
+					if (mode == WR_HEADER || mode == WR_REC || mode == WR_IND)
 					{
 						sem_post(sem);
 						sem_close(sem);
@@ -281,7 +284,7 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
 							(*shared_locks)[i].lock[j].l_start = start;
 							(*shared_locks)[i].lock[j].l_len = rec_len;
-							(*shared_locks)[i].lock[0].l_pid = getpid();
+							(*shared_locks)[i].lock[j].l_pid = getpid();
 							break;
 						}
 						case WR_REC:
@@ -292,7 +295,7 @@ unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 							(*shared_locks)[i].lock[j].l_whence = SEEK_SET;
 							(*shared_locks)[i].lock[j].l_start = start;
 							(*shared_locks)[i].lock[j].l_len = rec_len;
-							(*shared_locks)[i].lock[0].l_pid = getpid();
+							(*shared_locks)[i].lock[j].l_pid = getpid();
 							break;
 						}
 						default:

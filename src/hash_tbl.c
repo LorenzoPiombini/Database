@@ -126,25 +126,30 @@ int set(char *key, off_t value, HashTable *tbl)
 	}
 	else
 	{
-
-		if (strcmp(tbl->dataMap[index]->key, key) == 0)
+		size_t key_len = 0;
+		if ((key_len = strlen(tbl->dataMap[index]->key)) == strlen(key))
 		{
-			printf("key %s, already exist.\n", key);
-			free(newNode->key);
-			free(newNode);
-			return 0;
-		}
-
-		Node *temp = tbl->dataMap[index];
-		while (temp->next != NULL)
-		{
-			if (strcmp(temp->next->key, key) == 0)
+			if (strncmp(tbl->dataMap[index]->key, key, ++key_len) == 0)
 			{
-				printf("could not insert new node \"%s\"\n", key);
-				printf("key already exist. Choose another key value.");
+				printf("key %s, already exist.\n", key);
 				free(newNode->key);
 				free(newNode);
 				return 0;
+			}
+		}
+		Node *temp = tbl->dataMap[index];
+		while (temp->next != NULL)
+		{
+			if ((key_len = strlen(tbl->dataMap[index]->key)) == strlen(key))
+			{
+				if (strncmp(temp->next->key, key, ++key_len) == 0)
+				{
+					printf("could not insert new node \"%s\"\n", key);
+					printf("key already exist. Choose another key value.");
+					free(newNode->key);
+					free(newNode);
+					return 0;
+				}
 			}
 			temp = temp->next;
 		}
@@ -192,6 +197,8 @@ void free_ht_array(HashTable *ht, int l)
 	{
 		destroy_hasht(&ht[i]);
 	}
+
+	free(ht);
 }
 void destroy_hasht(HashTable *tbl)
 {
@@ -280,6 +287,8 @@ void free_nodes(Node **dataMap, int size)
 
 	free(dataMap);
 }
+/*if mode is set to 1 it will overwrite the condtent of dest
+	if mode is 0 then the src HashTable will be added to the dest, maintaing whatever is in dest*/
 
 unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 {

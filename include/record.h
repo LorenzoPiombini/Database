@@ -5,8 +5,6 @@
 
 typedef unsigned char byte;
 
-typedef struct Record Record;
-
 typedef enum
 {
 	TYPE_INT,

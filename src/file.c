@@ -403,15 +403,7 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 		if (read_index_file(fd, &((*ht)[i])) == STATUS_ERROR)
 		{
 			printf("read from file failed. %s:%d.\n", F, L - 2);
-			if (*ht)
-			{
-				int j = 0;
-				for (j = 0; j < i; j++)
-				{
-					destroy_hasht(&((*ht)[j]));
-				}
-				free(*ht);
-			}
+			free_ht_array(*ht, i);
 			return 0;
 		}
 
@@ -420,15 +412,7 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 			if (move_in_file_bytes(fd, sizeof(int)) == STATUS_ERROR)
 			{
 				__er_file_pointer(F, L - 2);
-				if (*ht)
-				{
-					int j = 0;
-					for (j = 0; j < i; j++)
-					{
-						destroy_hasht(&((*ht)[j]));
-					}
-					free(*ht);
-				}
+				free_ht_array(*ht, i);
 				return 0;
 			}
 		}
@@ -497,8 +481,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 			off_t value = (off_t)bswap_64(v_n);
 			key[size] = '\0';
-			Node *newNode = malloc(sizeof(Node));
-
+			Node *newNode = calloc(1, sizeof(Node));
 			if (!newNode)
 			{
 				perror("memory for node");
@@ -508,6 +491,13 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			}
 
 			newNode->key = strdup(key);
+			if (!newNode->key)
+			{
+				printf("strdup() failed, %s:%d.\n", F, L - 3);
+				free_nodes(dataMap, size);
+				free(key);
+				return 0;
+			}
 			free(key);
 			newNode->value = value;
 			newNode->next = NULL;

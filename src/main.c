@@ -113,7 +113,8 @@ int main(int argc, char *argv[])
 	}
 
 	if (!check_input_and_values(file_path, data_to_add, key,
-								argv, del, list_def, new_file, update, del_file, build, create))
+								argv, del, list_def, new_file, update, del_file,
+								build, create, options))
 	{
 		return 1;
 	}
@@ -532,10 +533,11 @@ int main(int argc, char *argv[])
 		   if there is, we map it to the lock_info* so we can read and write to the struct
 		   data to share with the main program any lock to the files*/
 
-		lock_info *shared_locks = NULL;
 		int fd_mo = shm_open(SH_ILOCK, O_RDWR, 0666);
 		if (fd_mo != -1)
 		{
+			/*shared locks is declared as a global variable in lock.h and define as NULL
+				inside lock.c */
 			shared_locks = mmap(NULL, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE,
 								PROT_READ | PROT_WRITE, MAP_SHARED, fd_mo, 0);
 		}
@@ -1447,6 +1449,107 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
+			int indexes = 0;
+			if (!indexes_on_file(fd_index, &indexes))
+			{
+				printf("indexes_on_file() failed, %s:%d.\n", F, L - 2);
+				free_strs(2, 1, files);
+				close_file(2, fd_index, fd_data);
+				if (ht)
+				{
+					int i = 0;
+					for (i = 0; i < index; i++)
+					{
+						destroy_hasht(&ht[i]);
+					}
+					free(ht);
+				}
+				if (shared_locks)
+				{
+					int result_i = 0, result_d = 0;
+					do
+					{
+						if ((result_i = release_lock_smo(&shared_locks,
+														 plp_i, plpa_i)) == 0 ||
+							(result_d = release_lock_smo(&shared_locks,
+														 plp, plpa)) == 0)
+						{
+							printf("release_lock_smo() failed,%s:%d.\n", F, L - 8);
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(1, fd_mo);
+								return 1;
+							}
+							close_file(1, fd_mo);
+							return 1;
+						}
+
+					} while (result_d == WTLK || result_i == WTLK);
+
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(1, fd_mo);
+						return 1;
+					}
+					close_file(1, fd_mo);
+					return 1;
+				}
+				return 1;
+			}
+
+			if (index_nr >= indexes)
+			{
+				printf("index out of bound.\n");
+				free_strs(2, 1, files);
+				close_file(2, fd_index, fd_data);
+				if (ht)
+				{
+					int i = 0;
+					for (i = 0; i < index; i++)
+					{
+						destroy_hasht(&ht[i]);
+					}
+					free(ht);
+				}
+				if (shared_locks)
+				{
+					int result_i = 0, result_d = 0;
+					do
+					{
+						if ((result_i = release_lock_smo(&shared_locks,
+														 plp_i, plpa_i)) == 0 ||
+							(result_d = release_lock_smo(&shared_locks,
+														 plp, plpa)) == 0)
+						{
+							printf("release_lock_smo() failed,%s:%d.\n", F, L - 8);
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(1, fd_mo);
+								return 1;
+							}
+							close_file(1, fd_mo);
+							return 1;
+						}
+
+					} while (result_d == WTLK || result_i == WTLK);
+
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(1, fd_mo);
+						return 1;
+					}
+					close_file(1, fd_mo);
+					return 1;
+				}
+				return 1;
+			}
+
 			Node *record_del = delete (key, &ht[index_nr]);
 			if (!record_del)
 			{
@@ -2297,7 +2400,7 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 				close_file(1, fd_mo);
-				return 1;
+				return 0;
 			}
 
 			return 0;
@@ -4445,6 +4548,7 @@ int main(int argc, char *argv[])
 			{
 				printf("reading index file failed, %s:%d.\n", F, L - 1);
 				close_file(2, fd_index, fd_data);
+				free_schema(&hd.sch_d);
 				free_strs(2, 1, files);
 				if (shared_locks)
 				{ /*release the locks before exit*/

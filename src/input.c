@@ -45,7 +45,7 @@ void print_types(void)
 int check_input_and_values(char *file_path, char *data_to_add, char *key, char *argv[],
                            unsigned char del, unsigned char list_def, unsigned char new_file,
                            unsigned char update, unsigned char del_file, unsigned char build,
-                           unsigned char create)
+                           unsigned char create, unsigned char options)
 {
 
         if (create && (file_path || del || update || del_file || list_def ||
@@ -100,7 +100,7 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                 return 0;
         }
 
-        if (del && !key)
+        if ((del && !key) && !options)
         {
                 printf("missing record key, option -k.\n");
                 print_usage(argv);

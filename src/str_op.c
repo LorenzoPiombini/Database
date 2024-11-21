@@ -366,7 +366,7 @@ char return_first_char(char *str)
 char return_last_char(char *str)
 {
 	size_t l = strlen(str);
-	return str[l];
+	return str[l - 1];
 }
 
 size_t digits_with_decimal(float n)
@@ -459,28 +459,8 @@ size_t number_of_digit(int n)
 
 	return -1;
 }
-unsigned char assemble_key(char ***key, int n, char c, char *str)
-{
-	size_t len = number_of_digit(n) + strlen(str) + 2; /* 1 is the char c, and 1 is for '\0' so + 2*/
 
-	*(*key) = calloc(len, sizeof(char));
-	if (!*(*key))
-	{
-		printf("calloc failed. %s:%d", F, L - 2);
-		return 0;
-	}
-
-	if (snprintf(*(*key), len, "%c%d%s", c, n, str) < 0)
-	{
-		printf("key generation failed. %s:%d.\n", F, L - 2);
-		free(key);
-		return 0;
-	}
-
-	return 1;
-}
-
-float __round(float n)
+float __round_alt(float n)
 {
 	char buff[20];
 	if (snprintf(buff, 20, "%f", n) < 0)

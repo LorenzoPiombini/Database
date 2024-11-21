@@ -15,13 +15,14 @@
 #define WT_RSLK 8
 
 /* lock info for a file */
-/*--! to be used in case you need a shared memory object !--*/
 typedef struct
 {
     struct flock lock[MAX_LOCK_IN_FILE];
     unsigned char lock_num;
     char file_name[256];
 } lock_info;
+
+extern lock_info *shared_locks;
 
 /*type of operations performed on a file in the system */
 typedef enum

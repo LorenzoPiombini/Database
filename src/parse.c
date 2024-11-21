@@ -765,18 +765,16 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 	}
 
 	char **temp_val = calloc(fields_num, sizeof(char *));
-
 	if (!temp_val)
 	{
-		printf("could not perform calloc,(parse.c l 612).\n");
+		__er_calloc(F, L - 3);
 		return 0;
 	}
 
 	char **temp_name = calloc(fields_num, sizeof(char *));
-
 	if (!temp_name)
 	{
-		printf("could not perform calloc, (parse.c l 620).\n");
+		__er_calloc(F, L - 3);
 		free(temp_val);
 		return 0;
 	}

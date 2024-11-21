@@ -40,6 +40,6 @@ size_t digits_with_decimal(float n);
 unsigned char is_floaintg_point(char *str);
 unsigned char is_integer(char *str);
 size_t number_of_digit(int n);
-float __round(float n);
+float __round_alt(float n);
 unsigned char is_number_in_limits(char *value);
 #endif

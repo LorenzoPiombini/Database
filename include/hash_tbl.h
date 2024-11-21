@@ -30,4 +30,4 @@ int len(HashTable tbl);
 void free_nodes(Node **dataMap, int size);
 unsigned char copy_ht(HashTable *src, HashTable *dest, int mode);
 
-#endif /*hash_tbl.h*/
+#endif /* hash_tbl.h */
