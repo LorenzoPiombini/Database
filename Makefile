@@ -259,6 +259,6 @@ install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(
 	ldconfig
 	
 
-build: clean default library install
+build: default library install
  
 .PHONY: default test memory clean install library check-linker-path
