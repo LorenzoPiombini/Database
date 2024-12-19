@@ -9,7 +9,10 @@ as for now, this software is ment to be for **Linux/Unix** systems, and it has b
 
 ## Get Started
 
-To get started, you can either clone the repository or download the files directly to your machine.
+clone this repo:
+``plaintext
+[adminuser@new-host-5 ~]$ git clone https://github.com/LorenzoPiombini/isam.db-C-language.git
+``
 
 ## Makefile rules
 
