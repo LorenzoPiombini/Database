@@ -7,6 +7,7 @@ OBJlibs = obj/debug.o  obj/str_op.o
 OBJlibr = obj/debug.o  obj/record.o
 OBJlibp = obj/debug.o  obj/sort.o obj/parse.o
 OBJlibl = obj/debug.o  obj/lock.o
+OBJlibbst = obj/debug.o  obj/bst.o obj/str_op.o
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
@@ -39,10 +40,23 @@ LIBNAMEl = lock
 LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBl = lib$(LIBNAMEl).so
+
+LIBNAMEbst = bst
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBbst = lib$(LIBNAMEbst).so
+
 SCRIPTS = GET FILE LIST WRITE UPDATE DEL DELa KEYS 
 
 default: $(TARGET)
 
+
+check-linker-path:
+	@if [ ! -f /etc/ld.so.conf.d/customtech.conf ]; then \
+		echo "setting linker configuration..." ;\
+		echo "/usrlocal/lib" | sudo tee /etc/ld.so.conf.d/customtech.conf >/dev/null ;\
+		sudo ldconfig;\
+	fi
 
 library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBht) $(OBJlibht)
@@ -51,6 +65,7 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBbst) $(OBJlibbst)
 
 test:	
 	$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
@@ -231,15 +246,16 @@ $(BINDIR)/DELa:
 		chmod +x $@; \
 	fi
 
-install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
+install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h $(INCLUDEDIR)/
+	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
 	install -m 755 $(SHAREDLIBs) $(LIBDIR)
 	install -m 755 $(SHAREDLIBr) $(LIBDIR)
 	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
-	install -m 755 $(SHAREDLIBl) $(LIBDIR) 
+	install -m 755 $(SHAREDLIBl) $(LIBDIR)
+	install -m 755 $(SHAREDLIBbst) $(LIBDIR)
 	ldconfig
-
-.PHONY: default test memory clean install library
+	
+.PHONY: default test memory clean install library check-linker-path
