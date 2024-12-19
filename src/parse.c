@@ -10,10 +10,11 @@
 #include "sort.h"
 #include "debug.h"
 
-Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char *buf_t, char *buf_v, Schema *sch, int check_sch)
+struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char *buf_t, char *buf_v,
+									struct Schema *sch, int check_sch)
 {
 
-	Record_f *rec = NULL;
+	struct Record_f *rec = NULL;
 	if (check_sch != SCHEMA_CT)
 	{
 		rec = create_record(file_path, fields_num);
@@ -96,7 +97,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 		}
 	}
 
-	ValueType *types_i = get_value_types(buf_t, fields_num, 3);
+	enum ValueType *types_i = get_value_types(buf_t, fields_num, 3);
 
 	if (!types_i)
 	{
@@ -108,7 +109,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (sch && check_sch == 0)
 	{ /* true when a new file is created or when the schema input is partial*/
-		ValueType *sch_types = calloc(fields_num, sizeof(ValueType));
+		enum ValueType *sch_types = calloc(fields_num, sizeof(enum ValueType));
 
 		if (!sch_types)
 		{
@@ -174,7 +175,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 			return NULL;
 		}
 
-		ValueType *types_n = realloc(sch->types, fields_num * sizeof(ValueType));
+		enum ValueType *types_n = realloc(sch->types, fields_num * sizeof(enum ValueType));
 
 		if (!types_n)
 		{ /*do not free sch->fields_name */
@@ -207,7 +208,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 
 	if (check_sch == SCHEMA_CT)
 	{ /*the input contain one or more BUT NOT ALL, fields in the schema*/
-		Record_f *temp = create_record(file_path, sch->fields_num);
+		struct Record_f *temp = create_record(file_path, sch->fields_num);
 		if (!temp)
 		{
 			printf("create record failed, parse.c l %d.\n", __LINE__ - 4);
@@ -312,7 +313,7 @@ Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffer, char
 	return rec;
 }
 
-void free_schema(Schema *sch)
+void free_schema(struct Schema *sch)
 {
 	if (!sch)
 		return;
@@ -336,7 +337,7 @@ void free_schema(Schema *sch)
 		free(sch->types);
 }
 
-int create_header(Header_d *hd)
+int create_header(struct Header_d *hd)
 {
 
 	if (hd->sch_d.fields_name == NULL ||
@@ -352,7 +353,7 @@ int create_header(Header_d *hd)
 	return 1;
 }
 
-int write_empty_header(int fd, Header_d *hd)
+int write_empty_header(int fd, struct Header_d *hd)
 {
 
 	uint32_t id = htonl(hd->id_n); /*converting the endianess*/
@@ -383,7 +384,7 @@ int write_empty_header(int fd, Header_d *hd)
 	return 1;
 }
 
-int write_header(int fd, Header_d *hd)
+int write_header(int fd, struct Header_d *hd)
 {
 	if (hd->sch_d.fields_name == NULL ||
 		hd->sch_d.types == NULL)
@@ -456,7 +457,7 @@ int write_header(int fd, Header_d *hd)
 	return 1; // succseed
 }
 
-int read_header(int fd, Header_d *hd)
+int read_header(int fd, struct Header_d *hd)
 {
 	unsigned int id = 0;
 	if (read(fd, &id, sizeof(id)) == -1)
@@ -557,7 +558,7 @@ int read_header(int fd, Header_d *hd)
 		}
 	}
 
-	ValueType *types_h = calloc(hd->sch_d.fields_num, sizeof(ValueType));
+	enum ValueType *types_h = calloc(hd->sch_d.fields_num, sizeof(enum ValueType));
 	if (!types_h)
 	{
 		printf("calloc failed, parse.c l %d.\n", __LINE__ - 3);
@@ -581,7 +582,7 @@ int read_header(int fd, Header_d *hd)
 	return 1; // successed
 }
 
-unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d hd)
+unsigned char ck_input_schema_fields(char **names, enum ValueType *types_i, struct Header_d hd)
 {
 	int fields_eq = 0;
 	int types_eq = 0;
@@ -594,7 +595,7 @@ unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d 
 		return 0;
 	}
 
-	ValueType types_cp[hd.sch_d.fields_num];
+	enum ValueType types_cp[hd.sch_d.fields_num];
 
 	register unsigned char i = 0;
 	for (i = 0; i < hd.sch_d.fields_num; i++)
@@ -635,12 +636,12 @@ unsigned char ck_input_schema_fields(char **names, ValueType *types_i, Header_d 
 	return SCHEMA_EQ;
 }
 
-unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
+unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Header_d hd)
 {
 	char *names_cs = strdup(buffer);
 	char *types_cs = strdup(buf_t);
 
-	ValueType *types_i = get_value_types(types_cs, fields_n, 3);
+	enum ValueType *types_i = get_value_types(types_cs, fields_n, 3);
 
 	if (!types_i)
 	{
@@ -746,7 +747,7 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, Header_d hd)
 	return 1;
 }
 
-int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, char **names, char **values, ValueType *types_i)
+int sort_input_like_header_schema(int schema_tp, int fields_num, struct Schema *sch, char **names, char **values, enum ValueType *types_i)
 {
 	int f_n = schema_tp == SCHEMA_NW ? sch->fields_num : fields_num;
 	int value_pos[f_n];
@@ -779,7 +780,7 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 		return 0;
 	}
 
-	ValueType temp_types[fields_num];
+	enum ValueType temp_types[fields_num];
 
 	for (i = 0; i < f_n; i++)
 	{
@@ -799,7 +800,7 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, Schema *sch, ch
 	return 1;
 }
 
-unsigned char ck_schema_contain_input(char **names, ValueType *types_i, Header_d hd, int fields_num)
+unsigned char ck_schema_contain_input(char **names, enum ValueType *types_i, struct Header_d hd, int fields_num)
 {
 	// printf("fields are %d",fields_num);
 	register unsigned char i = 0, j = 0;
@@ -831,7 +832,7 @@ unsigned char ck_schema_contain_input(char **names, ValueType *types_i, Header_d
 	return SCHEMA_ERR;
 }
 
-unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, Schema *sch)
+unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, struct Schema *sch)
 {
 	char **names = get_fileds_name(buffer, fields_num, 2);
 
@@ -841,7 +842,7 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, Sc
 		return 0;
 	}
 
-	ValueType *types_i = get_value_types(buf_t, fields_num, 2);
+	enum ValueType *types_i = get_value_types(buf_t, fields_num, 2);
 
 	if (!types_i)
 	{
@@ -884,7 +885,7 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, Sc
 	/* char** and ValueTypes will be used if any of the fields are already in the schema */
 	/* -------------- so we do not need to add them or add them twice  ------------------*/
 	char **names_n = NULL;
-	ValueType *types_i_n = NULL;
+	enum ValueType *types_i_n = NULL;
 
 	if (new_fields) /* check which fields are already in the schema if any */
 	{
@@ -945,7 +946,7 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, Sc
 
 	sch->fields_name = new_names;
 
-	ValueType *new_types = realloc(sch->types, (sch->fields_num + actual_fields) * sizeof(int));
+	enum ValueType *new_types = realloc(sch->types, (sch->fields_num + actual_fields) * sizeof(int));
 	if (!new_types)
 	{
 		printf("realloc failed. %s:%d", F, L - 3);
@@ -1007,7 +1008,7 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, Sc
 	return 1;
 }
 
-int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, Schema *sch)
+int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, struct Schema *sch)
 {
 
 	char **names = get_fileds_name(buffer, fields_num, 2);
@@ -1021,6 +1022,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	/*check if the fields name are correct- if not - input is incorrect */
 	for (int i = 0; i < fields_num; i++)
 	{
+
 		if (names[i] == NULL)
 		{
 			printf("invalid input.\n");
@@ -1043,6 +1045,14 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		{
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
+			free_strs(fields_num, 1, names);
+			return 0;
+		}
+
+		if (strlen(names[i]) > MAX_FIELD_LT)
+		{
+			printf("invalid input.\n");
+			printf("one or more filed names are too long.\n");
 			free_strs(fields_num, 1, names);
 			return 0;
 		}
@@ -1087,7 +1097,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		}
 	}
 
-	ValueType *types_i = get_value_types(buf_t, fields_num, 2);
+	enum ValueType *types_i = get_value_types(buf_t, fields_num, 2);
 
 	if (!types_i)
 	{
@@ -1116,7 +1126,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	}
 	if (sch)
 	{
-		ValueType *sch_types = calloc(fields_num, sizeof(ValueType));
+		enum ValueType *sch_types = calloc(fields_num, sizeof(enum ValueType));
 
 		if (!sch_types)
 		{
@@ -1140,7 +1150,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 }
 
 unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_count, int fd_data,
-									   char *file_path, Record_f **rec, Header_d *hd)
+									   char *file_path, struct Record_f **rec, struct Header_d *hd)
 {
 
 	// check if the schema on the file is equal to the input Schema.
@@ -1183,8 +1193,9 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 	return 1;
 }
 
-unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Record_f **new_rec,
-										 char *file_path, unsigned char check, char *buffer, int fields_num)
+unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec,
+										 struct Record_f **new_rec, char *file_path,
+										 unsigned char check, char *buffer, int fields_num)
 {
 	unsigned char i = 0, j = 0;
 
@@ -1319,7 +1330,7 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 			return 0;
 		}
 
-		ValueType *types_i = calloc(elements, sizeof(ValueType));
+		enum ValueType *types_i = calloc(elements, sizeof(enum ValueType));
 
 		if (!types_i)
 		{
@@ -1443,7 +1454,7 @@ unsigned char compare_old_rec_update_rec(Record_f **rec_old, Record_f *rec, Reco
 	}
 	return 0;
 }
-void find_fields_to_update(Record_f **recs_old, char *positions, Record_f *rec, int index)
+void find_fields_to_update(struct Record_f **recs_old, char *positions, struct Record_f *rec, int index)
 {
 	int i = 0, j = 0, x = 0;
 	for (i = 0; i < index; i++)
@@ -1537,8 +1548,9 @@ void find_fields_to_update(Record_f **recs_old, char *positions, Record_f *rec, 
 	}
 }
 
-unsigned char create_new_fields_from_schema(Record_f **recs_old, Record_f *rec, Schema *sch, int index,
-											Record_f **new_rec, char *file_path)
+unsigned char create_new_fields_from_schema(struct Record_f **recs_old, struct Record_f *rec,
+											struct Schema *sch, int index,
+											struct Record_f **new_rec, char *file_path)
 {
 	int i = 0;
 	unsigned char sum = 0;
@@ -1648,7 +1660,7 @@ unsigned char create_new_fields_from_schema(Record_f **recs_old, Record_f *rec, 
 	return 1;
 }
 
-void print_schema(Schema sch)
+void print_schema(struct Schema sch)
 {
 	if (sch.fields_name && sch.types)
 	{
@@ -1691,7 +1703,7 @@ void print_schema(Schema sch)
 	printf("\n");
 }
 
-void print_header(Header_d hd)
+void print_header(struct Header_d hd)
 {
 	printf("Header: \n");
 	printf("id: %x,\nversion: %d", hd.id_n, hd.version);
@@ -1703,7 +1715,7 @@ size_t compute_size_header(void *header)
 {
 	size_t sum = 0;
 
-	Header_d *hd = (Header_d *)header;
+	struct Header_d *hd = (struct Header_d *)header;
 
 	sum += sizeof(hd->id_n) + sizeof(hd->version) + sizeof(hd->sch_d.fields_num) + sizeof(hd->sch_d);
 	int i = 0;
@@ -1720,4 +1732,154 @@ size_t compute_size_header(void *header)
 
 	sum += hd->sch_d.fields_num; // acounting for n '\0'
 	return sum;
+}
+
+unsigned char create_data_to_add(struct Schema *sch, char **data_to_add)
+{
+	size_t current_size = 1;
+	*data_to_add = calloc(1, sizeof(char));
+	if (!(*data_to_add))
+	{
+		__er_calloc(F, L - 3);
+		return 0;
+	}
+
+	for (int i = 0; i < sch->fields_num; i++)
+	{
+		size_t l = strlen(sch->fields_name[i]);
+		current_size += l;
+		char *nw_dta = realloc(*data_to_add, current_size * sizeof(char));
+		if (!nw_dta)
+		{
+			__er_realloc(F, L - 3);
+			free(*data_to_add);
+			return 0;
+		}
+
+		*data_to_add = nw_dta;
+
+		if (i == 0)
+			strncpy((*data_to_add), sch->fields_name[i], current_size);
+		else
+			strncpy((*data_to_add) + (current_size - l - 1), sch->fields_name[i], l + 1);
+
+		switch (sch->types[i])
+		{
+		case TYPE_INT:
+		{
+			char *t_i = (sch->fields_num - i) > 1 ? ":t_i:!:" : ":t_i:";
+			size_t len = strlen(t_i);
+			current_size += len;
+			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
+			if (!nw_snd_dta)
+			{
+				__er_realloc(F, L - 3);
+				free(*data_to_add);
+				return 0;
+			}
+
+			*data_to_add = nw_snd_dta;
+			strncpy((*data_to_add) + (current_size - len - 1), t_i, len + 1);
+
+			break;
+		}
+		case TYPE_LONG:
+		{
+			char *t_l = (sch->fields_num - i) > 1 ? ":t_l:!:" : ":t_l:";
+			size_t len = strlen(t_l);
+			current_size += len;
+			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
+			if (!nw_snd_dta)
+			{
+				__er_realloc(F, L - 3);
+				free(*data_to_add);
+				return 0;
+			}
+
+			*data_to_add = nw_snd_dta;
+			strncpy((*data_to_add) + (current_size - len - 1), t_l, len + 1);
+
+			break;
+			break;
+		}
+		case TYPE_BYTE:
+		{
+			char *t_b = (sch->fields_num - i) > 1 ? ":t_b:!:" : ":t_b:";
+			size_t len = strlen(t_b);
+			current_size += len;
+			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
+			if (!nw_snd_dta)
+			{
+				__er_realloc(F, L - 3);
+				free(*data_to_add);
+				return 0;
+			}
+
+			*data_to_add = nw_snd_dta;
+			strncpy((*data_to_add) + (current_size - len - 1), t_b, len + 1);
+
+			break;
+		}
+		case TYPE_STRING:
+		{
+			char *t_s = (sch->fields_num - i) > 1 ? ":t_s:!:" : ":t_s:";
+			size_t len = strlen(t_s);
+			current_size += len;
+			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
+			if (!nw_snd_dta)
+			{
+				__er_realloc(F, L - 3);
+				free(*data_to_add);
+				return 0;
+			}
+
+			*data_to_add = nw_snd_dta;
+			strncpy((*data_to_add) + (current_size - len - 1), t_s, len + 1);
+
+			break;
+		}
+		case TYPE_DOUBLE:
+		{
+			char *t_d = (sch->fields_num - i) > 1 ? ":t_d:!:" : ":t_d:";
+			size_t len = strlen(t_d);
+			current_size += len;
+			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
+			if (!nw_snd_dta)
+			{
+				__er_realloc(F, L - 3);
+				free(*data_to_add);
+				return 0;
+			}
+
+			*data_to_add = nw_snd_dta;
+			strncpy((*data_to_add) + (current_size - len - 1), t_d, len + 1);
+
+			break;
+		}
+		case TYPE_FLOAT:
+		{
+			char *t_f = (sch->fields_num - i) > 1 ? ":t_f:!:" : ":t_f:";
+			size_t len = strlen(t_f);
+			current_size += len;
+			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
+			if (!nw_snd_dta)
+			{
+				__er_realloc(F, L - 3);
+				free(*data_to_add);
+				return 0;
+			}
+
+			*data_to_add = nw_snd_dta;
+			strncpy((*data_to_add) + (current_size - len - 1), t_f, len + 1);
+
+			break;
+		}
+		default:
+			printf("unkown type!\n");
+			return 0;
+		}
+	}
+
+	replace(' ', '_', *data_to_add);
+	return 1;
 }

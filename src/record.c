@@ -9,9 +9,9 @@
 #include "debug.h"
 #include "str_op.h"
 
-Record_f *create_record(char *file_name, int fields_num)
+struct Record_f *create_record(char *file_name, int fields_num)
 {
-	Record_f *rec = malloc(sizeof(Record_f));
+	struct Record_f *rec = malloc(sizeof(struct Record_f));
 
 	if (!rec)
 	{
@@ -28,7 +28,7 @@ Record_f *create_record(char *file_name, int fields_num)
 
 	rec->fields_num = fields_num;
 
-	rec->fields = calloc(fields_num, sizeof(Field));
+	rec->fields = calloc(fields_num, sizeof(struct Field));
 
 	if (!rec->fields)
 	{
@@ -41,7 +41,7 @@ Record_f *create_record(char *file_name, int fields_num)
 	return rec;
 }
 
-unsigned char set_field(Record_f *rec, int index, char *field_name, ValueType type, char *value)
+unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value)
 {
 	rec->fields[index].field_name = strdup(field_name);
 	rec->fields[index].type = type;
@@ -199,7 +199,7 @@ unsigned char set_field(Record_f *rec, int index, char *field_name, ValueType ty
 	return 1;
 }
 
-void free_record(Record_f *rec, int fields_num)
+void free_record(struct Record_f *rec, int fields_num)
 {
 	int i;
 	if (!rec)
@@ -222,7 +222,7 @@ void free_record(Record_f *rec, int fields_num)
 	free(rec);
 }
 
-void print_record(int count, Record_f **recs)
+void print_record(int count, struct Record_f **recs)
 {
 
 	int i = 0, j = 0, max = 0;
@@ -231,7 +231,7 @@ void print_record(int count, Record_f **recs)
 
 	for (j = 0; j < count; j++)
 	{
-		Record_f *rec = recs[j];
+		struct Record_f *rec = recs[j];
 		for (i = 0; i < rec->fields_num; i++)
 		{
 			if (max < (int)strlen(rec->fields[i].field_name))
@@ -273,7 +273,7 @@ void print_record(int count, Record_f **recs)
 	printf("\n#################################################################\n\n");
 }
 
-void free_record_array(int len, Record_f ***recs)
+void free_record_array(int len, struct Record_f ***recs)
 {
 	int i = 0;
 	for (i = 0; i < len; i++)
@@ -295,7 +295,7 @@ void free_record_array(int len, Record_f ***recs)
 	- int* len_ia => length inner array,  an array that keeps track of all the found records array sizes
 	- int size_ia => the actual size of len_ia,
 */
-void free_array_of_arrays(int len, Record_f ****array, int *len_ia, int size_ia)
+void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int size_ia)
 {
 	if (!*array)
 		return;
@@ -329,7 +329,7 @@ void free_array_of_arrays(int len, Record_f ****array, int *len_ia, int size_ia)
 	free(*array);
 }
 
-unsigned char copy_rec(Record_f *src, Record_f **dest)
+unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 {
 	*dest = create_record(src->file_name, src->fields_num);
 	if (!*dest)
@@ -437,7 +437,8 @@ unsigned char copy_rec(Record_f *src, Record_f **dest)
 	return 1;
 }
 
-unsigned char get_index_rec_field(char *field_name, Record_f **recs, int recs_len, int *field_i_r, int *rec_index)
+unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
+								  int recs_len, int *field_i_r, int *rec_index)
 {
 	int i = 0, j = 0;
 	size_t field_name_len = strlen(field_name);

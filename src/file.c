@@ -525,7 +525,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 size_t record_size_on_disk(void *rec_f)
 {
 	size_t rec_size = 0;
-	Record_f *rec = (Record_f *)rec_f;
+	struct Record_f *rec = (struct Record_f *)rec_f;
 
 	rec_size += sizeof(rec->fields_num);
 	/*each field name length*/
@@ -567,7 +567,7 @@ size_t record_size_on_disk(void *rec_f)
 	return rec_size;
 }
 
-int write_file(int fd, Record_f *rec, off_t update_off_t, unsigned char update)
+int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update)
 {
 	off_t go_back_to = 0;
 
@@ -933,7 +933,7 @@ off_t get_update_offset(int fd)
 	return (off_t)bswap_64(urec_ne);
 }
 
-Record_f *read_file(int fd, char *file_name)
+struct Record_f *read_file(int fd, char *file_name)
 {
 
 	uint32_t rfn_ne = 0;
@@ -945,7 +945,7 @@ Record_f *read_file(int fd, char *file_name)
 	}
 
 	int fields_num_r = htonl(rfn_ne);
-	Record_f *rec = create_record(file_name, fields_num_r);
+	struct Record_f *rec = create_record(file_name, fields_num_r);
 	if (!rec)
 	{
 		printf("create record failed, %s:%d.\n", __FILE__, __LINE__ - 2);
@@ -995,7 +995,7 @@ Record_f *read_file(int fd, char *file_name)
 			return NULL;
 		}
 
-		rec->fields[i].type = (ValueType)ntohl(ty_ne);
+		rec->fields[i].type = (enum ValueType)ntohl(ty_ne);
 		// keep writing endianness from here
 		switch (rec->fields[i].type)
 		{

@@ -12,8 +12,8 @@
 unsigned char create_empty_file(int fd_data, int fd_index, int bucket_ht)
 {
 
-	Schema sch = {0, NULL, NULL};
-	Header_d hd = {HEADER_ID_SYS, VS, sch};
+	struct Schema sch = {0, NULL, NULL};
+	struct Header_d hd = {HEADER_ID_SYS, VS, sch};
 
 	size_t hd_st = compute_size_header((void *)&hd);
 	if (hd_st >= MAX_HD_SIZE)
@@ -62,9 +62,9 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 	char *buf_t = strdup(data_to_add);
 	char *buf_v = strdup(data_to_add);
 
-	Record_f *rec = NULL;
-	Schema sch = {0, NULL, NULL};
-	Header_d hd = {0, 0, sch};
+	struct Record_f *rec = NULL;
+	struct Schema sch = {0, NULL, NULL};
+	struct Header_d hd = {0, 0, sch};
 
 	begin_in_file(fd_data);
 	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
@@ -161,7 +161,7 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 	char *buf_sdf = strdup(schema_def);
 	char *buf_t = strdup(schema_def);
 
-	Schema sch = {fields_count, NULL, NULL};
+	struct Schema sch = {fields_count, NULL, NULL};
 	if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
 	{
 		free(buf_sdf), free(buf_t);
@@ -169,7 +169,7 @@ unsigned char create_file_with_schema(int fd_data, int fd_index, char *schema_de
 		return 0;
 	}
 
-	Header_d hd = {0, 0, sch};
+	struct Header_d hd = {0, 0, sch};
 
 	if (!create_header(&hd))
 	{

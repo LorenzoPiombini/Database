@@ -8,6 +8,19 @@
 #include "hash_tbl.h"
 #include "debug.h"
 
+unsigned char hash_tbl_init(int bucket, HashTable *ht)
+{
+	(*ht).size = bucket;
+	(*ht).dataMap = calloc(bucket, sizeof(Node *));
+	if (!(*ht).dataMap)
+	{
+		__er_calloc(F, L - 3);
+		printf("%s() failed. %s:%d.\n", __func__, F, L);
+		return 0;
+	}
+
+	return 1;
+}
 void print_hash_table(HashTable tbl)
 {
 	int i = 0;

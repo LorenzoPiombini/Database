@@ -74,7 +74,7 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
         {
                 if (!is_file_name_valid(file_path))
                 {
-                        printf("file name or path not valid");
+                        printf("file name or path not valid.\n");
                         return 0;
                 }
         }

@@ -28,6 +28,11 @@ void __er_calloc(char *file, int line)
         printf("calloc failed, %s:%d.\n", file, line);
 }
 
+void __er_realloc(char *file, int line)
+{
+        printf("realloc failed, %s:%d.\n", file, line);
+}
+
 void __er_munmap(char *file, int line)
 {
         printf("munmap failed, %s:%d.\n", file, line);

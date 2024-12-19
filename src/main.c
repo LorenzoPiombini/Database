@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 			char *buf_sdf = strdup(schema_def);
 			char *buf_t = strdup(schema_def);
 
-			Schema sch = {fields_count, NULL, NULL};
+			struct Schema sch = {fields_count, NULL, NULL};
 
 			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
 			{
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			Header_d hd = {0, 0, sch};
+			struct Header_d hd = {0, 0, sch};
 
 			if (!create_header(&hd))
 			{
@@ -308,8 +308,9 @@ int main(int argc, char *argv[])
 			char *buf_t = strdup(data_to_add);
 			char *buf_v = strdup(data_to_add);
 
-			Schema sch = {0, NULL, NULL};
-			Record_f *rec = parse_d_flag_input(file_path, fields_count, buffer, buf_t, buf_v, &sch, 0);
+			struct Schema sch = {0, NULL, NULL};
+			struct Record_f *rec = parse_d_flag_input(file_path, fields_count,
+													  buffer, buf_t, buf_v, &sch, 0);
 
 			free(buffer), free(buf_t), free(buf_v);
 			if (!rec)
@@ -322,7 +323,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			Header_d hd = {0, 0, sch};
+			struct Header_d hd = {0, 0, sch};
 			if (!create_header(&hd))
 			{
 				printf("%s:%d.\n", F, L - 1);
@@ -448,8 +449,8 @@ int main(int argc, char *argv[])
 			printf("%s has been created, you can add to the file using option -a.\n", file_path);
 			print_usage(argv);
 
-			Schema sch = {0, NULL, NULL};
-			Header_d hd = {HEADER_ID_SYS, VS, sch};
+			struct Schema sch = {0, NULL, NULL};
+			struct Header_d hd = {HEADER_ID_SYS, VS, sch};
 
 			size_t hd_st = compute_size_header((void *)&hd);
 			if (hd_st >= MAX_HD_SIZE)
@@ -632,8 +633,8 @@ int main(int argc, char *argv[])
 		}
 
 		/* ensure the file is a db file */
-		Schema sch = {0, NULL, NULL};
-		Header_d hd = {0, 0, sch};
+		struct Schema sch = {0, NULL, NULL};
+		struct Header_d hd = {0, 0, sch};
 
 		if (!read_header(fd_data, &hd))
 		{
@@ -1784,7 +1785,7 @@ int main(int argc, char *argv[])
 			char *buf_t = strdup(data_to_add);
 			char *buf_v = strdup(data_to_add);
 
-			Record_f *rec = NULL;
+			struct Record_f *rec = NULL;
 
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
 														   fd_data, file_path, &rec, &hd);
@@ -2425,7 +2426,7 @@ int main(int argc, char *argv[])
 			char *buf_t = strdup(data_to_add);
 			char *buf_v = strdup(data_to_add);
 
-			Record_f *rec = NULL;
+			struct Record_f *rec = NULL;
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
 														   fd_data, file_path, &rec, &hd);
 			if (check == SCHEMA_ERR || check == 0)
@@ -2822,7 +2823,7 @@ int main(int argc, char *argv[])
 			}
 
 			/*read the old record, aka the record that we want to update*/
-			Record_f *rec_old = read_file(fd_data, file_path);
+			struct Record_f *rec_old = read_file(fd_data, file_path);
 			if (!rec_old)
 			{
 				printf("reading record failed main.c l %d.\n", __LINE__ - 2);
@@ -2919,14 +2920,14 @@ int main(int argc, char *argv[])
 				and if the record is fragmented we read all the data
 				and we store in the recs_old */
 
-			Record_f **recs_old = NULL;
+			struct Record_f **recs_old = NULL;
 			off_t *pos_u = NULL;
 			if (updated_rec_pos > 0)
 			{
 				free(buffer);
 				int index = 2;
 				int pos_i = 2;
-				recs_old = calloc(index, sizeof(Record_f *));
+				recs_old = calloc(index, sizeof(struct Record_f *));
 				if (!recs_old)
 				{
 					__er_calloc(F, L - 2);
@@ -3070,7 +3071,7 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 
-				Record_f *rec_old_s = read_file(fd_data, file_path);
+				struct Record_f *rec_old_s = read_file(fd_data, file_path);
 				if (!rec_old_s)
 				{
 					printf("error reading file, main.c l %d.\n", __LINE__ - 2);
@@ -3127,7 +3128,8 @@ int main(int argc, char *argv[])
 				while ((updated_rec_pos = get_update_offset(fd_data)) > 0)
 				{
 					index++, pos_i++;
-					Record_f **recs_old_n = realloc(recs_old, index * sizeof(Record_f *));
+					struct Record_f **recs_old_n = realloc(recs_old,
+														   index * sizeof(struct Record_f *));
 					if (!recs_old_n)
 					{
 						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
@@ -3226,7 +3228,7 @@ int main(int argc, char *argv[])
 					pos_u = pos_u_n;
 					pos_u[pos_i - 1] = updated_rec_pos;
 
-					Record_f *rec_old_new = read_file(fd_data, file_path);
+					struct Record_f *rec_old_new = read_file(fd_data, file_path);
 					if (!rec_old_new)
 					{
 						printf("error reading file, %s:%d.\n", F, L - 1);
@@ -3542,7 +3544,7 @@ int main(int argc, char *argv[])
 
 				if (check == SCHEMA_NW && updates > 0)
 				{
-					Record_f *new_rec = NULL;
+					struct Record_f *new_rec = NULL;
 					if (!create_new_fields_from_schema(recs_old, rec, &hd.sch_d,
 													   index, &new_rec, file_path))
 					{
@@ -3888,7 +3890,7 @@ int main(int argc, char *argv[])
 					}
 
 					/*create the new record*/
-					Record_f *new_rec = NULL;
+					struct Record_f *new_rec = NULL;
 					if (!create_new_fields_from_schema(recs_old, rec, &hd.sch_d,
 													   index, &new_rec, file_path))
 					{
@@ -4037,7 +4039,7 @@ int main(int argc, char *argv[])
 			free_schema(&hd.sch_d);
 
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
-			Record_f *new_rec = NULL;
+			struct Record_f *new_rec = NULL;
 			unsigned char comp_rr = compare_old_rec_update_rec(&rec_old, rec, &new_rec, file_path, check, buffer, fields_count);
 			free(buffer);
 			if (comp_rr == 0)
@@ -4803,7 +4805,7 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			Record_f *rec = read_file(fd_data, file_path);
+			struct Record_f *rec = read_file(fd_data, file_path);
 			if (!rec)
 			{
 				printf("read record failed, main.c l %d.\n", __LINE__ - 1);
@@ -4892,11 +4894,11 @@ int main(int argc, char *argv[])
 			}
 
 			int counter = 1;
-			Record_f **recs = NULL;
+			struct Record_f **recs = NULL;
 
 			if (update_rec_pos > 0)
 			{
-				recs = calloc(counter, sizeof(Record_f *));
+				recs = calloc(counter, sizeof(struct Record_f *));
 				if (!recs)
 				{
 					printf("calloc failed, main.c l %d.\n", __LINE__ - 2);
@@ -4990,7 +4992,7 @@ int main(int argc, char *argv[])
 				while ((update_rec_pos = get_update_offset(fd_data)) > 0)
 				{
 					counter++;
-					recs = realloc(recs, counter * sizeof(Record_f *));
+					recs = realloc(recs, counter * sizeof(struct Record_f *));
 					if (!recs)
 					{
 						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
@@ -5077,7 +5079,7 @@ int main(int argc, char *argv[])
 						return 1;
 					}
 
-					Record_f *rec_n = read_file(fd_data, file_path);
+					struct Record_f *rec_n = read_file(fd_data, file_path);
 					if (!rec_n)
 					{
 						printf("read record failed, main.c l %d.\n", __LINE__ - 2);

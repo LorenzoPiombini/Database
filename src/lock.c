@@ -55,7 +55,7 @@ unsigned char free_memory_object(char *smo_name)
 	SMO will be accessed from the utililty program to check if there is any lock on the file
 	that is about to read from or write to */
 
-unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
+unsigned char set_memory_obj(lock_info **shared_locks)
 {
 	int fd = shm_open(SH_ILOCK, O_CREAT | O_RDWR, 0666);
 	if (fd == -1)
@@ -79,8 +79,8 @@ unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem)
 		return 0;
 	}
 
-	*sem = sem_open(SEM_MILOCK, O_CREAT, 0644, 1);
-	if (*sem == SEM_FAILED)
+	sem_t *sem = sem_open(SEM_MILOCK, O_CREAT, 0644, 1);
+	if (sem == SEM_FAILED)
 	{
 		perror("semaphore creation failed: ");
 		printf("%s:%d.\n", F, L - 4);
