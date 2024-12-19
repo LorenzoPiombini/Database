@@ -51,6 +51,12 @@ SCRIPTS = GET FILE LIST WRITE UPDATE DEL DELa KEYS
 default: $(TARGET)
 
 
+object-dir:
+	@if [ ! -d ./obj ]; then\
+		echo "creating object directory...";\
+		mkdir -p obj ;\
+	fi
+
 check-linker-path:
 	@if [ ! -f /etc/ld.so.conf.d/customtech.conf ]; then \
 		echo "setting linker configuration..." ;\
@@ -259,6 +265,5 @@ install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(
 	ldconfig
 	
 
-build: default library install
- 
-.PHONY: default test memory clean install library check-linker-path
+build: object-dir default library install 
+.PHONY: default test memory clean install library check-linker-path object-dir
