@@ -5,7 +5,7 @@
 
 typedef unsigned char byte;
 
-typedef enum
+enum ValueType
 {
 	TYPE_INT,
 	TYPE_LONG,
@@ -14,12 +14,12 @@ typedef enum
 	TYPE_BYTE,
 	TYPE_OFF_T,
 	TYPE_DOUBLE
-} ValueType;
+};
 
-typedef struct
+struct Field
 {
 	char *field_name;
-	ValueType type;
+	enum ValueType type;
 
 	union
 	{
@@ -31,23 +31,23 @@ typedef struct
 		off_t offset;
 		double d;
 	} data;
-} Field;
+};
 
-typedef struct
+struct Record_f
 {
 	char *file_name;
 	int fields_num;
-	Field *fields;
-} Record_f;
+	struct Field *fields;
+};
 
-Record_f *create_record(char *file_name, int fields_num);
-unsigned char set_field(Record_f *rec, int index, char *field_name, ValueType type, char *value);
-void free_record(Record_f *rec, int fields_num);
-void print_record(int count, Record_f **recs);
-void free_record_array(int len, Record_f ***recs);
-void free_array_of_arrays(int len, Record_f ****array, int *len_ia, int size_ia);
-unsigned char copy_rec(Record_f *src, Record_f **dest);
-unsigned char get_index_rec_field(char *field_name, Record_f **recs, int recs_len,
+struct Record_f *create_record(char *file_name, int fields_num);
+unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value);
+void free_record(struct Record_f *rec, int fields_num);
+void print_record(int count, struct Record_f **recs);
+void free_record_array(int len, struct Record_f ***recs);
+void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int size_ia);
+unsigned char copy_rec(struct Record_f *src, struct Record_f **dest);
+unsigned char get_index_rec_field(char *field_name, struct Record_f **recs, int recs_len,
 								  int *field_i_r, int *rec_index);
 
 #endif /*record.h*/
