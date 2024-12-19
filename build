@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo make clean; make; make library; sudo make install
