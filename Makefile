@@ -60,7 +60,7 @@ object-dir:
 check-linker-path:
 	@if [ ! -f /etc/ld.so.conf.d/customtech.conf ]; then \
 		echo "setting linker configuration..." ;\
-		echo "/usrlocal/lib" | sudo tee /etc/ld.so.conf.d/customtech.conf >/dev/null ;\
+		echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/customtech.conf >/dev/null ;\
 		sudo ldconfig;\
 	fi
 
