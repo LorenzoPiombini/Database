@@ -112,8 +112,8 @@ memory:
 
 clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
-	sudo rm -f $(INCLUDEDIR)/file.c $(INCLUDEDIR)/str_op.c $(INCLUDEDIR)/record.c $(INCLUDEDIR)/parse.h 
-	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) 
+	sudo rm -f $(INCLUDEDIR)/file.h $(INCLUDEDIR)/str_op.h $(INCLUDEDIR)/record.h $(INCLUDEDIR)/parse.h $(INCLUDEDIR)/bst.h $(INCLUDEDIR)/hash_tbl.h $(INCLUDEDIR)/lock.h 
+	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) $(LIBDIR)/$(SHAREDLIBht) $(LIBDIR)/$(SHAREDLIBl) $(LIBDIR)/$(SHAREDLIBbst) 
 	sudo ldconfig
 	rm -f obj/*.o 
 	rm -f bin/*
@@ -258,4 +258,7 @@ install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(
 	install -m 755 $(SHAREDLIBbst) $(LIBDIR)
 	ldconfig
 	
+
+build: clean default library install
+ 
 .PHONY: default test memory clean install library check-linker-path
