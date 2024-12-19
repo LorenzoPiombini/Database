@@ -17,6 +17,7 @@ typedef struct HashTable
 	int (*write)(int fd, struct HashTable *ht);
 } HashTable;
 
+unsigned char hash_tbl_init(int bucket, HashTable *ht);
 void print_hash_table(HashTable tbl);
 int write_ht(int fd, HashTable *ht);
 int hash(char *key, int size);

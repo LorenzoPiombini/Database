@@ -37,7 +37,7 @@ typedef enum
 
 typedef size_t compute_bytes(void *); /*pointer to a fucntion that computes the byte to lock in a file*/
 unsigned char free_memory_object(char *smo_name);
-unsigned char set_memory_obj(lock_info **shared_locks, sem_t **sem);
+unsigned char set_memory_obj(lock_info **shared_locks);
 unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *lock_pos_arr,
                                char *file_n, off_t start, off_t rec_len, int mode, int fd_data);
 unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos, int *lock_pos_arr);
