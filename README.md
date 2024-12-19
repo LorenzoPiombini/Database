@@ -10,9 +10,10 @@ as for now, this software is ment to be for **Linux/Unix** systems, and it has b
 ## Get Started
 
 clone this repo:
-``plaintext
+
+```plaintext
 [adminuser@new-host-5 ~]$ git clone https://github.com/LorenzoPiombini/isam.db-C-language.git
-``
+```
 
 ## Makefile rules
 
