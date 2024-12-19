@@ -15,56 +15,23 @@ paste this in your terminal
 ```plaintext
 git clone https://github.com/LorenzoPiombini/isam.db-C-language.git
 ```
+
 then
 
 ```plain text
 cd isam.db-C-language/
-sudo ./build
+sudo make build
 ```
-## Makefile rules
 
-- **default**: will build the source c files and create the executable isam.db.  
-- **test**:
-  - create new file and provide data to it.
-  - checks for memory leaks when creating a new file with data.
-  - create new file with no data.
-  - adding the wrong data to an existing file
-  - adding the correct data to an existing file.
-  - adding partial but correct data to an existing file.
-  - deleting data from an existing file
-- **memory**:
-  - checks the memory allocations for all the cases in tests.
-- **clean**:
-  - delete all the files created.
-  - delete all core files dumped for debugging.
-  - delete all the objects created and the binary executable isam.db
-  - delete the commands created by the install rule, GET, LIST, KEYS, DEL, WRITE, UPDATE
-- **install**:
-- creates the following commands:
-  - GET expects two arguments *file name* and the *record identifier* (key).
-    - this command will fetch the specified record *(if found)* and will display it.
-    - if you execute GET with no arguments will display the usage instruction.
-  - LIST expects one argument *file name*.
-    - this command will display the file definition for the specified file.
-    - if you execute LIST with no arguments will display the usage instruction.
-  - FILE expects two argument *file name* and *paramters string*.
-    - this command will create a new file with definition as per the *paramters string*.
-    - if you execute FILE with no arguments will display the usage instruction.
-  - KEYS expects one mandatory argument *file name*, and one optional argument.
-    - this command will list the keys id for the specified file.
-    - you may or may not provide the index number you want to see, if no number is passed to the command, the index 0 will be displayed.
-    - if you execute KEYS with no arguments will display the usage instruction.
-  - WRITE expects three arguments *file name*, *paramters string* and the *key* for the record that we want to write to file.
-    - this command will list write data to the file specified.
-    - if you execute WRITE with no arguments will display the usage instruction.
-  - UPDATE expects three arguments *file name*, *paramters string* and the *key* for the record that we want to update in the file.
-    - this command will update the record specified.
-    - if you execute UPDATE with no arguments will display the usage instruction.
-  - DEL expects two or three arguments *file name*, the *key* for the record that we want to delete in the file and you can specify the *index number* to delete the data in that specific index - if you do not specify the index the key value pair will be deleted from index 0 -.
-    - this command will delate the record specified  by the *key*.
-  - DELa expects one argument *file name*, and will delate all the indexes data.
+now you have all library installed and you can use the isam.db program, or use the commands GET, LIST, FILE, DEL, DELa and KEYS to create files.
 
-you need root privilege to run the install and clean rules.
+if you want to delate the commands and the isab.db program just run
+
+```plaintext
+sudo make clean 
+```
+
+inside the repo folder.
 
 ## How It Works
 
