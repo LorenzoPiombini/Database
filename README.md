@@ -10,11 +10,17 @@ as for now, this software is ment to be for **Linux/Unix** systems, and it has b
 ## Get Started
 
 clone this repo:
+paste this in your terminal
 
 ```plaintext
-[adminuser@new-host-5 ~]$ git clone https://github.com/LorenzoPiombini/isam.db-C-language.git
+git clone https://github.com/LorenzoPiombini/isam.db-C-language.git
 ```
+then
 
+```plain text
+cd isam.db-C-language/
+sudo ./build
+```
 ## Makefile rules
 
 - **default**: will build the source c files and create the executable isam.db.  
