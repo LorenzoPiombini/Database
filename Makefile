@@ -134,7 +134,7 @@ $(TARGET): $(OBJ)
 
 
 obj/%.o : src/%.c
-	sudo gcc -O -Wall -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fpie -fPIE -pie -fsanitize=address
+	sudo gcc -O -Wall -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 $(BINDIR)/GET:
