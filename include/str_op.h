@@ -44,4 +44,6 @@ unsigned char is_integer(char *str);
 size_t number_of_digit(int n);
 float __round_alt(float n);
 unsigned char is_number_in_limits(char *value);
-#endif
+int find_last_char(const char c, char *src);
+
+#endif /* STR_OP_H */

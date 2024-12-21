@@ -615,3 +615,16 @@ unsigned char is_number_in_limits(char *value)
 
 	return 0;
 }
+
+int find_last_char(const char c, char *src)
+{
+	size_t l = strlen(src);
+	int last = -1;
+	for (int i = 0; i < l; i++)
+	{
+		if (src[i] == c)
+			last = i;
+	}
+
+	return last;
+}
