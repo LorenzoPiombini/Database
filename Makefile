@@ -3,12 +3,19 @@ SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 OBJ_PROD = $(patsubst src/%.c, obj/%_prod.o, $(SRC))
 OBJlibht = obj/debug.o  obj/hash_tbl.o
+OBJlibhtPR = obj/debug_prod.o  obj/hash_tbl_prod.o
 OBJlibf = obj/debug.o  obj/file.o  obj/float_endian.o 
+OBJlibfPR = obj/debug_prod.o  obj/file_prod.o  obj/float_endian_prod.o 
 OBJlibs = obj/debug.o  obj/str_op.o
+OBJlibsPR = obj/debug_prod.o  obj/str_op_prod.o
 OBJlibr = obj/debug.o  obj/record.o
+OBJlibrPR = obj/debug_prod.o  obj/record_prod.o
 OBJlibp = obj/debug.o  obj/sort.o obj/parse.o
+OBJlibpPR = obj/debug_prod.o  obj/sort_prod.o obj/parse_prod.o
 OBJlibl = obj/debug.o  obj/lock.o
+OBJliblPR = obj/debug_prod.o  obj/lock__prod.o
 OBJlibbst = obj/debug.o  obj/bst.o obj/str_op.o
+OBJlibbstPR = obj/debug_prod.o  obj/bst_prod.o obj/str_op_prod.o
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
@@ -75,6 +82,15 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBbst) $(OBJlibbst)
+
+libraryPR:
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBht) $(OBJlibhtPR)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBs) $(OBJlibsPR)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBr) $(OBJlibrPR)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibfPR)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibpPR)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJliblPR)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBbst) $(OBJlibbstPR)
 
 test:	
 	$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
@@ -278,6 +294,6 @@ install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(
 
 build: object-dir default library install
 
-build_prod: object-dir prod library install 
+build_prod: object-dir prod libraryPR install 
 
 .PHONY: default test memory clean install library check-linker-path object-dir prod
