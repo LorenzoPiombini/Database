@@ -1,6 +1,7 @@
 TARGET = /usr/local/bin/isam.db
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
+OBJ_PROD = $(patsubst src/%.c, obj/%_prod.o, $(SRC))
 OBJlibht = obj/debug.o  obj/hash_tbl.o
 OBJlibf = obj/debug.o  obj/file.o  obj/float_endian.o 
 OBJlibs = obj/debug.o  obj/str_op.o
@@ -50,6 +51,8 @@ SCRIPTS = GET FILE LIST WRITE UPDATE DEL DELa KEYS
 
 default: $(TARGET)
 
+
+prod: $(TARGET)_prod
 
 object-dir:
 	@if [ ! -d ./obj ]; then\
@@ -136,6 +139,14 @@ $(TARGET): $(OBJ)
 obj/%.o : src/%.c
 	sudo gcc -O -Wall -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
+
+$(TARGET)_prod: $(OBJ_PROD)
+	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack
+
+obj/%_prod.o : src/%.c
+	sudo gcc -O -Wall -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC
+
+
 
 $(BINDIR)/GET:
 	@if [ !  -f $@ ]; then \
