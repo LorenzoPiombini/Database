@@ -276,5 +276,8 @@ install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(
 	ldconfig
 	
 
-build: object-dir default library install 
-.PHONY: default test memory clean install library check-linker-path object-dir
+build: object-dir default library install
+
+build_prod: object-dir prod library install 
+
+.PHONY: default test memory clean install library check-linker-path object-dir prod
