@@ -147,8 +147,10 @@ int main(int argc, char *argv[])
 		fd_index = create_file(files[0]);
 		fd_data = create_file(files[1]);
 
-		/* file_error_handler will close the file descriptors if there are issues */
-		/* -------------- and print error messages to the console ----------------*/
+		/*
+		 * file_error_handler will close the file descriptors if there are issues
+		 *  and print error messages to the console
+		 *  */
 		if (file_error_handler(2, fd_index, fd_data) != 0)
 		{
 			free_strs(2, 1, files);

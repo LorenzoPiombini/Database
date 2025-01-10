@@ -1261,3 +1261,102 @@ off_t get_file_size(int fd, char *file_name)
 		return (off_t)st.st_size;
 	}
 }
+
+int add_index(int index_nr, char *file_name, int bucket)
+{
+	if (index_nr == 0)
+		return -1;
+
+	size_t l = strlen(file_name) + strlen(".inx") + 1;
+	char buff[l];
+	memset(buff, 0, l);
+
+	if (snprintf(buff, l, "%s%s", file_name, ".inx") < 0)
+	{
+		fprintf(stderr,
+				"snprintf() failed. %s:%d.\n",
+				F, L - 3);
+		return -1;
+	}
+
+	int fd = open_file(buff, 0);
+	if (file_error_handler(1, fd) > 0)
+	{
+		fprintf(stderr,
+				"can't open %s, %s:%d.\n", buff, F, L - 3) return -1;
+	}
+
+	HashTable *ht = NULL;
+	int ht_i = 0;
+	if (!read_all_index_file(fd, &ht, &th_i))
+	{
+		fprintf(stderr,
+				"read_all_index_file(),failed %s:%d.\n",
+				F, L - 4);
+		return -1;
+	}
+
+	HashTable *ht_new = realloc(ht_i + index_nr, sizeof(HashTable));
+	if (!ht_new)
+	{
+		__er_realloc(F, L - 2);
+		free_ht_array(ht, ht_i);
+		return -1;
+	}
+
+	ht = ht_new;
+	int total_indexes = ht_i + index_nr;
+	close_file(1, fd);
+
+	/*reopen the file with O_TRUNCATE flag to overwrite the old content*/
+	fd = open_file(buff, 1);
+	if (file_error_handler(1, fd) > 0)
+	{
+		fprintf(stderr,
+				"can't open %s, %s:%d.\n", buff, F, L - 3)
+			free_ht_array(ht, total_indexes);
+		return -1;
+	}
+
+	if (!write_index_file_head(fd, total_indexes))
+	{
+		fprintf(stderr, "write_index_file_head() failed.",
+				F, L - 3);
+		free_ht_array(ht, total_indexes);
+		return -1;
+	}
+
+	for (int i = ht_i; i < total_indexes; ++i)
+	{
+		/*
+		 * create an Hashtable in the
+		 * reallocated hastable array
+		 * */
+		Node **data_map = calloc(bucket, sizeof(Node *));
+		if (!data_map)
+		{
+			__er_calloc(F, L - 2);
+			free_ht_array(ht, total_indexes);
+			return -1;
+		}
+
+		Hashtable h_table = {bucket, data_map};
+		ht[i] = h_table;
+
+		if (write_index_body(fd, i, ht[i]) == -1)
+		{
+			fprintf(stderr,
+					"write_index_body() failed %s:%d.\n",
+					F, L - 3);
+			free_ht_array(ht, total_indexes);
+			return -1;
+		}
+
+		destroy_hasht(&ht[i]);
+		ht[i] = NULL;
+	}
+
+	close_file(1, fd);
+	char mes[] = index_nr > 1 ? "indexes added." : "index added.";
+	printf("%s\n", mes);
+}
