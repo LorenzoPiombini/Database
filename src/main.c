@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
 	unsigned char list_keys = 0;
 	unsigned char create = 0;
 	unsigned char options = 0;
+	unsigned char index_add = 0;
 	/*------------------------------------------*/
 
 	/* parameters populated with the flag from getopt()*/
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
 	int indexes = 0;
 	int index_nr = 0;
 
-	while ((c = getopt(argc, argv, "ntf:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
+	while ((c = getopt(argc, argv, "ntAf:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
 	{
 		switch (c)
 		{
@@ -106,6 +107,9 @@ int main(int argc, char *argv[])
 		case 'o':
 			options = 1, option = optarg;
 			break;
+		case 'A':
+			index_add = 1;
+			break;
 		default:
 			printf("Unknow option -%c\n", c);
 			return 1;
@@ -114,7 +118,7 @@ int main(int argc, char *argv[])
 
 	if (!check_input_and_values(file_path, data_to_add, key,
 								argv, del, list_def, new_file, update, del_file,
-								build, create, options))
+								build, create, options, index_add))
 	{
 		return 1;
 	}
@@ -752,6 +756,118 @@ int main(int argc, char *argv[])
 			} while (result_i == WTLK || result_d == WTLK);
 		}
 
+		if (index_add)
+		{
+			free_schema(&hd.sch_d);
+			close_file(2, fd_index, fd_data);
+			free_strs(2, 1, files);
+
+			/*  write the index file
+			 *  if the user does not specify the indexes number
+			 *  that they want to add, then only one will
+			 *  be added.
+			 *  */
+			int bucket = bucket_ht > 0 ? bucket_ht : 7;
+			int index_num = indexes > 0 ? indexes : 1;
+			/* acquire lock */
+			if (shared_locks)
+			{
+				int result_d = 0, result_i = 0;
+				do
+				{
+					if (((result_d = acquire_lock_smo(&shared_locks, plp, plpa, files[1],
+													  0, go_to_EOF(fd_data), WR_REC, fd_data)) == 0) ||
+						((result_i = acquire_lock_smo(&shared_locks, plp_i, plpa_i, files[0],
+													  0, go_to_EOF(fd_index), WR_IND, fd_index)) == 0))
+					{
+						printf("aquire_lock_smo() failed, %s:%d.\n", F, L - 3);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							printf("munmap() failed %s:%d.\n", F, L - 3);
+							close_file(1, fd_mo);
+							return 1;
+						}
+						close_file(1, fd_mo);
+						return 1;
+					}
+
+				} while (result_d == MAX_WTLK || result_d == WTLK ||
+						 result_i == MAX_WTLK || result_i == WTLK);
+			}
+
+			if (add_index(index_num, file_path, bucket) == -1)
+			{
+				fprintf(stderr, "can't add index %s:%d",
+						F, L - 2);
+				/*release the lock*/
+				if (shared_locks)
+				{
+					int result_d = 0, result_i = 0;
+					do
+					{
+						if ((result_d = release_lock_smo(&shared_locks, plp, plpa)) == 0 ||
+							(result_i = release_lock_smo(&shared_locks, plp_i,
+														 plpa_i) == 0))
+						{
+							printf("release_lock_smo() failed, %s:%d./n", F, L - 3);
+							if (munmap(shared_locks,
+									   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								printf("munmap() failed %s:%d.\n", F, L - 3);
+								close_file(1, fd_mo);
+								return 1;
+							}
+							close_file(1, fd_mo);
+							return 1;
+						}
+
+					} while (result_i == WT_RSLK || result_d == WT_RSLK);
+				}
+
+				close_file(1, fd_mo);
+				return 1;
+			}
+
+			char *mes = (index_num > 1) ? "indexes" : "index";
+			printf("%d %s added.\n", index_num, mes);
+			/*release the lock*/
+			if (shared_locks)
+			{
+				int result_d = 0, result_i = 0;
+				do
+				{
+					if ((result_d = release_lock_smo(&shared_locks, plp, plpa)) == 0 ||
+						(result_i = release_lock_smo(&shared_locks, plp_i,
+													 plpa_i) == 0))
+					{
+						printf("release_lock_smo() failed, %s:%d./n", F, L - 3);
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							printf("munmap() failed %s:%d.\n", F, L - 3);
+							close_file(1, fd_mo);
+							return 1;
+						}
+						close_file(1, fd_mo);
+						return 1;
+					}
+
+				} while (result_i == WT_RSLK || result_d == WT_RSLK);
+
+				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+				{
+					__er_munmap(F, L - 3);
+					close_file(1, fd_mo);
+					return 1;
+				}
+
+				close_file(1, fd_mo);
+				return 0;
+			}
+			return 0;
+		}
+
 		if (del_file)
 		{ /*delete file */
 
@@ -826,8 +942,11 @@ int main(int argc, char *argv[])
 					free_strs(2, 1, files);
 					return 1;
 				}
+
+				close_file(1, fd_mo);
+				free_strs(2, 1, files);
+				return 0;
 			}
-			close_file(1, fd_mo);
 			free_strs(2, 1, files);
 			return 0;
 		} /* end of delete file path*/

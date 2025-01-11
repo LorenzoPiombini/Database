@@ -24,6 +24,7 @@ void print_usage(char *argv[])
         printf("\t -o - add options to a CRUD operation .\n");
         printf("\t -s - specify how many buckets the HashTable (index) will have.\n");
         printf("\t -i - specify how many indexes the file will have.\n");
+        printf("\t -A - add indexes -i to the file specified by -f .\n");
 }
 
 void print_types(void)
@@ -45,14 +46,22 @@ void print_types(void)
 int check_input_and_values(char *file_path, char *data_to_add, char *key, char *argv[],
                            unsigned char del, unsigned char list_def, unsigned char new_file,
                            unsigned char update, unsigned char del_file, unsigned char build,
-                           unsigned char create, unsigned char options)
+                           unsigned char create, unsigned char options, unsigned char index_add)
 {
 
         if (create && (file_path || del || update || del_file || list_def ||
-                       new_file || key || data_to_add || build))
+                       new_file || key || data_to_add || build || index_add))
         {
                 printf("option -c must be used by itself.\n");
                 printf(" -c <txt-with-files-definitions>.\n");
+                return 0;
+        }
+
+        if (index_add && (del || update || del_file || list_def ||
+                          new_file || key || data_to_add || build))
+        {
+                print_usage(argv);
+                fprintf(stderr, "\nyou can use option -A only with options -f -i and -x\n");
                 return 0;
         }
 
