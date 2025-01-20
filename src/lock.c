@@ -421,7 +421,8 @@ unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 		(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_type = F_UNLCK;
 		(*shared_locks)[*lock_pos].lock[*lock_pos_arr].l_whence = SEEK_SET;
 		/* decrease the lock number on the file*/
-		(*shared_locks)[*lock_pos].lock_num--;
+		if ((*shared_locks)[*lock_pos].lock_num > 0)
+			(*shared_locks)[*lock_pos].lock_num--;
 
 		if ((*shared_locks)[*lock_pos].lock_num == 0)
 		{
