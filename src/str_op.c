@@ -400,7 +400,7 @@ int is_file_name_valid(char *str)
 	for (i = 0; i < l; i++)
 	{
 		if (ispunct(str[i]))
-			if (str[i] != '/')
+			if ((str[i] != '/' && str[i] != '_'))
 				return 0;
 
 		if (isspace(str[i]))

@@ -1116,18 +1116,22 @@ int main(int argc, char *argv[])
 					}
 
 				} while (result == WTLK);
+
+				/*unmap the memory object*/
+				if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+				{
+					__er_munmap(F, L - 2);
+					close_file(3, fd_index, fd_data, fd_mo);
+					return 1;
+				}
+
+				printf("data added to schema!\n");
+				close_file(3, fd_index, fd_data, fd_mo);
+				return 0;
 			}
 			printf("data added to schema!\n");
 
-			/*unmap the memory object*/
-			if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
-			{
-				__er_munmap(F, L - 2);
-				close_file(3, fd_index, fd_data, fd_mo);
-				return 1;
-			}
-
-			close_file(3, fd_index, fd_data, fd_mo);
+			close_file(2, fd_index, fd_data);
 			return 0;
 		} /* end of add new fields to schema path*/
 
