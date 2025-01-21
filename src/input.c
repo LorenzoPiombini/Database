@@ -25,6 +25,7 @@ void print_usage(char *argv[])
         printf("\t -s - specify how many buckets the HashTable (index) will have.\n");
         printf("\t -i - specify how many indexes the file will have.\n");
         printf("\t -A - add indexes -i to the file specified by -f .\n");
+        printf("\t -I - create only the .dat file specified by -f .\n");
 }
 
 void print_types(void)

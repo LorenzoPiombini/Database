@@ -54,8 +54,9 @@ int main(int argc, char *argv[])
 	int bucket_ht = 0;
 	int indexes = 0;
 	int index_nr = 0;
+	int only_dat = 0;
 
-	while ((c = getopt(argc, argv, "ntAf:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
+	while ((c = getopt(argc, argv, "nItAf:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
 	{
 		switch (c)
 		{
@@ -110,6 +111,9 @@ int main(int argc, char *argv[])
 		case 'A':
 			index_add = 1;
 			break;
+		case 'I':
+			only_dat = 1;
+			break;
 		default:
 			printf("Unknow option -%c\n", c);
 			return 1;
@@ -148,17 +152,32 @@ int main(int argc, char *argv[])
 		/*creates two name from the file_path  "str_op.h" */
 		char **files = two_file_path(file_path);
 
-		fd_index = create_file(files[0]);
-		fd_data = create_file(files[1]);
-
-		/*
-		 * file_error_handler will close the file descriptors if there are issues
-		 *  and print error messages to the console
-		 *  */
-		if (file_error_handler(2, fd_index, fd_data) != 0)
+		if (only_dat)
 		{
-			free_strs(2, 1, files);
-			return 1;
+			fd_data = create_file(files[1]);
+			/*
+			 * file_error_handler will close the file descriptors if there are issues
+			 *  and print error messages to the console
+			 *  */
+			if (file_error_handler(1, fd_data) != 0)
+			{
+				free_strs(2, 1, files);
+				return 1;
+			}
+		}
+		else
+		{
+			fd_index = create_file(files[0]);
+			fd_data = create_file(files[1]);
+			/*
+			 * file_error_handler will close the file descriptors if there are issues
+			 *  and print error messages to the console
+			 *  */
+			if (file_error_handler(2, fd_index, fd_data) != 0)
+			{
+				free_strs(2, 1, files);
+				return 1;
+			}
 		}
 
 		if (schema_def)
@@ -243,6 +262,15 @@ int main(int argc, char *argv[])
 				delete_file(2, files[0], files[1]);
 				free(files[0]), free(files[1]), free(files);
 				return 1;
+			}
+
+			if (only_dat)
+			{
+				printf("File created successfully!\n");
+				free(buf_sdf), free(buf_t);
+				close_file(1, fd_data);
+				free(files[0]), free(files[1]), free(files);
+				return 0;
 			}
 			/*  write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
@@ -372,6 +400,15 @@ int main(int argc, char *argv[])
 			}
 
 			free_schema(&sch);
+
+			if (only_dat)
+			{
+				printf("File created successfully!\n");
+				free_record(rec, fields_count);
+				close_file(1, fd_data);
+				free(files[0]), free(files[1]), free(files);
+				return 0;
+			}
 
 			/*  write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
