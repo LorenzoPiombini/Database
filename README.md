@@ -1,5 +1,16 @@
 # Database in C
 
+## CURRENT STATUS as per 01/23/25
+
+upgranding the hash table data structure that is used as a index foo the file system.
+
+- introduced a new key type (uint32_t)
+- changed hash function for both string key and integer key types.
+- upgraded the set() function to behavie accordingly to the key_type.
+  
+as for now if you clone the repositry, IT WILL NOT WORK, due to incompleteness of the new
+HashTable implementation.
+
 This database utility enables dynamic creation of file definitions at runtime,  without the need to hardcode each file, every time you need to add one. the software will allow you to browse the file databse that it creates, will also install shared libraries on your machine that will be needed to develop a working system on this databes concept, you can develop pretty much anything on this file db.
 
 as for now, this software is ment to be for **Linux/Unix** systems, and it has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
