@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <math.h>
 #include "hash_tbl.h"
 #include "debug.h"
 
@@ -89,19 +91,35 @@ int write_ht(int fd, HashTable *ht)
 	return 1;
 }
 
-int hash(char *key, int size)
+int hash(void *key, int size, int key_type)
 {
-	unsigned long hash = 0;
-	int i = 0;
 
-	int len = strlen(key);
-	for (i = 0; i < len; i++)
+	uint32_t integer_key = 0;
+	char *string_key = NULL;
+	int hash = 0;
+	int number = 78;
+	/*compute the prime number */
+	uint32_t prime = (uint32_t)(pow(2, 31) - 1);
+	switch (key_type)
 	{
-		int asciiValue = (int)key[i];
-		hash = (hash + asciiValue * 23);
+	case UINT:
+	{
+		integer_key = (uint32_t)*key;
+		hash = ((COPRIME * k + number) % prime) % size;
+		break;
+	}
+	case STR:
+		string_key = key;
+		for (; *string_key != '\0'; *string_key++,
+									number = COPRIME * number % (size - 1))
+			hash = (number * hash + *string_key) % size;
+		break;
+	default:
+		fprintf(stderr, "key type not supported");
+		return -1;
 	}
 
-	return hash % size;
+	return hash;
 }
 
 off_t get(char *key, HashTable *tbl)
@@ -119,54 +137,105 @@ off_t get(char *key, HashTable *tbl)
 	return -1l;
 }
 
-int set(char *key, off_t value, HashTable *tbl)
+int set(void *key, int key_type, off_t value, HashTable *tbl)
 {
-	int index = hash(key, tbl->size);
-	Node *newNode = malloc(sizeof(Node));
-	if (!newNode)
+
+	int index = hash(key, tbl->size, key_type);
+	Node *new_node = malloc(sizeof(Node));
+	if (!new_node)
 	{
 		printf("failed to allocate memory while setting the HashTable.\n");
 		return 0;
 	}
 
-	newNode->key = strdup(key);
-	newNode->value = value;
-	newNode->next = NULL;
+	switch (key_type)
+	{
+	case UINT:
+		new_node->k = (uint32_t)*key;
+		break;
+	case STR:
+		new_node->key = strdup((char *)key);
+		break;
+	default:
+		fprintf(stderr, "key type not supported.\n");
+		return 0;
+	}
+
+	new_node->value = value;
+	new_node->next = NULL;
 
 	if (tbl->dataMap[index] == NULL)
 	{
-		tbl->dataMap[index] = newNode;
+		tbl->dataMap[index] = new_node;
 	}
-	else
+	else if (key_type == STR)
 	{
+		/*for key strings*/
+		/*
+		 * check if the key already exists at
+		 * the base  element of the index
+		 * */
 		size_t key_len = 0;
-		if ((key_len = strlen(tbl->dataMap[index]->key)) == strlen(key))
+		if ((key_len = strlen(tbl->dataMap[index]->key)) == strlen(new_node->key))
 		{
-			if (strncmp(tbl->dataMap[index]->key, key, ++key_len) == 0)
+			if (strncmp(tbl->dataMap[index]->key, new_node->key, ++key_len) == 0)
 			{
-				printf("key %s, already exist.\n", key);
-				free(newNode->key);
-				free(newNode);
+				printf("key %s, already exist.\n", new_node->key);
+				free(new_node->key);
+				free(new_node);
 				return 0;
 			}
 		}
+
+		/*
+		 * check all the nodes in the index
+		 * for duplicates keys
+		 * */
 		Node *temp = tbl->dataMap[index];
 		while (temp->next != NULL)
 		{
-			if ((key_len = strlen(tbl->dataMap[index]->key)) == strlen(key))
+			if ((key_len = strlen(temp->next->key)) == strlen(new_done->key))
 			{
-				if (strncmp(temp->next->key, key, ++key_len) == 0)
+				if (strncmp(temp->next->key, new_node->key, ++key_len) == 0)
 				{
-					printf("could not insert new node \"%s\"\n", key);
-					printf("key already exist. Choose another key value.");
-					free(newNode->key);
-					free(newNode);
+					printf("could not insert new node \"%s\"\n", new_node->key);
+					printf("key already exist. Choose another key value.\n");
+					free(new_node->key);
+					free(new_node);
 					return 0;
 				}
 			}
 			temp = temp->next;
 		}
-		temp->next = newNode;
+		/*
+		 * the key is unique
+		 * we add the node to the list
+		 * */
+		temp->next = new_node;
+	}
+	else if (key_type == UINT)
+	{
+		if (tbl->dataMap[index]->k == new_node->k)
+		{
+			printf("could not insert new node \"%u\"\n", new_node->k);
+			printf("key already exist. Choose another key value.\n");
+			free(new_node);
+			return 0;
+		}
+
+		Node *temp = tbl->dataMap[index];
+		while (temp->next)
+		{
+			if (temp->next->k == new_node->k)
+			{
+				printf("could not insert new node \"%u\"\n", new_node->k);
+				printf("key already exist. Choose another key value.\n");
+				free(new_node);
+				return 0;
+			}
+			temp = temp->next;
+		}
+		temp->next = new_node;
 	}
 
 	return 1; // succseed!
