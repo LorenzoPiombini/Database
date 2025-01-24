@@ -453,69 +453,87 @@ unsigned char read_index_file(int fd, HashTable *ht)
 	register int i = 0;
 	for (i = 0; i < ht_l; i++)
 	{
-		uint64_t key_l = 0l;
-
-		if (read(fd, &key_l, sizeof(key_l)) > 0)
+		uint32_t type = 0;
+		if (read(fd, &type, sizeof(type) == -1))
 		{
-			size_t size = (size_t)bswap_64(key_l);
-
-			char *key = calloc(size + 1, sizeof(char));
-
-			if (!key)
+			fprintf(stderr, "can't read key type, %s:%d.\n",
+					F, L - 3);
+			return 0;
+		}
+		int key_type = ntohl(type);
+		switch (key_type)
+		{
+		case STR:
+		{
+			uint64_t key_l = 0l;
+			if (read(fd, &key_l, sizeof(key_l)) > 0)
 			{
-				perror("memory for key");
-				free_nodes(dataMap, size);
-				return 0;
-			}
+				size_t size = (size_t)bswap_64(key_l);
 
-			uint64_t v_n = 0l;
-			if (read(fd, key, size + 1) < 0 ||
-				read(fd, &v_n, sizeof(v_n)) < 0)
-			{
-
-				perror("reading index file");
-				free_nodes(dataMap, size);
-				free(key);
-				return 0;
-			}
-
-			off_t value = (off_t)bswap_64(v_n);
-			key[size] = '\0';
-			Node *newNode = calloc(1, sizeof(Node));
-			if (!newNode)
-			{
-				perror("memory for node");
-				free_nodes(dataMap, size);
-				free(key);
-				return 0;
-			}
-
-			newNode->key = strdup(key);
-			if (!newNode->key)
-			{
-				printf("strdup() failed, %s:%d.\n", F, L - 3);
-				free_nodes(dataMap, size);
-				free(key);
-				return 0;
-			}
-			free(key);
-			newNode->value = value;
-			newNode->next = NULL;
-
-			int bucket = hash(newNode->key, ht->size);
-			if (ht->dataMap[bucket])
-			{
-				Node *current = ht->dataMap[bucket];
-				while (current->next != NULL)
+				char *key = calloc(size + 1, sizeof(char));
+				if (!key)
 				{
-					current = current->next;
+					perror("memory for key");
+					free_nodes(dataMap, size);
+					return 0;
 				}
-				current->next = newNode;
+
+				uint64_t v_n = 0l;
+				if (read(fd, key, size + 1) == -1 ||
+					read(fd, &v_n, sizeof(v_n)) == -1)
+				{
+
+					perror("reading index file");
+					free_nodes(dataMap, size);
+					free(key);
+					return 0;
+				}
+
+				off_t value = (off_t)bswap_64(v_n);
+				key[size] = '\0';
+				Node *newNode = calloc(1, sizeof(Node));
+				if (!newNode)
+				{
+					perror("memory for node");
+					free_nodes(dataMap, size);
+					free(key);
+					return 0;
+				}
+
+				newNode->key.s = strdup(key);
+				if (!newNode->key)
+				{
+					fprintf(stderr,
+							"strdup() failed, %s:%d.\n",
+							F, L - 3);
+					free_nodes(dataMap, size);
+					free(key);
+					return 0;
+				}
+				free(key);
+				newNode->value = value;
+				newNode->next = NULL;
+
+				int bucket = hash(newNode->key, ht->size);
+				if (ht->dataMap[bucket])
+				{
+					Node *current = ht->dataMap[bucket];
+					while (current->next != NULL)
+					{
+						current = current->next;
+					}
+					current->next = newNode;
+				}
+				else
+				{
+					ht->dataMap[bucket] = newNode;
+				}
 			}
-			else
-			{
-				ht->dataMap[bucket] = newNode;
-			}
+		case UINT:
+		{
+		}
+		default:
+		}
 		}
 	}
 

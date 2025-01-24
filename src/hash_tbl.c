@@ -23,6 +23,7 @@ unsigned char hash_tbl_init(int bucket, HashTable *ht)
 
 	return 1;
 }
+
 void print_hash_table(HashTable tbl)
 {
 	int i = 0;
@@ -74,17 +75,44 @@ int write_ht(int fd, HashTable *ht)
 		Node *current = ht->dataMap[i];
 		while (current != NULL)
 		{
-			uint64_t key_l = bswap_64((uint64_t)strlen(current->key));
-			uint64_t value = bswap_64((uint64_t)current->value);
-
-			if (write(fd, &key_l, sizeof(key_l)) < 0 ||
-				write(fd, current->key, strlen(current->key) + 1) < 0 ||
-				write(fd, &value, sizeof(value)) < 0)
+			switch (current->key_type)
 			{
-				perror("write index:");
-				return 0; // false
+			case STR:
+			{
+				uint32_t type = htonl((uint32_t)current->key_type);
+				uint64_t key_l = bswap_64((uint64_t)strlen(current->key.s));
+				uint64_t value = bswap_64((uint64_t)current->value);
+
+				if (write(fd, &type, sizeof(type)) == -1 ||
+					write(fd, &key_l, sizeof(key_l)) == -1 ||
+					write(fd, current->key.s, strlen(current->key.s) + 1) == -1 ||
+					write(fd, &value, sizeof(value)) < 0)
+				{
+					perror("write index:");
+					return 0; // false
+				}
+				current = current->next;
+				break;
 			}
-			current = current->next;
+			case UINT:
+			{
+				uint32_t type = htonl((uint32_t)current->key_type);
+				uint64_t value = bswap_64((uint64_t)current->value);
+				uint32_t key = bswap_32(current.key.n);
+
+				if (write(fd, &type, sizeof(type)) == -1 ||
+					write(fd, &key, sizeof(key) == -1 || write(fd, &value, sizeof(value)) == -1))
+				{
+					perror("write index:");
+					return 0; // false
+				}
+				current = current->next;
+				break;
+			}
+			default:
+				fprintf(stderr, "key type not supported.\n");
+				return 0;
+			}
 		}
 	}
 
@@ -109,8 +137,8 @@ int hash(void *key, int size, int key_type)
 		break;
 	}
 	case STR:
-		string_key = key;
-		for (; *string_key != '\0'; *string_key++,
+		string_key = (char *)key;
+		for (; *string_key != '\0'; string_key++,
 									number = COPRIME * number % (size - 1))
 			hash = (number * hash + *string_key) % size;
 		break;
@@ -122,292 +150,437 @@ int hash(void *key, int size, int key_type)
 	return hash;
 }
 
-off_t get(char *key, HashTable *tbl)
+off_t get(void *key, HashTable *tbl, int key_type)
 {
-	int index = hash(key, tbl->size);
+	int index = hash(key, tbl->size, key_type);
 	Node *temp = tbl->dataMap[index];
 	while (temp != NULL)
 	{
-		if (strcmp(temp->key, key) == 0)
-			return temp->value;
-
-		temp = temp->next;
-	}
-
-	return -1l;
-}
-
-int set(void *key, int key_type, off_t value, HashTable *tbl)
-{
-
-	int index = hash(key, tbl->size, key_type);
-	Node *new_node = malloc(sizeof(Node));
-	if (!new_node)
-	{
-		printf("failed to allocate memory while setting the HashTable.\n");
-		return 0;
-	}
-
-	switch (key_type)
-	{
-	case UINT:
-		new_node->k = (uint32_t)*key;
-		break;
-	case STR:
-		new_node->key = strdup((char *)key);
-		break;
-	default:
-		fprintf(stderr, "key type not supported.\n");
-		return 0;
-	}
-
-	new_node->value = value;
-	new_node->next = NULL;
-
-	if (tbl->dataMap[index] == NULL)
-	{
-		tbl->dataMap[index] = new_node;
-	}
-	else if (key_type == STR)
-	{
-		/*for key strings*/
-		/*
-		 * check if the key already exists at
-		 * the base  element of the index
-		 * */
-		size_t key_len = 0;
-		if ((key_len = strlen(tbl->dataMap[index]->key)) == strlen(new_node->key))
+		switch (key_type)
 		{
-			if (strncmp(tbl->dataMap[index]->key, new_node->key, ++key_len) == 0)
-			{
-				printf("key %s, already exist.\n", new_node->key);
-				free(new_node->key);
-				free(new_node);
-				return 0;
-			}
+		case STR:
+			if (strcmp(temp->key.s, (char *)key) == 0)
+				return temp->value;
+
+			temp = temp->next;
+			break;
+		case UINT:
+			if (temp->key.n == (uint32_t)*key)
+				return temp->value;
+
+			temp = temp->next;
+			break;
+		default:
+			fprintf(stderr, "key type not supported.\n") return -1;
 		}
 
-		/*
-		 * check all the nodes in the index
-		 * for duplicates keys
-		 * */
-		Node *temp = tbl->dataMap[index];
-		while (temp->next != NULL)
+		return -1;
+	}
+
+	int set(void *key, int key_type, off_t value, HashTable *tbl)
+	{
+
+		int index = hash(key, tbl->size, key_type);
+		Node *new_node = calloc(1, sizeof(Node));
+		if (!new_node)
 		{
-			if ((key_len = strlen(temp->next->key)) == strlen(new_done->key))
+			__er_calloc(F, L - 2);
+			return 0;
+		}
+
+		switch (key_type)
+		{
+		case UINT:
+		{
+			new_node->key.n = (uint32_t)*key;
+			break;
+		}
+		case STR:
+		{
+			new_node->key.s = strdup((char *)key);
+			if (!new_node->key.s)
 			{
-				if (strncmp(temp->next->key, new_node->key, ++key_len) == 0)
+				fprintf(stderr, "strdup() failed");
+				return 0;
+			}
+			break;
+		}
+		default:
+			fprintf(stderr, "key type not supported.\n");
+			return 0;
+		}
+
+		new_node->key_type = key_type;
+		new_node->value = value;
+		new_node->next = NULL;
+
+		if (tbl->dataMap[index] == NULL)
+		{
+			tbl->dataMap[index] = new_node;
+		}
+		else if (key_type == STR)
+		{
+			/*for key strings*/
+			/*
+			 * check if the key already exists at
+			 * the base  element of the index
+			 * */
+			size_t key_len = 0;
+			if ((key_len = strlen(tbl->dataMap[index]->key.s)) == strlen(new_node->key.s))
+			{
+				if (strncmp(tbl->dataMap[index]->key.s, new_node->key.s, ++key_len) == 0)
 				{
-					printf("could not insert new node \"%s\"\n", new_node->key);
-					printf("key already exist. Choose another key value.\n");
-					free(new_node->key);
+					printf("key %s, already exist.\n", new_node->key.s);
+					free(new_node->key.s);
 					free(new_node);
 					return 0;
 				}
 			}
-			temp = temp->next;
-		}
-		/*
-		 * the key is unique
-		 * we add the node to the list
-		 * */
-		temp->next = new_node;
-	}
-	else if (key_type == UINT)
-	{
-		if (tbl->dataMap[index]->k == new_node->k)
-		{
-			printf("could not insert new node \"%u\"\n", new_node->k);
-			printf("key already exist. Choose another key value.\n");
-			free(new_node);
-			return 0;
-		}
 
-		Node *temp = tbl->dataMap[index];
-		while (temp->next)
-		{
-			if (temp->next->k == new_node->k)
+			/*
+			 * check all the nodes in the index
+			 * for duplicates keys
+			 * */
+			Node *temp = tbl->dataMap[index];
+			while (temp->next != NULL)
 			{
-				printf("could not insert new node \"%u\"\n", new_node->k);
+				if ((key_len = strlen(temp->next->key.s)) == strlen(new_done->key.s))
+				{
+					if (strncmp(temp->next->key.s, new_node->key.s, ++key_len) == 0)
+					{
+						printf("could not insert new node \"%s\"\n", new_node->key.s);
+						printf("key already exist. Choose another key value.\n");
+						free(new_node->key.s);
+						free(new_node);
+						return 0;
+					}
+				}
+				temp = temp->next;
+			}
+			/*
+			 * the key is unique
+			 * we add the node to the list
+			 * */
+			temp->next = new_node;
+		}
+		else if (key_type == UINT)
+		{
+			if (tbl->dataMap[index]->key.n == new_node->key.n)
+			{
+				printf("could not insert new node \"%u\"\n", new_node->key.n);
 				printf("key already exist. Choose another key value.\n");
 				free(new_node);
 				return 0;
 			}
-			temp = temp->next;
-		}
-		temp->next = new_node;
-	}
 
-	return 1; // succseed!
-}
-
-Node *delete(char *key, HashTable *tbl)
-{
-	int index = hash(key, tbl->size);
-	Node *current = tbl->dataMap[index];
-	Node *previous = NULL;
-
-	while (current != NULL)
-	{
-		if (strcmp(current->key, key) == 0)
-		{
-			if (previous == NULL)
+			Node *temp = tbl->dataMap[index];
+			while (temp->next)
 			{
-				tbl->dataMap[index] = current->next;
+				if (temp->next->key.n == new_node->key.n)
+				{
+					printf("could not insert new node \"%u\"\n", new_node->key.n);
+					printf("key already exist. Choose another key value.\n");
+					free(new_node);
+					return 0;
+				}
+				temp = temp->next;
 			}
-			else
-			{
-				previous->next = current->next;
-			}
-
-			return current;
+			temp->next = new_node;
 		}
-		previous = current;
-		current = current->next;
+
+		return 1; // succseed!
 	}
 
-	return NULL;
-}
-
-void free_ht_array(HashTable *ht, int l)
-{
-	if (!ht)
-		return;
-
-	int i = 0;
-	for (i = 0; i < l; i++)
+	Node *delete (void *key, HashTable *tbl, int key_type)
 	{
-		destroy_hasht(&ht[i]);
-	}
+		int index = hash(key, tbl->size, key_type);
+		Node *current = tbl->dataMap[index];
+		Node *previous = NULL;
 
-	free(ht);
-}
-void destroy_hasht(HashTable *tbl)
-{
-
-	if (!tbl->dataMap)
-		return;
-
-	int i = 0;
-	for (i = 0; i < tbl->size; i++)
-	{
-		Node *current = tbl->dataMap[i];
 		while (current != NULL)
 		{
-			Node *next = current->next;
-			free(current->key);
-			free(current);
-			current = next;
+			switch (key_value)
+			{
+			case STR:
+				if (strcmp(current->key.s, (char *)key) == 0)
+				{
+					if (previous == NULL)
+					{
+						tbl->dataMap[index] = current->next;
+					}
+					else
+					{
+						previous->next = current->next;
+					}
+
+					return current;
+				}
+				previous = current;
+				current = current->next;
+				break;
+			case UINT:
+				if (current->key.n == (uint32_t)*key)
+				{
+					if (previous == NULL)
+						tbl->dataMap[index] = current->next;
+					else
+						previous->next = current->next;
+
+					return current;
+				}
+				previous = current;
+				current = curretn->next;
+				break;
+			default:
+				fprintf(stderr, "key type not supported.\n") return NULL;
+			}
 		}
+
+		return NULL;
 	}
 
-	if (tbl->dataMap)
-		free(tbl->dataMap);
-}
-
-char **keys(HashTable *ht)
-{
-	int elements = len(*ht);
-	char **keys_arr = calloc(elements, sizeof(char *));
-
-	int i = 0;
-	int index = 0;
-	for (i = 0; i < ht->size; i++)
+	void free_ht_array(HashTable * ht, int l)
 	{
-		Node *temp = ht->dataMap[i];
-		while (temp != NULL)
+		if (!ht)
+			return;
+
+		int i = 0;
+		for (i = 0; i < l; i++)
 		{
-			keys_arr[index] = strdup(temp->key);
-			temp = temp->next;
-			++index;
+			destroy_hasht(&ht[i]);
 		}
+
+		free(ht);
 	}
-
-	return keys_arr;
-}
-
-int len(HashTable tbl)
-{
-	int i = 0;
-	int counter = 0;
-
-	if (tbl.dataMap == NULL)
+	void destroy_hasht(HashTable * tbl)
 	{
-		return 0;
-	}
 
-	for (i = 0; i < tbl.size; i++)
-	{
-		Node *temp = tbl.dataMap[i];
-		while (temp != NULL)
+		if (!tbl->dataMap)
+			return;
+
+		int i = 0;
+		for (i = 0; i < tbl->size; i++)
 		{
-			counter++;
-			temp = temp->next;
+			Node *current = tbl->dataMap[i];
+			while (current != NULL)
+			{
+				switch (current->key_type)
+				{
+				case STR:
+				{
+					Node *next = current->next;
+					free(current->key.s);
+					free(current);
+					current = next;
+					break;
+				}
+				case UINT:
+				{
+					Node *next = current->next;
+					free(current);
+					current = next;
+					break;
+				}
+				default:
+					fprintf(stderr, "key type not supported.\n") break;
+				}
+			}
 		}
+
+		if (tbl->dataMap)
+			free(tbl->dataMap);
 	}
 
-	return counter;
-}
-
-void free_nodes(Node **dataMap, int size)
-{
-	if (!dataMap)
-		return;
-
-	int i = 0;
-	for (i = 0; i < size; i++)
+	void **keys(HashTable * ht)
 	{
-		Node *current = dataMap[i];
-		while (current)
+		int elements = len(*ht);
+
+		void **keys_arr = calloc(elements, sizeof(void *));
+		if (!keys_arr)
 		{
-			Node *next = current->next;
-			free(current->key);
-			free(current);
-			current = next;
+			__er_calloc(F, L - 2);
+			return NULL;
 		}
-	}
 
-	free(dataMap);
-}
-/*if mode is set to 1 it will overwrite the condtent of dest
-	if mode is 0 then the src HashTable will be added to the dest, maintaing whatever is in dest*/
-
-unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
-{
-	if (!src)
-	{
-		printf("no data to copy.\n");
-		return 0;
-	}
-
-	if (mode == 1)
-	{
-		destroy_hasht(dest);
-		Node **data_map = calloc(src->size, sizeof(Node *));
-		if (!data_map)
+		int i = 0;
+		int index = 0;
+		for (i = 0; i < ht->size; i++)
 		{
-			printf("calloc failed,%s:%d.\n", F, L - 2);
+			Node *temp = ht->dataMap[i];
+			while (temp != NULL)
+			{
+				if (temp->key_type)
+				{
+					keys_arr[index] = (void *)strdup(temp->key.s);
+					if (!keys_arr)
+					{
+						fprintf(stderr, "strdup() failed.");
+						return NULL;
+					}
+				}
+				else
+				{
+					uint32_t *k = calloc(1, sizeof(uint32_t *));
+					if (!k)
+					{
+						__er_calloc(F, L - 2);
+						return NULL;
+					}
+					k = &temp->key.n;
+					keys_arr[index] = (void *)k;
+				}
+				temp = temp->next;
+				++index;
+			}
+		}
+
+		return keys_arr;
+	}
+
+	int len(HashTable tbl)
+	{
+		int counter = 0;
+
+		if (tbl.dataMap == NULL)
+		{
 			return 0;
 		}
 
-		(*dest).size = src->size;
-		(*dest).dataMap = data_map;
-	}
-
-	register int i = 0;
-	for (i = 0; i < src->size; i++)
-	{
-		if (src->dataMap[i])
+		for (int i = 0; i < tbl.size; i++)
 		{
-			set(src->dataMap[i]->key, src->dataMap[i]->value, dest);
-			Node *next = src->dataMap[i]->next;
-			while (next)
+			Node *temp = tbl.dataMap[i];
+			while (temp != NULL)
 			{
-				set(next->key, next->value, dest);
-				next = next->next;
+				counter++;
+				temp = temp->next;
 			}
 		}
+
+		return counter;
 	}
 
-	return 1;
-}
+	void free_nodes(Node * *dataMap, int size)
+	{
+		if (!dataMap)
+			return;
+
+		int i = 0;
+		for (i = 0; i < size; i++)
+		{
+			Node *current = dataMap[i];
+			while (current)
+			{
+				switch (current->key_type)
+				{
+				case STR:
+				{
+					Node *next = current->next;
+					free(current->key.s);
+					free(current);
+					current = next;
+					break;
+				}
+				case UINT:
+				{
+					Node *next = current->next;
+					free(current);
+					current = next;
+					break;
+				}
+				default:
+					fprintf(stderr, "key type not supported.\n") break;
+				}
+			}
+		}
+
+		free(dataMap);
+	}
+
+	void free_node(Node * node)
+	{
+		if (!node)
+			return;
+
+		switch (node->key_type)
+		{
+		case STR:
+			free(node->key.s);
+			break;
+		case UINT:
+			break;
+		default:
+			fprintf(stderr, "key type not supported");
+			return;
+		}
+
+		free(node);
+	}
+
+	/*if mode is set to 1 it will overwrite the condtent of dest
+		if mode is 0 then the src HashTable will be added to the dest, maintaing whatever is in dest*/
+	unsigned char copy_ht(HashTable * src, HashTable * dest, int mode)
+	{
+		if (!src)
+		{
+			printf("no data to copy.\n");
+			return 0;
+		}
+
+		if (mode == 1)
+		{
+			destroy_hasht(dest);
+			Node **data_map = calloc(src->size, sizeof(Node *));
+			if (!data_map)
+			{
+				__er_calloc(F, L - 2);
+				return 0;
+			}
+
+			(*dest).size = src->size;
+			(*dest).dataMap = data_map;
+		}
+
+		for (register int i = 0; i < src->size; i++)
+		{
+			if (src->dataMap[i])
+			{
+				switch (src->dataMap[i] -.key_type)
+				{
+				case STR:
+				{
+					set(src->dataMap[i]->key.s,
+						src->dataMap[i]->key_type,
+						src->dataMap[i]->value, dest);
+					Node *next = src->dataMap[i]->next;
+					while (next)
+					{
+						set(next->key.s,
+							next->key_type,
+							next->value, dest);
+						next = next->next;
+					}
+					break;
+				}
+				case UINT:
+				{
+					set(src->dataMap[i]->key.n,
+						src->dataMap[i]->key_type,
+						src->dataMap[i]->value, dest);
+					Node *next = src->dataMap[i]->next;
+					while (next)
+					{
+						set(next->key.n,
+							next->key_type,
+							next->value, dest);
+						next = next->next;
+					}
+					break;
+				}
+				default:
+					fprintf(stderr, "key type not supported");
+				}
+			}
+		}
+
+		return 1;
+	}
