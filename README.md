@@ -1,12 +1,13 @@
 # Database in C
 
-## CURRENT STATUS as per 01/23/25
+## CURRENT STATUS as per 01/24/25
 
 upgranding the hash table data structure that is used as a index foo the file system.
 
 - introduced a new key type (uint32_t)
 - changed hash function for both string key and integer key types.
-- upgraded the set() function to behavie accordingly to the key_type.
+- upgraded set(), get(), delete(), write_ht() and copy_ht() functions to behavie accordingly to the key_type.
+- started upgrading file.c to read the index file accordingly to the key_type.
   
 as for now if you clone the repositry, IT WILL NOT WORK, due to incompleteness of the new
 HashTable implementation.
