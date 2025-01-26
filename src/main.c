@@ -452,7 +452,9 @@ int main(int argc, char *argv[])
 						free(files[0]), free(files[1]), free(files);
 						return 1;
 					}
-					set(key, offset, &ht); /*create a new key value pair in the hash table*/
+					int key_type = is_num(key);
+					/*create a new key value pair in the hash table*/
+					set((void *)key, key_type, offset, &ht);
 
 					if (!write_file(fd_data, rec, 0, update))
 					{
@@ -1757,7 +1759,8 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			Node *record_del = delete (key, &ht[index_nr]);
+			int key_type = is_num(key);
+			Node *record_del = delete ((void *)key, &ht[index_nr], key_type);
 			if (!record_del)
 			{
 				printf("record %s not found.\n", key);
@@ -1809,8 +1812,7 @@ int main(int argc, char *argv[])
 			}
 
 			printf("record %s deleted!.\n", key);
-			free(record_del->key);
-			free(record_del);
+			free_ht_node(record_del);
 			close_file(1, fd_index);
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
@@ -2349,7 +2351,8 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			if (!set(key, eof, &ht[0]))
+			int key_type = is_num(key);
+			if (!set((void *)key, key_type, eof, &ht[0]))
 			{
 				close_file(2, fd_index, fd_data);
 				free(files[0]), free(files[1]), free(files);
@@ -2934,7 +2937,8 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			off_t offset = get(key, p_ht); /*look for the key in the ht */
+			int key_type = is_num(key);
+			off_t offset = get((void *)key, p_ht, key_type); /*look for the key in the ht */
 
 			if (offset == -1)
 			{
@@ -4792,12 +4796,22 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			char **key_a = keys(p_ht);
+			struct Keys_ht *keys_data = keys(p_ht);
 			char keyboard = '0';
 			int end = len(ht), i = 0, j = 0;
 			for (i = 0, j = i; i < end; i++)
 			{
-				printf("%d. %s\n", ++j, key_a[i]);
+				switch (keys_data->types[i])
+				{
+				case STR:
+					printf("%d. %s\n", ++j, (char *)keys_data->k[i]);
+					break;
+				case UINT:
+					printf("%d. %u\n", ++j, *(uint32_t *)keys_data->k[i]);
+					break;
+				default:
+					break;
+				}
 				if (i > 0 && (i % 20 == 0))
 					printf("press return key. . .\n"
 						   "enter q to quit . . .\n"),
@@ -4810,8 +4824,8 @@ int main(int argc, char *argv[])
 			destroy_hasht(p_ht);
 			free_schema(&hd.sch_d);
 			close_file(2, fd_index, fd_data);
-			free_strs(end, 1, key_a);
 			free_strs(2, 1, files);
+			free_keys_data(keys_data);
 			if (shared_locks)
 			{ /*release the locks before exit*/
 				int result_d = 0;
@@ -4924,7 +4938,8 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			off_t offset = get(key, p_ht); /*look for the key in the ht */
+			int key_type = is_num(key);
+			off_t offset = get((void *)key, p_ht, key_type); /*look for the key in the ht */
 			if (offset == -1)
 			{
 				printf("record not found.\n");

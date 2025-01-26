@@ -2,17 +2,21 @@
 #define HASH_TBL_H
 
 #include <sys/types.h>
+#include <stdint.h>
 
-typedef enum
-{
-	UINT,
-	STR
-} key_types;
+#define MAX_KEY 4294967296
+
+#define STR 1
+#define UINT 2
 
 typedef struct Node
 {
-	uint32_t k;
-	char *key;
+	int key_type;
+	union
+	{
+		uint32_t n;
+		char *s;
+	} key;
 	off_t value;
 	struct Node *next;
 } Node;
@@ -23,6 +27,14 @@ typedef struct HashTable
 	Node **dataMap;
 	int (*write)(int fd, struct HashTable *ht);
 } HashTable;
+
+/*this will contains all the keys of the hash table*/
+struct Keys_ht
+{
+	void **k;
+	int *types;
+	int length;
+};
 
 /*
  * COPRIME is a prime number needed for the hash function
@@ -39,15 +51,17 @@ typedef struct HashTable
 unsigned char hash_tbl_init(int bucket, HashTable *ht);
 void print_hash_table(HashTable tbl);
 int write_ht(int fd, HashTable *ht);
-int hash(char *key, int size);
-Node *delete(char *key, HashTable *tbl);
-int set(char *key, off_t value, HashTable *tbl);
+int hash(void *key, int size, int key_type);
+Node *delete(void *key, HashTable *tbl, int key_type);
+int set(void *key, int key_type, off_t value, HashTable *tbl);
 void free_ht_array(HashTable *ht, int l);
 void destroy_hasht(HashTable *tbl); /*free memory*/
-off_t get(char *key, HashTable *tbl);
-char **keys(HashTable *ht);
+off_t get(void *key, HashTable *tbl, int key_type);
+struct Keys_ht *keys(HashTable *ht);
 int len(HashTable tbl);
 void free_nodes(Node **dataMap, int size);
+void free_ht_node(Node *node);
+void free_keys_data(struct Keys_ht *data);
 unsigned char copy_ht(HashTable *src, HashTable *dest, int mode);
 
 #endif /* hash_tbl.h */

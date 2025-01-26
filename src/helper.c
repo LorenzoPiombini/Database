@@ -127,7 +127,8 @@ unsigned char append_to_file(int fd_data, int fd_index, char *file_path, char *k
 		return 0;
 	}
 
-	if (!set(key, eof, ht))
+	int key_type = is_num(key);
+	if (!set((void *)key, key_type, eof, ht))
 	{
 		free_record(rec, rec->fields_num);
 		free(buffer), free(buf_t), free(buf_v);
