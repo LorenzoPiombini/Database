@@ -7,6 +7,17 @@
 #include "str_op.h"
 #include "debug.h"
 
+int is_num(char *key)
+{
+	unsigned char uint = 2;
+	unsigned char str = 1;
+
+	for (; *key != '\0'; key++)
+		if (isalpha(*key) || ispunct(*key))
+			return str;
+
+	return uint;
+}
 char **two_file_path(char *file_path)
 {
 	static char *dat = ".dat";

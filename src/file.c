@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <math.h>
 #include "file.h"
+#include "str_op.h"
 #include "common.h"
 #include "float_endian.h"
 #include "debug.h"
@@ -431,7 +432,6 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 	int size = (int)ntohl(s_n);
 	Node **dataMap = calloc(size, sizeof(Node *));
-
 	if (!dataMap)
 	{
 		perror("calloc failed");
@@ -453,14 +453,18 @@ unsigned char read_index_file(int fd, HashTable *ht)
 	register int i = 0;
 	for (i = 0; i < ht_l; i++)
 	{
+
 		uint32_t type = 0;
-		if (read(fd, &type, sizeof(type) == -1))
+		if (read(fd, &type, sizeof(type)) == -1)
 		{
 			fprintf(stderr, "can't read key type, %s:%d.\n",
 					F, L - 3);
+			free_nodes(dataMap, size);
 			return 0;
 		}
-		int key_type = ntohl(type);
+
+		int key_type = (int)ntohl(type);
+
 		switch (key_type)
 		{
 		case STR:
@@ -501,7 +505,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				}
 
 				newNode->key.s = strdup(key);
-				if (!newNode->key)
+				if (!newNode->key.s)
 				{
 					fprintf(stderr,
 							"strdup() failed, %s:%d.\n",
@@ -513,8 +517,9 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				free(key);
 				newNode->value = value;
 				newNode->next = NULL;
+				newNode->key_type = key_type;
 
-				int bucket = hash(newNode->key, ht->size);
+				int bucket = hash((void *)newNode->key.s, ht->size, key_type);
 				if (ht->dataMap[bucket])
 				{
 					Node *current = ht->dataMap[bucket];
@@ -529,11 +534,80 @@ unsigned char read_index_file(int fd, HashTable *ht)
 					ht->dataMap[bucket] = newNode;
 				}
 			}
+			else
+			{
+				fprintf(stderr,
+						"read index failed, %s:%d\n", F, L - 2);
+				free_nodes(dataMap, size);
+				return 0;
+			}
+			break;
+		}
 		case UINT:
 		{
+			uint32_t k = 0;
+			uint64_t value = 0;
+			if (read(fd, &k, sizeof(k)) == -1)
+			{
+				fprintf(stderr, "read index failed.\n");
+				free_nodes(dataMap, size);
+				return 0;
+			}
+
+			if (read(fd, &value, sizeof(value)) == -1)
+			{
+				fprintf(stderr, "read index failed.\n");
+				free_nodes(dataMap, size);
+				return 0;
+			}
+
+			Node *new_node = calloc(1, sizeof(Node));
+			if (!new_node)
+			{
+				__er_calloc(F, L - 2);
+				free_nodes(dataMap, size);
+				return 0;
+			}
+
+			new_node->key_type = key_type;
+			new_node->key.n = ntohl(k);
+			new_node->value = (off_t)bswap_64(value);
+			new_node->next = NULL;
+
+			size_t len = number_of_digit(new_node->key.n) + 1;
+			char buff[len];
+			if (snprintf(buff, len, "%u", new_node->key.n) < 0)
+			{
+				fprintf(stderr, "sprintf() failed.%s:%d.\n", F, L - 1);
+				return 0;
+			}
+			int index = hash((void *)buff, ht->size, key_type);
+			if (index == -1)
+			{
+				fprintf(stderr, "read index failed.%s:%d\n", F, L - 2);
+				free_nodes(dataMap, size);
+				free_ht_node(new_node);
+				return 0;
+			}
+			if (ht->dataMap[index])
+			{
+				Node *current = ht->dataMap[index];
+				while (current->next)
+					current = current->next;
+
+				current = new_node;
+			}
+			else
+			{
+				ht->dataMap[index] = new_node;
+			}
+
+			break;
 		}
 		default:
-		}
+			fprintf(stderr, "key type not supported.\n");
+			free_nodes(dataMap, size);
+			return 0;
 		}
 	}
 

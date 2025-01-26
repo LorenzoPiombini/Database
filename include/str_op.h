@@ -23,6 +23,7 @@ the number in e.i (int or long)*/
 #define IN_FLOAT 102
 #define IN_DOUBLE 103
 
+int is_num(char *key);
 char **two_file_path(char *file_path);
 int count_fields(char *fields, const char *target);
 int get_type(char *s);
