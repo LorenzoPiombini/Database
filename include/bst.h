@@ -61,4 +61,4 @@ void free_node(Node_bst *node);
 void free_BST(BST *binary_st);
 int height(Node_bst *node, int branch);
 
-#endif /* bst.h */
+#endif
