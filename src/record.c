@@ -440,11 +440,10 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
 								  int recs_len, int *field_i_r, int *rec_index)
 {
-	int i = 0, j = 0;
 	size_t field_name_len = strlen(field_name);
-	for (i = 0; i < recs_len; i++)
+	for (int i = 0; i < recs_len; i++)
 	{
-		for (j = 0; j < recs[i]->fields_num; j++)
+		for (int j = 0; j < recs[i]->fields_num; j++)
 		{
 			if (strncmp(field_name, recs[i]->fields[j].field_name, field_name_len) == 0)
 			{
@@ -456,4 +455,52 @@ unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
 	}
 
 	return 0;
+}
+
+int init_array(struct array *v, int size)
+{
+	(*v).size = size;
+	(*v).elements = calloc(size, sizeof(struct Field));
+	if (!(*v).elements)
+	{
+		__er_calloc(F, L - 2);
+		return -1;
+	}
+
+	/*set everything to TYPE_EMPTY*/
+	for (int i = 0; i < ((*v).size - 1), i++)
+		(*v).elements[i].type = TYPE_EMPTY;
+
+	return 0;
+}
+
+int insert_element(struct Field element, struct array *v, int type)
+{
+	/*check if there is enough space for new item */
+	if ((*v).elements[(*v).size - 1].type == TYPE_EMPTY)
+	{
+		for (int i = 0; i < (*v).size; i++)
+		{
+			if ((*v).elements[i].type != TYPE_EMPTY)
+				continue;
+
+			(*v).elements[i] = element;
+			break;
+		}
+	}
+	else
+	{
+		/*not enough space, increase the size */
+		struct Field *elements_new = realloc((*v).elements, ++((*v).size) * sizeof(struct Field));
+		if (!elements_new)
+		{
+			__er_realloc(F, L - 2);
+			return -1;
+		}
+
+		(*v).elements = elements_new;
+		(*v).elements[(*v).size - 1] = element;
+	}
+
+	return 0; /*success*/
 }

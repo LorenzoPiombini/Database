@@ -3,8 +3,6 @@
 
 #include <sys/types.h>
 
-typedef unsigned char byte;
-
 enum ValueType
 {
 	TYPE_INT,
@@ -13,7 +11,16 @@ enum ValueType
 	TYPE_STRING,
 	TYPE_BYTE,
 	TYPE_OFF_T,
-	TYPE_DOUBLE
+	TYPE_DOUBLE,
+	TYPE_EMPTY,
+	TYPE_ARRAY
+};
+
+struct array
+{
+	struct Field *elements;
+	int size;
+	int (*insert)(struct Field elements, struct array *v, int type);
 };
 
 struct Field
@@ -30,6 +37,7 @@ struct Field
 		unsigned char b;
 		off_t offset;
 		double d;
+		struct array v;
 	} data;
 };
 
@@ -40,6 +48,8 @@ struct Record_f
 	struct Field *fields;
 };
 
+int init_array(struct array *v, int size);
+int insert_element(struct Field element, struct array *v, int type);
 struct Record_f *create_record(char *file_name, int fields_num);
 unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value);
 void free_record(struct Record_f *rec, int fields_num);
