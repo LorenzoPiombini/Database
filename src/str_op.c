@@ -3,7 +3,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <limits.h>
+#include <errno.h>
 #include "str_op.h"
 #include "debug.h"
 
@@ -18,6 +20,46 @@ int is_num(char *key)
 
 	return uint;
 }
+
+void *key_converter(char *key, int *key_type)
+{
+	void *converted = NULL;
+	*key_type = is_num(key);
+	switch (*key_type)
+	{
+	case 2:
+	{
+		char *end;
+		errno = 0;
+		long l = strtol(key, &end, 10);
+		if (l == 0 || errno == EINVAL)
+			return NULL;
+
+		if (l == MAX_KEY)
+		{
+			fprintf(stderr, "key value out fo range.\n");
+			return NULL;
+		}
+
+		converted = calloc(1, sizeof(uint32_t));
+		if (!converted)
+		{
+			__er_calloc(F, L - 2);
+			return NULL;
+		}
+
+		memcpy(converted, (uint32_t *)&l, sizeof(uint32_t));
+		break;
+	}
+	case 1:
+		return NULL;
+	default:
+		return NULL;
+	}
+
+	return converted;
+}
+
 char **two_file_path(char *file_path)
 {
 	static char *dat = ".dat";

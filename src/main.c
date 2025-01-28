@@ -452,9 +452,45 @@ int main(int argc, char *argv[])
 						free(files[0]), free(files[1]), free(files);
 						return 1;
 					}
-					int key_type = is_num(key);
-					/*create a new key value pair in the hash table*/
-					set((void *)key, key_type, offset, &ht);
+					int key_type = 0;
+					void *key_conv = key_converter(key, &key_type);
+					if (key_type == UINT && !key_conv)
+					{
+						fprintf(stderr, "error to convert key");
+						free_record(rec, fields_count);
+						close_file(2, fd_index, fd_data);
+						delete_file(2, files[0], files[1]);
+						free(files[0]), free(files[1]), free(files);
+						return 1;
+					}
+					else if (key_type == UINT)
+					{
+						if (key_conv)
+						{
+							if (!set(key_conv, key_type, offset, &ht))
+							{
+								free_record(rec, fields_count);
+								close_file(2, fd_index, fd_data);
+								delete_file(2, files[0], files[1]);
+								free(files[0]), free(files[1]), free(files);
+								free(key_conv);
+								return 1;
+							}
+							free(key_conv);
+						}
+					}
+					else if (key_type == STR)
+					{
+						/*create a new key value pair in the hash table*/
+						if (!set((void *)key, key_type, offset, &ht))
+						{
+							free_record(rec, fields_count);
+							close_file(2, fd_index, fd_data);
+							delete_file(2, files[0], files[1]);
+							free(files[0]), free(files[1]), free(files);
+							return 1;
+						}
+					}
 
 					if (!write_file(fd_data, rec, 0, update))
 					{
@@ -1759,8 +1795,60 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			int key_type = is_num(key);
-			Node *record_del = delete ((void *)key, &ht[index_nr], key_type);
+			int key_type = 0;
+			void *key_conv = key_converter(key, &key_type);
+			Node *record_del = NULL;
+			if (key_conv)
+			{
+				record_del = delete (key_conv, &ht[index_nr], key_type);
+				free(key_conv);
+			}
+			else if (key_type == STR)
+			{
+				record_del = delete ((void *)key, &ht[index_nr], key_type);
+			}
+			else
+			{
+				fprintf(stderr, "error key_converter().\n");
+				free_strs(2, 1, files);
+				close_file(2, fd_index, fd_data);
+				free_ht_array(ht, index);
+				if (shared_locks)
+				{
+					int result_i = 0, result_d = 0;
+					do
+					{
+						if ((result_i = release_lock_smo(&shared_locks,
+														 plp_i, plpa_i)) == 0 ||
+							(result_d = release_lock_smo(&shared_locks,
+														 plp, plpa)) == 0)
+						{
+							printf("release_lock_smo() failed,%s:%d.\n", F, L - 8);
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(1, fd_mo);
+								return 1;
+							}
+							close_file(1, fd_mo);
+							return 1;
+						}
+
+					} while (result_d == WTLK || result_i == WTLK);
+
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(1, fd_mo);
+						return 1;
+					}
+					close_file(1, fd_mo);
+					return 1;
+				}
+				return 1;
+			}
+
 			if (!record_del)
 			{
 				printf("record %s not found.\n", key);
@@ -2350,38 +2438,53 @@ int main(int argc, char *argv[])
 				}
 				return 1;
 			}
-
-			int key_type = is_num(key);
-			if (!set((void *)key, key_type, eof, &ht[0]))
+			int key_type = 0;
+			void *key_conv = key_converter(key, &key_type);
+			if (key_type == UINT && !key_conv)
 			{
-				close_file(2, fd_index, fd_data);
-				free(files[0]), free(files[1]), free(files);
-				free_record(rec, rec->fields_num);
-				free(buffer), free(buf_t), free(buf_v);
-				if (ht)
+				fprintf(stderr, "error to convert key");
+				return 1;
+			}
+			else if (key_type == UINT)
+			{
+				if (key_conv)
 				{
-					int i = 0;
-					for (i = 0; i < index; i++)
+					if (!set(key_conv, key_type, eof, &ht[0]))
 					{
-						destroy_hasht(&ht[i]);
-					}
-					free(ht);
-				}
-				if (shared_locks)
-				{
-					int result_i = 0, result_d = 0;
-					do
-					{
-						if ((result_i = release_lock_smo(&shared_locks,
-														 plp_i, plpa_i)) == 0 ||
-							(result_d = release_lock_smo(&shared_locks,
-														 plp, plpa)) == 0)
+						free(key_conv);
+						close_file(2, fd_index, fd_data);
+						free(files[0]), free(files[1]), free(files);
+						free_record(rec, rec->fields_num);
+						free(buffer), free(buf_t), free(buf_v);
+						free_ht_array(ht, index);
+						if (shared_locks)
 						{
-							__er_release_lock_smo(F, L - 5);
-							if (munmap(shared_locks, sizeof(lock_info) *
-														 MAX_NR_FILE_LOCKABLE) == -1)
+							int result_i = 0, result_d = 0;
+							do
 							{
-								__er_munmap(F, L - 3);
+								if ((result_i = release_lock_smo(&shared_locks,
+																 plp_i, plpa_i)) == 0 ||
+									(result_d = release_lock_smo(&shared_locks,
+																 plp, plpa)) == 0)
+								{
+									__er_release_lock_smo(F, L - 5);
+									if (munmap(shared_locks, sizeof(lock_info) *
+																 MAX_NR_FILE_LOCKABLE) == -1)
+									{
+										__er_munmap(F, L - 3);
+										close_file(1, fd_mo);
+										return 1;
+									}
+									close_file(1, fd_mo);
+									return 1;
+								}
+
+							} while (result_d == WTLK || result_i == WTLK);
+
+							if (munmap(shared_locks,
+									   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 2);
 								close_file(1, fd_mo);
 								return 1;
 							}
@@ -2389,19 +2492,58 @@ int main(int argc, char *argv[])
 							return 1;
 						}
 
-					} while (result_d == WTLK || result_i == WTLK);
-
-					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						return 1;
+					}
+					free(key_conv);
+				}
+			}
+			else if (key_type == STR)
+			{
+				/*create a new key value pair in the hash table*/
+				if (!set((void *)key, key_type, eof, &ht[0]))
+				{
+					close_file(2, fd_index, fd_data);
+					free(files[0]), free(files[1]), free(files);
+					free_record(rec, rec->fields_num);
+					free(buffer), free(buf_t), free(buf_v);
+					free_ht_array(ht, index);
+					if (shared_locks)
 					{
-						__er_munmap(F, L - 2);
+						int result_i = 0, result_d = 0;
+						do
+						{
+							if ((result_i = release_lock_smo(&shared_locks,
+															 plp_i, plpa_i)) == 0 ||
+								(result_d = release_lock_smo(&shared_locks,
+															 plp, plpa)) == 0)
+							{
+								__er_release_lock_smo(F, L - 5);
+								if (munmap(shared_locks, sizeof(lock_info) *
+															 MAX_NR_FILE_LOCKABLE) == -1)
+								{
+									__er_munmap(F, L - 3);
+									close_file(1, fd_mo);
+									return 1;
+								}
+								close_file(1, fd_mo);
+								return 1;
+							}
+
+						} while (result_d == WTLK || result_i == WTLK);
+
+						if (munmap(shared_locks,
+								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+						{
+							__er_munmap(F, L - 2);
+							close_file(1, fd_mo);
+							return 1;
+						}
 						close_file(1, fd_mo);
 						return 1;
 					}
-					close_file(1, fd_mo);
+
 					return 1;
 				}
-
-				return 1;
 			}
 
 			if (!write_file(fd_data, rec, 0, update))
@@ -2937,8 +3079,65 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			int key_type = is_num(key);
-			off_t offset = get((void *)key, p_ht, key_type); /*look for the key in the ht */
+			off_t offset = 0;
+			int key_type = 0;
+			void *key_conv = key_converter(key, &key_type);
+			if (key_type == UINT && !key_conv)
+			{
+				fprintf(stderr, "error to convert key");
+				free(buffer), close_file(2, fd_index, fd_data);
+				free_record(rec, rec->fields_num);
+				free_schema(&hd.sch_d);
+				destroy_hasht(p_ht);
+				free_strs(2, 1, files);
+				if (shared_locks)
+				{
+					int result_i = 0, result_d = 0;
+					do
+					{
+						if ((result_i = release_lock_smo(&shared_locks,
+														 plp_i, plpa_i)) == 0 ||
+							(result_d = release_lock_smo(&shared_locks,
+														 plp, plpa)) == 0)
+						{
+							__er_release_lock_smo(F, L - 5);
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(1, fd_mo);
+								return 1;
+							}
+							close_file(1, fd_mo);
+							return 1;
+						}
+
+					} while (result_d == WTLK || result_i == WTLK);
+
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(1, fd_mo);
+						return 1;
+					}
+					close_file(1, fd_mo);
+					return 1;
+				}
+
+				return 1;
+			}
+			else if (key_type == UINT)
+			{
+				if (key_conv)
+				{
+					offset = get(key_conv, p_ht, key_type); /*look for the key in the ht */
+					free(key_conv);
+				}
+			}
+			else if (key_type == STR)
+			{
+				offset = get((void *)key, p_ht, key_type); /*look for the key in the ht */
+			}
 
 			if (offset == -1)
 			{
@@ -4938,8 +5137,64 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 
-			int key_type = is_num(key);
-			off_t offset = get((void *)key, p_ht, key_type); /*look for the key in the ht */
+			off_t offset = 0;
+			int key_type = 0;
+			void *key_conv = key_converter(key, &key_type);
+			if (key_type == UINT && !key_conv)
+			{
+				fprintf(stderr, "error to convert key");
+				destroy_hasht(p_ht);
+				close_file(2, fd_index, fd_data);
+				free_strs(2, 1, files);
+				if (shared_locks)
+				{
+					int result_i = 0, result_d = 0;
+					do
+					{
+						if ((result_i = release_lock_smo(&shared_locks,
+														 plp_i, plpa_i)) == 0 ||
+							(result_d = release_lock_smo(&shared_locks,
+														 plp, plpa)) == 0)
+						{
+							__er_release_lock_smo(F, L - 5);
+							if (munmap(shared_locks, sizeof(lock_info) *
+														 MAX_NR_FILE_LOCKABLE) == -1)
+							{
+								__er_munmap(F, L - 3);
+								close_file(1, fd_mo);
+								return 1;
+							}
+							close_file(1, fd_mo);
+							return 1;
+						}
+
+					} while (result_d == WTLK || result_i == WTLK);
+
+					if (munmap(shared_locks, sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
+					{
+						__er_munmap(F, L - 2);
+						close_file(1, fd_mo);
+						return 1;
+					}
+					close_file(1, fd_mo);
+					return 1;
+				}
+
+				return 1;
+			}
+			else if (key_type == UINT)
+			{
+				if (key_conv)
+				{
+					offset = get(key_conv, p_ht, key_type); /*look for the key in the ht */
+					free(key_conv);
+				}
+			}
+			else if (key_type == STR)
+			{
+				offset = get((void *)key, p_ht, key_type); /*look for the key in the ht */
+			}
+
 			if (offset == -1)
 			{
 				printf("record not found.\n");

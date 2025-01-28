@@ -5,6 +5,8 @@
 #define TYPE_ "TYPE_"
 #define T_ ":t_"
 
+#define MAX_KEY 4294967296
+
 #define ASCII_INT_MAX 526            /*the sum of ASCII values for every char in INT_MAX*/
 #define ASCII_INT_MIN 572            /*the sum of ASCII values for every char in INT_MIN*/
 #define ASCII_LONG_MAX 1000          /*the sum of ASCII values for every char in LONG_MAX*/
@@ -24,6 +26,7 @@ the number in e.i (int or long)*/
 #define IN_DOUBLE 103
 
 int is_num(char *key);
+void *key_converter(char *key, int *key_type);
 char **two_file_path(char *file_path);
 int count_fields(char *fields, const char *target);
 int get_type(char *s);

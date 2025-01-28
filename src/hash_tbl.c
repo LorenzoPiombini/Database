@@ -165,19 +165,7 @@ int hash(void *key, int size, int key_type)
 	{
 	case UINT:
 	{
-		char *end;
-		errno = 0;
-		long l = strtol((char *)key, &end, 10);
-		if (l == 0 || errno == EINVAL)
-			return -1;
-
-		if (l == MAX_KEY)
-		{
-			fprintf(stderr, "key vslue out fo range.\n");
-			return -1;
-		}
-
-		integer_key = (uint32_t)l;
+		integer_key = *(uint32_t *)key;
 		hash = ((COPRIME * integer_key + number) % prime) % size;
 		break;
 	}
@@ -211,18 +199,7 @@ off_t get(void *key, HashTable *tbl, int key_type)
 			break;
 		case UINT:
 		{
-			char *end;
-			errno = 0;
-			long l = strtol((char *)key, &end, 10);
-			if (l == 0 || errno == EINVAL)
-				return -1;
-
-			if (l == MAX_KEY)
-			{
-				return -1;
-			}
-
-			if (temp->key.n == (uint32_t)l)
+			if (temp->key.n == *(uint32_t *)key)
 				return temp->value;
 
 			temp = temp->next;
@@ -251,18 +228,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 	{
 	case UINT:
 	{
-		char *end;
-		errno = 0;
-		long l = strtol((char *)key, &end, 10);
-		if (l == 0 || errno == EINVAL)
-			return -1;
-
-		if (l == MAX_KEY)
-		{
-			return -1;
-		}
-
-		new_node->key.n = (uint32_t)l;
+		new_node->key.n = *(uint32_t *)key;
 		break;
 	}
 	case STR:
@@ -390,16 +356,8 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 			break;
 		case UINT:
 		{
-			char *end;
-			errno = 0;
-			long l = strtol((char *)key, &end, 10);
-			if (l == 0 || errno == EINVAL)
-				return NULL;
 
-			if (l == MAX_KEY)
-				return NULL;
-
-			if (current->key.n == (uint32_t)l)
+			if (current->key.n == *(uint32_t *)key)
 			{
 				if (previous == NULL)
 					tbl->dataMap[index] = current->next;
@@ -670,19 +628,14 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 			}
 			case UINT:
 			{
-				size_t len = number_of_digit(src->dataMap[i]->key.n) + 1;
-				char buff[len];
-				if (snprintf(buff, len, "%u", src->dataMap[i]->key.n) < 0)
-				{
-					fprintf(stderr, "sprintf() failed.%s:%d.].\n", F, L - 1);
-					return 0;
-				}
-				set((void *)buff, src->dataMap[i]->key_type,
+				set((void *)&src->dataMap[i]->key.n,
+					src->dataMap[i]->key_type,
 					src->dataMap[i]->value, dest);
 				Node *next = src->dataMap[i]->next;
 				while (next)
 				{
-					set((void *)buff, next->key_type,
+					set((void *)&next->key.n,
+						next->key_type,
 						next->value, dest);
 					next = next->next;
 				}
