@@ -29,7 +29,6 @@ struct Record_f *create_record(char *file_name, int fields_num)
 	rec->fields_num = fields_num;
 
 	rec->fields = calloc(fields_num, sizeof(struct Field));
-
 	if (!rec->fields)
 	{
 		printf("Memory allocation fields, record.c l 26.\n");
@@ -189,6 +188,10 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 			}
 			rec->fields[index].data.d = d;
 		}
+		break;
+	}
+	TYPE_ARRAY:
+	{
 		break;
 	}
 	default:
@@ -457,41 +460,53 @@ unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
 	return 0;
 }
 
-int init_array(struct array *v, int size)
+int init_array(struct array **v)
 {
-	(*v).size = size;
-	(*v).elements = calloc(size, sizeof(struct Field));
-	if (!(*v).elements)
+	(*(*v)).size = size;
+	(*(*v)).elements = calloc(DEF_SIZE, sizeof(struct Field *));
+	if (!(*(*v)).elements)
 	{
 		__er_calloc(F, L - 2);
 		return -1;
 	}
 
-	/*set everything to TYPE_EMPTY*/
-	for (int i = 0; i < ((*v).size - 1), i++)
-		(*v).elements[i].type = TYPE_EMPTY;
-
 	return 0;
 }
 
-int insert_element(struct Field element, struct array *v, int type)
+int insert_element(struct Field element, struct array *v)
 {
+	/*check if the array has been initialized */
+	if (!(*v).elements)
+	{
+		if (init_array(&v) == -1)
+		{
+			fprintf(stderr, "init array failed.\n");
+			return -1;
+		}
+	}
+
 	/*check if there is enough space for new item */
-	if ((*v).elements[(*v).size - 1].type == TYPE_EMPTY)
+	if (!(*v).elements[(*v).size - 1])
 	{
 		for (int i = 0; i < (*v).size; i++)
 		{
-			if ((*v).elements[i].type != TYPE_EMPTY)
+			if ((*v).elements[i])
 				continue;
 
-			(*v).elements[i] = element;
+			(*v).elements = malloc(sizeof(struct Field));
+			if (!(*v).elements)
+			{
+				__er_malloc(F, L - 2);
+				return -1;
+			}
+			*((*v).elements[i]) = element;
 			break;
 		}
 	}
 	else
 	{
 		/*not enough space, increase the size */
-		struct Field *elements_new = realloc((*v).elements, ++((*v).size) * sizeof(struct Field));
+		struct Field *elements_new = realloc((*v).elements, ++(*v).size * sizeof(struct Field));
 		if (!elements_new)
 		{
 			__er_realloc(F, L - 2);
@@ -499,7 +514,14 @@ int insert_element(struct Field element, struct array *v, int type)
 		}
 
 		(*v).elements = elements_new;
-		(*v).elements[(*v).size - 1] = element;
+		(*v).elements[(*v).size - 1] = malloc(sizeof(struct Field));
+		if (!(*v).elements[(*v).size - 1])
+		{
+			__er_malloc(F, L - 2);
+			return -1;
+		}
+
+		*((*v).elements[(*v).size - 1]) = element;
 	}
 
 	return 0; /*success*/

@@ -9,6 +9,46 @@
 #include "str_op.h"
 #include "debug.h"
 
+int get_array_values(char *src, char ***values)
+{
+	int items = count_fields(src, ",");
+	*values = calloc(items, sizeof(char *));
+	if (!(*values))
+	{
+		__er_calloc(F, L - 2);
+		return -1;
+	}
+
+	char *t = strtok(src, ",");
+	if (!t)
+	{
+		fprintf(stderr, "strtok() failed.\n", F, L - 2);
+		free(*values);
+		return -1;
+	}
+
+	(*values)[0] = strdup(t);
+	if (!(*values)[0])
+	{
+		fprintf(stderr, "strdup failed.\n", F, L - 2);
+		free(*values);
+		return -1;
+	}
+
+	for (int i = 1; ((t = strtok(NULL, ",")) != NULL) && (i < items); i++)
+	{
+		(*values)[i] = strdup(t);
+		if (!(*values)[i])
+		{
+			fprintf(stderr, "strdup failed.\n", F, L - 2);
+			free(*values);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int is_num(char *key)
 {
 	unsigned char uint = 2;

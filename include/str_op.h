@@ -25,6 +25,7 @@ the number in e.i (int or long)*/
 #define IN_FLOAT 102
 #define IN_DOUBLE 103
 
+int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);
 char **two_file_path(char *file_path);

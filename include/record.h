@@ -3,6 +3,21 @@
 
 #include <sys/types.h>
 
+/*default dynamic array size*/
+#define DEF_SIZE 5
+
+#define ARRAY_INIT(element)                                             \
+	do                                                                  \
+	{                                                                   \
+		struct array v = {NULL, 0, insert_element, free_dynamic_array}; \
+		if (v.insert(element, &v) == -1)                                \
+		{                                                               \
+			fprintf(stderr, "insert dynamic array failed",              \
+					F, L - 3);                                          \
+			return -1;                                                  \
+		}                                                               \
+		while (0)
+
 enum ValueType
 {
 	TYPE_INT,
@@ -12,15 +27,15 @@ enum ValueType
 	TYPE_BYTE,
 	TYPE_OFF_T,
 	TYPE_DOUBLE,
-	TYPE_EMPTY,
 	TYPE_ARRAY
 };
 
 struct array
 {
-	struct Field *elements;
+	struct Field **elements;
 	int size;
-	int (*insert)(struct Field elements, struct array *v, int type);
+	int (*insert)(struct Field, struct array *);
+	void (*destroy)(struct array *);
 };
 
 struct Field
@@ -48,8 +63,9 @@ struct Record_f
 	struct Field *fields;
 };
 
-int init_array(struct array *v, int size);
-int insert_element(struct Field element, struct array *v, int type);
+int init_array(struct array *v);
+int insert_element(struct Field element, struct array *v);
+void free_dynamic_array(struct array *v);
 struct Record_f *create_record(char *file_name, int fields_num);
 unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value);
 void free_record(struct Record_f *rec, int fields_num);
