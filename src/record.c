@@ -190,7 +190,53 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 		}
 		break;
 	}
-	TYPE_ARRAY:
+	case TYPE_ARRAY_INT:
+	{
+		break;
+	}
+	case TYPE_ARRAY_LONG:
+	{
+		break;
+	}
+	case TYPE_ARRAY_FLOAT:
+	{
+		if (!is_floaintg_point(value))
+		{
+			printf("invalid value for float type: %s.\n", value);
+			return 0;
+		}
+
+		int range = 0;
+		if ((range = is_number_in_limits(value)) == 0)
+		{
+			printf("float value not allowed in this system.\n");
+			return 0;
+		}
+
+		if (range == IN_FLOAT)
+		{
+			float f = strtof(value, NULL);
+			if (f == ERANGE || f == EINVAL)
+			{
+				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+				return 0;
+			}
+			struct Field field *
+				rec->fields[index].data.a = {0, NULL, insert_element, free_dynamic_array};
+			rec->fields[index].data.a.insert(&rec->fields[index].data.a, )
+		}
+
+		break;
+	}
+	case TYPE_ARRAY_STRING:
+	{
+		break;
+	}
+	case TYPE_ARRAY_BYTE:
+	{
+		break;
+	}
+	case TYPE_ARRAY_DOUBlE:
 	{
 		break;
 	}
@@ -317,9 +363,7 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 			if (i < size_ia)
 			{
 				if (len_ia[i] != 0)
-				{
 					free_record_array(len_ia[i], &(*array)[i]);
-				}
 			}
 			else
 			{
@@ -460,25 +504,91 @@ unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
 	return 0;
 }
 
-int init_array(struct array **v)
+int init_array(struct array **v, enum ValueType type)
 {
 	(*(*v)).size = size;
-	(*(*v)).elements = calloc(DEF_SIZE, sizeof(struct Field *));
-	if (!(*(*v)).elements)
+	switch (type)
 	{
-		__er_calloc(F, L - 2);
+	case TYPE_ARRAY_INT:
+	{
+		(*(*v)).elements.i = calloc(DEF_SIZE, sizeof(int *));
+		if (!(*(*v)).elements.i)
+		{
+			__er_calloc(F, L - 2);
+			return -1;
+		}
+
+		break;
+	}
+	case TYPE_ARRAY_LONG:
+	{
+		(*(*v)).elements.l = calloc(DEF_SIZE, sizeof(long *));
+		if (!(*(*v)).elements.l)
+		{
+			__er_calloc(F, L - 2);
+			return -1;
+		}
+		break;
+	}
+	case TYPE_ARRAY_FLOAT:
+	{
+		(*(*v)).elements.f = calloc(DEF_SIZE, sizeof(float *));
+		if (!(*(*v)).elements.f)
+		{
+			__er_calloc(F, L - 2);
+			return -1;
+		}
+		break;
+	}
+	case TYPE_ARRAY_STRING:
+	{
+		(*(*v)).elements.s = calloc(DEF_SIZE, sizeof(char *));
+		if (!(*(*v)).elements.s)
+		{
+			__er_calloc(F, L - 2);
+			return -1;
+		}
+		break;
+	}
+	case TYPE_ARRAY_BYTE:
+	{
+		(*(*v)).elements.b = calloc(DEF_SIZE, sizeof(unsigned char *));
+		if (!(*(*v)).elements.b)
+		{
+			__er_calloc(F, L - 2);
+			return -1;
+		}
+		break;
+	}
+	case TYPE_ARRAY_DOUBLE:
+	{
+		(*(*v)).elementsi.d = calloc(DEF_SIZE, sizeof(double *));
+		if (!(*(*v)).elements.d)
+		{
+			__er_calloc(F, L - 2);
+			return -1;
+		}
+		break;
+	}
+	default:
+		fprintf(stderr, "type not supported.\n");
 		return -1;
 	}
-
+	/*
+	 * this assigned the functions
+	 * to the functions pointer in the struct array
+	 * */
+	(*(*v)).insert = insert_element;
+	(*(*v)).destroy = free_dynamic_array;
 	return 0;
 }
 
-int insert_element(struct Field element, struct array *v)
+int insert_element(void *element, struct array *v, enum ValueType type)
 {
 	/*check if the array has been initialized */
 	if (!(*v).elements)
 	{
-		if (init_array(&v) == -1)
+		if (init_array(&v, type) == -1)
 		{
 			fprintf(stderr, "init array failed.\n");
 			return -1;
@@ -486,27 +596,69 @@ int insert_element(struct Field element, struct array *v)
 	}
 
 	/*check if there is enough space for new item */
-	if (!(*v).elements[(*v).size - 1])
-	{
-		for (int i = 0; i < (*v).size; i++)
-		{
-			if ((*v).elements[i])
-				continue;
 
-			(*v).elements = malloc(sizeof(struct Field));
-			if (!(*v).elements)
-			{
-				__er_malloc(F, L - 2);
-				return -1;
-			}
-			*((*v).elements[i]) = element;
-			break;
-		}
-	}
-	else
+	switch (type)
 	{
+	case TYPE_ARRAY_INT:
+	{
+		if (!(*v).elements.i[(*v).size - 1])
+		{
+			for (int i = 0; i < (*v).size; i++)
+			{
+				if ((*v).elements.i[i])
+					continue;
+
+				(*v).elements.i[i] = malloc(sizeof(int));
+				if (!(*v).elements.i[i])
+				{
+					__er_malloc(F, L - 2);
+					return -1;
+				}
+				*((*v).elements.i[i]) = *(int *)element;
+				return 0;
+			}
+		}
+
 		/*not enough space, increase the size */
-		struct Field *elements_new = realloc((*v).elements, ++(*v).size * sizeof(struct Field));
+		int **elements_new = realloc((*v).elements.i, ++(*v).size * sizeof(int *));
+		if (!elements_new)
+		{
+			__er_realloc(F, L - 2);
+			return -1;
+		}
+
+		(*v).elements.i = elements_new;
+		(*v).elements.i[(*v).size - 1] = malloc(sizeof(int));
+		if (!(*v).elements.i[(*v).size - 1])
+		{
+			__er_malloc(F, L - 2);
+			return -1;
+		}
+
+		*((*v).elements.i[(*v).size - 1]) = *(int *)element;
+		return 0;
+	}
+	case TYPE_ARRAY_LONG:
+	{
+		if (!(*v).elements.l[(*v).size - 1])
+		{
+			for (int i = 0; i < (*v).size; i++)
+			{
+				if ((*v).elements.l[i])
+					continue;
+
+				(*v).elements.l[i] = malloc(sizeof(long));
+				if (!(*v).elements.l[i])
+				{
+					__er_malloc(F, L - 2);
+					return -1;
+				}
+				*((*v).elements.l[i]) = *(long *)element;
+				return 0;
+			}
+		}
+		/*not enough space, increase the size */
+		int **elements_new = realloc((*v).elements.l, ++(*v).size * sizeof(long *));
 		if (!elements_new)
 		{
 			__er_realloc(F, L - 2);
@@ -514,14 +666,177 @@ int insert_element(struct Field element, struct array *v)
 		}
 
 		(*v).elements = elements_new;
-		(*v).elements[(*v).size - 1] = malloc(sizeof(struct Field));
-		if (!(*v).elements[(*v).size - 1])
+		(*v).elements.l[(*v).size - 1] = malloc(sizeof(long));
+		if (!(*v).elements.l[(*v).size - 1])
 		{
 			__er_malloc(F, L - 2);
 			return -1;
 		}
 
-		*((*v).elements[(*v).size - 1]) = element;
+		*((*v).elements.i[(*v).size - 1]) = *(long *)element;
+		return 0;
+	}
+	case TYPE_ARRAY_FLOAT:
+	{
+		if (!(*v).elements.f[(*v).size - 1])
+		{
+			for (int i = 0; i < (*v).size; i++)
+			{
+				if ((*v).elements.f[i])
+					continue;
+
+				(*v).elements.f[i] = malloc(sizeof(float));
+				if (!(*v).elements.f[i])
+				{
+					__er_malloc(F, L - 2);
+					return -1;
+				}
+				*((*v).elements.f[i]) = *(float *)element;
+				break;
+			}
+		}
+		/*not enough space, increase the size */
+		float **elements_new = realloc((*v).elements.f, ++(*v).size * sizeof(float *));
+		if (!elements_new)
+		{
+			__er_realloc(F, L - 2);
+			return -1;
+		}
+
+		(*v).elements.f = elements_new;
+		(*v).elements.f[(*v).size - 1] = malloc(sizeof(float));
+		if (!(*v).elements.f[(*v).size - 1])
+		{
+			__er_malloc(F, L - 2);
+			return -1;
+		}
+
+		*((*v).elements.i[(*v).size - 1]) = *(float *)element;
+		return 0;
+	}
+	case TYPE_ARRAY_STRING:
+	{
+		if (!(*v).elements.s[(*v).size - 1])
+		{
+			for (int i = 0; i < (*v).size; i++)
+			{
+				if ((*v).elements.s[i])
+					continue;
+
+				size_t len = strlen((char *)element) + 1;
+				(*v).elements.s[i] = malloc(len * sizeof(char));
+				if (!(*v).elements.s[i])
+				{
+					__er_malloc(F, L - 2);
+					return -1;
+				}
+				*((*v).elements.s[i]) = (char *)element;
+				return 0;
+			}
+		}
+
+		/*not enough space, increase the size */
+		char **elements_new = realloc((*v).elements.s, ++(*v).size * sizeof(char *));
+		if (!elements_new)
+		{
+			__er_realloc(F, L - 2);
+			return -1;
+		}
+
+		(*v).elements.s = elements_new;
+
+		size_t len = strlen((char *)element) + 1;
+		(*v).elements.s[(*v).size - 1] = malloc(len * sizeof(char));
+		if (!(*v).elements.s[(*v).size - 1])
+		{
+			__er_malloc(F, L - 2);
+			return -1;
+		}
+
+		*((*v).elements.s[(*v).size - 1]) = (char *)element;
+		return 0;
+	}
+	case TYPE_ARRAY_BYTE:
+	{
+		if (!(*v).elements.b[(*v).size - 1])
+		{
+			for (int i = 0; i < (*v).size; i++)
+			{
+				if ((*v).elements.b[i])
+					continue;
+
+				(*v).elements.b[i] = malloc(sizeof(unsigned char));
+				if (!(*v).elements.b[i])
+				{
+					__er_malloc(F, L - 2);
+					return -1;
+				}
+				*((*v).elements.b[i]) = *(unsigned char *)element;
+				return 0;
+			}
+		}
+
+		/*not enough space, increase the size */
+		unsigned char **elements_new = realloc((*v).elements.b, ++(*v).size * sizeof(unsigned char *));
+		if (!elements_new)
+		{
+			__er_realloc(F, L - 2);
+			return -1;
+		}
+
+		(*v).elements.b = elements_new;
+		(*v).elements.b[(*v).size - 1] = malloc(sizeof(unsigned char));
+		if (!(*v).elements.i[(*v).size - 1])
+		{
+			__er_malloc(F, L - 2);
+			return -1;
+		}
+
+		*((*v).elements.b[(*v).size - 1]) = *(unsigned char *)element;
+		return 0;
+	}
+	case TYPE_ARRAY_DOUBLE:
+	{
+		if (!(*v).elements.d[(*v).size - 1])
+		{
+			for (int i = 0; i < (*v).size; i++)
+			{
+				if ((*v).elements.d[i])
+					continue;
+
+				(*v).elements.d[i] = malloc(sizeof(double));
+				if (!(*v).elements.d[i])
+				{
+					__er_malloc(F, L - 2);
+					return -1;
+				}
+				*((*v).elements.d[i]) = *(double *)element;
+				return 0;
+			}
+		}
+
+		/*not enough space, increase the size */
+		double **elements_new = realloc((*v).elements.d, ++(*v).size * sizeof(double *));
+		if (!elements_new)
+		{
+			__er_realloc(F, L - 2);
+			return -1;
+		}
+
+		(*v).elements.d = elements_new;
+		(*v).elements.d[(*v).size - 1] = malloc(sizeof(double));
+		if (!(*v).elements.d[(*v).size - 1])
+		{
+			__er_malloc(F, L - 2);
+			return -1;
+		}
+
+		*((*v).elements.d[(*v).size - 1]) = *(double *)element;
+		return 0;
+	}
+	default:
+		fprintf(stderr, "type not supperted");
+		return -1;
 	}
 
 	return 0; /*success*/

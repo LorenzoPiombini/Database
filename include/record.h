@@ -6,6 +6,10 @@
 /*default dynamic array size*/
 #define DEF_SIZE 5
 
+/*
+ * macro to initialized the dynamic array type
+ * element must bu a struct Field
+ * */
 #define ARRAY_INIT(element)                                             \
 	do                                                                  \
 	{                                                                   \
@@ -27,12 +31,25 @@ enum ValueType
 	TYPE_BYTE,
 	TYPE_OFF_T,
 	TYPE_DOUBLE,
-	TYPE_ARRAY
+	TYPE_ARRAY_INT,
+	TYPE_ARRAY_LONG,
+	TYPE_ARRAY_FLOAT,
+	TYPE_ARRAY_STRING,
+	TYPE_ARRAY_BYTE,
+	TYPE_ARRAY_DOUBLE
 };
 
 struct array
 {
-	struct Field **elements;
+	union
+	{
+		int **i;
+		long **l;
+		float **f;
+		char **s;
+		unsigned char **b;
+		double **d;
+	} elements;
 	int size;
 	int (*insert)(struct Field, struct array *);
 	void (*destroy)(struct array *);
@@ -63,7 +80,7 @@ struct Record_f
 	struct Field *fields;
 };
 
-int init_array(struct array *v);
+int init_array(struct array **v, enum ValueType type);
 int insert_element(struct Field element, struct array *v);
 void free_dynamic_array(struct array *v);
 struct Record_f *create_record(char *file_name, int fields_num);

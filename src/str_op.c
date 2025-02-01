@@ -214,6 +214,54 @@ int get_type(char *s)
 	{
 		return 6;
 	}
+	else if (strcmp(s, "TYPE_ARRAY_INT") == 0)
+	{
+		return 7;
+	}
+	else if (strcmp(s, "TYPE_ARRAY_LONG") == 0)
+	{
+		return 8;
+	}
+	else if (strcmp(s, "TYPE_ARRAY_FLOAT") == 0)
+	{
+		return 9;
+	}
+	else if (strcmp(s, "TYPE_ARRAY_STRING") == 0)
+	{
+		return 10;
+	}
+	else if (strcmp(s, "TYPE_ARRAY_BYTE") == 0)
+	{
+		return 11;
+	}
+	else if (strcmp(s, "TYPE_ARRAY_DOUBLE") == 0)
+	{
+		return 12;
+	}
+	else if (strcmp(s, "t_ai") == 0)
+	{
+		return 7;
+	}
+	else if (strcmp(s, "t_al") == 0)
+	{
+		return 8;
+	}
+	else if (strcmp(s, "t_af") == 0)
+	{
+		return 9;
+	}
+	else if (strcmp(s, "t_as") == 0)
+	{
+		return 10;
+	}
+	else if (strcmp(s, "t_ab") == 0)
+	{
+		return 11;
+	}
+	else if (strcmp(s, "t_ad") == 0)
+	{
+		return 12;
+	}
 
 	return -1;
 }
