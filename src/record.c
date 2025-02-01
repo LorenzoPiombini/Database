@@ -43,6 +43,11 @@ struct Record_f *create_record(char *file_name, int fields_num)
 unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value)
 {
 	rec->fields[index].field_name = strdup(field_name);
+	if (!rec->fields[index].field_name)
+	{
+		fprintf(stderr, "strdup() failed %s:%d.\n", F, L - 3);
+		return 0;
+	}
 	rec->fields[index].type = type;
 
 	switch (type)
@@ -309,33 +314,33 @@ void free_record(struct Record_f *rec, int fields_num)
 
 	for (i = 0; i < fields_num; i++)
 	{
+		if (rec->fields[i].field_name)
+			free(rec->fields[i].field_name);
+
 		switch (rec->fields[i].type)
 		{
 		case TYPE_INT:
 		case TYPE_LONG:
 		case TYPE_FLOAT:
-		case TYPE_STRING:
 		case TYPE_BYTE:
 		case TYPE_OFF_T:
 		case TYPE_DOUBLE:
+			break;
+		case TYPE_STRING:
+			if (rec->fields[i].data.s)
+				free(rec->fields[i].data.s);
+			break;
 		case TYPE_ARRAY_INT:
-			rec->fields[i].data.v.destroy(&rec->fields[i].data.v);
-			break;
 		case TYPE_ARRAY_LONG:
-			rec->fields[i].data.v.destroy(&rec->fields[i].data.v);
-			break;
 		case TYPE_ARRAY_FLOAT:
 		case TYPE_ARRAY_STRING:
 		case TYPE_ARRAY_BYTE:
 		case TYPE_ARRAY_DOUBLE:
-		}
-		if (rec->fields[i].field_name)
-			free(rec->fields[i].field_name);
-
-		if (rec->fields[i].type == TYPE_STRING)
-		{
-			if (rec->fields[i].data.s)
-				free(rec->fields[i].data.s);
+			rec->fields[i].data.v.destroy(&rec->fields[i].data.v, rec->fields[i].type);
+			break;
+		default:
+			fprintf(stderr, "type not supported.\n");
+			return;
 		}
 	}
 
@@ -968,36 +973,40 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.i[i]);
+		free(v->elements.i);
 	}
 	case TYPE_ARRAY_LONG:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.l[i]);
+		free(v->elements.l);
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.f[i]);
+		free(v->elements.f);
 	}
 	case TYPE_ARRAY_STRING:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.s[i]);
+		free(v->elements.s);
 	}
 	case TYPE_ARRAY_BYTE:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.b[i]);
+		free(v->elements.b);
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.d[i]);
+		free(v->elements.d);
 	}
 	default:
 		fprintf(stderr, "array type not suported.\n");
 		return;
 	}
-
-	free(v->elements);
 }
