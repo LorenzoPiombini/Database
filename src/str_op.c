@@ -22,7 +22,7 @@ int get_array_values(char *src, char ***values)
 	char *t = strtok(src, ",");
 	if (!t)
 	{
-		fprintf(stderr, "strtok() failed.\n", F, L - 2);
+		fprintf(stderr, "strtok() failed, %s:%d.\n", F, L - 2);
 		free(*values);
 		return -1;
 	}
@@ -30,7 +30,7 @@ int get_array_values(char *src, char ***values)
 	(*values)[0] = strdup(t);
 	if (!(*values)[0])
 	{
-		fprintf(stderr, "strdup failed.\n", F, L - 2);
+		fprintf(stderr, "strdup() failed, %s:%d.\n", F, L - 2);
 		free(*values);
 		return -1;
 	}
@@ -40,7 +40,7 @@ int get_array_values(char *src, char ***values)
 		(*values)[i] = strdup(t);
 		if (!(*values)[i])
 		{
-			fprintf(stderr, "strdup failed.\n", F, L - 2);
+			fprintf(stderr, "strdup() failed, %s:%d.\n", F, L - 2);
 			free(*values);
 			return -1;
 		}

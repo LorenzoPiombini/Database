@@ -84,8 +84,8 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 					rec->fields[index].data.v.insert = insert_element;
 					rec->fields[index].data.v.destroy = free_dynamic_array;
 				}
-
-				rec->fields[index].data.v.insert((void *)&((int)n),
+				int num = (int)n;
+				rec->fields[index].data.v.insert((void *)&num,
 												 &rec->fields[index].data.v,
 												 type);
 			}
@@ -192,7 +192,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 	case TYPE_STRING:
 	case TYPE_ARRAY_STRING:
 	{
-		if (type == TYPE_ARRAY_S RING)
+		if (type == TYPE_ARRAY_STRING)
 		{
 			if (!rec->fields[index].data.v.insert)
 			{
@@ -236,7 +236,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 			printf("byte value not allowed in this system.\n");
 			return 0;
 		}
-
+		unsigned char num = (unsigned char)un;
 		if (type == TYPE_ARRAY_BYTE)
 		{
 			if (!rec->fields[index].data.v.insert)
@@ -244,7 +244,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
-			rec->fields[index].data.v.insert((void *)&(unsigned char)un,
+			rec->fields[index].data.v.insert((void *)&num,
 											 &rec->fields[index].data.v,
 											 type);
 		}
@@ -393,55 +393,63 @@ void print_record(int count, struct Record_f **recs)
 				printf("%.2f\n", rec->fields[i].data.d);
 				break;
 			case TYPE_ARRAY_INT:
-				for (int k = 0; k < rec->fileds[i].data.v.size; k++)
-					if (rec->fileds[i].data.v.size - k > 1)
-						printf("%d, ", rec->fields[i].data.v.elements.i[k]);
-				printf("%d.\n", rec->fields[i].data.v.elements.i[k]);
+			{
+				int k;
+				for (k = 0; k < rec->fields[i].data.v.size; k++)
+					if (rec->fields[i].data.v.size - k > 1)
+						printf("%d, ", *rec->fields[i].data.v.elements.i[k]);
+				printf("%d.\n", *rec->fields[i].data.v.elements.i[k]);
 				break;
+			}
 			case TYPE_ARRAY_LONG:
 			{
-				for (int k = 0; k < rec->fileds[i].data.v.size; k++)
-					if (rec->fileds[i].data.v.size - k > 1)
-						printf("%ld, ", rec->fields[i].data.v.elements.l[k]);
-				printf("%ld.\n", rec->fields[i].data.v.elements.l[k]);
+				int k;
+				for (k = 0; k < rec->fields[i].data.v.size; k++)
+					if (rec->fields[i].data.v.size - k > 1)
+						printf("%ld, ", *rec->fields[i].data.v.elements.l[k]);
+				printf("%ld.\n", *rec->fields[i].data.v.elements.l[k]);
 				break;
 			}
 			case TYPE_ARRAY_FLOAT:
 			{
-				for (int k = 0; k < rec->fileds[i].data.v.size; k++)
-					if (rec->fileds[i].data.v.size - k > 1)
-						printf("%.2f, ", rec->fields[i].data.v.elements.f[k]);
-				printf("%.2f.\n", rec->fields[i].data.v.elements.f[k]);
+				int k;
+				for (k = 0; k < rec->fields[i].data.v.size; k++)
+					if (rec->fields[i].data.v.size - k > 1)
+						printf("%.2f, ", *rec->fields[i].data.v.elements.f[k]);
+				printf("%.2f.\n", *rec->fields[i].data.v.elements.f[k]);
 				break;
 			}
 			case TYPE_ARRAY_STRING:
 			{
-				for (int k = 0; k < rec->fileds[i].data.v.size; k++)
+				int k;
+				for (k = 0; k < rec->fields[i].data.v.size; k++)
 				{
-					if (rec->fileds[i].data.v.size - k > 1)
+					if (rec->fields[i].data.v.size - k > 1)
 					{
 						strip('"', rec->fields[i].data.v.elements.s[k]);
 						printf("%s, ", rec->fields[i].data.v.elements.s[k]);
 					}
 				}
 				strip('"', rec->fields[i].data.v.elements.s[k]);
-				printf("%s.", rec->fields[i].data.v.elements.s[k]);
+				printf("%s.\n", rec->fields[i].data.v.elements.s[k]);
 				break;
 			}
 			case TYPE_ARRAY_BYTE:
 			{
-				for (int k = 0; k < rec->fileds[i].data.v.size; k++)
-					if (rec->fileds[i].data.v.size - k > 1)
-						printf("%d, ", rec->fields[i].data.v.b[k]);
-				printf("%d.", rec->fields[i].data.v.i[k]);
+				int k;
+				for (k = 0; k < rec->fields[i].data.v.size; k++)
+					if (rec->fields[i].data.v.size - k > 1)
+						printf("%u, ", *rec->fields[i].data.v.elements.b[k]);
+				printf("%u.\n", *rec->fields[i].data.v.elements.b[k]);
 				break;
 			}
 			case TYPE_ARRAY_DOUBLE:
 			{
-				for (int k = 0; k < rec->fileds[i].data.v.size; k++)
-					if (rec->fileds[i].data.v.size - k > 1)
-						printf("%d, ", rec->fields[i].data.v.elements.d[k]);
-				printf("%d.\n", rec->fields[i].data.v.elements.d[k]);
+				int k;
+				for (k = 0; k < rec->fields[i].data.v.size; k++)
+					if (rec->fields[i].data.v.size - k > 1)
+						printf("%.2f, ", *rec->fields[i].data.v.elements.d[k]);
+				printf("%.2f.\n", *rec->fields[i].data.v.elements.d[k]);
 				break;
 			}
 			default:
@@ -782,14 +790,14 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			}
 		}
 		/*not enough space, increase the size */
-		int **elements_new = realloc((*v).elements.l, ++(*v).size * sizeof(long *));
+		long **elements_new = realloc((*v).elements.l, ++(*v).size * sizeof(long *));
 		if (!elements_new)
 		{
 			__er_realloc(F, L - 2);
 			return -1;
 		}
 
-		(*v).elements = elements_new;
+		(*v).elements.l = elements_new;
 		(*v).elements.l[(*v).size - 1] = malloc(sizeof(long));
 		if (!(*v).elements.l[(*v).size - 1])
 		{
@@ -854,7 +862,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 					__er_malloc(F, L - 2);
 					return -1;
 				}
-				*((*v).elements.s[i]) = (char *)element;
+				(*v).elements.s[i] = (char *)element;
 				return 0;
 			}
 		}
@@ -877,7 +885,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			return -1;
 		}
 
-		*((*v).elements.s[(*v).size - 1]) = (char *)element;
+		(*v).elements.s[(*v).size - 1] = (char *)element;
 		return 0;
 	}
 	case TYPE_ARRAY_BYTE:

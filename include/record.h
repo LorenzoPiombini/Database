@@ -51,8 +51,8 @@ struct array
 		double **d;
 	} elements;
 	int size;
-	int (*insert)(struct Field, struct array *);
-	void (*destroy)(struct array *);
+	int (*insert)(void *, struct array *, enum ValueType);
+	void (*destroy)(struct array *, enum ValueType);
 };
 
 struct Field
@@ -81,7 +81,7 @@ struct Record_f
 };
 
 int init_array(struct array **v, enum ValueType type);
-int insert_element(struct Field element, struct array *v);
+int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
 struct Record_f *create_record(char *file_name, int fields_num);
 unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value);
