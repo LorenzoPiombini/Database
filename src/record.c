@@ -49,6 +49,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 	{
 
 	case TYPE_INT:
+	case TYPE_ARRAY_INT:
 	{
 		if (!is_integer(value))
 		{
@@ -71,7 +72,23 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 				return 0;
 			}
-			rec->fields[index].data.i = (int)n;
+			if (type == TYPE_ARRAY_INT)
+			{
+				if (!rec->fields[index].data.v.insert)
+				{
+					rec->fields[index].data.v.insert = insert_element;
+					rec->fields[index].data.v.destroy = free_dynamic_array;
+				}
+
+				rec->fields[index].data.v.insert((void *)&((int)n),
+												 &rec->fields[index].data.v,
+												 type);
+			}
+			else
+			{
+
+				rec->fields[index].data.i = (int)n;
+			}
 		}
 		else
 		{
@@ -81,6 +98,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 		break;
 	}
 	case TYPE_LONG:
+	case TYPE_ARRAY_LONG:
 	{
 		if (!is_integer(value))
 		{
@@ -102,12 +120,27 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 				return 0;
 			}
+			if (type == TYPE_ARRAY_LONG)
+			{
+				if (!rec->fields[index].data.v.insert)
+				{
+					rec->fields[index].data.v.insert = insert_element;
+					rec->fields[index].data.v.destroy = free_dynamic_array;
+				}
 
-			rec->fields[index].data.l = n;
+				rec->fields[index].data.v.insert((void *)&n,
+												 &rec->fields[index].data.v,
+												 type);
+			}
+			else
+			{
+				rec->fields[index].data.l = n;
+			}
 		}
 		break;
 	}
 	case TYPE_FLOAT:
+	case TYPE_ARRAY_FLOAT:
 	{
 
 		if (!is_floaintg_point(value))
@@ -131,14 +164,56 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 				return 0;
 			}
-			rec->fields[index].data.f = f;
+
+			if (type == TYPE_ARRAY_FLOAT)
+			{
+				if (!rec->fields[index].data.v.insert)
+				{
+					rec->fields[index].data.v.insert = insert_element;
+					rec->fields[index].data.v.destroy = free_dynamic_array;
+				}
+
+				rec->fields[index].data.v.insert((void *)&f,
+												 &rec->fields[index].data.v,
+												 type);
+			}
+			else
+			{
+
+				rec->fields[index].data.f = f;
+			}
 		}
 		break;
 	}
 	case TYPE_STRING:
-		rec->fields[index].data.s = strdup(value);
+	case TYPE_ARRAY_STRING:
+	{
+		if (type == TYPE_ARRAY_S RING)
+		{
+			if (!rec->fields[index].data.v.insert)
+			{
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
+			}
+			rec->fields[index].data.v.insert((void *)&value,
+											 &rec->fields[index].data.v,
+											 type);
+		}
+		else
+		{
+			rec->fields[index].data.s = strdup(value);
+			if (!rec->fields[index].data.s)
+			{
+				fprintf(stderr,
+						"strdup() failed %s:%d.\n",
+						F, L - 4);
+				return 0;
+			}
+		}
 		break;
+	}
 	case TYPE_BYTE:
+	case TYPE_ARRAY_BYTE:
 	{
 		if (!is_integer(value))
 		{
@@ -158,11 +233,25 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 			return 0;
 		}
 
-		rec->fields[index].data.b = (unsigned char)un;
-
+		if (type == TYPE_ARRAY_BYTE)
+		{
+			if (!rec->fields[index].data.v.insert)
+			{
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
+			}
+			rec->fields[index].data.v.insert((void *)&(unsigned char)un,
+											 &rec->fields[index].data.v,
+											 type);
+		}
+		else
+		{
+			rec->fields[index].data.b = (unsigned char)un;
+		}
 		break;
 	}
 	case TYPE_DOUBLE:
+	case TYPE_ARRAY_DOUBLE:
 	{
 
 		if (!is_floaintg_point(value))
@@ -186,58 +275,23 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 				return 0;
 			}
-			rec->fields[index].data.d = d;
-		}
-		break;
-	}
-	case TYPE_ARRAY_INT:
-	{
-		break;
-	}
-	case TYPE_ARRAY_LONG:
-	{
-		break;
-	}
-	case TYPE_ARRAY_FLOAT:
-	{
-		if (!is_floaintg_point(value))
-		{
-			printf("invalid value for float type: %s.\n", value);
-			return 0;
-		}
-
-		int range = 0;
-		if ((range = is_number_in_limits(value)) == 0)
-		{
-			printf("float value not allowed in this system.\n");
-			return 0;
-		}
-
-		if (range == IN_FLOAT)
-		{
-			float f = strtof(value, NULL);
-			if (f == ERANGE || f == EINVAL)
+			if (type == TYPE_ARRAY_DOUBLE)
 			{
-				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
-				return 0;
-			}
-			struct Field field *
-				rec->fields[index].data.a = {0, NULL, insert_element, free_dynamic_array};
-			rec->fields[index].data.a.insert(&rec->fields[index].data.a, )
-		}
+				if (!rec->fields[index].data.v.insert)
+				{
+					rec->fields[index].data.v.insert = insert_element;
+					rec->fields[index].data.v.destroy = free_dynamic_array;
+				}
 
-		break;
-	}
-	case TYPE_ARRAY_STRING:
-	{
-		break;
-	}
-	case TYPE_ARRAY_BYTE:
-	{
-		break;
-	}
-	case TYPE_ARRAY_DOUBlE:
-	{
+				rec->fields[index].data.v.insert((void *)&d,
+												 &rec->fields[index].data.v,
+												 type);
+			}
+			else
+			{
+				rec->fields[index].data.d = d;
+			}
+		}
 		break;
 	}
 	default:
@@ -506,7 +560,7 @@ unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
 
 int init_array(struct array **v, enum ValueType type)
 {
-	(*(*v)).size = size;
+	(*(*v)).size = DEF_SIZE;
 	switch (type)
 	{
 	case TYPE_ARRAY_INT:
@@ -562,7 +616,7 @@ int init_array(struct array **v, enum ValueType type)
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
-		(*(*v)).elementsi.d = calloc(DEF_SIZE, sizeof(double *));
+		(*(*v)).elements.d = calloc(DEF_SIZE, sizeof(double *));
 		if (!(*(*v)).elements.d)
 		{
 			__er_calloc(F, L - 2);
@@ -574,19 +628,13 @@ int init_array(struct array **v, enum ValueType type)
 		fprintf(stderr, "type not supported.\n");
 		return -1;
 	}
-	/*
-	 * this assigned the functions
-	 * to the functions pointer in the struct array
-	 * */
-	(*(*v)).insert = insert_element;
-	(*(*v)).destroy = free_dynamic_array;
 	return 0;
 }
 
 int insert_element(void *element, struct array *v, enum ValueType type)
 {
 	/*check if the array has been initialized */
-	if (!(*v).elements)
+	if (!(*v).elements.i)
 	{
 		if (init_array(&v, type) == -1)
 		{
