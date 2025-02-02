@@ -50,7 +50,13 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 				 strstr(names[i], "TYPE INT") ||
 				 strstr(names[i], "TYPE BYTE") ||
 				 strstr(names[i], "TYPE FLOAT") ||
-				 strstr(names[i], "TYPE DOUBLE"))
+				 strstr(names[i], "TYPE DOUBLE") ||
+				 strstr(names[i], "TYPE ARRAY INT") ||
+				 strstr(names[i], "TYPE ARRAY FLOAT") ||
+				 strstr(names[i], "TYPE ARRAY LONG") ||
+				 strstr(names[i], "TYPE ARRAY STRING") ||
+				 strstr(names[i], "TYPE ARRAY BYTE") ||
+				 strstr(names[i], "TYPE ARRAY DOUBLE"))
 		{
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
@@ -200,7 +206,6 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 
 		for (i = old_fn; i < fields_num; i++)
 		{
-
 			sch->fields_name[i] = strdup(names[i]);
 			sch->types[i] = types_i[i];
 		}
@@ -1114,7 +1119,13 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 			types_i[i] != TYPE_LONG &&
 			types_i[i] != TYPE_DOUBLE &&
 			types_i[i] != TYPE_BYTE &&
-			types_i[i] != TYPE_STRING)
+			types_i[i] != TYPE_STRING &&
+			types_i[i] != TYPE_ARRAY_INT &&
+			types_i[i] != TYPE_ARRAY_LONG &&
+			types_i[i] != TYPE_ARRAY_FLOAT &&
+			types_i[i] != TYPE_ARRAY_STRING &&
+			types_i[i] != TYPE_ARRAY_BYTE &&
+			types_i[i] != TYPE_ARRAY_DOUBLE)
 		{
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
@@ -1692,6 +1703,24 @@ void print_schema(struct Schema sch)
 				break;
 			case TYPE_STRING:
 				printf("string.\n");
+				break;
+			case TYPE_ARRAY_INT:
+				printf("int[].\n");
+				break;
+			case TYPE_ARRAY_LONG:
+				printf("long[].\n");
+				break;
+			case TYPE_ARRAY_FLOAT:
+				printf("float[].\n");
+				break;
+			case TYPE_ARRAY_STRING:
+				printf("string[].\n");
+				break;
+			case TYPE_ARRAY_BYTE:
+				printf("byte[].\n");
+				break;
+			case TYPE_ARRAY_DOUBLE:
+				printf("double[].\n");
 				break;
 			default:
 				printf("\n");

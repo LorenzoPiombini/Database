@@ -52,137 +52,235 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 
 	switch (type)
 	{
-
 	case TYPE_INT:
 	case TYPE_ARRAY_INT:
 	{
-		if (!is_integer(value))
+		if (type == TYPE_ARRAY_INT)
 		{
-			printf("invalid value for integer type: %s.\n", value);
-			return 0;
-		}
-		int range = 0;
-		if ((range = is_number_in_limits(value)) == 0)
-		{
-			printf("integer value not allowed in this system.\n");
-			return 0;
-		}
-		if (range == IN_INT)
-		{
-			/*convert the value to long and then cast it to int */
-			/*i do not want to use atoi*/
-			long n = strtol(value, NULL, 10);
-			if (n == ERANGE || n == EINVAL)
+			if (!rec->fields[index].data.v.elements.i)
 			{
-				printf("conversion ERROR type int %s:%d.\n", F, L - 2);
-				return 0;
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
-			if (type == TYPE_ARRAY_INT)
-			{
-				if (!rec->fields[index].data.v.insert)
-				{
-					rec->fields[index].data.v.insert = insert_element;
-					rec->fields[index].data.v.destroy = free_dynamic_array;
-				}
-				int num = (int)n;
-				rec->fields[index].data.v.insert((void *)&num,
-												 &rec->fields[index].data.v,
-												 type);
-			}
-			else
+
+			char *t = strtok(value, ",");
+			while (t)
 			{
 
-				rec->fields[index].data.i = (int)n;
+				if (!is_integer(t))
+				{
+					printf("invalid value for integer type: %s.\n", value);
+					return 0;
+				}
+
+				int range = 0;
+				if ((range = is_number_in_limits(t)) == 0)
+				{
+					printf("integer value not allowed in this system.\n");
+					return 0;
+				}
+
+				if (range == IN_INT)
+				{
+					/*convert the value to long and then cast it to int */
+					/*i do not want to use atoi*/
+					long n = strtol(t, NULL, 10);
+					if (n == ERANGE || n == EINVAL)
+					{
+						printf("conversion ERROR type int %s:%d.\n", F, L - 2);
+						return 0;
+					}
+
+					int num = (int)n;
+					rec->fields[index].data.v.insert((void *)&num,
+													 &rec->fields[index].data.v,
+													 type);
+				}
+				else
+				{
+					printf("the integer value is not valid for this system.\n");
+					return 0;
+				}
+
+				t = strtok(NULL, ",");
 			}
 		}
 		else
 		{
-			printf("the integer value is not valid for this system.\n");
-			return 0;
+
+			if (!is_integer(value))
+			{
+				printf("invalid value for integer type: %s.\n", value);
+				return 0;
+			}
+
+			int range = 0;
+			if ((range = is_number_in_limits(value)) == 0)
+			{
+				printf("integer value not allowed in this system.\n");
+				return 0;
+			}
+
+			if (range == IN_INT)
+			{
+				/*convert the value to long and then cast it to int */
+				/*i do not want to use atoi*/
+				long n = strtol(value, NULL, 10);
+				if (n == ERANGE || n == EINVAL)
+				{
+					printf("conversion ERROR type int %s:%d.\n", F, L - 2);
+					return 0;
+				}
+
+				rec->fields[index].data.i = (int)n;
+			}
+			else
+			{
+				printf("the integer value is not valid for this system.\n");
+				return 0;
+			}
 		}
 		break;
 	}
 	case TYPE_LONG:
 	case TYPE_ARRAY_LONG:
 	{
-		if (!is_integer(value))
-		{
-			printf("invalid value for long integer type: %s.\n", value);
-			return 0;
-		}
 
-		int range = 0;
-		if ((range = is_number_in_limits(value)) == 0)
+		if (type == TYPE_ARRAY_LONG)
 		{
-			printf("long value not allowed in this system.\n");
-			return 0;
-		}
-		if (range == IN_INT || range == IN_LONG)
-		{
-			long n = strtol(value, NULL, 10);
-			if (n == ERANGE || n == EINVAL)
+			if (!rec->fields[index].data.v.elements.l)
 			{
-				printf("conversion ERROR type long %s:%d.\n", F, L - 2);
-				return 0;
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
-			if (type == TYPE_ARRAY_LONG)
+
+			char *t = strtok(value, "t");
+			while (t)
 			{
-				if (!rec->fields[index].data.v.insert)
+				if (!is_integer(t))
 				{
-					rec->fields[index].data.v.insert = insert_element;
-					rec->fields[index].data.v.destroy = free_dynamic_array;
+					printf("invalid value for long integer type: %s.\n", value);
+					return 0;
 				}
 
-				rec->fields[index].data.v.insert((void *)&n,
-												 &rec->fields[index].data.v,
-												 type);
-			}
-			else
-			{
-				rec->fields[index].data.l = n;
+				int range = 0;
+				if ((range = is_number_in_limits(t)) == 0)
+				{
+					printf("long value not allowed in this system.\n");
+					return 0;
+				}
+
+				if (range == IN_INT || range == IN_LONG)
+				{
+					long n = strtol(t, NULL, 10);
+					if (n == ERANGE || n == EINVAL)
+					{
+						printf("conversion ERROR type long %s:%d.\n", F, L - 2);
+						return 0;
+					}
+					rec->fields[index].data.v.insert((void *)&n,
+													 &rec->fields[index].data.v,
+													 type);
+				}
+				t = strtok(NULL, ",");
 			}
 		}
-		break;
+		else
+		{
+
+			if (!is_integer(value))
+			{
+				printf("invalid value for long integer type: %s.\n", value);
+				return 0;
+			}
+
+			int range = 0;
+			if ((range = is_number_in_limits(value)) == 0)
+			{
+				printf("long value not allowed in this system.\n");
+				return 0;
+			}
+
+			if (range == IN_INT || range == IN_LONG)
+			{
+				long n = strtol(value, NULL, 10);
+				if (n == ERANGE || n == EINVAL)
+				{
+					printf("conversion ERROR type long %s:%d.\n", F, L - 2);
+					return 0;
+				}
+				rec->fields[index].data.l = n;
+			}
+			break;
+		}
 	}
 	case TYPE_FLOAT:
 	case TYPE_ARRAY_FLOAT:
 	{
-		if (!is_floaintg_point(value))
+		if (type == TYPE_ARRAY_FLOAT)
 		{
-			printf("invalid value for float type: %s.\n", value);
-			return 0;
-		}
-
-		int range = 0;
-		if ((range = is_number_in_limits(value)) == 0)
-		{
-			printf("float value not allowed in this system.\n");
-			return 0;
-		}
-
-		if (range == IN_FLOAT)
-		{
-			float f = strtof(value, NULL);
-			if (f == ERANGE || f == EINVAL)
+			if (!rec->fields[index].data.v.elements.f)
 			{
-				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
+			}
+
+			char *t = strtok(value, ",");
+			while (t)
+			{
+				if (!is_floaintg_point(t))
+				{
+					printf("invalid value for float type: %s.\n", value);
+					return 0;
+				}
+
+				int range = 0;
+				if ((range = is_number_in_limits(t)) == 0)
+				{
+					printf("float value not allowed in this system.\n");
+					return 0;
+				}
+
+				if (range == IN_FLOAT)
+				{
+					float f = strtof(t, NULL);
+					if (f == ERANGE || f == EINVAL)
+					{
+						printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+						return 0;
+					}
+
+					rec->fields[index].data.v.insert((void *)&f,
+													 &rec->fields[index].data.v,
+													 type);
+				}
+				t = strtok(NULL, ",");
+			}
+		}
+		else
+		{
+
+			if (!is_floaintg_point(value))
+			{
+				printf("invalid value for float type: %s.\n", value);
 				return 0;
 			}
 
-			if (type == TYPE_ARRAY_FLOAT)
+			int range = 0;
+			if ((range = is_number_in_limits(value)) == 0)
 			{
-				if (!rec->fields[index].data.v.insert)
-				{
-					rec->fields[index].data.v.insert = insert_element;
-					rec->fields[index].data.v.destroy = free_dynamic_array;
-				}
-
-				rec->fields[index].data.v.insert((void *)&f,
-												 &rec->fields[index].data.v,
-												 type);
+				printf("float value not allowed in this system.\n");
+				return 0;
 			}
-			else
+
+			if (range == IN_FLOAT)
 			{
+				float f = strtof(value, NULL);
+				if (f == ERANGE || f == EINVAL)
+				{
+					printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+					return 0;
+				}
 
 				rec->fields[index].data.f = f;
 			}
@@ -194,14 +292,20 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 	{
 		if (type == TYPE_ARRAY_STRING)
 		{
-			if (!rec->fields[index].data.v.insert)
+			if (!rec->fields[index].data.v.elements.s)
 			{
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
-			rec->fields[index].data.v.insert((void *)&value,
-											 &rec->fields[index].data.v,
-											 type);
+
+			char *t = strtok(value, ",");
+			while (t)
+			{
+				rec->fields[index].data.v.insert((void *)&t,
+												 &rec->fields[index].data.v,
+												 type);
+				t = strtok(NULL, "");
+			}
 		}
 		else
 		{
@@ -219,37 +323,63 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 	case TYPE_BYTE:
 	case TYPE_ARRAY_BYTE:
 	{
-		if (!is_integer(value))
-		{
-			printf("invalid value for byte type: %s.\n", value);
-			return 0;
-		}
-
-		unsigned long un = strtoul(value, NULL, 10);
-		if (un == ERANGE || un == EINVAL)
-		{
-			printf("conversion ERROR type float %s:%d.\n", F, L - 2);
-			return 0;
-		}
-		if (un > UCHAR_MAX)
-		{
-			printf("byte value not allowed in this system.\n");
-			return 0;
-		}
-		unsigned char num = (unsigned char)un;
 		if (type == TYPE_ARRAY_BYTE)
 		{
-			if (!rec->fields[index].data.v.insert)
+			if (!rec->fields[index].data.v.elements.b)
 			{
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
-			rec->fields[index].data.v.insert((void *)&num,
-											 &rec->fields[index].data.v,
-											 type);
+
+			char *t = strtok(value, ",");
+			while (t)
+			{
+				if (!is_integer(t))
+				{
+					printf("invalid value for byte type: %s.\n", value);
+					return 0;
+				}
+
+				unsigned long un = strtoul(t, NULL, 10);
+				if (un == ERANGE || un == EINVAL)
+				{
+					printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+					return 0;
+				}
+
+				if (un > UCHAR_MAX)
+				{
+					printf("byte value not allowed in this system.\n");
+					return 0;
+				}
+
+				unsigned char num = (unsigned char)un;
+				rec->fields[index].data.v.insert((void *)&num,
+												 &rec->fields[index].data.v,
+												 type);
+				t = strtok(NULL, ",");
+			}
 		}
 		else
 		{
+
+			if (!is_integer(value))
+			{
+				printf("invalid value for byte type: %s.\n", value);
+				return 0;
+			}
+
+			unsigned long un = strtoul(value, NULL, 10);
+			if (un == ERANGE || un == EINVAL)
+			{
+				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+				return 0;
+			}
+			if (un > UCHAR_MAX)
+			{
+				printf("byte value not allowed in this system.\n");
+				return 0;
+			}
 			rec->fields[index].data.b = (unsigned char)un;
 		}
 		break;
@@ -257,42 +387,71 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 	case TYPE_DOUBLE:
 	case TYPE_ARRAY_DOUBLE:
 	{
-
-		if (!is_floaintg_point(value))
+		if (type == TYPE_ARRAY_DOUBLE)
 		{
-			printf("invalid value for double type: %s.\n", value);
-			return 0;
-		}
-
-		int range = 0;
-		if ((range = is_number_in_limits(value)) == 0)
-		{
-			printf("float value not allowed in this system.\n");
-			return 0;
-		}
-
-		if (range == IN_DOUBLE)
-		{
-			double d = strtod(value, NULL);
-			if (d == ERANGE || d == EINVAL)
+			if (!rec->fields[index].data.v.elements.d)
 			{
-				printf("conversion ERROR type double %s:%d.\n", F, L - 2);
-				return 0;
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
-			if (type == TYPE_ARRAY_DOUBLE)
+
+			char *t = strtok(value, ",");
+			while (t)
 			{
-				if (!rec->fields[index].data.v.insert)
+				if (!is_floaintg_point(t))
 				{
-					rec->fields[index].data.v.insert = insert_element;
-					rec->fields[index].data.v.destroy = free_dynamic_array;
+					printf("invalid value for double type: %s.\n", value);
+					return 0;
 				}
 
-				rec->fields[index].data.v.insert((void *)&d,
-												 &rec->fields[index].data.v,
-												 type);
+				int range = 0;
+				if ((range = is_number_in_limits(t)) == 0)
+				{
+					printf("float value not allowed in this system.\n");
+					return 0;
+				}
+
+				if (range == IN_DOUBLE)
+				{
+					double d = strtod(t, NULL);
+					if (d == ERANGE || d == EINVAL)
+					{
+						printf("conversion ERROR type double %s:%d.\n", F, L - 2);
+						return 0;
+					}
+
+					rec->fields[index].data.v.insert((void *)&d,
+													 &rec->fields[index].data.v,
+													 type);
+				}
+
+				t = strtok(NULL, ",");
 			}
-			else
+		}
+		else
+		{
+
+			if (!is_floaintg_point(value))
 			{
+				printf("invalid value for double type: %s.\n", value);
+				return 0;
+			}
+
+			int range = 0;
+			if ((range = is_number_in_limits(value)) == 0)
+			{
+				printf("float value not allowed in this system.\n");
+				return 0;
+			}
+
+			if (range == IN_DOUBLE)
+			{
+				double d = strtod(value, NULL);
+				if (d == ERANGE || d == EINVAL)
+				{
+					printf("conversion ERROR type double %s:%d.\n", F, L - 2);
+					return 0;
+				}
 				rec->fields[index].data.d = d;
 			}
 		}
