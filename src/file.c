@@ -574,14 +574,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			new_node->value = (off_t)bswap_64(value);
 			new_node->next = NULL;
 
-			size_t len = number_of_digit(new_node->key.n) + 1;
-			char buff[len];
-			if (snprintf(buff, len, "%u", new_node->key.n) < 0)
-			{
-				fprintf(stderr, "sprintf() failed.%s:%d.\n", F, L - 1);
-				return 0;
-			}
-			int index = hash((void *)buff, ht->size, key_type);
+			int index = hash((void *)&new_node->key.n, ht->size, key_type);
 			if (index == -1)
 			{
 				fprintf(stderr, "read index failed.%s:%d\n", F, L - 2);
@@ -982,6 +975,51 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			break;
 		}
+		case TYPE_ARRAY_INT:
+		{
+			/*write the size of the array */
+			uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+			if (write(fd, &size_ne, sizeof(size_ne)) == -1)
+			{
+				perror("error in writing size array to file.\n");
+				return 0;
+			}
+
+			for (int k = 0; k < rec->fields[i].data.v.size; k++)
+			{
+				if (!rec->fields[i].data.v.elements.i[k])
+					continue;
+
+				uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
+				if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+				{
+					perror("failed write int array to file");
+					return 0;
+				}
+			}
+
+			break;
+		}
+		case TYPE_ARRAY_LONG:
+		{
+			break;
+		}
+		case TYPE_ARRAY_FLOAT:
+		{
+			break;
+		}
+		case TYPE_ARRAY_STRING:
+		{
+			break;
+		}
+		case TYPE_ARRAY_BYTE:
+		{
+			break;
+		}
+		case TYPE_ARRAY_DOUBLE:
+		{
+			break;
+		}
 		default:
 			break;
 		}
@@ -1263,6 +1301,37 @@ struct Record_f *read_file(int fd, char *file_name)
 			}
 
 			rec->fields[i].data.d = ntohd(d_ne);
+			break;
+		}
+		case TYPE_ARRAY_INT:
+		{
+			uint32_t size_array = 0;
+			if (read(fd, &size_array, sizeof(size_array)) == -1)
+			{
+				perror("error readig array.");
+				return 0;
+			}
+
+			int sz = (int)ntohl(size_array);
+			if (!rec->fields[i].data.v.elements.i)
+			{
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			for (int j = 0; j < sz; j++)
+			{
+				uint32_t num_ne = 0;
+				if (read(fd, &num_ne, sizeof(num_ne)) == -1)
+				{
+					perror("can't read int array from file.\n");
+					return 0;
+				}
+				int num = (int)ntohl(num_ne);
+				rec->fields[i].data.v.insert((void *)&num,
+											 &rec->fields[i].data.v,
+											 rec->fields[i].type);
+			}
 			break;
 		}
 		default:

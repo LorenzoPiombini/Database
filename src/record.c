@@ -555,9 +555,16 @@ void print_record(int count, struct Record_f **recs)
 			{
 				int k;
 				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				{
 					if (rec->fields[i].data.v.size - k > 1)
+					{
+						if (!rec->fields[i].data.v.elements.i[k])
+							continue;
+
 						printf("%d, ", *rec->fields[i].data.v.elements.i[k]);
-				printf("%d.\n", *rec->fields[i].data.v.elements.i[k]);
+					}
+				}
+
 				break;
 			}
 			case TYPE_ARRAY_LONG:
@@ -1141,36 +1148,42 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.i[i]);
 		free(v->elements.i);
+		break;
 	}
 	case TYPE_ARRAY_LONG:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.l[i]);
 		free(v->elements.l);
+		break;
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.f[i]);
 		free(v->elements.f);
+		break;
 	}
 	case TYPE_ARRAY_STRING:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.s[i]);
 		free(v->elements.s);
+		break;
 	}
 	case TYPE_ARRAY_BYTE:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.b[i]);
 		free(v->elements.b);
+		break;
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
 		for (int i = 0; i < v->size; i++)
 			free(v->elements.d[i]);
 		free(v->elements.d);
+		break;
 	}
 	default:
 		fprintf(stderr, "array type not suported.\n");
