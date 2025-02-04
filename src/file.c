@@ -1313,7 +1313,6 @@ struct Record_f *read_file(int fd, char *file_name)
 		}
 
 		rec->fields[i].type = (enum ValueType)ntohl(ty_ne);
-		// keep writing endianness from here
 		switch (rec->fields[i].type)
 		{
 		case TYPE_INT:
@@ -1421,7 +1420,6 @@ struct Record_f *read_file(int fd, char *file_name)
 				buff_update = (size_t)bswap_64(bu_up_ne);
 			}
 			rec->fields[i].data.s = calloc(l, sizeof(char));
-
 			if (!rec->fields[i].data.s)
 			{
 				printf("calloc failed: %s:%d.\n", F, L - 3);
@@ -1496,7 +1494,8 @@ struct Record_f *read_file(int fd, char *file_name)
 			if (read(fd, &size_array, sizeof(size_array)) == -1)
 			{
 				perror("error readig array.");
-				return 0;
+				free_record(rec, rec->fields_num);
+				return NULL;
 			}
 
 			int sz = (int)ntohl(size_array);
@@ -1512,12 +1511,79 @@ struct Record_f *read_file(int fd, char *file_name)
 				if (read(fd, &num_ne, sizeof(num_ne)) == -1)
 				{
 					perror("can't read int array from file.\n");
-					return 0;
+					free_record(rec, rec->fields_num);
+					return NULL;
 				}
 				int num = (int)ntohl(num_ne);
 				rec->fields[i].data.v.insert((void *)&num,
 											 &rec->fields[i].data.v,
 											 rec->fields[i].type);
+			}
+
+			/*read update position*/
+			uint64_t update_ne = 0;
+			if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+			{
+				perror("can't read int array update.\n");
+				free_record(rec, rec->fields_num);
+				return NULL;
+			}
+
+			off_t update_array = (off_t)bswap_64(update_ne);
+			if (update_ne > 0)
+			{
+				/*
+				 * go to the position and read
+				 * the remaining array data
+				 * */
+			}
+			break;
+		}
+		case TYPE_ARRAY_LONG:
+		{
+			uint32_t size_array = 0;
+			if (read(fd, &size_array, sizeof(size_array)) == -1)
+			{
+				perror("error readig array.");
+				return 0;
+			}
+
+			int sz = (int)ntohl(size_array);
+			if (!rec->fields[i].data.v.elements.l)
+			{
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			for (int j = 0; j < sz; j++)
+			{
+				uint64_t num_ne = 0;
+				if (read(fd, &num_ne, sizeof(num_ne)) == -1)
+				{
+					perror("can't read int array from file.\n");
+					return 0;
+				}
+				long num = (long)bswap_64(num_ne);
+				rec->fields[i].data.v.insert((void *)&num,
+											 &rec->fields[i].data.v,
+											 rec->fields[i].type);
+			}
+
+			/*read update position*/
+			uint64_t update_ne = 0;
+			if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+			{
+				perror("can't read int array update.\n");
+				free_record(rec, rec->fields_num);
+				return NULL;
+			}
+			off_t update_array = (off_t)bswap_64(update_ne);
+			if (update_array > 0)
+			{
+				/*
+				 * go to the position and read
+				 * the remaining array data
+				 * */
 			}
 			break;
 		}
