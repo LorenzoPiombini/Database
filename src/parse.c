@@ -1448,17 +1448,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 							for (int a = 0; a < (*rec_old)->fields[j].data.v.size; a++)
 							{
 
-								if (strcmp((*rec_old)->fields[j].data.elements.s[a], rec->fields[j].data.elements.s[a]) != 0)
+								if (strcmp((*rec_old)->fields[j].data.v.elements.s[a], rec->fields[j].data.v.elements.s[a]) != 0)
 								{
 									// free memory before allocating other memory
-									if ((*rec_old)->fields[j].data.elements.s[a] != NULL)
+									if ((*rec_old)->fields[j].data.v.elements.s[a] != NULL)
 									{
-										free((*rec_old)->fields[j].data.elements.s[a]);
-										(*rec_old)->fields[j].data.elements.s[a] = NULL;
+										free((*rec_old)->fields[j].data.v.elements.s[a]);
+										(*rec_old)->fields[j].data.v.elements.s[a] = NULL;
 									}
 
-									(*rec_old)->fields[j].data.elements.s[a] = strdup(rec->fields[j].data.elements.s[a]);
-									if (!(*rec_old)->fields[j].data.elements.s[a])
+									(*rec_old)->fields[j].data.v.elements.s[a] = strdup(rec->fields[j].data.v.elements.s[a]);
+									if (!(*rec_old)->fields[j].data.v.elements.s[a])
 									{
 										fprintf(stderr, "strdup failed, %s:%d.\n", F, L - 2);
 										return 0;
@@ -1472,17 +1472,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 							{
 								if (a < (*rec_old)->fields[j].data.v.size)
 								{
-									if (strcmp((*rec_old)->fields[j].data.elements.s[a], rec->fields[j].data.elements.s[a]) != 0)
+									if (strcmp((*rec_old)->fields[j].data.v.elements.s[a], rec->fields[j].data.v.elements.s[a]) != 0)
 									{
 										// free memory before allocating other memory
-										if ((*rec_old)->fields[j].data.elements.s[a] != NULL)
+										if ((*rec_old)->fields[j].data.v.elements.s[a] != NULL)
 										{
-											free((*rec_old)->fields[j].data.elements.s[a]);
-											(*rec_old)->fields[j].data.elements.s[a] = NULL;
+											free((*rec_old)->fields[j].data.v.elements.s[a]);
+											(*rec_old)->fields[j].data.v.elements.s[a] = NULL;
 										}
 
-										(*rec_old)->fields[j].data.elements.s[a] = strdup(rec->fields[j].data.elements.s[a]);
-										if (!(*rec_old)->fields[j].data.elements.s[a])
+										(*rec_old)->fields[j].data.v.elements.s[a] = strdup(rec->fields[j].data.v.elements.s[a]);
+										if (!(*rec_old)->fields[j].data.v.elements.s[a])
 										{
 											fprintf(stderr, "strdup failed, %s:%d.\n", F, L - 2);
 											return 0;
@@ -1500,17 +1500,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 							for (int a = 0; a < rec->fields[j].data.v.size; a++)
 							{
 								/*put string here*/
-								if (strcmp((*rec_old)->fields[j].data.elements.s[a], rec->fields[j].data.elements.s[a]) != 0)
+								if (strcmp((*rec_old)->fields[j].data.v.elements.s[a], rec->fields[j].data.v.elements.s[a]) != 0)
 								{
 									// free memory before allocating other memory
-									if ((*rec_old)->fields[j].data.elements.s[a] != NULL)
+									if ((*rec_old)->fields[j].data.v.elements.s[a] != NULL)
 									{
-										free((*rec_old)->fields[j].data.elements.s[a]);
-										(*rec_old)->fields[j].data.elements.s[a] = NULL;
+										free((*rec_old)->fields[j].data.v.elements.s[a]);
+										(*rec_old)->fields[j].data.v.elements.s[a] = NULL;
 									}
 
-									(*rec_old)->fields[j].data.elements.s[a] = strdup(rec->fields[j].data.elements.s[a]);
-									if (!(*rec_old)->fields[j].data.elements.s[a])
+									(*rec_old)->fields[j].data.v.elements.s[a] = strdup(rec->fields[j].data.v.elements.s[a]);
+									if (!(*rec_old)->fields[j].data.v.elements.s[a])
 									{
 										fprintf(stderr, "strdup failed, %s:%d.\n", F, L - 2);
 										return 0;
