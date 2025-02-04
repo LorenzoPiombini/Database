@@ -154,7 +154,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
-			char *t = strtok(value, "t");
+			char *t = strtok(value, ",");
 			while (t)
 			{
 				if (!is_integer(t))
@@ -563,6 +563,10 @@ void print_record(int count, struct Record_f **recs)
 
 						printf("%d, ", *rec->fields[i].data.v.elements.i[k]);
 					}
+					else
+					{
+						printf("%d.\n", *rec->fields[i].data.v.elements.i[k]);
+					}
 				}
 
 				break;
@@ -571,18 +575,32 @@ void print_record(int count, struct Record_f **recs)
 			{
 				int k;
 				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				{
 					if (rec->fields[i].data.v.size - k > 1)
+					{
 						printf("%ld, ", *rec->fields[i].data.v.elements.l[k]);
-				printf("%ld.\n", *rec->fields[i].data.v.elements.l[k]);
+					}
+					else
+					{
+						printf("%ld.\n", *rec->fields[i].data.v.elements.l[k]);
+					}
+				}
 				break;
 			}
 			case TYPE_ARRAY_FLOAT:
 			{
 				int k;
 				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				{
 					if (rec->fields[i].data.v.size - k > 1)
+					{
 						printf("%.2f, ", *rec->fields[i].data.v.elements.f[k]);
-				printf("%.2f.\n", *rec->fields[i].data.v.elements.f[k]);
+					}
+					else
+					{
+						printf("%.2f.\n", *rec->fields[i].data.v.elements.f[k]);
+					}
+				}
 				break;
 			}
 			case TYPE_ARRAY_STRING:
@@ -595,27 +613,43 @@ void print_record(int count, struct Record_f **recs)
 						strip('"', rec->fields[i].data.v.elements.s[k]);
 						printf("%s, ", rec->fields[i].data.v.elements.s[k]);
 					}
+					else
+					{
+						printf("%s.\n", rec->fields[i].data.v.elements.s[k]);
+					}
 				}
-				strip('"', rec->fields[i].data.v.elements.s[k]);
-				printf("%s.\n", rec->fields[i].data.v.elements.s[k]);
 				break;
 			}
 			case TYPE_ARRAY_BYTE:
 			{
 				int k;
 				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				{
 					if (rec->fields[i].data.v.size - k > 1)
+					{
 						printf("%u, ", *rec->fields[i].data.v.elements.b[k]);
-				printf("%u.\n", *rec->fields[i].data.v.elements.b[k]);
+					}
+					else
+					{
+						printf("%u.\n", *rec->fields[i].data.v.elements.b[k]);
+					}
+				}
 				break;
 			}
 			case TYPE_ARRAY_DOUBLE:
 			{
 				int k;
 				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				{
 					if (rec->fields[i].data.v.size - k > 1)
+					{
 						printf("%.2f, ", *rec->fields[i].data.v.elements.d[k]);
-				printf("%.2f.\n", *rec->fields[i].data.v.elements.d[k]);
+					}
+					else
+					{
+						printf("%ld.\n", *rec->fields[i].data.v.elements.l[k]);
+					}
+				}
 				break;
 			}
 			default:
@@ -1146,42 +1180,60 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 	case TYPE_ARRAY_INT:
 	{
 		for (int i = 0; i < v->size; i++)
-			free(v->elements.i[i]);
+		{
+			if (v->elements.i[i])
+				free(v->elements.i[i]);
+		}
 		free(v->elements.i);
 		break;
 	}
 	case TYPE_ARRAY_LONG:
 	{
 		for (int i = 0; i < v->size; i++)
-			free(v->elements.l[i]);
+		{
+			if (v->elements.l[i])
+				free(v->elements.l[i]);
+		}
 		free(v->elements.l);
 		break;
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
 		for (int i = 0; i < v->size; i++)
-			free(v->elements.f[i]);
+		{
+			if (v->elements.f[i])
+				free(v->elements.f[i]);
+		}
 		free(v->elements.f);
 		break;
 	}
 	case TYPE_ARRAY_STRING:
 	{
 		for (int i = 0; i < v->size; i++)
-			free(v->elements.s[i]);
+		{
+			if (v->elements.s[i])
+				free(v->elements.s[i]);
+		}
 		free(v->elements.s);
 		break;
 	}
 	case TYPE_ARRAY_BYTE:
 	{
 		for (int i = 0; i < v->size; i++)
-			free(v->elements.b[i]);
+		{
+			if (v->elements.b[i])
+				free(v->elements.b[i]);
+		}
 		free(v->elements.b);
 		break;
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
 		for (int i = 0; i < v->size; i++)
-			free(v->elements.d[i]);
+		{
+			if (v->elements.d[i])
+				free(v->elements.d[i]);
+		}
 		free(v->elements.d);
 		break;
 	}
