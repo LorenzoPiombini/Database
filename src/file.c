@@ -146,6 +146,12 @@ off_t find_record_position(int fd, off_t offset)
 	return pos;
 }
 
+/*
+ * move_in_file_bytes will change the file pointer of offset bytes
+ *	example:
+ *		move_in_file_bytes(fd, -4); will move the file pointear backwords of 4 bytes
+ *
+ * */
 off_t move_in_file_bytes(int fd, off_t offset)
 {
 	off_t current_p = get_file_offset(fd);
@@ -1028,7 +1034,108 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			else
 			{
-				/*TODO update case*/
+				/* update branch*/
+				/* check the size */
+				uint32_t sz_ne = 0;
+				if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
+				{
+					fprintf(stderr, "can't read int array size");
+					return 0;
+				}
+
+				int sz = (int)ntohl(sz_ne);
+				if (rec->fields[i].data.v.size > sz)
+				{
+					/*
+					 * !!@@ overwrite the array @@!!
+					 *	write the old size of the array
+					 *	--DO NOT OVERWRITE THE OLD SIZE OF THE ARRAY--
+					 *	read the update offset:
+					 *	 if is 0
+					 *		take the offset after the loop
+					 *		 (which is the current_position - uint64_t = offset after the loop)
+					 *		 jump at the end of the file(EOF)
+					 *	        write the new part of the array
+					 *			- write the remaining size
+					 *			- write the elements
+					 *			- write the update position(will be 0)
+					 *		then jump back to the offt after the loop
+					 *		write the offt of the new data (EOF)
+					 *	else
+					 *		go to the update off_t
+					 *		read the size
+					 *		compare the size with the remaining size
+					 *		if it is == JUST overwrite
+					 *		else if the remaining size is bigger then
+					 *		the size on file we need to do the same operation
+					 *
+					 * */
+					for (int k = 0; k < sz; k++)
+					{
+						if (!rec->fields[i].data.v.elements.i[k])
+							continue;
+
+						uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+				}
+				else if (rec->fields[i].data.v.size < sz)
+				{
+					/*
+					 *    jump 32 bits back in the file and
+					 *    simply write the new array as
+					 *    if it was a new one:
+					 *	- write the size
+					 *	- write the elements
+					 *	- write the update offt ( which it will be 0)
+					 * in this way you will effectevely
+					 * update the array making the old data unreachable
+					 * */
+					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+					/*write the size of the array */
+					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.i[k])
+							continue;
+
+						uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
+				else
+				{
+					/*
+					 * the sizes are the same
+					 * we simply write the array.
+					 * */
+				}
 			}
 
 			break;
@@ -1490,101 +1597,326 @@ struct Record_f *read_file(int fd, char *file_name)
 		}
 		case TYPE_ARRAY_INT:
 		{
-			uint32_t size_array = 0;
-			if (read(fd, &size_array, sizeof(size_array)) == -1)
+			off_t end_first_arr = 0;
+			do
 			{
-				perror("error readig array.");
-				free_record(rec, rec->fields_num);
-				return NULL;
-			}
 
-			int sz = (int)ntohl(size_array);
-			if (!rec->fields[i].data.v.elements.i)
-			{
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
-			}
-
-			for (int j = 0; j < sz; j++)
-			{
-				uint32_t num_ne = 0;
-				if (read(fd, &num_ne, sizeof(num_ne)) == -1)
+				uint32_t size_array = 0;
+				if (read(fd, &size_array, sizeof(size_array)) == -1)
 				{
-					perror("can't read int array from file.\n");
+					perror("error readig array.");
 					free_record(rec, rec->fields_num);
 					return NULL;
 				}
-				int num = (int)ntohl(num_ne);
-				rec->fields[i].data.v.insert((void *)&num,
-											 &rec->fields[i].data.v,
-											 rec->fields[i].type);
-			}
 
-			/*read update position*/
-			uint64_t update_ne = 0;
-			if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+				int sz = (int)ntohl(size_array);
+				if (!rec->fields[i].data.v.elements.i)
+				{
+					rec->fields[i].data.v.insert = insert_element;
+					rec->fields[i].data.v.destroy = free_dynamic_array;
+				}
+
+				for (int j = 0; j < sz; j++)
+				{
+					uint32_t num_ne = 0;
+					if (read(fd, &num_ne, sizeof(num_ne)) == -1)
+					{
+						perror("can't read int array from file.\n");
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+					int num = (int)ntohl(num_ne);
+					rec->fields[i].data.v.insert((void *)&num,
+												 &rec->fields[i].data.v,
+												 rec->fields[i].type);
+				}
+
+				/*read update position*/
+				uint64_t update_ne = 0;
+				if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+				{
+					perror("can't read int array update.\n");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				if (end_first_arr == 0)
+				{
+					if ((end_first_arr = get_file_offset(fd)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+
+				off_t update_array = (off_t)bswap_64(update_ne);
+				if (update_array > 0)
+				{
+					/*
+					 * go to the position and read
+					 * the remaining array data
+					 * */
+					if (find_record_position(fd, update_array) == -1)
+					{
+						__er_file_pointer(F, L - 2);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+			} while (update_array > 0);
+
+			/* go back to end_first_arr to avoid losing data */
+			if (find_record_position(fd, end_first_arr) == -1)
 			{
-				perror("can't read int array update.\n");
+				__er_file_pointer(F, L - 2);
 				free_record(rec, rec->fields_num);
 				return NULL;
 			}
 
-			off_t update_array = (off_t)bswap_64(update_ne);
-			if (update_ne > 0)
-			{
-				/*
-				 * go to the position and read
-				 * the remaining array data
-				 * */
-			}
 			break;
 		}
 		case TYPE_ARRAY_LONG:
 		{
-			uint32_t size_array = 0;
-			if (read(fd, &size_array, sizeof(size_array)) == -1)
+			off_t end_first_arr = 0;
+			do
 			{
-				perror("error readig array.");
-				return 0;
-			}
 
-			int sz = (int)ntohl(size_array);
-			if (!rec->fields[i].data.v.elements.l)
-			{
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
-			}
-
-			for (int j = 0; j < sz; j++)
-			{
-				uint64_t num_ne = 0;
-				if (read(fd, &num_ne, sizeof(num_ne)) == -1)
+				uint32_t size_array = 0;
+				if (read(fd, &size_array, sizeof(size_array)) == -1)
 				{
-					perror("can't read int array from file.\n");
+					perror("error readig array.");
 					return 0;
 				}
-				long num = (long)bswap_64(num_ne);
-				rec->fields[i].data.v.insert((void *)&num,
-											 &rec->fields[i].data.v,
-											 rec->fields[i].type);
-			}
 
-			/*read update position*/
-			uint64_t update_ne = 0;
-			if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+				int sz = (int)ntohl(size_array);
+				if (!rec->fields[i].data.v.elements.l)
+				{
+					rec->fields[i].data.v.insert = insert_element;
+					rec->fields[i].data.v.destroy = free_dynamic_array;
+				}
+
+				for (int j = 0; j < sz; j++)
+				{
+					uint64_t num_ne = 0;
+					if (read(fd, &num_ne, sizeof(num_ne)) == -1)
+					{
+						perror("can't read int array from file.\n");
+						return 0;
+					}
+					long num = (long)bswap_64(num_ne);
+					rec->fields[i].data.v.insert((void *)&num,
+												 &rec->fields[i].data.v,
+												 rec->fields[i].type);
+				}
+
+				/*read update position*/
+				uint64_t update_ne = 0;
+				if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+				{
+					perror("can't read int array update.\n");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				if (end_first_arr == 0)
+				{
+					if ((end_first_arr = get_file_offset(fd)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+
+				off_t update_array = (off_t)bswap_64(update_ne);
+				if (update_array > 0)
+				{
+					/*
+					 * go to the position and read
+					 * the remaining array data
+					 * */
+					if (find_record_position(fd, update_array) == -1)
+					{
+						__er_file_pointer(F, L - 2);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+			} while (update_array > 0);
+
+			/* go back to end_first_arr to avoid losing data */
+			if (find_record_position(fd, end_first_arr) == -1)
 			{
-				perror("can't read int array update.\n");
+				__er_file_pointer(F, L - 2);
 				free_record(rec, rec->fields_num);
 				return NULL;
 			}
-			off_t update_array = (off_t)bswap_64(update_ne);
-			if (update_array > 0)
+
+			break;
+		}
+		case TYPE_ARRAY_FLOAT:
+		{
+			off_t end_first_arr = 0;
+			do
 			{
-				/*
-				 * go to the position and read
-				 * the remaining array data
-				 * */
+
+				uint32_t size_array = 0;
+				if (read(fd, &size_array, sizeof(size_array)) == -1)
+				{
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				int sz = (int)ntohl(size_array);
+				if (!rec->fields[i].data.v.elements.f)
+				{
+					rec->fields[i].data.v.insert = insert_element;
+					rec->fields[i].data.v.destroy = free_dynamic_array;
+				}
+
+				for (int j = 0; j < sz; j++)
+				{
+					uint32_t f_ne = 0;
+					if (read(fd, &f_ne, sizeof(uint32_t)) < 0)
+					{
+						perror("could not read type float, file.c l 505.\n");
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+
+					float num = ntohf(num_ne);
+					rec->fields[i].data.v.insert((void *)&num,
+												 &rec->fields[i].data.v,
+												 rec->fields[i].type);
+				}
+
+				/*read update position*/
+				uint64_t update_ne = 0;
+				if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+				{
+					perror("can't read int array update.\n");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				if (end_first_arr == 0)
+				{
+					if ((end_first_arr = get_file_offset(fd)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+
+				off_t update_array = (off_t)bswap_64(update_ne);
+				if (update_ne > 0)
+				{
+					/*
+					 * go to the position and read
+					 * the remaining array data
+					 * */
+					if (find_record_position(fd, update_array) == -1)
+					{
+						__er_file_pointer(F, L - 2);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+			} while (update_array > 0);
+
+			/* go back to end_first_arr to avoid losing data */
+			if (find_record_position(fd, end_first_arr) == -1)
+			{
+				__er_file_pointer(F, L - 2);
+				free_record(rec, rec->fields_num);
+				return NULL;
 			}
+
+			break;
+		}
+		case TYPE_ARRAY_DOUBLE:
+		{
+			off_t end_first_arr = 0;
+			do
+			{
+
+				uint32_t size_array = 0;
+				if (read(fd, &size_array, sizeof(size_array)) == -1)
+				{
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				int sz = (int)ntohl(size_array);
+				if (!rec->fields[i].data.v.elements.b)
+				{
+					rec->fields[i].data.v.insert = insert_element;
+					rec->fields[i].data.v.destroy = free_dynamic_array;
+				}
+
+				for (int j = 0; j < sz; j++)
+				{
+					uint32_t f_ne = 0;
+					if (read(fd, &f_ne, sizeof(uint32_t)) < 0)
+					{
+						perror("could not read type float, file.c l 505.\n");
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+
+					float num = ntohd(num_ne);
+					rec->fields[i].data.v.insert((void *)&num,
+												 &rec->fields[i].data.v,
+												 rec->fields[i].type);
+				}
+
+				/*read update position*/
+				uint64_t update_ne = 0;
+				if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+				{
+					perror("can't read int array update.\n");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				if (end_first_arr == 0)
+				{
+					if ((end_first_arr = get_file_offset(fd)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+
+				off_t update_array = (off_t)bswap_64(update_ne);
+				if (update_ne > 0)
+				{
+					/*
+					 * go to the position and read
+					 * the remaining array data
+					 * */
+					if (find_record_position(fd, update_array) == -1)
+					{
+						__er_file_pointer(F, L - 2);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+			} while (update_array > 0);
+
+			/* go back to end_first_arr to avoid losing data */
+			if (find_record_position(fd, end_first_arr) == -1)
+			{
+				__er_file_pointer(F, L - 2);
+				free_record(rec, rec->fields_num);
+				return NULL;
+			}
+
 			break;
 		}
 		default:
