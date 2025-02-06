@@ -1100,6 +1100,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (update_pos == 0)
 					{
 						go_back_to = get_file_offset(fd) - sizeof(update_pos);
+						/*go to EOF*/
 						if ((update_pos = go_to_EOF(fd)) == -1)
 						{
 							__er_file_pointer(F, L - 1);
@@ -1212,6 +1213,26 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * the sizes are the same
 					 * we simply write the array.
 					 * */
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.i[k])
+							continue;
+
+						uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
 				}
 			}
 
