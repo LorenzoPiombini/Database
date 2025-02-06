@@ -7,6 +7,20 @@ as for now, this software is ment to be for **Linux/Unix** systems, and it has b
 - **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
 - **Fedora 36** kernel: 5.11.17-300.fc34.aarch64.
 
+## WHAT'S NEW?
+
+since february 2025 you can create a record where one of the fields is an array.
+for each type supported by the database you can create an array "type":
+
+- int
+- long
+- float
+- byte (unsigned char)
+- string (char*)
+- double
+
+the array is dynamic an is defined in **record.h** and implented in **record.c**
+
 ## Get Started
 
 clone this repo:
