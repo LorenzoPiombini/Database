@@ -19,7 +19,7 @@ for each type supported by the database you can create an array "type":
 - string (char*)
 - double
 
-the array is dynamic and is defined in ['record.h'](https://github.com/LorenzoPiombini/isam.db-C-language/blob/main/include/record.h) and implented in ['record.c'](https://github.com/LorenzoPiombini/isam.db-C-language/blob/main/src/record.c)
+the array is dynamic and is defined in [record.h](https://github.com/LorenzoPiombini/isam.db-C-language/blob/main/include/record.h) and implented in [record.c](https://github.com/LorenzoPiombini/isam.db-C-language/blob/main/src/record.c)
 
 ## Get Started
 
