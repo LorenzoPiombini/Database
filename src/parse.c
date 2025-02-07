@@ -281,6 +281,8 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 						return NULL;
 					}
 					break;
+					/*TODO implement array types*/
+				case TYPE_DOUBLE:
 				default:
 					printf("type no supported! %d.\n", sch->types[i]);
 					free(types_i);
@@ -1187,16 +1189,25 @@ unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, i
 		case SCHEMA_EQ:
 			*rec = parse_d_flag_input(file_path, fields_count, buffer,
 									  buf_t, buf_v, &hd->sch_d, SCHEMA_EQ);
+			if (!*rec)
+				return SCHEMA_ERR;
+
 			return SCHEMA_EQ;
 		case SCHEMA_ERR:
 			return SCHEMA_ERR;
 		case SCHEMA_NW:
 			*rec = parse_d_flag_input(file_path, fields_count, buffer,
 									  buf_t, buf_v, &hd->sch_d, SCHEMA_NW);
+			if (!*rec)
+				return SCHEMA_ERR;
+
 			return SCHEMA_NW;
 		case SCHEMA_CT:
 			*rec = parse_d_flag_input(file_path, fields_count, buffer,
 									  buf_t, buf_v, &hd->sch_d, SCHEMA_CT);
+			if (!*rec)
+				return SCHEMA_ERR;
+
 			return SCHEMA_CT;
 		default:
 			printf("check is %d -> no processable option for the SCHEMA. parse.c:%d.\n", check, __LINE__ - 17);
