@@ -211,8 +211,8 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				}
 				rec->fields[index].data.l = n;
 			}
-			break;
 		}
+		break;
 	}
 	case TYPE_FLOAT:
 	case TYPE_ARRAY_FLOAT:
@@ -1005,7 +1005,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			return -1;
 		}
 
-		*((*v).elements.i[(*v).size - 1]) = *(long *)element;
+		*((*v).elements.l[(*v).size - 1]) = *(long *)element;
 		return 0;
 	}
 	case TYPE_ARRAY_FLOAT:
@@ -1024,7 +1024,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 					return -1;
 				}
 				*((*v).elements.f[i]) = *(float *)element;
-				break;
+				return 0;
 			}
 		}
 		/*not enough space, increase the size */
@@ -1043,7 +1043,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			return -1;
 		}
 
-		*((*v).elements.i[(*v).size - 1]) = *(float *)element;
+		*((*v).elements.f[(*v).size - 1]) = *(float *)element;
 		return 0;
 	}
 	case TYPE_ARRAY_STRING:
