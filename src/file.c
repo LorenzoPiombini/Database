@@ -1036,7 +1036,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			{
 				/* update branch*/
 				int k = 0;
-				off_t update_pos = 0 do
+				int sz = 0;
+				off_t update_pos = 0;
+
+				do
 				{
 					/* check the size */
 					uint32_t sz_ne = 0;
@@ -1046,11 +1049,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int sz = (int)ntohl(sz_ne);
+					sz = (int)ntohl(sz_ne);
 					if (rec->fields[i].data.v.size < sz ||
 						rec->fields[i].data.v.size == sz)
-						;
-					break;
+						break;
 					/*
 					 * !!@@ overwrite the array @@!!
 					 *	write the old size of the array
@@ -1090,7 +1092,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					uint64_t update_off_ne = 0;
 					off_t go_back_to = 0;
-					if (read(fd, &update_off, sizeof(update_off_ne)) == -1)
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 					{
 						perror("failed read update off_t int array.\n");
 						return 0;
@@ -1144,7 +1146,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
-							fprintf(stderr, "can't write update position int array.\n",
+							fprintf(stderr, "can't write update position int array, %s:%d.\n",
 									F, L - 1);
 							return 0;
 						}
@@ -1157,9 +1159,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						__er_file_pointer(F, L - 1);
 						return 0;
 					}
-				}
-				while (update_pos > 0)
-					;
+
+				} while (update_pos > 0);
 
 				if (rec->fields[i].data.v.size < sz)
 				{
@@ -1696,6 +1697,7 @@ struct Record_f *read_file(int fd, char *file_name)
 		case TYPE_ARRAY_INT:
 		{
 			off_t end_first_arr = 0;
+			off_t update_array = 0;
 			do
 			{
 
@@ -1748,7 +1750,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					}
 				}
 
-				off_t update_array = (off_t)bswap_64(update_ne);
+				update_array = (off_t)bswap_64(update_ne);
 				if (update_array > 0)
 				{
 					/*
@@ -1777,6 +1779,7 @@ struct Record_f *read_file(int fd, char *file_name)
 		case TYPE_ARRAY_LONG:
 		{
 			off_t end_first_arr = 0;
+			off_t update_array = 0;
 			do
 			{
 
@@ -1827,7 +1830,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					}
 				}
 
-				off_t update_array = (off_t)bswap_64(update_ne);
+				update_array = (off_t)bswap_64(update_ne);
 				if (update_array > 0)
 				{
 					/*
@@ -1856,6 +1859,7 @@ struct Record_f *read_file(int fd, char *file_name)
 		case TYPE_ARRAY_FLOAT:
 		{
 			off_t end_first_arr = 0;
+			off_t update_array = 0;
 			do
 			{
 
@@ -1884,7 +1888,7 @@ struct Record_f *read_file(int fd, char *file_name)
 						return NULL;
 					}
 
-					float num = ntohf(num_ne);
+					float num = ntohf(f_ne);
 					rec->fields[i].data.v.insert((void *)&num,
 												 &rec->fields[i].data.v,
 												 rec->fields[i].type);
@@ -1909,7 +1913,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					}
 				}
 
-				off_t update_array = (off_t)bswap_64(update_ne);
+				update_array = (off_t)bswap_64(update_ne);
 				if (update_ne > 0)
 				{
 					/*
@@ -1938,9 +1942,10 @@ struct Record_f *read_file(int fd, char *file_name)
 		case TYPE_ARRAY_DOUBLE:
 		{
 			off_t end_first_arr = 0;
+			off_t update_array = 0;
+
 			do
 			{
-
 				uint32_t size_array = 0;
 				if (read(fd, &size_array, sizeof(size_array)) == -1)
 				{
@@ -1966,7 +1971,7 @@ struct Record_f *read_file(int fd, char *file_name)
 						return NULL;
 					}
 
-					float num = ntohd(num_ne);
+					float num = ntohd(f_ne);
 					rec->fields[i].data.v.insert((void *)&num,
 												 &rec->fields[i].data.v,
 												 rec->fields[i].type);
@@ -1991,7 +1996,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					}
 				}
 
-				off_t update_array = (off_t)bswap_64(update_ne);
+				update_array = (off_t)bswap_64(update_ne);
 				if (update_ne > 0)
 				{
 					/*

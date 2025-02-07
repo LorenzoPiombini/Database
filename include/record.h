@@ -4,7 +4,7 @@
 #include <sys/types.h>
 
 /*default dynamic array size*/
-#define DEF_SIZE 5
+#define DEF_SIZE 1
 
 /*
  * macro to initialized the dynamic array type
