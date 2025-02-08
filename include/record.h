@@ -6,22 +6,6 @@
 /*default dynamic array size*/
 #define DEF_SIZE 1
 
-/*
- * macro to initialized the dynamic array type
- * element must bu a struct Field
- * */
-#define ARRAY_INIT(element)                                             \
-	do                                                                  \
-	{                                                                   \
-		struct array v = {NULL, 0, insert_element, free_dynamic_array}; \
-		if (v.insert(element, &v) == -1)                                \
-		{                                                               \
-			fprintf(stderr, "insert dynamic array failed",              \
-					F, L - 3);                                          \
-			return -1;                                                  \
-		}                                                               \
-		while (0)
-
 enum ValueType
 {
 	TYPE_INT,
