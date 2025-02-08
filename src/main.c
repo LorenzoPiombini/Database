@@ -2994,10 +2994,10 @@ int main(int argc, char *argv[])
 
 			free(buf_t), free(buf_v);
 			buf_t = NULL, buf_v = NULL;
-
+			free(buffer);
 			/* 2 - schema is good, thus load the old record into memory and update the fields if any
 			 -- at this point you already checked the header, and you have an updated header,
-				anid the updated record in memory*/
+				and the updated record in memory*/
 
 			/*acquire WR_REC and WR_IND locks*/
 			if (shared_locks)
@@ -3015,7 +3015,6 @@ int main(int argc, char *argv[])
 					{
 						__er_acquire_lock_smo(F, L - 5);
 						free_strs(2, 1, files);
-						free(buffer);
 						close_file(2, fd_index, fd_data);
 						free_record(rec, rec->fields_num);
 						free_schema(&hd.sch_d);
@@ -3038,7 +3037,7 @@ int main(int argc, char *argv[])
 			if (!read_index_nr(0, fd_index, &p_ht))
 			{
 				printf("index file reading failed. %s:%d.\n", F, L - 1);
-				free(buffer), close_file(2, fd_index, fd_data);
+				close_file(2, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
 				free_schema(&hd.sch_d);
 				free_strs(2, 1, files);
@@ -3085,7 +3084,7 @@ int main(int argc, char *argv[])
 			if (key_type == UINT && !key_conv)
 			{
 				fprintf(stderr, "error to convert key");
-				free(buffer), close_file(2, fd_index, fd_data);
+				close_file(2, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
 				free_schema(&hd.sch_d);
 				destroy_hasht(p_ht);
@@ -3142,7 +3141,7 @@ int main(int argc, char *argv[])
 			if (offset == -1)
 			{
 				printf("record not found.\n");
-				free(buffer), close_file(2, fd_index, fd_data);
+				close_file(2, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
 				free_schema(&hd.sch_d);
 				destroy_hasht(p_ht);
@@ -3190,7 +3189,7 @@ int main(int argc, char *argv[])
 			if (find_record_position(fd_data, offset) == -1)
 			{
 				__er_file_pointer(F, L - 1);
-				free(buffer), close_file(2, fd_index, fd_data);
+				close_file(2, fd_index, fd_data);
 				free_schema(&hd.sch_d);
 				free_record(rec, rec->fields_num);
 				free_strs(2, 1, files);
@@ -3236,7 +3235,7 @@ int main(int argc, char *argv[])
 			if (!rec_old)
 			{
 				printf("reading record failed main.c l %d.\n", __LINE__ - 2);
-				free(buffer), close_file(2, fd_index, fd_data);
+				close_file(2, fd_index, fd_data);
 				free_schema(&hd.sch_d);
 				free_record(rec, rec->fields_num);
 				free_strs(2, 1, files);
@@ -3282,7 +3281,7 @@ int main(int argc, char *argv[])
 			if (updated_rec_pos == -1)
 			{
 				__er_file_pointer(F, L - 1);
-				free(buffer), close_file(2, fd_index, fd_data);
+				close_file(2, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
 				free_record(rec_old, rec_old->fields_num);
 				free_schema(&hd.sch_d);
@@ -3333,7 +3332,6 @@ int main(int argc, char *argv[])
 			off_t *pos_u = NULL;
 			if (updated_rec_pos > 0)
 			{
-				free(buffer);
 				int index = 2;
 				int pos_i = 2;
 				recs_old = calloc(index, sizeof(struct Record_f *));
@@ -3531,7 +3529,7 @@ int main(int argc, char *argv[])
 				recs_old[1] = rec_old_s;
 
 				/*at this point we have the first two fragment of the record,
-					 but potentially they could be many fragments,
+					 but potentially there could be many fragments,
 					so we check with a loop that stops when the read of the
 					update_rec_pos gives 0 or -1 (error)*/
 				while ((updated_rec_pos = get_update_offset(fd_data)) > 0)
@@ -3738,7 +3736,7 @@ int main(int argc, char *argv[])
 				/* this function check all records from the file
 				   against the new record setting the values that we have to update
 				   and populates in  the char array positions. If an element contain 'y'
-				   you have to update the record at that index position of 'y'. */
+				   you have to update the field  at that index position of 'y'. */
 
 				find_fields_to_update(recs_old, positions, rec, index);
 
@@ -4449,8 +4447,7 @@ int main(int argc, char *argv[])
 
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 			struct Record_f *new_rec = NULL;
-			unsigned char comp_rr = compare_old_rec_update_rec(&rec_old, rec, &new_rec, file_path, check, buffer, fields_count);
-			free(buffer);
+			unsigned char comp_rr = compare_old_rec_update_rec(&rec_old, rec, &new_rec, file_path, check, data_to_add, fields_count);
 			if (comp_rr == 0)
 			{
 				printf(" compare records failed, %s:%d.\n", F, L - 4);
