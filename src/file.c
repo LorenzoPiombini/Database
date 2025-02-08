@@ -1035,7 +1035,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				int k = 0;
 				int sz = 0;
 				off_t update_pos = 0;
 
@@ -1077,7 +1076,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 *		the size on file we need to do the same operation
 					 *
 					 * */
-					for (; k < sz; k++)
+					int k;
+					for (k = 0; k < sz; k++)
 					{
 						if (!rec->fields[i].data.v.elements.i[k])
 							continue;
@@ -1089,7 +1089,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 					}
-
 					uint64_t update_off_ne = 0;
 					off_t go_back_to = 0;
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
@@ -1098,7 +1097,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					off_t update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)bswap_64(update_off_ne);
 					if (update_pos == 0)
 					{
 						go_back_to = get_file_offset(fd) - sizeof(update_pos);
@@ -1236,7 +1235,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 				}
 			}
-
 			break;
 		}
 		case TYPE_ARRAY_LONG:
@@ -1274,7 +1272,174 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			else
 			{
-				/*TODO update case*/
+				/* update branch*/
+				int sz = 0;
+				off_t update_pos = 0;
+
+				do
+				{
+					/* check the size */
+					uint32_t sz_ne = 0;
+					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
+					{
+						fprintf(stderr, "can't read int array size");
+						return 0;
+					}
+
+					sz = (int)ntohl(sz_ne);
+					if (rec->fields[i].data.v.size < sz ||
+						rec->fields[i].data.v.size == sz)
+						break;
+
+					int k;
+					for (k = 0; k < sz; k++)
+					{
+						if (!rec->fields[i].data.v.elements.l[k])
+							continue;
+
+						uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					uint64_t update_off_ne = 0;
+					off_t go_back_to = 0;
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+					{
+						perror("failed read update off_t int array.\n");
+						return 0;
+					}
+
+					update_pos = (off_t)bswap_64(update_off_ne);
+					if (update_pos == 0)
+					{
+						go_back_to = get_file_offset(fd) - sizeof(update_pos);
+						/*go to EOF*/
+						if ((update_pos = go_to_EOF(fd)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+						/* write the size of the array */
+						uint32_t size_left_ne = htonl((uint32_t)(rec->fields[i].data.v.size - sz));
+						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
+						{
+							perror("error in writing remaining size int array.\n");
+							return 0;
+						}
+
+						for (int j = k; j < rec->fields[i].data.v.size; j++)
+						{
+							if (!rec->fields[i].data.v.elements.l[j])
+								continue;
+
+							uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[j]);
+							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+							{
+								perror("failed write int array to file");
+								return 0;
+							}
+						}
+
+						off_t array_update = 0;
+						uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+						if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+						{
+							perror("failed to write updated pos int array");
+							return 0;
+						}
+
+						if (find_record_position(fd, go_back_to) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+
+						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+						{
+							fprintf(stderr, "can't write update position int array, %s:%d.\n",
+									F, L - 1);
+							return 0;
+						}
+
+						break;
+					}
+
+					if (find_record_position(fd, update_pos) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+				} while (update_pos > 0);
+
+				if (rec->fields[i].data.v.size < sz)
+				{
+					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+					/*write the size of the array */
+					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.l[k])
+							continue;
+
+						uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
+				else if (rec->fields[i].data.v.size == sz)
+				{
+					/*
+					 * the sizes are the same
+					 * we simply write the array.
+					 * */
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.l[k])
+							continue;
+
+						uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
 			}
 
 			break;
@@ -1314,7 +1479,174 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			else
 			{
-				/*TODO update case*/
+				/* update branch*/
+				int sz = 0;
+				off_t update_pos = 0;
+
+				do
+				{
+					/* check the size */
+					uint32_t sz_ne = 0;
+					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
+					{
+						fprintf(stderr, "can't read int array size");
+						return 0;
+					}
+
+					sz = (int)ntohl(sz_ne);
+					if (rec->fields[i].data.v.size < sz ||
+						rec->fields[i].data.v.size == sz)
+						break;
+
+					int k;
+					for (k = 0; k < sz; k++)
+					{
+						if (!rec->fields[i].data.v.elements.f[k])
+							continue;
+
+						uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					uint64_t update_off_ne = 0;
+					off_t go_back_to = 0;
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+					{
+						perror("failed read update off_t int array.\n");
+						return 0;
+					}
+
+					update_pos = (off_t)bswap_64(update_off_ne);
+					if (update_pos == 0)
+					{
+						go_back_to = get_file_offset(fd) - sizeof(update_pos);
+						/*go to EOF*/
+						if ((update_pos = go_to_EOF(fd)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+						/* write the size of the array */
+						uint32_t size_left_ne = htonl((uint32_t)(rec->fields[i].data.v.size - sz));
+						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
+						{
+							perror("error in writing remaining size int array.\n");
+							return 0;
+						}
+
+						for (int j = k; j < rec->fields[i].data.v.size; j++)
+						{
+							if (!rec->fields[i].data.v.elements.f[j])
+								continue;
+
+							uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[k]);
+							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+							{
+								perror("failed write int array to file");
+								return 0;
+							}
+						}
+
+						off_t array_update = 0;
+						uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+						if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+						{
+							perror("failed to write updated pos int array");
+							return 0;
+						}
+
+						if (find_record_position(fd, go_back_to) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+
+						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+						{
+							fprintf(stderr, "can't write update position int array, %s:%d.\n",
+									F, L - 1);
+							return 0;
+						}
+
+						break;
+					}
+
+					if (find_record_position(fd, update_pos) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+				} while (update_pos > 0);
+
+				if (rec->fields[i].data.v.size < sz)
+				{
+					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+					/*write the size of the array */
+					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.f[k])
+							continue;
+
+						uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
+				else if (rec->fields[i].data.v.size == sz)
+				{
+					/*
+					 * the sizes are the same
+					 * we simply write the array.
+					 * */
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.f[k])
+							continue;
+
+						uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
 			}
 			break;
 		}
@@ -1370,7 +1702,170 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			else
 			{
-				/*TODO update case*/
+				/* update branch*/
+				int sz = 0;
+				off_t update_pos = 0;
+
+				do
+				{
+					/* check the size */
+					uint32_t sz_ne = 0;
+					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
+					{
+						fprintf(stderr, "can't read int array size");
+						return 0;
+					}
+
+					sz = (int)ntohl(sz_ne);
+					if (rec->fields[i].data.v.size < sz ||
+						rec->fields[i].data.v.size == sz)
+						break;
+
+					int k;
+					for (k = 0; k < sz; k++)
+					{
+						if (!rec->fields[i].data.v.elements.b[k])
+							continue;
+
+						uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					uint64_t update_off_ne = 0;
+					off_t go_back_to = 0;
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+					{
+						perror("failed read update off_t int array.\n");
+						return 0;
+					}
+
+					update_pos = (off_t)bswap_64(update_off_ne);
+					if (update_pos == 0)
+					{
+						go_back_to = get_file_offset(fd) - sizeof(update_pos);
+						/*go to EOF*/
+						if ((update_pos = go_to_EOF(fd)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+						/* write the size of the array */
+						uint32_t size_left_ne = htonl((uint32_t)(rec->fields[i].data.v.size - sz));
+						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
+						{
+							perror("error in writing remaining size int array.\n");
+							return 0;
+						}
+
+						for (int j = k; j < rec->fields[i].data.v.size; j++)
+						{
+							if (!rec->fields[i].data.v.elements.b[j])
+								continue;
+
+							uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[k]);
+							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+							{
+								perror("failed write int array to file");
+								return 0;
+							}
+						}
+
+						off_t array_update = 0;
+						uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+						if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+						{
+							perror("failed to write updated pos int array");
+							return 0;
+						}
+
+						if (find_record_position(fd, go_back_to) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+
+						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+						{
+							fprintf(stderr, "can't write update position int array, %s:%d.\n",
+									F, L - 1);
+							return 0;
+						}
+
+						break;
+					}
+
+					if (find_record_position(fd, update_pos) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+				} while (update_pos > 0);
+
+				if (rec->fields[i].data.v.size < sz)
+				{
+					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+					/*write the size of the array */
+					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.b[k])
+							continue;
+
+						uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
+				else if (rec->fields[i].data.v.size == sz)
+				{
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.b[k])
+							continue;
+
+						uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
 			}
 			break;
 		}
@@ -1391,7 +1886,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (!rec->fields[i].data.v.elements.d[k])
 						continue;
 
-					uint64_t num_ne = htond(*rec->fields[i].data.v.elements.i[k]);
+					uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[k]);
 					if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -1409,7 +1904,170 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			else
 			{
-				/*TODO update case*/
+				/* update case*/
+				int sz = 0;
+				off_t update_pos = 0;
+
+				do
+				{
+					/* check the size */
+					uint32_t sz_ne = 0;
+					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
+					{
+						fprintf(stderr, "can't read int array size");
+						return 0;
+					}
+
+					sz = (int)ntohl(sz_ne);
+					if (rec->fields[i].data.v.size < sz ||
+						rec->fields[i].data.v.size == sz)
+						break;
+
+					int k;
+					for (k = 0; k < sz; k++)
+					{
+						if (!rec->fields[i].data.v.elements.d[k])
+							continue;
+
+						uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					uint64_t update_off_ne = 0;
+					off_t go_back_to = 0;
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+					{
+						perror("failed read update off_t int array.\n");
+						return 0;
+					}
+
+					update_pos = (off_t)bswap_64(update_off_ne);
+					if (update_pos == 0)
+					{
+						go_back_to = get_file_offset(fd) - sizeof(update_pos);
+						/*go to EOF*/
+						if ((update_pos = go_to_EOF(fd)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+						/* write the size of the array */
+						uint32_t size_left_ne = htonl((uint32_t)(rec->fields[i].data.v.size - sz));
+						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
+						{
+							perror("error in writing remaining size int array.\n");
+							return 0;
+						}
+
+						for (int j = k; j < rec->fields[i].data.v.size; j++)
+						{
+							if (!rec->fields[i].data.v.elements.d[j])
+								continue;
+
+							uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[k]);
+							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+							{
+								perror("failed write int array to file");
+								return 0;
+							}
+						}
+
+						off_t array_update = 0;
+						uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+						if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+						{
+							perror("failed to write updated pos int array");
+							return 0;
+						}
+
+						if (find_record_position(fd, go_back_to) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+
+						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+						{
+							fprintf(stderr, "can't write update position int array, %s:%d.\n",
+									F, L - 1);
+							return 0;
+						}
+
+						break;
+					}
+
+					if (find_record_position(fd, update_pos) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+				} while (update_pos > 0);
+
+				if (rec->fields[i].data.v.size < sz)
+				{
+					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+					/*write the size of the array */
+					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.d[k])
+							continue;
+
+						uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
+				else if (rec->fields[i].data.v.size == sz)
+				{
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.d[k])
+							continue;
+
+						uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[k]);
+						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+						{
+							perror("failed write int array to file");
+							return 0;
+						}
+					}
+
+					off_t array_update = 0;
+					uint64_t arr_upd_ne = bswap_64((uint64_t)array_update);
+					if (write(fd, &arr_upd_ne, sizeof(arr_upd_ne)) == -1)
+					{
+						perror("failed to write updated pos int array");
+						return 0;
+					}
+				}
 			}
 			break;
 		}

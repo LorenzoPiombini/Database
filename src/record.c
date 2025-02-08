@@ -917,22 +917,22 @@ int init_array(struct array **v, enum ValueType type)
 
 int insert_element(void *element, struct array *v, enum ValueType type)
 {
-	/*check if the array has been initialized */
-	if (!(*v).elements.i)
-	{
-		if (init_array(&v, type) == -1)
-		{
-			fprintf(stderr, "init array failed.\n");
-			return -1;
-		}
-	}
-
-	/*check if there is enough space for new item */
 
 	switch (type)
 	{
 	case TYPE_ARRAY_INT:
 	{
+		/*check if the array has been initialized */
+		if (!(*v).elements.i)
+		{
+			if (init_array(&v, type) == -1)
+			{
+				fprintf(stderr, "init array failed.\n");
+				return -1;
+			}
+		}
+
+		/*check if there is enough space for new item */
 		if (!(*v).elements.i[(*v).size - 1])
 		{
 			for (int i = 0; i < (*v).size; i++)
@@ -972,6 +972,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 	}
 	case TYPE_ARRAY_LONG:
 	{
+		/*check if the array has been initialized */
+		if (!(*v).elements.l)
+		{
+			if (init_array(&v, type) == -1)
+			{
+				fprintf(stderr, "init array failed.\n");
+				return -1;
+			}
+		}
+
+		/*check if there is enough space for new item */
 		if (!(*v).elements.l[(*v).size - 1])
 		{
 			for (int i = 0; i < (*v).size; i++)
@@ -1010,6 +1021,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
+		/*check if the array has been initialized */
+		if (!(*v).elements.f)
+		{
+			if (init_array(&v, type) == -1)
+			{
+				fprintf(stderr, "init array failed.\n");
+				return -1;
+			}
+		}
+
+		/*check if there is enough space for new item */
 		if (!(*v).elements.f[(*v).size - 1])
 		{
 			for (int i = 0; i < (*v).size; i++)
@@ -1048,6 +1070,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 	}
 	case TYPE_ARRAY_STRING:
 	{
+		/*check if the array has been initialized */
+		if (!(*v).elements.s)
+		{
+			if (init_array(&v, type) == -1)
+			{
+				fprintf(stderr, "init array failed.\n");
+				return -1;
+			}
+		}
+
+		/*check if there is enough space for new item */
 		if (!(*v).elements.s[(*v).size - 1])
 		{
 			for (int i = 0; i < (*v).size; i++)
@@ -1090,6 +1123,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 	}
 	case TYPE_ARRAY_BYTE:
 	{
+		/*check if the array has been initialized */
+		if (!(*v).elements.b)
+		{
+			if (init_array(&v, type) == -1)
+			{
+				fprintf(stderr, "init array failed.\n");
+				return -1;
+			}
+		}
+
+		/*check if there is enough space for new item */
 		if (!(*v).elements.b[(*v).size - 1])
 		{
 			for (int i = 0; i < (*v).size; i++)
@@ -1129,6 +1173,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
+		/*check if the array has been initialized */
+		if (!(*v).elements.d)
+		{
+			if (init_array(&v, type) == -1)
+			{
+				fprintf(stderr, "init array failed.\n");
+				return -1;
+			}
+		}
+
+		/*check if there is enough space for new item */
 		if (!(*v).elements.d[(*v).size - 1])
 		{
 			for (int i = 0; i < (*v).size; i++)
@@ -1173,6 +1228,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 	return 0; /*success*/
 }
+
 void free_dynamic_array(struct array *v, enum ValueType type)
 {
 	switch (type)
@@ -1185,6 +1241,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 				free(v->elements.i[i]);
 		}
 		free(v->elements.i);
+		v->elements.i = NULL;
 		break;
 	}
 	case TYPE_ARRAY_LONG:
@@ -1195,6 +1252,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 				free(v->elements.l[i]);
 		}
 		free(v->elements.l);
+		v->elements.l = NULL;
 		break;
 	}
 	case TYPE_ARRAY_FLOAT:
@@ -1205,6 +1263,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 				free(v->elements.f[i]);
 		}
 		free(v->elements.f);
+		v->elements.f = NULL;
 		break;
 	}
 	case TYPE_ARRAY_STRING:
@@ -1215,6 +1274,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 				free(v->elements.s[i]);
 		}
 		free(v->elements.s);
+		v->elements.s = NULL;
 		break;
 	}
 	case TYPE_ARRAY_BYTE:
@@ -1225,6 +1285,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 				free(v->elements.b[i]);
 		}
 		free(v->elements.b);
+		v->elements.s = NULL;
 		break;
 	}
 	case TYPE_ARRAY_DOUBLE:
@@ -1235,6 +1296,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 				free(v->elements.d[i]);
 		}
 		free(v->elements.d);
+		v->elements.d = NULL;
 		break;
 	}
 	default:
