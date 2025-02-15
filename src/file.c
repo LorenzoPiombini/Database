@@ -1304,16 +1304,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				if (rec->fields[i].data.v.size < sz)
 				{
-					/*
-					 *    jump 32 bits back in the file and
-					 *    simply write the new array as
-					 *    if it was a new one:
-					 *	- write the size
-					 *	- write the elements
-					 *	- write the update offt ( which it will be 0)
-					 * in this way you will effectevely
-					 * update the array making the old data unreachable
-					 * */
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
 					{
@@ -1329,12 +1319,41 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					/*write the padding to apply after the  array */
-					uint32_t pad_ne = htonl((uint32_t)(sz - rec->fields[i].data.v.size));
-					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
+					/*read and check the padding, */
+					uint32_t pad_ne = 0;
+					if (read(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
 						return 0;
+					}
+
+					int pd_he = (int)ntohl(pad_ne);
+					/*if it is 0 we overwrite otherwise we leave it like that */
+					if (pd_he == 0)
+					{
+
+						if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+
+						pd_he = sz - rec->fields[i].data.v.size;
+						/* write the padding to apply after the  array */
+						pad_ne = htonl((uint32_t)pd_he);
+						if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
+						{
+							perror("error in writing padding array to file.\n");
+							return 0;
+						}
+					}
+					else
+					{
+						if (move_in_file_bytes(fd, sizeof(uint32_t)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
 					}
 
 					for (int k = step; k < rec->fields[i].data.v.size; k++)
@@ -1352,11 +1371,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					/*
 					 * move the file pointer after the array
-					 * as much as the pad size + sizeof(off_t)
+					 * as much as the pad
 					 * */
-					if (move_in_file_bytes(fd, ((sz - rec->fields[i].data.v.size) * sizeof(int)) + sizeof(off_t)) == -1)
+					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+					uint64_t update_arr_ne = bswap_64(0);
+					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					{
+						perror("failed write int array to file");
 						return 0;
 					}
 				}
@@ -1383,12 +1409,15 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					if (move_in_file_bytes(fd, sizeof(sz)) == -1)
+					/*read and check the padding, */
+					uint32_t pad_ne = 0;
+					if (read(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
-						__er_file_pointer(F, L - 2);
+						perror("error in writing padding array to file.\n");
 						return 0;
 					}
 
+					int pd_he = (int)ntohl(pad_ne);
 					for (int k = 0; k < rec->fields[i].data.v.size; k++)
 					{
 						if (step < rec->fields[i].data.v.size)
@@ -1404,6 +1433,27 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 							step++;
 						}
+					}
+
+					/*
+					 * move the file pointer
+					 * as much as the padding value
+					 * if it si bigger than 0
+					 * */
+					if (pd_he > 0)
+					{
+						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+						{
+							__er_file_pointer(F, L - 2);
+							return 0;
+						}
+					}
+
+					uint64_t update_arr_ne = bswap_64(0);
+					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					{
+						perror("failed write int array to file");
+						return 0;
 					}
 				}
 			}
