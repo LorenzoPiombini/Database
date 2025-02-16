@@ -611,6 +611,10 @@ unsigned char is_floaintg_point(char *str)
 		{
 			point++;
 		}
+		else if (str[i] == '-' && i == 0)
+		{
+			continue;
+		}
 		else
 		{
 			return 0;
@@ -619,14 +623,25 @@ unsigned char is_floaintg_point(char *str)
 
 	return point == 1;
 }
+
 unsigned char is_integer(char *str)
 {
 	size_t l = strlen(str);
 	int i = 0;
 	for (i = 0; i < l; i++)
+	{
 		if (!isdigit(str[i]))
-			return 0;
-
+		{
+			if (str[i] == '-' && i == 0)
+			{
+				continue;
+			}
+			else
+			{
+				return 0;
+			}
+		}
+	}
 	return 1;
 }
 

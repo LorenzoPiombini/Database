@@ -1758,6 +1758,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				case TYPE_ARRAY_INT:
 					if (rec->fields[i].data.v.elements.i)
 					{
+						if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.i[0] == 0)
+							break;
+
 						if ((*rec_old)->fields[i].data.v.elements.i)
 						{
 							if ((*rec_old)->fields[i].data.v.size == rec->fields[i].data.v.size)
@@ -1796,6 +1799,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				case TYPE_ARRAY_LONG:
 					if (rec->fields[i].data.v.elements.l)
 					{
+						if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.l[0] == 0)
+							break;
+
 						if ((*rec_old)->fields[i].data.v.elements.l)
 						{
 							if ((*rec_old)->fields[i].data.v.size == rec->fields[i].data.v.size)
@@ -1833,6 +1839,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				case TYPE_ARRAY_FLOAT:
 					if (rec->fields[i].data.v.elements.f)
 					{
+						if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.f[0] == 0.0)
+							break;
+
 						if ((*rec_old)->fields[i].data.v.elements.f)
 						{
 							if ((*rec_old)->fields[i].data.v.size == rec->fields[i].data.v.size)
@@ -1870,6 +1879,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				case TYPE_ARRAY_DOUBLE:
 					if (rec->fields[i].data.v.elements.d)
 					{
+						if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.d[0] == 0)
+							break;
+
 						if ((*rec_old)->fields[i].data.v.elements.d)
 						{
 							if ((*rec_old)->fields[i].data.v.size == rec->fields[i].data.v.size)
@@ -1907,6 +1919,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				case TYPE_ARRAY_BYTE:
 					if (rec->fields[i].data.v.elements.b)
 					{
+						if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.b[0] == 0)
+							break;
+
 						if ((*rec_old)->fields[i].data.v.elements.b)
 						{
 							if ((*rec_old)->fields[i].data.v.size == rec->fields[i].data.v.size)
@@ -1944,6 +1959,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				case TYPE_ARRAY_STRING:
 					if (rec->fields[i].data.v.elements.s)
 					{
+						if (rec->fields[i].data.v.size == 1 && strcmp(rec->fields[i].data.v.elements.s[0], "null") == 0)
+							break;
+
 						if ((*rec_old)->fields[i].data.v.elements.s)
 						{
 							if ((*rec_old)->fields[i].data.v.size == rec->fields[i].data.v.size)
@@ -2361,6 +2379,9 @@ void find_fields_to_update(struct Record_f **recs_old, char *positions, struct R
 					case TYPE_ARRAY_INT:
 						if (rec->fields[x].data.v.elements.i)
 						{
+							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.i[0] == 0)
+								break;
+
 							/*check the values*/
 							if (rec->fields[x].data.v.size == recs_old[i]->fields[j].data.v.size)
 							{
@@ -2396,6 +2417,8 @@ void find_fields_to_update(struct Record_f **recs_old, char *positions, struct R
 					case TYPE_ARRAY_LONG:
 						if (rec->fields[x].data.v.elements.l)
 						{
+							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.l[0] == 0)
+								break;
 							/*check the values*/
 							if (rec->fields[x].data.v.size == recs_old[i]->fields[j].data.v.size)
 							{
@@ -2431,6 +2454,8 @@ void find_fields_to_update(struct Record_f **recs_old, char *positions, struct R
 					case TYPE_ARRAY_FLOAT:
 						if (rec->fields[x].data.v.elements.f)
 						{
+							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.f[0] == 0.0)
+								break;
 							/*check the values*/
 							if (rec->fields[x].data.v.size == recs_old[i]->fields[j].data.v.size)
 							{
@@ -2466,6 +2491,8 @@ void find_fields_to_update(struct Record_f **recs_old, char *positions, struct R
 					case TYPE_ARRAY_DOUBLE:
 						if (rec->fields[x].data.v.elements.d)
 						{
+							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.d[0] == 0.0)
+								break;
 							/*check the values*/
 							if (rec->fields[x].data.v.size == recs_old[i]->fields[j].data.v.size)
 							{
@@ -2501,6 +2528,8 @@ void find_fields_to_update(struct Record_f **recs_old, char *positions, struct R
 					case TYPE_ARRAY_BYTE:
 						if (rec->fields[x].data.v.elements.b)
 						{
+							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.b[0] == 0)
+								break;
 							/*check the values*/
 							if (rec->fields[x].data.v.size == recs_old[i]->fields[j].data.v.size)
 							{
@@ -2536,6 +2565,8 @@ void find_fields_to_update(struct Record_f **recs_old, char *positions, struct R
 					case TYPE_ARRAY_STRING:
 						if (rec->fields[x].data.v.elements.s)
 						{
+							if (rec->fields[x].data.v.size == 1 && strcmp(rec->fields[x].data.v.elements.s[0], "null") == 0)
+								break;
 							/*check the values*/
 							if (rec->fields[x].data.v.size == recs_old[i]->fields[j].data.v.size)
 							{

@@ -1043,9 +1043,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				int sz = 0;
 				off_t update_pos = 0;
+				off_t go_back_to_first_rec = 0;
 				int step = 0;
+				int sz = 0;
 				int k = 0;
 				int padding_value = 0;
 				do
@@ -1112,6 +1113,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								perror("error in writing new pading value int array.\n");
 								return 0;
 							}
+						}
+						else if (rec->fields[i].data.v.size == (sz + step) && array_last)
+						{
+							exit = 1;
 						}
 
 						while (sz)
@@ -1236,6 +1241,9 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
+					if (go_back_to_first_rec == 0)
+						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
+
 					update_pos = (off_t)bswap_64(update_off_ne);
 					if (update_pos == 0)
 					{
@@ -1278,7 +1286,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 						}
 
-						/*write the epty update offset*/
+						/*write the empty update offset*/
 						uint64_t empty_offset = bswap_64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
@@ -1453,7 +1461,17 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 				}
+
+				if (go_back_to_first_rec > 0)
+				{
+					if (find_record_position(fd, go_back_to_first_rec) == -1)
+					{
+						__er_file_pointer(F, L - 2);
+						return 0;
+					}
+				}
 			}
+
 			break;
 		}
 		case TYPE_ARRAY_LONG:
