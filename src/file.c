@@ -2725,6 +2725,12 @@ struct Record_f *read_file(int fd, char *file_name)
 		}
 		case TYPE_ARRAY_INT:
 		{
+			if (!rec->fields[i].data.v.elements.i)
+			{
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
@@ -2747,12 +2753,6 @@ struct Record_f *read_file(int fd, char *file_name)
 				}
 
 				int padd = (int)ntohl(padding);
-
-				if (!rec->fields[i].data.v.elements.i)
-				{
-					rec->fields[i].data.v.insert = insert_element;
-					rec->fields[i].data.v.destroy = free_dynamic_array;
-				}
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -2814,6 +2814,12 @@ struct Record_f *read_file(int fd, char *file_name)
 		}
 		case TYPE_ARRAY_LONG:
 		{
+			if (!rec->fields[i].data.v.elements.l)
+			{
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
@@ -2836,12 +2842,6 @@ struct Record_f *read_file(int fd, char *file_name)
 				}
 
 				int padd = (int)ntohl(padding);
-
-				if (!rec->fields[i].data.v.elements.l)
-				{
-					rec->fields[i].data.v.insert = insert_element;
-					rec->fields[i].data.v.destroy = free_dynamic_array;
-				}
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -2902,11 +2902,16 @@ struct Record_f *read_file(int fd, char *file_name)
 		}
 		case TYPE_ARRAY_FLOAT:
 		{
-			off_t end_first_arr = 0;
-			off_t update_array = 0;
+			if (!rec->fields[i].data.v.elements.f)
+			{
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
 			do
 			{
-
 				uint32_t size_array = 0;
 				if (read(fd, &size_array, sizeof(size_array)) == -1)
 				{
@@ -2916,71 +2921,73 @@ struct Record_f *read_file(int fd, char *file_name)
 				}
 
 				int sz = (int)ntohl(size_array);
-				if (!rec->fields[i].data.v.elements.f)
+				uint32_t padding = 0;
+				if (read(fd, &padding, sizeof(padding)) == -1)
 				{
-					rec->fields[i].data.v.insert = insert_element;
-					rec->fields[i].data.v.destroy = free_dynamic_array;
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return NULL;
 				}
+
+				int padd = (int)ntohl(padding);
 
 				for (int j = 0; j < sz; j++)
 				{
-					uint32_t f_ne = 0;
-					if (read(fd, &f_ne, sizeof(uint32_t)) < 0)
+					uint32_t num_ne = 0;
+					if (read(fd, &num_ne, sizeof(num_ne)) == -1)
 					{
-						perror("could not read type float, file.c l 505.\n");
+						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
 						return NULL;
 					}
 
-					float num = ntohf(f_ne);
+					float num = ntohf(num_ne);
 					rec->fields[i].data.v.insert((void *)&num,
 												 &rec->fields[i].data.v,
 												 rec->fields[i].type);
 				}
 
-				/*read update position*/
-				uint64_t update_ne = 0;
-				if (read(fd, &update_ne, sizeof(update_ne)) == -1)
+				if (padd > 0)
 				{
-					perror("can't read int array update.\n");
+					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+
+				uint64_t upd_ne = 0;
+				if (read(fd, &upd_ne, sizeof(upd_ne)) == -1)
+				{
+					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
 					return NULL;
 				}
 
-				if (end_first_arr == 0)
+				if (go_back_here == 0)
 				{
-					if ((end_first_arr = get_file_offset(fd)) == -1)
+					go_back_here = get_file_offset(fd);
+				}
+
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0)
+				{
+					if (find_record_position(fd, array_upd) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
 						return NULL;
 					}
 				}
+			} while (array_upd > 0);
 
-				update_array = (off_t)bswap_64(update_ne);
-				if (update_array > 0)
-				{
-					/*
-					 * go to the position and read
-					 * the remaining array data
-					 * */
-					if (find_record_position(fd, update_array) == -1)
-					{
-						__er_file_pointer(F, L - 1);
-						free_record(rec, rec->fields_num);
-						return NULL;
-					}
-				}
-			} while (update_array > 0);
-
-			/* go back to end_first_arr to avoid losing data */
-			if (find_record_position(fd, end_first_arr) == -1)
+			if (find_record_position(fd, go_back_here) == -1)
 			{
-				__er_file_pointer(F, L - 2);
+				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
 				return NULL;
 			}
-
 			break;
 		}
 		case TYPE_ARRAY_DOUBLE:
