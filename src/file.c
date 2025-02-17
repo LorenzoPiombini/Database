@@ -1967,7 +1967,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				for (int k = 0; k < rec->fields[i].data.v.size; k++)
 				{
-					if (!rec->fields[i].data.v.elements.i[k])
+					if (!rec->fields[i].data.v.elements.f[k])
 						continue;
 
 					uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[k]);
@@ -2311,7 +2311,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (!rec->fields[i].data.v.elements.f[k])
 							continue;
 
-						uint32_t num_ne = htonl(*rec->fields[i].data.v.elements.f[k]);
+						uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[k]);
 						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 						{
 							perror("failed write int array to file");
