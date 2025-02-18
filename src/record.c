@@ -301,10 +301,10 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 			char *t = strtok(value, ",");
 			while (t)
 			{
-				rec->fields[index].data.v.insert((void *)&t,
+				rec->fields[index].data.v.insert((void *)t,
 												 &rec->fields[index].data.v,
 												 type);
-				t = strtok(NULL, "");
+				t = strtok(NULL, ",");
 			}
 		}
 		else
@@ -1088,14 +1088,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.s[i])
 					continue;
 
-				size_t len = strlen((char *)element) + 1;
-				(*v).elements.s[i] = malloc(len * sizeof(char));
-				if (!(*v).elements.s[i])
+				size_t l = strlen((char *)element) + 1;
+
+				(*v).elements.s[i] = malloc(l * sizeof(char));
+				if (!(*v).elements.s[(*v).size - 1])
 				{
 					__er_malloc(F, L - 2);
 					return -1;
 				}
-				(*v).elements.s[i] = (char *)element;
+
+				strncpy((*v).elements.s[i], (char *)element, l);
+
 				return 0;
 			}
 		}
@@ -1110,15 +1113,15 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 		(*v).elements.s = elements_new;
 
-		size_t len = strlen((char *)element) + 1;
-		(*v).elements.s[(*v).size - 1] = malloc(len * sizeof(char));
+		size_t l = strlen((char *)element) + 1;
+		(*v).elements.s[(*v).size - 1] = malloc(l * sizeof(char));
 		if (!(*v).elements.s[(*v).size - 1])
 		{
 			__er_malloc(F, L - 2);
 			return -1;
 		}
 
-		(*v).elements.s[(*v).size - 1] = (char *)element;
+		strncpy((*v).elements.s[(*v).size - 1], (char *)element, l);
 		return 0;
 	}
 	case TYPE_ARRAY_BYTE:
