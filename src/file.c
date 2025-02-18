@@ -1676,7 +1676,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						if (exit)
 						{
-
 							if (padding_value > 0)
 							{
 								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
@@ -2430,10 +2429,1314 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
+
+				uint32_t padding_ne = htonl(0);
+				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
+				{
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+				for (int k = 0; k < rec->fields[i].data.v.size; k++)
+				{
+					if (!rec->fields[i].data.v.elements.s[k])
+						continue;
+
+					lt = strlen(rec->fields[i].data.v.elements.s[k]);
+					buff_update = lt * 2;
+
+					/* adding 1 for '\0'*/
+					lt++, buff_update++;
+					buff_w = calloc(buff_update, sizeof(char));
+					if (!buff_w)
+					{
+						__er_calloc(F, L - 2);
+						return 0;
+					}
+
+					strncpy(buff_w, rec->fields[i].data.v.elements.s[k], lt - 1);
+
+					uint64_t l_ne = bswap_64(lt);
+					uint64_t bu_ne = bswap_64(buff_update);
+					uint64_t str_loc_ne = bswap_64(str_loc);
+
+					if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
+						write(fd, &l_ne, sizeof(l_ne)) < 0 ||
+						write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+						write(fd, buff_w, buff_update) < 0)
+					{
+						perror("write file failed: ");
+						printf(" %s:%d", F, L - 2);
+						free(buff_w);
+						return 0;
+					}
+
+					free(buff_w);
+				}
+
+				uint64_t upd_ne = bswap_64(0);
+				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
+				{
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
 			}
 			else
 			{
+				/* update branch*/
+				off_t update_pos = 0;
+				off_t go_back_to_first_rec = 0;
+				int step = 0;
+				int sz = 0;
+				int k = 0;
+				int padding_value = 0;
+				do
+				{
+					/* check the size */
+					uint32_t sz_ne = 0;
+					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
+					{
+						fprintf(stderr, "can't read int array size.\n");
+						return 0;
+					}
+
+					sz = (int)ntohl(sz_ne);
+					if (rec->fields[i].data.v.size < sz ||
+						rec->fields[i].data.v.size == sz)
+						break;
+
+					/*read the padding data*/
+					uint32_t pd_ne = 0;
+					if (read(fd, &pd_ne, sizeof(pd_ne)) == -1)
+					{
+						fprintf(stderr, "can't read padding array.\n");
+						return 0;
+					}
+
+					padding_value = (int)ntohl(pd_ne);
+
+					if (step >= sz)
+					{
+						int array_last = 0;
+						int exit = 0;
+						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						{
+							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
+							return 0;
+						}
+
+						if (rec->fields[i].data.v.size < (sz + step) && array_last)
+						{
+							int pad_value = sz - (rec->fields[i].data.v.size - step);
+							padding_value += pad_value;
+
+							sz = rec->fields[i].data.v.size - step;
+							exit = 1;
+
+							if (move_in_file_bytes(fd, 2 * (-sizeof(uint32_t))) == -1)
+							{
+								__er_file_pointer(F, L - 1);
+								return 0;
+							}
+
+							/* write the updated size of the array */
+							uint32_t new_sz = htonl((uint32_t)sz);
+							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
+							{
+								perror("error in writing remaining size int array.\n");
+								return 0;
+							}
+
+							/* write the updated padding value */
+							uint32_t new_pd = htonl((uint32_t)padding_value);
+							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
+							{
+								perror("error in writing new pading value int array.\n");
+								return 0;
+							}
+						}
+						else if (rec->fields[i].data.v.size == (sz + step) && array_last)
+						{
+							exit = 1;
+						}
+
+						while (sz)
+						{
+							if (step < rec->fields[i].data.v.size)
+							{
+								/*string update process*/
+								/*save the starting offset for the string record*/
+								if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								/*read pos of new str if any*/
+								uint64_t str_loc_ne = 0;
+								if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
+								{
+									perror("can't read string location: ");
+									printf(" %s:%d", F, L - 3);
+									return 0;
+								}
+								str_loc = (off_t)bswap_64(str_loc_ne);
+
+								/*store record  beginning pos*/
+								if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								uint64_t bu_ne = 0;
+								uint64_t l_ne = 0;
+								if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+									read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+								{
+									perror("can't read safety buffer before writing string.\n");
+									printf("%s:%d", F, L - 3);
+									return 0;
+								}
+
+								buff_update = (off_t)bswap_64(bu_ne);
+								lt = (off_t)bswap_64(l_ne);
+
+								/*save the end offset of the first string record */
+								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								/*add the buffer size to this file off_t*/
+								/*so we can reposition right after the 1st string after the writing */
+								go_back_to += buff_update;
+								if (str_loc > 0)
+								{
+									/*set the file pointer to str_loc*/
+									if (find_record_position(fd, str_loc) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+									/*
+									 * in the case of a regular buffer update we have
+									 *  to save the off_t to get back to it later
+									 * */
+									if ((move_to = get_file_offset(fd)) == -1)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+
+									uint64_t bu_ne = 0;
+									uint64_t l_ne = 0;
+									if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+										read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+									{
+										perror("read file.\n");
+										printf("%s:%d", F, L - 3);
+										return 0;
+									}
+
+									buff_update = (off_t)bswap_64(bu_ne);
+									lt = (off_t)bswap_64(l_ne);
+								}
+
+								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
+
+								if (new_lt > buff_update)
+								{
+									/*
+									 * if the new length is bigger then the buffer,
+									 * set the file pointer to the end of the file
+									 * to write the new data
+									 * */
+									if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+
+									/*expand the buff_update only for the bytes needed*/
+									__n_buff_update = buff_update;
+									__n_buff_update += (new_lt - buff_update);
+									buff_w = calloc(__n_buff_update, sizeof(char));
+									if (!buff_w)
+									{
+										printf("calloc failed, %s:%d.\n", F, L - 3);
+										return 0;
+									}
+								}
+								else
+								{
+									buff_w = calloc(buff_update, sizeof(char));
+									if (!buff_w)
+									{
+										__er_calloc(F, L - 2);
+										return 0;
+									}
+								}
+
+								strncpy(buff_w, rec->fields[i].data.v.elements.s[step], new_lt - 1);
+								/*
+								 * if we did not move to another position
+								 * set the file pointer back to the begginning of the string record
+								 * to overwrite the data accordingly
+								 * */
+								if (str_loc == 0 && (__n_buff_update == 0))
+								{
+									if (find_record_position(fd, af_str_loc_pos) == -1)
+									{
+										__er_file_pointer(F, L - 3);
+										free(buff_w);
+										return 0;
+									}
+								}
+								else if (str_loc > 0 && (__n_buff_update == 0))
+								{
+									if (find_record_position(fd, move_to) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 3);
+										free(buff_w);
+										return 0;
+									}
+								}
+
+								/*
+								 * write the data to file --
+								 * the file pointer is always pointing to the
+								 * right position at this point */
+								lt = new_lt;
+								buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
+								l_ne = bswap_64(lt);
+								bu_ne = bswap_64(buff_update);
+
+								if (write(fd, &l_ne, sizeof(lt)) < 0 ||
+									write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+									write(fd, buff_w, buff_update) < 0)
+								{
+									perror("error in writing type string (char *)file.\n");
+									free(buff_w);
+									return 0;
+								}
+
+								free(buff_w);
+
+								/*
+								 * if eof is bigger than 0 means we updated the string
+								 * we need to save the off_t of the new written data
+								 * at the start of the original.
+								 * */
+								if (eof > 0)
+								{
+									/*go at the beginning of the str record*/
+									if (find_record_position(fd, bg_pos) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+
+									/*update new string position*/
+									uint64_t eof_ne = bswap_64((uint64_t)eof);
+									if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
+									{
+										perror("write file: ");
+										printf(" %s:%d", F, L - 3);
+										return 0;
+									}
+
+									/*set file pointer to the end of the 1st string rec*/
+									/*this step is crucial to avoid losing data        */
+
+									if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+								}
+								else if (str_loc > 0)
+								{
+									/*
+									 * Make sure that in all cases
+									 * we go back to the end of the 1st record
+									 * */
+									if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+								}
+								__n_buff_update = 0;
+								eof = 0;
+								step++;
+							}
+							sz--;
+						}
+
+						if (exit)
+						{
+							/*write the epty update offset*/
+							uint64_t empty_offset = bswap_64(0);
+							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+							{
+								perror("error in writing size array to file.\n");
+								return 0;
+							}
+							break;
+						}
+					}
+					else
+					{
+
+						int exit = 0;
+						for (k = 0; k < sz; k++)
+						{
+							if (step > 0 && k == 0)
+							{
+								if ((step + sz) > rec->fields[i].data.v.size)
+								{
+									int pad = sz - (rec->fields[i].data.v.size - step);
+									padding_value += pad;
+
+									sz = rec->fields[i].data.v.size - step;
+									exit = 1;
+
+									if (move_in_file_bytes(fd, 2 * (-sizeof(uint32_t))) == -1)
+									{
+										__er_file_pointer(F, L - 1);
+										return 0;
+									}
+
+									/* write the updated size of the array */
+									uint32_t new_sz = htonl((uint32_t)sz);
+									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
+									{
+										perror("error in writing remaining size int array.\n");
+										return 0;
+									}
+
+									/*write padding */
+									uint32_t new_pd = htonl((uint32_t)padding_value);
+									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
+									{
+										perror("error in writing new padd int array.\n");
+										return 0;
+									}
+								}
+							}
+
+							if (step < rec->fields[i].data.v.size)
+							{
+								if (!rec->fields[i].data.v.elements.s[step])
+									continue;
+
+								/*string update process*/
+								/*save the starting offset for the string record*/
+								if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								/*read pos of new str if any*/
+								uint64_t str_loc_ne = 0;
+								if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
+								{
+									perror("can't read string location: ");
+									printf(" %s:%d", F, L - 3);
+									return 0;
+								}
+								str_loc = (off_t)bswap_64(str_loc_ne);
+
+								/*store record  beginning pos*/
+								if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								uint64_t bu_ne = 0;
+								uint64_t l_ne = 0;
+								if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+									read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+								{
+									perror("can't read safety buffer before writing string.\n");
+									printf("%s:%d", F, L - 3);
+									return 0;
+								}
+
+								buff_update = (off_t)bswap_64(bu_ne);
+								lt = (off_t)bswap_64(l_ne);
+
+								/*save the end offset of the first string record */
+								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								/*add the buffer size to this file off_t*/
+								/*so we can reposition right after the 1st string after the writing */
+								go_back_to += buff_update;
+								if (str_loc > 0)
+								{
+									/*set the file pointer to str_loc*/
+									if (find_record_position(fd, str_loc) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+									/*
+									 * in the case of a regular buffer update we have
+									 *  to save the off_t to get back to it later
+									 * */
+									if ((move_to = get_file_offset(fd)) == -1)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+
+									uint64_t bu_ne = 0;
+									uint64_t l_ne = 0;
+									if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+										read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+									{
+										perror("read file.\n");
+										printf("%s:%d", F, L - 3);
+										return 0;
+									}
+
+									buff_update = (off_t)bswap_64(bu_ne);
+									lt = (off_t)bswap_64(l_ne);
+								}
+
+								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
+
+								if (new_lt > buff_update)
+								{
+									/*
+									 * if the new length is bigger then the buffer,
+									 * set the file pointer to the end of the file
+									 * to write the new data
+									 * */
+									if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+
+									/*expand the buff_update only for the bytes needed*/
+									__n_buff_update = buff_update;
+									__n_buff_update += (new_lt - buff_update);
+									buff_w = calloc(__n_buff_update, sizeof(char));
+									if (!buff_w)
+									{
+										printf("calloc failed, %s:%d.\n", F, L - 3);
+										return 0;
+									}
+								}
+								else
+								{
+									buff_w = calloc(buff_update, sizeof(char));
+									if (!buff_w)
+									{
+										__er_calloc(F, L - 2);
+										return 0;
+									}
+								}
+
+								strncpy(buff_w, rec->fields[i].data.v.elements.s[step], new_lt - 1);
+								/*
+								 * if we did not move to another position
+								 * set the file pointer back to the begginning of the string record
+								 * to overwrite the data accordingly
+								 * */
+								if (str_loc == 0 && (__n_buff_update == 0))
+								{
+									if (find_record_position(fd, af_str_loc_pos) == -1)
+									{
+										__er_file_pointer(F, L - 3);
+										free(buff_w);
+										return 0;
+									}
+								}
+								else if (str_loc > 0 && (__n_buff_update == 0))
+								{
+									if (find_record_position(fd, move_to) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 3);
+										free(buff_w);
+										return 0;
+									}
+								}
+
+								/*
+								 * write the data to file --
+								 * the file pointer is always pointing to the
+								 * right position at this point */
+								lt = new_lt;
+								buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
+								l_ne = bswap_64(lt);
+								bu_ne = bswap_64(buff_update);
+
+								if (write(fd, &l_ne, sizeof(lt)) < 0 ||
+									write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+									write(fd, buff_w, buff_update) < 0)
+								{
+									perror("error in writing type string (char *)file.\n");
+									free(buff_w);
+									return 0;
+								}
+
+								free(buff_w);
+
+								/*
+								 * if eof is bigger than 0 means we updated the string
+								 * we need to save the off_t of the new written data
+								 * at the start of the original.
+								 * */
+								if (eof > 0)
+								{
+									/*go at the beginning of the str record*/
+									if (find_record_position(fd, bg_pos) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+
+									/*update new string position*/
+									uint64_t eof_ne = bswap_64((uint64_t)eof);
+									if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
+									{
+										perror("write file: ");
+										printf(" %s:%d", F, L - 3);
+										return 0;
+									}
+
+									/*set file pointer to the end of the 1st string rec*/
+									/*this step is crucial to avoid losing data        */
+
+									if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+								}
+								else if (str_loc > 0)
+								{
+									/*
+									 * Make sure that in all cases
+									 * we go back to the end of the 1st record
+									 * */
+									if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+									{
+										__er_file_pointer(F, L - 2);
+										return 0;
+									}
+								}
+							}
+							__n_buff_update = 0;
+							eof = 0;
+							step++;
+						}
+
+						if (exit)
+						{
+
+							if (padding_value > 0)
+							{
+								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+								{
+									__er_file_pointer(F, L - 1);
+									return 0;
+								}
+							}
+							/*write the epty update offset*/
+							uint64_t empty_offset = bswap_64(0);
+							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+							{
+								perror("error in writing size array to file.\n");
+								return 0;
+							}
+							break;
+						}
+					}
+
+					if (padding_value > 0)
+					{
+						if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+					}
+
+					uint64_t update_off_ne = 0;
+					off_t go_back_to_string_array = get_file_offset(fd);
+
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+					{
+						perror("failed read update off_t int array.\n");
+						return 0;
+					}
+
+					if (go_back_to_first_rec == 0)
+						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
+
+					update_pos = (off_t)bswap_64(update_off_ne);
+					if (update_pos == 0)
+					{
+						/*go to EOF*/
+						if ((update_pos = go_to_EOF(fd)) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+						/* write the size of the array */
+						int size_left = rec->fields[i].data.v.size - step;
+						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
+						{
+							perror("error in writing remaining size int array.\n");
+							return 0;
+						}
+
+						uint32_t padding_ne = htonl(0);
+						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
+						{
+							perror("error in writing size array to file.\n");
+							return 0;
+						}
+
+						for (int j = 0; j < size_left; j++)
+						{
+							if (step < rec->fields[i].data.v.size)
+							{
+								if (!rec->fields[i].data.v.elements.s[step])
+									continue;
+
+								/*string update process*/
+								lt = strlen(rec->fields[i].data.v.elements.s[k]);
+								buff_update = lt * 2;
+
+								/* adding 1 for '\0'*/
+								lt++, buff_update++;
+								buff_w = calloc(buff_update, sizeof(char));
+								if (!buff_w)
+								{
+									__er_calloc(F, L - 2);
+									return 0;
+								}
+
+								strncpy(buff_w, rec->fields[i].data.v.elements.s[step], lt - 1);
+
+								uint64_t l_ne = bswap_64(lt);
+								uint64_t bu_ne = bswap_64(buff_update);
+								uint64_t str_loc_ne = bswap_64(str_loc);
+
+								if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
+									write(fd, &l_ne, sizeof(l_ne)) < 0 ||
+									write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+									write(fd, buff_w, buff_update) < 0)
+								{
+									perror("write file failed: ");
+									printf(" %s:%d", F, L - 2);
+									free(buff_w);
+									return 0;
+								}
+
+								free(buff_w);
+
+								step++;
+							}
+						}
+
+						/*write the empty update offset*/
+						uint64_t empty_offset = bswap_64(0);
+						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+						{
+							perror("error in writing size array to file.\n");
+							return 0;
+						}
+
+						if (find_record_position(fd, go_back_to_string_array) == -1)
+						{
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+
+						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+						{
+							fprintf(stderr, "can't write update position int array, %s:%d.\n",
+									F, L - 1);
+							return 0;
+						}
+
+						break;
+					}
+
+					if (find_record_position(fd, update_pos) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+				} while (update_pos > 0);
+
+				if (rec->fields[i].data.v.size < sz)
+				{
+
+					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+					/*write the size of the array */
+					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					/*read and check the padding, */
+					uint32_t pad_ne = 0;
+					if (read(fd, &pad_ne, sizeof(pad_ne)) == -1)
+					{
+						perror("error in writing padding array to file.\n");
+						return 0;
+					}
+
+					int pd_he = (int)ntohl(pad_ne);
+					pd_he += (sz - rec->fields[i].data.v.size);
+
+					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+					/* write the padding to apply after the  array */
+					pad_ne = htonl((uint32_t)pd_he);
+					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
+					{
+						perror("error in writing padding array to file.\n");
+						return 0;
+					}
+
+					for (int k = step; k < rec->fields[i].data.v.size; k++)
+					{
+						if (!rec->fields[i].data.v.elements.s[k])
+							continue;
+
+						/*string update process*/
+						if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR)
+						{
+							__er_file_pointer(F, L - 2);
+							return 0;
+						}
+
+						/*read pos of new str if any*/
+						uint64_t str_loc_ne = 0;
+						if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
+						{
+							perror("can't read string location: ");
+							printf(" %s:%d", F, L - 3);
+							return 0;
+						}
+						str_loc = (off_t)bswap_64(str_loc_ne);
+
+						/*store record  beginning pos*/
+						if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
+						{
+							__er_file_pointer(F, L - 2);
+							return 0;
+						}
+
+						uint64_t bu_ne = 0;
+						uint64_t l_ne = 0;
+						if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+							read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+						{
+							perror("can't read safety buffer before writing string.\n");
+							printf("%s:%d", F, L - 3);
+							return 0;
+						}
+
+						buff_update = (off_t)bswap_64(bu_ne);
+						lt = (off_t)bswap_64(l_ne);
+
+						/*save the end offset of the first string record */
+						if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
+						{
+							__er_file_pointer(F, L - 2);
+							return 0;
+						}
+
+						/*add the buffer size to this file off_t*/
+						/*so we can reposition right after the 1st string after the writing */
+						go_back_to += buff_update;
+						if (str_loc > 0)
+						{
+							/*set the file pointer to str_loc*/
+							if (find_record_position(fd, str_loc) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+							/*
+							 * in the case of a regular buffer update we have
+							 *  to save the off_t to get back to it later
+							 * */
+							if ((move_to = get_file_offset(fd)) == -1)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+
+							uint64_t bu_ne = 0;
+							uint64_t l_ne = 0;
+							if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+								read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+							{
+								perror("read file.\n");
+								printf("%s:%d", F, L - 3);
+								return 0;
+							}
+
+							buff_update = (off_t)bswap_64(bu_ne);
+							lt = (off_t)bswap_64(l_ne);
+						}
+
+						new_lt = strlen(rec->fields[i].data.v.elements.s[k]) + 1; /*get new str length*/
+
+						if (new_lt > buff_update)
+						{
+							/*
+							 * if the new length is bigger then the buffer,
+							 * set the file pointer to the end of the file
+							 * to write the new data
+							 * */
+							if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+
+							/*expand the buff_update only for the bytes needed*/
+							__n_buff_update = buff_update;
+							__n_buff_update += (new_lt - buff_update);
+							buff_w = calloc(__n_buff_update, sizeof(char));
+							if (!buff_w)
+							{
+								printf("calloc failed, %s:%d.\n", F, L - 3);
+								return 0;
+							}
+						}
+						else
+						{
+							buff_w = calloc(buff_update, sizeof(char));
+							if (!buff_w)
+							{
+								__er_calloc(F, L - 2);
+								return 0;
+							}
+						}
+
+						strncpy(buff_w, rec->fields[i].data.v.elements.s[k], new_lt - 1);
+						/*
+						 * if we did not move to another position
+						 * set the file pointer back to the begginning of the string record
+						 * to overwrite the data accordingly
+						 * */
+						if (str_loc == 0 && (__n_buff_update == 0))
+						{
+							if (find_record_position(fd, af_str_loc_pos) == -1)
+							{
+								__er_file_pointer(F, L - 3);
+								free(buff_w);
+								return 0;
+							}
+						}
+						else if (str_loc > 0 && (__n_buff_update == 0))
+						{
+							if (find_record_position(fd, move_to) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 3);
+								free(buff_w);
+								return 0;
+							}
+						}
+
+						/*
+						 * write the data to file --
+						 * the file pointer is always pointing to the
+						 * right position at this point */
+						lt = new_lt;
+						buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
+						l_ne = bswap_64(lt);
+						bu_ne = bswap_64(buff_update);
+
+						if (write(fd, &l_ne, sizeof(lt)) < 0 ||
+							write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+							write(fd, buff_w, buff_update) < 0)
+						{
+							perror("error in writing type string (char *)file.\n");
+							free(buff_w);
+							return 0;
+						}
+
+						free(buff_w);
+
+						/*
+						 * if eof is bigger than 0 means we updated the string
+						 * we need to save the off_t of the new written data
+						 * at the start of the original.
+						 * */
+						if (eof > 0)
+						{
+							/*go at the beginning of the str record*/
+							if (find_record_position(fd, bg_pos) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+
+							/*update new string position*/
+							uint64_t eof_ne = bswap_64((uint64_t)eof);
+							if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
+							{
+								perror("write file: ");
+								printf(" %s:%d", F, L - 3);
+								return 0;
+							}
+
+							/*set file pointer to the end of the 1st string rec*/
+							/*this step is crucial to avoid losing data        */
+
+							if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+						}
+						else if (str_loc > 0)
+						{
+							/*
+							 * Make sure that in all cases
+							 * we go back to the end of the 1st record
+							 * */
+							if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+						}
+					}
+
+					/*
+					 * move the file pointer after the array
+					 * as much as the pad
+					 * */
+					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						return 0;
+					}
+
+					uint64_t update_arr_ne = bswap_64(0);
+					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					{
+						perror("failed write int array to file");
+						return 0;
+					}
+				}
+				else if (rec->fields[i].data.v.size == sz)
+				{
+					/*
+					 * the sizes are the same
+					 * we simply write the array.
+					 * */
+					if (step > 0)
+					{
+						if (move_in_file_bytes(fd, -sizeof(sz)) == -1)
+						{
+							__er_file_pointer(F, L - 2);
+							return 0;
+						}
+
+						int size_left = rec->fields[i].data.v.size - step;
+						uint32_t sz_ne = htonl((uint32_t)size_left);
+						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
+						{
+							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
+							return 0;
+						}
+					}
+
+					/*read and check the padding, */
+					uint32_t pad_ne = 0;
+					if (read(fd, &pad_ne, sizeof(pad_ne)) == -1)
+					{
+						perror("error in writing padding array to file.\n");
+						return 0;
+					}
+
+					int pd_he = (int)ntohl(pad_ne);
+					for (int k = 0; k < rec->fields[i].data.v.size; k++)
+					{
+						if (step < rec->fields[i].data.v.size)
+						{
+							if (!rec->fields[i].data.v.elements.s[step])
+								continue;
+
+							/*string update process*/
+							if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+
+							/*read pos of new str if any*/
+							uint64_t str_loc_ne = 0;
+							if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
+							{
+								perror("can't read string location: ");
+								printf(" %s:%d", F, L - 3);
+								return 0;
+							}
+							str_loc = (off_t)bswap_64(str_loc_ne);
+
+							/*store record  beginning pos*/
+							if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+
+							uint64_t bu_ne = 0;
+							uint64_t l_ne = 0;
+							if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+								read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+							{
+								perror("can't read safety buffer before writing string.\n");
+								printf("%s:%d", F, L - 3);
+								return 0;
+							}
+
+							buff_update = (off_t)bswap_64(bu_ne);
+							lt = (off_t)bswap_64(l_ne);
+
+							/*save the end offset of the first string record */
+							if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
+							{
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
+
+							/*add the buffer size to this file off_t*/
+							/*so we can reposition right after the 1st string after the writing */
+							go_back_to += buff_update;
+							if (str_loc > 0)
+							{
+								/*set the file pointer to str_loc*/
+								if (find_record_position(fd, str_loc) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+								/*
+								 * in the case of a regular buffer update we have
+								 *  to save the off_t to get back to it later
+								 * */
+								if ((move_to = get_file_offset(fd)) == -1)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								uint64_t bu_ne = 0;
+								uint64_t l_ne = 0;
+								if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
+									read(fd, &bu_ne, sizeof(bu_ne)) < 0)
+								{
+									perror("read file.\n");
+									printf("%s:%d", F, L - 3);
+									return 0;
+								}
+
+								buff_update = (off_t)bswap_64(bu_ne);
+								lt = (off_t)bswap_64(l_ne);
+							}
+
+							new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
+
+							if (new_lt > buff_update)
+							{
+								/*
+								 * if the new length is bigger then the buffer,
+								 * set the file pointer to the end of the file
+								 * to write the new data
+								 * */
+								if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								/*expand the buff_update only for the bytes needed*/
+								__n_buff_update = buff_update;
+								__n_buff_update += (new_lt - buff_update);
+								buff_w = calloc(__n_buff_update, sizeof(char));
+								if (!buff_w)
+								{
+									printf("calloc failed, %s:%d.\n", F, L - 3);
+									return 0;
+								}
+							}
+							else
+							{
+								buff_w = calloc(buff_update, sizeof(char));
+								if (!buff_w)
+								{
+									__er_calloc(F, L - 2);
+									return 0;
+								}
+							}
+
+							strncpy(buff_w, rec->fields[i].data.v.elements.s[step], new_lt - 1);
+							/*
+							 * if we did not move to another position
+							 * set the file pointer back to the begginning of the string record
+							 * to overwrite the data accordingly
+							 * */
+							if (str_loc == 0 && (__n_buff_update == 0))
+							{
+								if (find_record_position(fd, af_str_loc_pos) == -1)
+								{
+									__er_file_pointer(F, L - 3);
+									free(buff_w);
+									return 0;
+								}
+							}
+							else if (str_loc > 0 && (__n_buff_update == 0))
+							{
+								if (find_record_position(fd, move_to) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 3);
+									free(buff_w);
+									return 0;
+								}
+							}
+
+							/*
+							 * write the data to file --
+							 * the file pointer is always pointing to the
+							 * right position at this point */
+							lt = new_lt;
+							buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
+							l_ne = bswap_64(lt);
+							bu_ne = bswap_64(buff_update);
+
+							if (write(fd, &l_ne, sizeof(lt)) < 0 ||
+								write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+								write(fd, buff_w, buff_update) < 0)
+							{
+								perror("error in writing type string (char *)file.\n");
+								free(buff_w);
+								return 0;
+							}
+
+							free(buff_w);
+
+							/*
+							 * if eof is bigger than 0 means we updated the string
+							 * we need to save the off_t of the new written data
+							 * at the start of the original.
+							 * */
+							if (eof > 0)
+							{
+								/*go at the beginning of the str record*/
+								if (find_record_position(fd, bg_pos) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+
+								/*update new string position*/
+								uint64_t eof_ne = bswap_64((uint64_t)eof);
+								if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
+								{
+									perror("write file: ");
+									printf(" %s:%d", F, L - 3);
+									return 0;
+								}
+
+								/*set file pointer to the end of the 1st string rec*/
+								/*this step is crucial to avoid losing data        */
+
+								if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+							}
+							else if (str_loc > 0)
+							{
+								/*
+								 * Make sure that in all cases
+								 * we go back to the end of the 1st record
+								 * */
+								if (find_record_position(fd, go_back_to) == STATUS_ERROR)
+								{
+									__er_file_pointer(F, L - 2);
+									return 0;
+								}
+							}
+
+							/*zeroing the variables for th new cycle*/
+							__n_buff_update = 0;
+							eof = 0;
+							step++;
+						}
+					}
+
+					/*
+					 * move the file pointer
+					 * as much as the padding value
+					 * if it si bigger than 0
+					 * */
+					if (pd_he > 0)
+					{
+						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+						{
+							__er_file_pointer(F, L - 2);
+							return 0;
+						}
+					}
+
+					uint64_t update_arr_ne = bswap_64(0);
+					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					{
+						perror("failed write int array to file");
+						return 0;
+					}
+				}
+
+				if (go_back_to_first_rec > 0)
+				{
+					if (find_record_position(fd, go_back_to_first_rec) == -1)
+					{
+						__er_file_pointer(F, L - 2);
+						return 0;
+					}
+				}
 			}
+
 			break;
 		}
 		case TYPE_ARRAY_BYTE:
@@ -2589,7 +3892,8 @@ struct Record_f *read_file(int fd, char *file_name)
 			break;
 		}
 		case TYPE_STRING:
-		{ /*read pos of new str if any*/
+		{
+			/*read pos of new str if any*/
 			uint64_t str_loc_ne = 0;
 			if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == -1)
 			{
@@ -2856,6 +4160,181 @@ struct Record_f *read_file(int fd, char *file_name)
 					rec->fields[i].data.v.insert((void *)&num,
 												 &rec->fields[i].data.v,
 												 rec->fields[i].type);
+				}
+
+				if (padd > 0)
+				{
+					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+
+				uint64_t upd_ne = 0;
+				if (read(fd, &upd_ne, sizeof(upd_ne)) == -1)
+				{
+					perror("can't read int array from file.\n");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				if (go_back_here == 0)
+				{
+					go_back_here = get_file_offset(fd);
+				}
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0)
+				{
+					if (find_record_position(fd, array_upd) == -1)
+					{
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+				}
+			} while (array_upd > 0);
+
+			if (find_record_position(fd, go_back_here) == -1)
+			{
+				__er_file_pointer(F, L - 1);
+				free_record(rec, rec->fields_num);
+				return NULL;
+			}
+			break;
+		}
+		case TYPE_ARRAY_STRING:
+		{
+			if (!rec->fields[i].data.v.elements.l)
+			{
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
+			do
+			{
+				uint32_t size_array = 0;
+				if (read(fd, &size_array, sizeof(size_array)) == -1)
+				{
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				int sz = (int)ntohl(size_array);
+				uint32_t padding = 0;
+				if (read(fd, &padding, sizeof(padding)) == -1)
+				{
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return NULL;
+				}
+
+				int padd = (int)ntohl(padding);
+
+				for (int j = 0; j < sz; j++)
+				{
+
+					/*read pos of new str if any*/
+					uint64_t str_loc_ne = 0;
+					if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == -1)
+					{
+						perror("can't read string location: ");
+						printf(" %s:%d", F, L - 3);
+						return 0;
+					}
+					str_loc = (size_t)bswap_64(str_loc_ne);
+
+					uint64_t l_ne = 0;
+					if (read(fd, &l_ne, sizeof(l_ne)) < 0)
+					{
+						perror("read from file failed: ");
+						printf("%s:%d.\n", F, L - 2);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+
+					l = (size_t)bswap_64(l_ne);
+
+					uint64_t bu_up_ne = 0;
+					if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
+					{
+						perror("read from file failed: ");
+						printf("%s:%d.\n", F, L - 2);
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+
+					buff_update = (size_t)bswap_64(bu_up_ne);
+
+					if (str_loc > 0)
+					{
+						/*save the offset past the buff_w*/
+						move_to = get_file_offset(fd) + buff_update;
+						/*move to (other)string location*/
+						if (find_record_position(fd, str_loc) == -1)
+						{
+							__er_file_pointer(F, L - 2);
+							free_record(rec, rec->fields_num);
+							return NULL;
+						}
+
+						uint64_t l_ne = 0;
+						uint64_t bu_up_ne = 0;
+						if (read(fd, &l_ne, sizeof(l_ne)) < 0)
+						{
+							perror("read file: ");
+							printf("%s:%d", F, L - 2);
+							free_record(rec, rec->fields_num);
+							return NULL;
+						}
+
+						if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
+						{
+							perror("read file: ");
+							printf("%s:%d", F, L - 2);
+							free_record(rec, rec->fields_num);
+							return NULL;
+						}
+
+						l = (size_t)bswap_64(l_ne);
+						buff_update = (size_t)bswap_64(bu_up_ne);
+					}
+
+					char *all_buf = calloc(buff_update, sizeof(char));
+					if (!all_buf)
+					{
+						printf("calloc failed file.c l 532.\n");
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+
+					/*read the actual string*/
+					if (read(fd, all_buf, buff_update) < 0)
+					{
+						perror("could not read buffer string, file.c l 539.\n");
+						free_record(rec, rec->fields_num);
+						return NULL;
+					}
+
+					rec->fields[i].data.v.insert((void *)all_buf,
+												 &rec->fields[i].data.v,
+												 rec->fields[i].type);
+					free(all_buf);
+
+					/*set file pointer back at the end of the original str record*/
+					if (str_loc > 0)
+					{
+						if (find_record_position(fd, move_to) == -1)
+						{
+							__er_file_pointer(F, L - 2);
+							free_record(rec, rec->fields_num);
+							return NULL;
+						}
+					}
 				}
 
 				if (padd > 0)
