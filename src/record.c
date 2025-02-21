@@ -723,19 +723,20 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 		return 0;
 	}
 
-	int i = 0;
 	char data[30];
-	for (i = 0; i < src->fields_num; i++)
+	for (int i = 0; i < src->fields_num; i++)
 	{
 		switch (src->fields[i].type)
 		{
 		case TYPE_INT:
+			memset(data, 0, 30);
 			if (snprintf(data, 30, "%d", src->fields[i].data.i) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
 				free_record((*dest), (*dest)->fields_num);
 				return 0;
 			}
+
 			if (!set_field(*dest, i, src->fields[i].field_name,
 						   src->fields[i].type, data))
 			{
@@ -745,6 +746,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 			}
 			break;
 		case TYPE_STRING:
+			memset(data, 0, 30);
 			if (!set_field(*dest, i, src->fields[i].field_name,
 						   src->fields[i].type, src->fields[i].data.s))
 			{
@@ -754,12 +756,14 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 			}
 			break;
 		case TYPE_LONG:
+			memset(data, 0, 30);
 			if (snprintf(data, 30, "%ld", src->fields[i].data.l) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
 				free_record((*dest), (*dest)->fields_num);
 				return 0;
 			}
+
 			if (!set_field(*dest, i, src->fields[i].field_name,
 						   src->fields[i].type, data))
 			{
@@ -769,6 +773,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 			}
 			break;
 		case TYPE_FLOAT:
+			memset(data, 0, 30);
 			if (snprintf(data, 30, "%.2f", src->fields[i].data.f) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
@@ -784,6 +789,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 			}
 			break;
 		case TYPE_BYTE:
+			memset(data, 0, 30);
 			if (snprintf(data, 30, "%d", src->fields[i].data.b) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
@@ -799,6 +805,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 			}
 			break;
 		case TYPE_DOUBLE:
+			memset(data, 0, 30);
 			if (snprintf(data, 30, "%.2f", src->fields[i].data.d) < 0)
 			{
 				printf("snprintf failed %s:%d.\n", F, L - 2);
@@ -811,6 +818,143 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
 				printf("set_field() failed %s:%d.\n", F, L - 2);
 				free_record((*dest), (*dest)->fields_num);
 				return 0;
+			}
+			break;
+		case TYPE_ARRAY_INT:
+			memset(data, 0, 30);
+			if (snprintf(data, 30, "%d", *src->fields[i].data.v.elements.i[0]) < 0)
+			{
+				printf("snprintf failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			for (int j = 1; j < src->fields[i].data.v.size; j++)
+			{
+				(*dest)->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.i[j],
+												 &(*dest)->fields[i].data.v,
+												 src->fields[i].type);
+			}
+
+			break;
+		case TYPE_ARRAY_BYTE:
+			memset(data, 0, 30);
+			if (snprintf(data, 30, "%d", *src->fields[i].data.v.elements.b[0]) < 0)
+			{
+				printf("snprintf failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			for (int j = 1; j < src->fields[i].data.v.size; j++)
+			{
+				(*dest)->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.b[j],
+												 &(*dest)->fields[i].data.v,
+												 src->fields[i].type);
+			}
+			break;
+		case TYPE_ARRAY_LONG:
+			memset(data, 0, 30);
+			if (snprintf(data, 30, "%ld", *src->fields[i].data.v.elements.l[0]) < 0)
+			{
+				printf("snprintf failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			for (int j = 1; j < src->fields[i].data.v.size; j++)
+			{
+				(*dest)->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.l[j],
+												 &(*dest)->fields[i].data.v,
+												 src->fields[i].type);
+			}
+			break;
+		case TYPE_ARRAY_DOUBLE:
+			memset(data, 0, 30);
+			if (snprintf(data, 30, "%2.f", *src->fields[i].data.v.elements.d[0]) < 0)
+			{
+				printf("snprintf failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			for (int j = 1; j < src->fields[i].data.v.size; j++)
+			{
+				(*dest)->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.d[j],
+												 &(*dest)->fields[i].data.v,
+												 src->fields[i].type);
+			}
+			break;
+		case TYPE_ARRAY_FLOAT:
+			memset(data, 0, 30);
+			if (snprintf(data, 30, "%2.f", *src->fields[i].data.v.elements.f[0]) < 0)
+			{
+				printf("snprintf failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, data))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			for (int j = 1; j < src->fields[i].data.v.size; j++)
+			{
+				(*dest)->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.f[j],
+												 &(*dest)->fields[i].data.v,
+												 src->fields[i].type);
+			}
+			break;
+		case TYPE_ARRAY_STRING:
+			if (!set_field(*dest, i, src->fields[i].field_name,
+						   src->fields[i].type, src->fields[i].data.v.elements.s[0]))
+			{
+				printf("set_field() failed %s:%d.\n", F, L - 2);
+				free_record((*dest), (*dest)->fields_num);
+				return 0;
+			}
+
+			for (int j = 1; j < src->fields[i].data.v.size; j++)
+			{
+				(*dest)->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.s[j],
+												 &(*dest)->fields[i].data.v,
+												 src->fields[i].type);
 			}
 			break;
 		default:
