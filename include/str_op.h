@@ -42,7 +42,6 @@ void strip(const char c, char *str);
 void replace(const char c, const char with, char *str);
 char return_first_char(char *str);
 char return_last_char(char *str);
-unsigned char assemble_key(char ***key, int n, char c, char *str);
 size_t digits_with_decimal(float n);
 unsigned char is_floaintg_point(char *str);
 unsigned char is_integer(char *str);
