@@ -409,7 +409,7 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 
 	for (i = 0; i < array_size; i++)
 	{
-		if (read_index_file(fd, &((*ht)[i])) == STATUS_ERROR)
+		if (!read_index_file(fd, &((*ht)[i])))
 		{
 			printf("read from file failed. %s:%d.\n", F, L - 2);
 			free_ht_array(*ht, i);
