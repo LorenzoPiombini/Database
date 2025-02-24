@@ -204,6 +204,12 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		char **files = two_file_path(files_n[j]);
 		int fd_index = create_file(files[0]);
 		int fd_data = create_file(files[1]);
+		if (fd_index == -1 || fd_data == -1)
+		{
+			fprintf(stderr, "system already exist!\n");
+			free_strs(2, 1, files);
+			return 0;
+		}
 
 		if (!create_file_with_schema(fd_data, fd_index, schemas[j], buckets[j], indexes[j]))
 		{
