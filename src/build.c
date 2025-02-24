@@ -208,6 +208,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		{
 			fprintf(stderr, "system already exist!\n");
 			free_strs(2, 1, files);
+			free_strs(lines, 2, files_n, schemas);
 			return 0;
 		}
 
