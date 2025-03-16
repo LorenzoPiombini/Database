@@ -49,5 +49,5 @@ unsigned char create_new_fields_from_schema(struct Record_f **recs_old, struct R
 void print_schema(struct Schema sch);
 void print_header(struct Header_d hd);
 size_t compute_size_header(void *header);
-unsigned char create_data_to_add(struct Schema *sch, char **data_to_add);
+unsigned char create_data_to_add(struct Schema *sch, char data_to_add[][500]);
 #endif

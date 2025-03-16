@@ -36,7 +36,7 @@ unsigned char check_fields_integrity(char **names, int fields_count);
 enum ValueType *get_value_types(char *fields_input, int fields_count, int steps);
 void free_strs(int fields_num, int count, ...);
 char **get_values(char *fields_input, int fields_count);
-unsigned char create_blocks_data_to_add(char *dta_src, char ***dta_blocks, int *blocks);
+unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dta_blocks[][500]);
 int is_file_name_valid(char *str);
 void strip(const char c, char *str);
 void replace(const char c, const char with, char *str);
