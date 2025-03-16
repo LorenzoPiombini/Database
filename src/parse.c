@@ -2890,34 +2890,13 @@ size_t compute_size_header(void *header)
 	return sum;
 }
 
-unsigned char create_data_to_add(struct Schema *sch, char **data_to_add)
+unsigned char create_data_to_add(struct Schema *sch, char data_to_add[][500])
 {
-	size_t current_size = 1;
-	*data_to_add = calloc(1, sizeof(char));
-	if (!(*data_to_add))
-	{
-		__er_calloc(F, L - 3);
-		return 0;
-	}
-
 	for (int i = 0; i < sch->fields_num; i++)
 	{
 		size_t l = strlen(sch->fields_name[i]);
-		current_size += l;
-		char *nw_dta = realloc(*data_to_add, current_size * sizeof(char));
-		if (!nw_dta)
-		{
-			__er_realloc(F, L - 3);
-			free(*data_to_add);
-			return 0;
-		}
 
-		*data_to_add = nw_dta;
-
-		if (i == 0)
-			strncpy((*data_to_add), sch->fields_name[i], current_size);
-		else
-			strncpy((*data_to_add) + (current_size - l - 1), sch->fields_name[i], l + 1);
+		strncpy(data_to_add[i], sch->fields_name[i], l);
 
 		switch (sch->types[i])
 		{
@@ -2925,72 +2904,36 @@ unsigned char create_data_to_add(struct Schema *sch, char **data_to_add)
 		{
 			char *t_i = (sch->fields_num - i) > 1 ? ":t_i:!:" : ":t_i:";
 			size_t len = strlen(t_i);
-			current_size += len;
-			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
-			if (!nw_snd_dta)
-			{
-				__er_realloc(F, L - 3);
-				free(*data_to_add);
-				return 0;
-			}
-
-			*data_to_add = nw_snd_dta;
-			strncpy((*data_to_add) + (current_size - len - 1), t_i, len + 1);
-
+			size_t lc = strlen(data_to_add[i]);
+			strncpy(&data_to_add[i][lc], t_i, len + 1);
+			replace(' ', '_', data_to_add[i]);
 			break;
 		}
 		case TYPE_LONG:
 		{
 			char *t_l = (sch->fields_num - i) > 1 ? ":t_l:!:" : ":t_l:";
 			size_t len = strlen(t_l);
-			current_size += len;
-			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
-			if (!nw_snd_dta)
-			{
-				__er_realloc(F, L - 3);
-				free(*data_to_add);
-				return 0;
-			}
-
-			*data_to_add = nw_snd_dta;
-			strncpy((*data_to_add) + (current_size - len - 1), t_l, len + 1);
-
-			break;
+			size_t lc = strlen(data_to_add[i]);
+			strncpy(&data_to_add[i][lc], t_l, len + 1);
+			replace(' ', '_', data_to_add[i]);
 			break;
 		}
 		case TYPE_BYTE:
 		{
 			char *t_b = (sch->fields_num - i) > 1 ? ":t_b:!:" : ":t_b:";
 			size_t len = strlen(t_b);
-			current_size += len;
-			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
-			if (!nw_snd_dta)
-			{
-				__er_realloc(F, L - 3);
-				free(*data_to_add);
-				return 0;
-			}
-
-			*data_to_add = nw_snd_dta;
-			strncpy((*data_to_add) + (current_size - len - 1), t_b, len + 1);
-
+			size_t lc = strlen(data_to_add[i]);
+			strncpy(&data_to_add[i][lc], t_b, len + 1);
+			replace(' ', '_', data_to_add[i]);
 			break;
 		}
 		case TYPE_STRING:
 		{
 			char *t_s = (sch->fields_num - i) > 1 ? ":t_s:!:" : ":t_s:";
 			size_t len = strlen(t_s);
-			current_size += len;
-			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
-			if (!nw_snd_dta)
-			{
-				__er_realloc(F, L - 3);
-				free(*data_to_add);
-				return 0;
-			}
-
-			*data_to_add = nw_snd_dta;
-			strncpy((*data_to_add) + (current_size - len - 1), t_s, len + 1);
+			size_t lc = strlen(data_to_add[i]);
+			strncpy(&data_to_add[i][lc], t_s, len + 1);
+			replace(' ', '_', data_to_add[i]);
 
 			break;
 		}
@@ -2998,36 +2941,18 @@ unsigned char create_data_to_add(struct Schema *sch, char **data_to_add)
 		{
 			char *t_d = (sch->fields_num - i) > 1 ? ":t_d:!:" : ":t_d:";
 			size_t len = strlen(t_d);
-			current_size += len;
-			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
-			if (!nw_snd_dta)
-			{
-				__er_realloc(F, L - 3);
-				free(*data_to_add);
-				return 0;
-			}
-
-			*data_to_add = nw_snd_dta;
-			strncpy((*data_to_add) + (current_size - len - 1), t_d, len + 1);
-
+			size_t lc = strlen(data_to_add[i]);
+			strncpy(&data_to_add[i][lc], t_d, len + 1);
+			replace(' ', '_', data_to_add[i]);
 			break;
 		}
 		case TYPE_FLOAT:
 		{
 			char *t_f = (sch->fields_num - i) > 1 ? ":t_f:!:" : ":t_f:";
 			size_t len = strlen(t_f);
-			current_size += len;
-			char *nw_snd_dta = realloc(*data_to_add, current_size * sizeof(char));
-			if (!nw_snd_dta)
-			{
-				__er_realloc(F, L - 3);
-				free(*data_to_add);
-				return 0;
-			}
-
-			*data_to_add = nw_snd_dta;
-			strncpy((*data_to_add) + (current_size - len - 1), t_f, len + 1);
-
+			size_t lc = strlen(data_to_add[i]);
+			strncpy(&data_to_add[i][lc], t_f, len + 1);
+			replace(' ', '_', data_to_add[i]);
 			break;
 		}
 		default:
@@ -3036,6 +2961,5 @@ unsigned char create_data_to_add(struct Schema *sch, char **data_to_add)
 		}
 	}
 
-	replace(' ', '_', *data_to_add);
 	return 1;
 }

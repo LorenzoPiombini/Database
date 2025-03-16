@@ -460,57 +460,18 @@ char **get_values(char *fields_input, int fields_count)
 	return values;
 }
 
-unsigned char create_blocks_data_to_add(char *dta_src, char ***dta_blocks, int *blocks)
+unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dta_blocks[][500])
 {
-	int dta_blocks_size = 1;
 
-	*dta_blocks = calloc(dta_blocks_size, sizeof(char *));
-	if (!(*dta_blocks))
+	for (int i = 0; i < fields; i++)
 	{
-		__er_calloc(F, L - 3);
-		return 0;
-	}
-
-	char *save;
-	char *token = strtok_r(dta_src, "!", &save);
-	if (token)
-	{
-		*dta_blocks[dta_blocks_size - 1] = strdup(token);
-		if (!(*dta_blocks)[dta_blocks_size - 1])
+		char *t = strtok(dta_src[i], "!");
+		if (t)
 		{
-			printf("strdup() failed. %s:%d.\n", F, L - 3);
-			free_strs(dta_blocks_size, 1, *dta_blocks);
-			return 0;
-		}
-	}
-	else
-	{
-		free_strs(dta_blocks_size, 1, dta_blocks);
-		return 0;
-	}
-
-	while ((token = strtok_r(NULL, "!", &save)))
-	{
-		char **nw_dta_blk = realloc(*dta_blocks, (++dta_blocks_size) * sizeof(char *));
-		if (!nw_dta_blk)
-		{
-			__er_realloc(F, L - 3);
-			free_strs(dta_blocks_size, 1, *dta_blocks);
-			return 0;
-		}
-
-		*dta_blocks = nw_dta_blk;
-
-		(*dta_blocks)[dta_blocks_size - 1] = strdup(token);
-		if (!(*dta_blocks)[dta_blocks_size - 1])
-		{
-			printf("strdup() failed. %s:%d.\n", F, L - 3);
-			free_strs(dta_blocks_size, 1, *dta_blocks);
-			return 0;
+			strncpy(dta_blocks[i], t, strlen(t));
 		}
 	}
 
-	*blocks = dta_blocks_size;
 	return 1;
 }
 
