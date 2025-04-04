@@ -478,17 +478,12 @@ int len(HashTable tbl)
 	return counter;
 }
 
-void free_nodes(Node **dataMap, int size)
+void free_nodes(Node *dataMap, int size)
 {
-	if (!dataMap)
-		return;
-
 	int i = 0;
-	for (i = 0; i < size; i++)
-	{
+	for (i = 0; i < size; i++) {
 		Node *current = dataMap[i];
-		while (current)
-		{
+		while (current) {
 			switch (current->key_type)
 			{
 			case STR:

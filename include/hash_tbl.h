@@ -57,7 +57,7 @@ void destroy_hasht(HashTable *tbl); /*free memory*/
 off_t get(void *key, HashTable *tbl, int key_type);
 struct Keys_ht *keys(HashTable *ht);
 int len(HashTable tbl);
-void free_nodes(Node **dataMap, int size);
+void free_nodes(Node *dataMap, int size);
 void free_ht_node(Node *node);
 void free_keys_data(struct Keys_ht *data);
 unsigned char copy_ht(HashTable *src, HashTable *dest, int mode);

@@ -469,19 +469,7 @@ int read_header(int fd, struct Header_d *hd)
 	}
 
 	//	printf("fields number %u.", hd->sch_d.fields_num);
-	char **names = calloc(hd->sch_d.fields_num, sizeof(char *));
-
-	if (!names)
-	{
-		printf("calloc failed, parse.c l %d.\n", __LINE__ - 4);
-		return 0;
-	}
-
-	hd->sch_d.fields_name = names;
-
-	register unsigned char i = 0;
-	for (i = 0; i < hd->sch_d.fields_num; i++)
-	{
+	for (int i = 0; i < hd->sch_d.fields_num; i++) {
 		uint32_t l_end = 0;
 		if (read(fd, &l_end, sizeof(l_end)) == -1)
 		{
@@ -492,46 +480,23 @@ int read_header(int fd, struct Header_d *hd)
 		size_t l = (size_t)ntohl(l_end);
 
 		//	printf("size of name is %ld.\n", l);
-		char *field = malloc(l);
-		if (!field)
-		{
-			printf("malloc failed, parse.c l %d.\n", __LINE__ - 4);
-			return 0;
-		}
+		char field[l];
+		memset(field,0,l);
 
-		if (read(fd, field, l) == -1)
-		{
+		if (read(fd, field, l) == -1) {
 			perror("reading name filed from header.\n");
 			printf("parse.c l %d.\n", __LINE__ - 3);
-			free_schema(&hd->sch_d);
-			free(field);
 			return 0;
 		}
 
-		field[l - 1] = '\0';
-		hd->sch_d.fields_name[i] = strdup(field);
-		free(field);
+		//field[l - 1] = '\0';
+		strncpy(hd->sch_d.fields_name[i],field,l);
 
-		if (!hd->sch_d.fields_name[i])
-		{
-			printf("strdup failed, parse.c l %d.\n", __LINE__ - 5);
-			return 0;
-		}
 	}
 
-	enum ValueType *types_h = calloc(hd->sch_d.fields_num, sizeof(enum ValueType));
-	if (!types_h)
-	{
-		printf("calloc failed, parse.c l %d.\n", __LINE__ - 3);
-		return 0;
-	}
-
-	hd->sch_d.types = types_h;
-	for (i = 0; i < hd->sch_d.fields_num; i++)
-	{
+	for (int i = 0; i < hd->sch_d.fields_num; i++) {
 		uint32_t type = 0;
-		if (read(fd, &type, sizeof(type)) == -1)
-		{
+		if (read(fd, &type, sizeof(type)) == -1) {
 			perror("reading types from header.");
 			printf("parse.c l %d.\n", __LINE__ - 3);
 			return 0;

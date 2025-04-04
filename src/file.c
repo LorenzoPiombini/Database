@@ -395,13 +395,14 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	int i = 0;
 	for (i = 0; i < array_size; i++)
 	{
-		HashTable ht_n = {0, NULL, write_ht};
+		HashTable ht_n = {0};
+		ht_n.write = write_ht;
+
 		(*ht)[i] = ht_n;
 	}
 
 	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
-	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR)
-	{
+	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR) {
 		__er_file_pointer(F, L - 2);
 		free(*ht);
 		return 0;
@@ -438,33 +439,19 @@ unsigned char read_index_file(int fd, HashTable *ht)
 		return 0; // false
 	}
 
-	int size = (int)ntohl(s_n);
-	Node **dataMap = calloc(size, sizeof(Node *));
-	if (!dataMap)
-	{
-		perror("calloc failed");
-		return 0;
-	}
-
-	ht->size = size;
-	ht->dataMap = dataMap;
+	ht->size = (int)ntohl(s_n); 
 
 	uint32_t ht_ln = 0;
-	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR)
-	{
+	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR) {
 		perror("reading ht length");
-		free(dataMap);
 		return 0;
 	}
 
 	int ht_l = (int)ntohl(ht_ln);
 	register int i = 0;
-	for (i = 0; i < ht_l; i++)
-	{
-
+	for (i = 0; i < ht_l; i++) {
 		uint32_t type = 0;
-		if (read(fd, &type, sizeof(type)) == -1)
-		{
+		if (read(fd, &type, sizeof(type)) == -1) {
 			fprintf(stderr, "can't read key type, %s:%d.\n",
 					F, L - 3);
 			free_nodes(dataMap, size);
@@ -473,18 +460,15 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 		int key_type = (int)ntohl(type);
 
-		switch (key_type)
-		{
+		switch (key_type) {
 		case STR:
 		{
 			uint64_t key_l = 0l;
-			if (read(fd, &key_l, sizeof(key_l)) > 0)
-			{
+			if (read(fd, &key_l, sizeof(key_l)) > 0) {
 				size_t size = (size_t)bswap_64(key_l);
 
 				char *key = calloc(size + 1, sizeof(char));
-				if (!key)
-				{
+				if (!key) {
 					perror("memory for key");
 					free_nodes(dataMap, size);
 					return 0;
@@ -492,8 +476,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 				uint64_t v_n = 0l;
 				if (read(fd, key, size + 1) == -1 ||
-					read(fd, &v_n, sizeof(v_n)) == -1)
-				{
+					read(fd, &v_n, sizeof(v_n)) == -1) {
 
 					perror("reading index file");
 					free_nodes(dataMap, size);
@@ -5680,8 +5663,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 	char buff[l];
 	memset(buff, 0, l);
 
-	if (snprintf(buff, l, "%s%s", file_name, ".inx") < 0)
-	{
+	if (snprintf(buff, l, "%s%s", file_name, ".inx") < 0) {
 		fprintf(stderr,
 				"snprintf() failed. %s:%d.\n",
 				F, L - 3);
@@ -5689,10 +5671,8 @@ int add_index(int index_nr, char *file_name, int bucket)
 	}
 
 	int fd = open_file(buff, 0);
-	if (file_error_handler(1, fd) > 0)
-	{
-		fprintf(stderr,
-				"can't open %s, %s:%d.\n", buff, F, L - 3);
+	if (file_error_handler(1, fd) > 0) {
+		fprintf(stderr,"can't open %s, %s:%d.\n", buff, F, L - 3);
 		return -1;
 	}
 
@@ -5720,50 +5700,35 @@ int add_index(int index_nr, char *file_name, int bucket)
 
 	for (int j = ht_i; j < total_indexes; ++j)
 	{
-		HashTable dummy = {bucket, NULL, write_ht};
+		HashTable dummy = {0};
+		dummy.write = write_ht;
+		dummy.size = bucket;
+
 		ht[j] = dummy;
 	}
 	/*reopen the file with O_TRUNCATE flag to overwrite the old content*/
 	fd = open_file(buff, 1);
-	if (file_error_handler(1, fd) > 0)
-	{
-		fprintf(stderr,
-				"can't open %s, %s:%d.\n", buff, F, L - 3);
+	if (file_error_handler(1, fd) > 0) {
+		fprintf(stderr,	"can't open %s, %s:%d.\n", buff, F, L - 3);
 		free_ht_array(ht, total_indexes);
 		return -1;
 	}
 
-	if (!write_index_file_head(fd, total_indexes))
-	{
+	if (!write_index_file_head(fd, total_indexes)) {
 		fprintf(stderr, "write_index_file_head() failed, %s:%d.",
 				F, L - 3);
 		free_ht_array(ht, total_indexes);
 		return -1;
 	}
 
-	for (int i = 0; i < total_indexes; ++i)
-	{
+	for (int i = 0; i < total_indexes; ++i) {
 		/*
 		 * create an Hashtable in the
 		 * reallocated hastable array
 		 * */
-		if (ht[i].dataMap == NULL)
-		{
-			Node **data_map = calloc(bucket, sizeof(Node *));
-			if (!data_map)
-			{
-				__er_calloc(F, L - 2);
-				free_ht_array(ht, total_indexes);
-				return -1;
-			}
-
-			ht[i].dataMap = data_map;
-
-			if (write_index_body(fd, i, &ht[i]) == -1)
-			{
-				fprintf(stderr,
-						"write_index_body() failed %s:%d.\n",
-						F, L - 3);
+		if (ht[i].data_map[0] == NULL) {
+			if (write_index_body(fd, i, &ht[i]) == -1) {
+				fprintf(stderr,"write_index_body() failed %s:%d.\n",F, L - 3);
 				free_ht_array(ht, total_indexes);
 				return -1;
 			}
@@ -5772,8 +5737,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 			continue;
 		}
 
-		if (write_index_body(fd, i, &ht[i]) == -1)
-		{
+		if (write_index_body(fd, i, &ht[i]) == -1) {
 			fprintf(stderr,
 					"write_index_body() failed %s:%d.\n",
 					F, L - 3);
