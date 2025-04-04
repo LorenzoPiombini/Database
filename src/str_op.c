@@ -333,12 +333,13 @@ enum ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 
 	if (s)
 	{
-		types[j] = get_type(s);
-		if (types[j] == -1)
+		int result = get_type(s);
+		if (result == -1)
 		{
 			free(types);
 			return NULL;
 		}
+		types[j] = (enum ValueType)result;
 		i++;
 	}
 	else
@@ -352,13 +353,15 @@ enum ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 	{
 		if ((i % 3 == 0) && (j < fields_count - 1))
 		{
-			j++, types[j] = get_type(s);
-			if (types[j] == -1)
+			j++;
+			int r  = get_type(s);
+			if (r == -1)
 			{
 				printf("check input format: fieldName:TYPE:value.\n");
 				free(types);
 				return NULL;
 			}
+			types[j] = (enum ValueType)r;
 		}
 
 		if (steps != 3 && i == 2)
@@ -469,9 +472,8 @@ void free_strs(int fields_num, int count, ...)
 
 int is_file_name_valid(char *str)
 {
-	int i = 0;
 	size_t l = strlen(str);
-	for (i = 0; i < l; i++)
+	for (size_t i = 0; i < l; i++)
 	{
 		if (ispunct(str[i]))
 			if ((str[i] != '/' && str[i] != '_'))
@@ -486,8 +488,7 @@ int is_file_name_valid(char *str)
 void strip(const char c, char *str)
 {
 	size_t l = strlen(str);
-	int i = 0;
-	for (i = 0; i < l; i++)
+	for (size_t i = 0; i < l; i++)
 		if (str[i] == c)
 			str[i] = ' ';
 }
@@ -495,7 +496,7 @@ void strip(const char c, char *str)
 void replace(const char c, const char with, char *str)
 {
 	size_t l = strlen(str);
-	for (int i = 0; i < l; i++)
+	for (size_t i = 0; i < l; i++)
 		if (str[i] == c)
 			str[i] = with;
 }
@@ -532,8 +533,8 @@ size_t digits_with_decimal(float n)
 unsigned char is_floaintg_point(char *str)
 {
 	size_t l = strlen(str);
-	int i = 0, point = 0;
-	for (i = 0; i < l; i++)
+	int point = 0;
+	for (size_t i = 0; i < l; i++)
 	{
 		if (isdigit(str[i]))
 		{
@@ -560,8 +561,7 @@ unsigned char is_floaintg_point(char *str)
 unsigned char is_integer(char *str)
 {
 	size_t l = strlen(str);
-	int i = 0;
-	for (i = 0; i < l; i++)
+	for (size_t i = 0; i < l; i++)
 	{
 		if (!isdigit(str[i]))
 		{
@@ -648,7 +648,7 @@ unsigned char is_number_in_limits(char *value)
 	if (is_integer(value))
 	{
 
-		for (int i = 0; i < l; i++)
+		for (size_t i = 0; i < l; i++)
 			ascii_value += (int)value[i];
 
 		if (negative)
@@ -677,7 +677,7 @@ unsigned char is_number_in_limits(char *value)
 
 	if (is_floaintg_point(value))
 	{
-		for (int i = 0; i < l; i++)
+		for (size_t i = 0; i < l; i++)
 			ascii_value += (int)value[i];
 
 		if (negative)
@@ -710,7 +710,7 @@ int find_last_char(const char c, char *src)
 {
 	size_t l = strlen(src);
 	int last = -1;
-	for (int i = 0; i < l; i++)
+	for (size_t i = 0; i < l; i++)
 	{
 		if (src[i] == c)
 			last = i;

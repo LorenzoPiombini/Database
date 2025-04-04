@@ -93,7 +93,6 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 
 	if (sch && check_sch == 0)
 	{ /* true when a new file is created or when the schema input is partial*/
-		sch->types = sch_types;
 		for (int i = 0; i < fields_num; i++)
 			sch->types[i] = types_i[i];
 	}
@@ -137,7 +136,7 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 		sch->fields_num = fields_num;
 
 		for (int i = old_fn; i < fields_num; i++) {
-			sch->fields_name[i] = strncpy(sch->fields_name[i],names[i],strlen(names[i]));
+			strncpy(sch->fields_name[i],names[i],strlen(names[i]));
 			sch->types[i] = types_i[i];
 		}
 	}
@@ -274,29 +273,6 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 	return rec;
 }
 
-void free_schema(struct Schema *sch)
-{
-	if (!sch)
-		return;
-
-	register unsigned char i = 0;
-	for (i = 0; i < sch->fields_num; i++)
-	{
-		if (sch->fields_name != NULL)
-		{
-			if (sch->fields_name[i])
-			{
-				free(sch->fields_name[i]);
-			}
-		}
-	}
-
-	if (sch->fields_name != NULL)
-		free(sch->fields_name);
-
-	if (sch->types != NULL)
-		free(sch->types);
-}
 
 int create_header(struct Header_d *hd)
 {
@@ -735,7 +711,7 @@ unsigned char ck_schema_contain_input(char **names, enum ValueType *types_i, str
 			{
 				found_f++;
 				//		 printf("%d == %d\n",types_i[i], hd.sch_d.types[j]);
-				if (types_i[i] != hd.sch_d.types[j])
+				if ((int)types_i[i] != hd.sch_d.types[j])
 				{
 					printf("Schema different than file definition.\n");
 					return SCHEMA_ERR;
@@ -772,7 +748,6 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 	}
 
 	int i = 0, j = 0, x = 0, found = 0;
-	int actual_fields = 0;
 	unsigned char new_fields = 0;
 
 	char pos[fields_num]; /* to store the field position that are already in the schema*/
@@ -802,7 +777,6 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 		}
 	}
 
-	actual_fields = fields_num - found;
 
 	int new_start = sch->fields_num;
 	if (new_fields) {
@@ -811,7 +785,7 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 		for (i = 0; i < fields_num; i++) {
 			if (names[i]) {
 				strncpy(sch->fields_name[new_start],names[i],strlen(names[i]));
-				sch->types = types_i[i];
+				sch->types[new_start] = types_i[i];
 				free(names[i]);
 				names[i] = NULL;
 				new_start++;
@@ -895,44 +869,15 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		return 0;
 	}
 
-	if (sch)
-	{
-		char **sch_names = calloc(fields_num, sizeof(char *));
-		if (!sch_names)
-		{
-			printf("no memory for Schema fileds name.");
-			free_strs(fields_num, 1, names);
-			return 0;
-		}
-		sch->fields_name = sch_names;
-
-		register unsigned char j = 0;
-		for (j = 0; j < fields_num; j++)
-		{
-			// printf("%d%s\n",j,names[j]);
-
-			if (names[j])
-			{
-
-				sch->fields_name[j] = strdup(names[j]);
-				if (!sch->fields_name[j])
-				{
-					printf("strdup failed, schema creation field.\n");
-					free_schema(sch);
-					free_strs(fields_num, 1, names);
-					return 0;
-				}
-			}
-		}
-	}
+	for (int j = 0; j < fields_num; j++)
+		if (names[j])
+			strncpy(sch->fields_name[j],names[j],strlen(names[j]));
 
 	enum ValueType *types_i = get_value_types(buf_t, fields_num, 2);
 
-	if (!types_i)
-	{
+	if (!types_i) {
 		printf("Error in getting the types.\n");
 		free_strs(fields_num, 1, names);
-		free_schema(sch);
 		return 0;
 	}
 
@@ -955,37 +900,20 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 			printf("input syntax: fieldName:TYPE:value\n");
 			free_strs(fields_num, 1, names);
 			free(types_i);
-			free_schema(sch);
 			return 0;
 		}
 	}
-	if (sch)
-	{
-		enum ValueType *sch_types = calloc(fields_num, sizeof(enum ValueType));
 
-		if (!sch_types)
-		{
-			printf("No memory for schema types.\n");
-			free_schema(sch);
-			free_strs(fields_num, 1, names);
-			free(types_i);
-		}
-
-		sch->types = sch_types;
-		register unsigned char i = 0;
-		for (i = 0; i < fields_num; i++)
-		{
-			sch->types[i] = types_i[i];
-		}
-	}
+	for (int i = 0; i < fields_num; i++)
+		sch->types[i] = types_i[i];
 
 	free_strs(fields_num, 1, names);
 	free(types_i);
 	return 1; // scheam creation succssed
 }
 
-unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_count, int fd_data,
-									   char *file_path, struct Record_f **rec, struct Header_d *hd)
+unsigned char perform_checks_on_schema(char *buffer, char *buf_t, char *buf_v, int fields_count,
+					char *file_path, struct Record_f **rec, struct Header_d *hd)
 {
 
 	// check if the schema on the file is equal to the input Schema.

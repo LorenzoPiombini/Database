@@ -34,7 +34,8 @@ unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 	return 1;
 }
 
-unsigned char append_to_file(int fd_data, int fd_schema, char *file_path, char *key, char *data_to_add, HashTable *ht)
+unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char *key,
+		char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
 {
 	int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
 
@@ -53,8 +54,7 @@ unsigned char append_to_file(int fd_data, int fd_schema, char *file_path, char *
 	struct Header_d hd = {0, 0, sch};
 
 	begin_in_file(fd_data);
-	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
-						fd_data, file_path, &rec, &hd);
+	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count, file_path, &rec, &hd);
 
 	free(buffer), free(buf_t), free(buf_v);
 	if (check == SCHEMA_ERR || check == 0) {
@@ -70,15 +70,15 @@ unsigned char append_to_file(int fd_data, int fd_schema, char *file_path, char *
 	{ /*if the schema is new we update the header*/
 		// check the header size
 		// printf("header size is: %ld",compute_size_header(hd));
-		close_file(1,fd_schema);
-		open_file(fd_schema,1);
+		close_file(1,*fd_schema);
+		*fd_schema = open_file(files[2],1);
 
-		if(file_error_handler(1,fd_schema) != 0) {
+		if(file_error_handler(1,*fd_schema) != 0) {
 			free_record(rec, rec->fields_num);
 			return 0;
 		}
 
-		if (!write_header(fd_schema, &hd))
+		if (!write_header(*fd_schema, &hd))
 		{
 			printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
 			free_record(rec, rec->fields_num);
@@ -112,7 +112,7 @@ unsigned char append_to_file(int fd_data, int fd_schema, char *file_path, char *
 	return 1;
 }
 
-unsigned char create_file_with_schema(int fd_schema, int fd_data, int fd_index, char *schema_def, int bucket_ht, int indexes)
+unsigned char create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int bucket_ht, int indexes)
 {
 	int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
 
@@ -159,7 +159,7 @@ unsigned char create_file_with_schema(int fd_schema, int fd_data, int fd_index, 
 		ht.size = bucket;
 		ht.write = write_ht;
 
-		if (write_index_body(fd_index, i, &ht) == -1)
+		if (!write_index_body(fd_index, i, &ht))
 		{
 			printf("write to file failed. %s:%d.\n", F, L - 2);
 			destroy_hasht(&ht);

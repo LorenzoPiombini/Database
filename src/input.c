@@ -122,16 +122,11 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
 int convert_options(char *options)
 {
         size_t l = strlen(options);
-        int i = 0;
-        for (i = 0; i < l; i++)
-        {
+        for (size_t i = 0; i < l; i++)
                 options[i] = tolower(options[i]);
-        }
 
-        if (strcmp(options, ALL_OP) == 0)
-        {
-                return ALL;
-        }
+        if (strcmp(options, ALL_OP) == 0) return ALL;
+
 
         return -1;
 }

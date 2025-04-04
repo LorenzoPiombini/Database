@@ -8,6 +8,9 @@
 #include "str_op.h"
 #include "debug.h"
 
+
+/*this functionality is not implemented yet*/
+
 unsigned char build_from_txt_file(char *file_path, char *txt_f)
 {
 	FILE *fp = fopen(txt_f, "r");
@@ -61,7 +64,7 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 	fd_schema = create_file(files[2]);
 
 	/* create target file */
-	if (!create_empty_file(fd_schema,fd_data, fd_index, recs))
+	if (!create_empty_file(fd_schema, fd_index, recs))
 	{
 		printf("create empty file failed, build.c:%d.\n", __LINE__ - 1);
 		close_file(3,fd_schema, fd_index, fd_data);
@@ -96,13 +99,12 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 			continue;
 		}
 
-		if (append_to_file(fd_data, fd_index, file_path, k, str, &ht) == 0)
+		if (append_to_file(fd_data, &fd_schema, file_path, k, files,str, &ht) == 0)
 		{
 			printf("%s\t%s\n i is %d\n", str, k, i);
 
 			begin_in_file(fd_index);
-			if (!ht.write(fd_index, &ht))
-			{
+			if (!ht.write(fd_index, &ht)) {
 				printf("could not write index file. build.c l %d.\n", __LINE__ - 1);
 				destroy_hasht(&ht);
 				free_strs(recs, 1, lines);
@@ -212,7 +214,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 			return 0;
 		}
 
-		if (!create_file_with_schema(fd_schema, fd_data, fd_index, schemas[j], buckets[j], indexes[j]))
+		if (!create_file_with_schema(fd_schema, fd_index, schemas[j], buckets[j], indexes[j]))
 		{
 			delete_file(2, files[0], files[1]);
 			free_strs(2, 1, files);

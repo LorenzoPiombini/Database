@@ -251,7 +251,7 @@ int main(int argc, char *argv[])
 				ht.size = bucket;
 				ht.write = write_ht;
 
-				if (write_index_body(fd_index, i, &ht) == -1) {
+				if (!write_index_body(fd_index, i, &ht)) {
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					destroy_hasht(&ht);
 					close_file(2, fd_index, fd_data);
@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
 			/* init the Schema structure*/
 			struct Schema sch = {0};
 			sch.fields_num = fields_count;
-			memset(sch.types,-1,MAX_FIELD_NR);
+			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
 			struct Record_f *rec =  parse_d_flag_input(file_path, fields_count,
 						buffer, buf_t, buf_v, &sch, 0);
@@ -302,7 +302,7 @@ int main(int argc, char *argv[])
 
 			struct Header_d hd = {0, 0, sch};
 			if (!create_header(&hd)) {
-				fprintf("%s:%d.\n", F, L - 1);
+				fprintf(stderr,"%s:%d.\n", F, L - 1);
 				free_record(rec, fields_count);
 				close_file(3, fd_index, fd_data,fd_schema);
 				delete_file(3, files[0], files[1], files[2]);
@@ -334,7 +334,6 @@ int main(int argc, char *argv[])
 				free_record(rec, fields_count);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
-				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -351,7 +350,6 @@ int main(int argc, char *argv[])
 						free_record(rec, fields_count);
 						close_file(2, fd_index, fd_data);
 						delete_file(2, files[0], files[1]);
-						free(files[0]), free(files[1]), free(files);
 						return 1;
 					}
 
@@ -394,7 +392,7 @@ int main(int argc, char *argv[])
 					}
 				}
 
-				if (write_index_body(fd_index, i, &ht) == -1) {
+				if (!write_index_body(fd_index, i, &ht)) {
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					free_record(rec, fields_count);
 					destroy_hasht(&ht);
@@ -417,7 +415,7 @@ int main(int argc, char *argv[])
 
 			/* init the Schema structure*/
 			struct Schema sch = {0};
-			memset(sch.types,-1,MAX_FIELD_NR);
+			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
 			struct Header_d hd = {HEADER_ID_SYS, VS, sch};
 
@@ -436,7 +434,6 @@ int main(int argc, char *argv[])
 				printf("write to file failed, %s:%d", F, L - 2);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
-				free(files[0]), free(files[1]), free(files);
 				return 1;
 			}
 
@@ -446,7 +443,7 @@ int main(int argc, char *argv[])
 				ht.size = bucket;
 				ht.write = write_ht;
 
-				if (write_index_body(fd_index, i, &ht) == -1) {
+				if (!write_index_body(fd_index, i, &ht)) {
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					close_file(3, fd_index, fd_data,fd_schema);
 					delete_file(3, files[0], files[1], files[2]);
@@ -594,8 +591,7 @@ int main(int argc, char *argv[])
 		/* ensure the file is a db file */
 		/* init the Schema structure*/
 		struct Schema sch = {0};
-		sch.fields_num = fields_count;
-		memset(sch.types,-1,MAX_FIELD_NR);
+		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
 		struct Header_d hd = {0, 0, sch};
 
@@ -648,11 +644,9 @@ int main(int argc, char *argv[])
 							   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
 					{
 						printf("munmap() failed, %s:%d.\n", F, L - 2);
-						free_schema(&hd.sch_d);
 						close_file(4, fd_index, fd_data, fd_mo, fd_schema);
 						return STATUS_ERROR;
 					}
-					free_schema(&hd.sch_d);
 					close_file(4, fd_index, fd_data, fd_mo,fd_schema);
 					return STATUS_ERROR;
 				}
@@ -768,7 +762,7 @@ int main(int argc, char *argv[])
 		if (del_file)
 		{ /*delete file */
 
-			close(1,fd_schema);
+			close_file(1,fd_schema);
 			/* acquire lock */
 			if (shared_locks)
 			{
@@ -920,7 +914,7 @@ int main(int argc, char *argv[])
 								close_file(4,fd_schema, fd_index, fd_data, fd_mo);
 								return STATUS_ERROR;
 							}
-							close_file(4,fd_schema fd_index, fd_data, fd_mo);
+							close_file(4,fd_schema,fd_index, fd_data, fd_mo);
 							return STATUS_ERROR;
 						}
 
@@ -1121,7 +1115,7 @@ int main(int argc, char *argv[])
 						}
 						for (int i = 0; i < *p_i_nr; i++) {
 							HashTable ht_n = {0};
-							ht_n.size = *pbuck
+							ht_n.size = *pbuck;
 							ht_n.write = write_ht;
 
 							ht[i] = ht_n;
@@ -1172,9 +1166,9 @@ int main(int argc, char *argv[])
 							return STATUS_ERROR;
 						}
 
-						for (i = 0; i < *p_i_nr; i++)
+						for (int i = 0; i < *p_i_nr; i++)
 						{
-							if (write_index_body(fd_index, i, &ht[i]) == -1)
+							if (!write_index_body(fd_index, i, &ht[i]))
 							{
 								printf("write to file failed. %s:%d.\n", F, L - 2);
 								free(ht);
@@ -1337,7 +1331,7 @@ int main(int argc, char *argv[])
 			{
 				printf("indexes_on_file() failed, %s:%d.\n", F, L - 2);
 				close_file(2, fd_index, fd_data);
-				free_ht_array(&ht,index);
+				free_ht_array(ht,index);
 				if (shared_locks) {
 					int result_i = 0, result_d = 0;
 					do {
@@ -1373,7 +1367,7 @@ int main(int argc, char *argv[])
 			if (index_nr >= indexes) {
 				printf("index out of bound.\n");
 				close_file(2, fd_index, fd_data);
-				free_ht_array(&ht,index);
+				free_ht_array(ht,index);
 				if (shared_locks) {
 					int result_i = 0, result_d = 0;
 					do {
@@ -1454,7 +1448,7 @@ int main(int argc, char *argv[])
 			if (!record_del) {
 				printf("record %s not found.\n", key);
 				close_file(2, fd_index, fd_data);
-				free_ht_array(&ht,index);
+				free_ht_array(ht,index);
 				if (shared_locks) {
 					int result_i = 0, result_d = 0;
 					do {
@@ -1498,7 +1492,7 @@ int main(int argc, char *argv[])
 
 			if (!write_index_file_head(fd_index, index)) {
 				printf("write to file failed, %s:%d", F, L - 2);
-				free_ht_array(&ht,index);
+				free_ht_array(ht,index);
 				if (shared_locks) {
 					int result_i = 0, result_d = 0;
 					do
@@ -1538,9 +1532,9 @@ int main(int argc, char *argv[])
 			for (i = 0; i < index; i++)
 			{
 
-				if (write_index_body(fd_index, i, &ht[i]) == -1) {
+				if (!write_index_body(fd_index, i, &ht[i])) {
 					printf("write to file failed. %s:%d.\n", F, L - 2);
-					free_ht_array(&ht,index);
+					free_ht_array(ht,index);
 					if (shared_locks) {
 						int result_i = 0, result_d = 0;
 						do
@@ -1624,7 +1618,7 @@ int main(int argc, char *argv[])
 			if (fields_count > MAX_FIELD_NR)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-				close_file(3,fd_schema fd_index, fd_data);
+				close_file(3,fd_schema, fd_index, fd_data);
 				if (shared_locks) {
 					if (munmap(shared_locks, sizeof(lock_info) *
 												 MAX_NR_FILE_LOCKABLE) == -1)
@@ -1646,7 +1640,7 @@ int main(int argc, char *argv[])
 			struct Record_f *rec = NULL;
 
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
-														   fd_data, file_path, &rec, &hd);
+										file_path, &rec, &hd);
 
 			if (check == SCHEMA_ERR || check == 0)
 			{
@@ -2135,8 +2129,7 @@ int main(int argc, char *argv[])
 			for (i = 0; i < index; i++)
 			{
 
-				if (write_index_body(fd_index, i, &ht[i]) == -1)
-				{
+				if (!write_index_body(fd_index, i, &ht[i])) {
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					close_file(2, fd_index, fd_data);
 					free_ht_array(ht, index);
@@ -2231,7 +2224,7 @@ int main(int argc, char *argv[])
 			if (fields_count > MAX_FIELD_NR)
 			{
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-				close_file(3,fd_schema fd_index, fd_data);
+				close_file(3,fd_schema, fd_index, fd_data);
 				return STATUS_ERROR;
 			}
 
@@ -2241,7 +2234,7 @@ int main(int argc, char *argv[])
 
 			struct Record_f *rec = NULL;
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
-						   fd_data, file_path, &rec, &hd);
+						file_path, &rec, &hd);
 			free(buffer);
 			free(buf_t);
 			free(buf_v);
@@ -2714,10 +2707,8 @@ int main(int argc, char *argv[])
 				{
 					__er_calloc(F, L - 2);
 					close_file(2, fd_index, fd_data);
-					free_schema(&hd.sch_d);
 					free_record(rec_old, rec_old->fields_num);
 					free_record(rec, rec->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
