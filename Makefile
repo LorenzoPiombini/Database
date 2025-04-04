@@ -144,7 +144,7 @@ clean:
 	rm -f bin/*
 	rm *.so
 	sudo rm -f $(TARGET)
-	rm *.dat *.inx
+	rm *.dat *.inx *.sch
 	rm *core*
 	 
 $(TARGET): $(OBJ)
