@@ -25,8 +25,7 @@ enum ValueType
 
 struct array
 {
-	union
-	{
+	union {
 		int **i;
 		long **l;
 		float **f;
@@ -39,13 +38,11 @@ struct array
 	void (*destroy)(struct array *, enum ValueType);
 };
 
-struct Field
-{
+struct Field {
 	char *field_name;
 	enum ValueType type;
 
-	union
-	{
+	union {
 		int i;
 		long l;
 		float f;
@@ -57,8 +54,7 @@ struct Field
 	} data;
 };
 
-struct Record_f
-{
+struct Record_f {
 	char *file_name;
 	int fields_num;
 	struct Field *fields;

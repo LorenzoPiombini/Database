@@ -65,8 +65,7 @@ int write_ht(int fd, HashTable *ht)
 	int i = 0;
 
 	uint32_t sz_n = htonl(ht->size);
-	if (write(fd, &sz_n, sizeof(sz_n)) == -1)
-	{
+	if (write(fd, &sz_n, sizeof(sz_n)) == -1) {
 		perror("writing index file");
 		return 0;
 	}
@@ -371,13 +370,10 @@ void destroy_hasht(HashTable *tbl)
 		return;
 
 	int i = 0;
-	for (i = 0; i < tbl->size; i++)
-	{
+	for (i = 0; i < tbl->size; i++) {
 		Node *current = tbl->dataMap[i];
-		while (current != NULL)
-		{
-			switch (current->key_type)
-			{
+		while (current != NULL) {
+			switch (current->key_type) {
 			case STR:
 			{
 				Node *next = current->next;
@@ -400,8 +396,6 @@ void destroy_hasht(HashTable *tbl)
 		}
 	}
 
-	if (tbl->dataMap)
-		free(tbl->dataMap);
 }
 
 struct Keys_ht *keys(HashTable *ht)

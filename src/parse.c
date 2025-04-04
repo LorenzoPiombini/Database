@@ -56,8 +56,7 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 				 strstr(names[i], "TYPE ARRAY LONG") ||
 				 strstr(names[i], "TYPE ARRAY STRING") ||
 				 strstr(names[i], "TYPE ARRAY BYTE") ||
-				 strstr(names[i], "TYPE ARRAY DOUBLE"))
-		{
+				 strstr(names[i], "TYPE ARRAY DOUBLE")) {
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
 			free_record(rec, rec->fields_num);
@@ -66,8 +65,7 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 		}
 	}
 
-	if (!check_fields_integrity(names, fields_num))
-	{
+	if (!check_fields_integrity(names, fields_num)) {
 		printf("invalid input, one or more fields have the same name.\n");
 		printf("input syntax: fieldName:TYPE:value\n");
 		free_record(rec, rec->fields_num);
@@ -75,32 +73,12 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 		return NULL;
 	}
 
-	if (sch && check_sch == 0)
-	{ /* true when a new file is created */
-		char **sch_names = calloc(fields_num, sizeof(char *));
-		if (!sch_names)
-		{
-			printf("calloc failed, parse.c l %d.\n", __LINE__ - 3);
-			free_record(rec, fields_num);
-			free_strs(fields_num, 1, names);
-			return NULL;
-		}
+	if (sch && check_sch == 0) {
+		/* true when a new file is created */
 		sch->fields_num = (unsigned short)fields_num;
-		sch->fields_name = sch_names;
 
-		register unsigned char j = 0;
-		for (j = 0; j < fields_num; j++)
-		{
-			sch->fields_name[j] = strdup(names[j]);
-
-			if (!sch->fields_name[j])
-			{
-				printf("strdup failed, parse.c l %d.\n", __LINE__ - 4);
-				free_record(rec, fields_num);
-				free_strs(fields_num, 1, names);
-				return NULL;
-			}
-		}
+		for (int j = 0; j < fields_num; j++)
+			strncpy(sch->fields_name[j],names[j], strlen(names[j]));
 	}
 
 	enum ValueType *types_i = get_value_types(buf_t, fields_num, 3);
@@ -115,22 +93,9 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 
 	if (sch && check_sch == 0)
 	{ /* true when a new file is created or when the schema input is partial*/
-		enum ValueType *sch_types = calloc(fields_num, sizeof(enum ValueType));
-
-		if (!sch_types)
-		{
-			printf("calloc failed, parse.c l %d.\n", __LINE__ - 4);
-			free_record(rec, rec->fields_num);
-			free_strs(fields_num, 1, names);
-			return NULL;
-		}
-
 		sch->types = sch_types;
-		register unsigned char i = 0;
-		for (i = 0; i < fields_num; i++)
-		{
+		for (int i = 0; i < fields_num; i++)
 			sch->types[i] = types_i[i];
-		}
 	}
 
 	char **values = get_values(buf_v, fields_num);
@@ -157,35 +122,11 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 		return NULL;
 	}
 
-	if (check_sch == SCHEMA_NW)
-	{
+	if (check_sch == SCHEMA_NW) {
 		reorder_rtl = sort_input_like_header_schema(check_sch, fields_num, sch, names, values, types_i);
 
-		if (!reorder_rtl)
-		{
+		if (!reorder_rtl) {
 			printf("sort_input_like_header_schema failed, %s:%d.\n", F, L - 4);
-			free(types_i);
-			free_record(rec, fields_num);
-			free_strs(fields_num, 2, names, values);
-			return NULL;
-		}
-
-		char **temp_name = realloc(sch->fields_name, fields_num * sizeof(char *));
-
-		if (!temp_name)
-		{ /*do not free sch->fields_name */
-			printf("realloc failed, parse.c l %d.\n", __LINE__ - 4);
-			free(types_i);
-			free_record(rec, fields_num);
-			free_strs(fields_num, 2, names, values);
-			return NULL;
-		}
-
-		enum ValueType *types_n = realloc(sch->types, fields_num * sizeof(enum ValueType));
-
-		if (!types_n)
-		{ /*do not free sch->fields_name */
-			printf("realloc failed, parse.c l %d.\n", __LINE__ - 4);
 			free(types_i);
 			free_record(rec, fields_num);
 			free_strs(fields_num, 2, names, values);
@@ -194,50 +135,36 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 
 		int old_fn = sch->fields_num;
 		sch->fields_num = fields_num;
-		sch->fields_name = temp_name;
-		sch->types = types_n;
-		register unsigned char i = 0;
 
-		for (i = old_fn; i < fields_num; i++)
-		{
-			sch->fields_name[i] = NULL;
-			sch->types[i] = 0;
-		}
-
-		for (i = old_fn; i < fields_num; i++)
-		{
-			sch->fields_name[i] = strdup(names[i]);
+		for (int i = old_fn; i < fields_num; i++) {
+			sch->fields_name[i] = strncpy(sch->fields_name[i],names[i],strlen(names[i]));
 			sch->types[i] = types_i[i];
 		}
 	}
 
-	if (check_sch == SCHEMA_CT)
-	{ /*the input contain one or more BUT NOT ALL, fields in the schema*/
+	if (check_sch == SCHEMA_CT) { 
+		/*the input contain one or more BUT NOT ALL, fields in the schema*/
 		struct Record_f *temp = create_record(file_path, sch->fields_num);
-		if (!temp)
-		{
+		if (!temp) {
 			printf("create record failed, parse.c l %d.\n", __LINE__ - 4);
 			free_record(rec, fields_num);
+			free(types_i);
 			return NULL;
 		}
-		register unsigned char i = 0, j = 0, found = 0;
+
+		int i = 0, j = 0, found = 0;
 		for (i = 0; i < sch->fields_num; i++)
 		{
 			found = 0;
-			for (j = 0; j < fields_num; j++)
-			{
-				if (strcmp(sch->fields_name[i], names[j]) == 0)
-				{
-					//	printf("before set_field: %s, %s ,\n",names[j],values[j]);
-					if (!set_field(temp, i, names[j], types_i[j], values[j]))
-					{
+			for (j = 0; j < fields_num; j++) {
+				if (strcmp(sch->fields_name[i], names[j]) == 0) {
+					if (!set_field(temp, i, names[j], types_i[j], values[j])) {
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free(types_i);
 						free_strs(fields_num, 2, names, values);
 						free_record(temp, sch->fields_num);
+						free(types_i);
 						return NULL;
 					}
-					//	printf("after set_field: %s, %s ,\n",names[j],values[j]);
 					found++;
 				}
 			}
@@ -246,8 +173,7 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 			char *str = "null";
 			if (found == 0)
 			{
-				switch (sch->types[i])
-				{
+				switch (sch->types[i]){
 				case TYPE_INT:
 				case TYPE_LONG:
 				case TYPE_BYTE:
@@ -324,13 +250,10 @@ struct Record_f *parse_d_flag_input(char *file_path, int fields_num, char *buffe
 			}
 		}
 
-		// printf("after set_field: %s, %s ,\n",names[0],values[0]);
 		free(types_i);
 		free_strs(fields_num, 2, names, values);
 		return temp;
-	}
-	else
-	{
+	}else {
 
 		register unsigned char i = 0;
 		for (i = 0; i < fields_num; i++)

@@ -22,7 +22,7 @@ typedef struct Node {
 
 typedef struct HashTable {
 	int size;
-	Node data_map[MAX_HT_BUCKET];
+	Node *data_map[MAX_HT_BUCKET];
 	int (*write)(int fd, struct HashTable *ht);
 } HashTable;
 

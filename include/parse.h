@@ -10,11 +10,10 @@
 #define MAX_FIELD_NR 200 /*max field nr in a file */
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
 
-struct Schema
-{
+struct Schema {
 	unsigned short fields_num;
-	char **fields_name;
-	enum ValueType *types;
+	char fields_name[MAX_FIELD_NR][MAX_FIELD_LT];
+	int types[MAX_FIELD_NR];
 };
 
 struct Header_d
