@@ -12,18 +12,13 @@
 #include "str_op.h"
 #include "debug.h"
 
-unsigned char hash_tbl_init(int bucket, HashTable *ht)
+int hash_tbl_init(int bucket, HashTable *ht)
 {
-	(*ht).size = bucket;
-	(*ht).dataMap = calloc(bucket, sizeof(Node *));
-	if (!(*ht).dataMap)
-	{
-		__er_calloc(F, L - 3);
-		printf("%s() failed. %s:%d.\n", __func__, F, L);
-		return 0;
-	}
+	if(size > MAX_HT_BUCKET) return -1;
 
-	return 1;
+	(*ht).size = bucket;
+	memset(*ht,0,bucket);
+	return 0;
 }
 
 void print_hash_table(HashTable tbl)
@@ -32,7 +27,7 @@ void print_hash_table(HashTable tbl)
 	for (i = 0; i < tbl.size; i++)
 	{
 		printf("%d: \n", i);
-		Node *node = tbl.dataMap[i];
+		Node *node = tbl.data_map[i];
 
 		while (node)
 		{
@@ -77,25 +72,21 @@ int write_ht(int fd, HashTable *ht)
 	}
 
 	uint32_t ht_ln = htonl((uint32_t)len(*ht));
-	if (write(fd, &ht_ln, sizeof(ht_ln)) == -1)
-	{
+	if (write(fd, &ht_ln, sizeof(ht_ln)) == -1) {
 		perror("write ht length");
 		return 0;
 	}
 
-	if (len(*ht) == 0)
-	{
+	if (len(*ht) == 0) {
 		return 1;
 	}
 
-	for (i = 0; i < ht->size; i++)
-	{
+	for (i = 0; i < ht->size; i++) {
 		if (ht->dataMap[i] == NULL)
 			continue;
 
 		Node *current = ht->dataMap[i];
-		while (current != NULL)
-		{
+		while (current != NULL) {
 			switch (current->key_type)
 			{
 			case STR:
@@ -121,20 +112,17 @@ int write_ht(int fd, HashTable *ht)
 				uint64_t value = bswap_64((uint64_t)current->value);
 				uint32_t k = htonl(current->key.n);
 
-				if (write(fd, &type, sizeof(type)) == -1)
-				{
+				if (write(fd, &type, sizeof(type)) == -1) {
 					perror("write index:");
 					return 0; // false
 				}
 
-				if (write(fd, &k, sizeof(k)) == -1)
-				{
+				if (write(fd, &k, sizeof(k)) == -1) {
 					perror("write index:");
 					return 0; // false
 				}
 
-				if (write(fd, &value, sizeof(value)) == -1)
-				{
+				if (write(fd, &value, sizeof(value)) == -1) {
 					perror("write index:");
 					return 0; // false
 				}
@@ -161,8 +149,7 @@ int hash(void *key, int size, int key_type)
 
 	/*compute the prime number */
 	uint32_t prime = (uint32_t)(pow(2, 31) - 1);
-	switch (key_type)
-	{
+	switch (key_type) {
 	case UINT:
 	{
 		integer_key = *(uint32_t *)key;
@@ -189,8 +176,7 @@ off_t get(void *key, HashTable *tbl, int key_type)
 	Node *temp = tbl->dataMap[index];
 	while (temp != NULL)
 	{
-		switch (key_type)
-		{
+		switch (key_type) {
 		case STR:
 			if (strcmp(temp->key.s, (char *)key) == 0)
 				return temp->value;
@@ -234,8 +220,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 	case STR:
 	{
 		new_node->key.s = strdup((char *)key);
-		if (!new_node->key.s)
-		{
+		if (!new_node->key.s) {
 			fprintf(stderr, "strdup() failed");
 			return 0;
 		}
@@ -250,12 +235,9 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 	new_node->value = value;
 	new_node->next = NULL;
 
-	if (tbl->dataMap[index] == NULL)
-	{
+	if (tbl->dataMap[index] == NULL) {
 		tbl->dataMap[index] = new_node;
-	}
-	else if (key_type == STR)
-	{
+	}else if (key_type == STR){
 		/*for key strings*/
 		/*
 		 * check if the key already exists at
@@ -278,12 +260,9 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		 * for duplicates keys
 		 * */
 		Node *temp = tbl->dataMap[index];
-		while (temp->next != NULL)
-		{
-			if ((key_len = strlen(temp->next->key.s)) == strlen(new_node->key.s))
-			{
-				if (strncmp(temp->next->key.s, new_node->key.s, ++key_len) == 0)
-				{
+		while (temp->next != NULL) {
+			if ((key_len = strlen(temp->next->key.s)) == strlen(new_node->key.s)) {
+				if (strncmp(temp->next->key.s, new_node->key.s, ++key_len) == 0) {
 					printf("could not insert new node \"%s\"\n", new_node->key.s);
 					printf("key already exist. Choose another key value.\n");
 					free(new_node->key.s);
@@ -299,10 +278,8 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		 * */
 		temp->next = new_node;
 	}
-	else if (key_type == UINT)
-	{
-		if (tbl->dataMap[index]->key.n == new_node->key.n)
-		{
+	else if (key_type == UINT) {
+		if (tbl->dataMap[index]->key.n == new_node->key.n) {
 			printf("could not insert new node \"%u\"\n", new_node->key.n);
 			printf("key already exist. Choose another key value.\n");
 			free(new_node);
@@ -310,10 +287,8 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		}
 
 		Node *temp = tbl->dataMap[index];
-		while (temp->next)
-		{
-			if (temp->next->key.n == new_node->key.n)
-			{
+		while (temp->next) {
+			if (temp->next->key.n == new_node->key.n) {
 				printf("could not insert new node \"%u\"\n", new_node->key.n);
 				printf("key already exist. Choose another key value.\n");
 				free(new_node);
@@ -344,8 +319,7 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 				{
 					tbl->dataMap[index] = current->next;
 				}
-				else
-				{
+				else {
 					previous->next = current->next;
 				}
 

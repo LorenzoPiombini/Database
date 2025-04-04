@@ -18,16 +18,18 @@
 #include "debug.h"
 #include "build.h"
 
+char prog[] = "db";
 int main(int argc, char *argv[])
 {
-	if (argc < 2)
-	{
+	if (argc < 2) {
 		print_usage(argv);
 		return 1;
 	}
 
 	/* file descriptors */
-	int fd_index = -1, fd_data = -1;
+	int fd_index = -1, 
+	int fd_data = -1;
+	int fd_schema = -1;
 
 	/*----------- bool values-------------------*/
 
@@ -121,79 +123,67 @@ int main(int argc, char *argv[])
 	}
 
 	if (!check_input_and_values(file_path, data_to_add, key,
-								argv, del, list_def, new_file, update, del_file,
-								build, create, options, index_add))
-	{
+			argv, del, list_def, new_file, update, del_file,	
+			build, create, options, index_add)) {
 		return 1;
 	}
 
-	if (create)
-	{
-		if (!create_system_from_txt_file(txt_f))
-		{
-			return 1;
+	if (create){
+		if (!create_system_from_txt_file(txt_f)) {
+			return STATUS_ERROR;
 		}
 		printf("system created!\n");
 		return 0;
 	}
 
-	if (build)
-	{
-		if (build_from_txt_file(file_path, txt_f))
-		{
+	if (build) {
+		if (build_from_txt_file(file_path, txt_f)) {
 			return 0;
 		}
 
-		return 1;
+		return STATUS_ERROR;
 	}
 
-	if (new_file)
-	{
-		/*creates two name from the file_path  "str_op.h" */
-		char **files = two_file_path(file_path);
+	if (new_file) {
+		/*creates three name from the file_path  "str_op.h" */
 
-		if (only_dat)
-		{
+		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
+		if(three_file_path(file_path, files) == EFLENGTH){
+			fprintf(stderr,"(%s): file name or path '%s' too long",prog,file_path);
+			return STATUS_ERROR;
+		}
+
+		if (only_dat) {
 			fd_data = create_file(files[1]);
 			/*
 			 * file_error_handler will close the file descriptors if there are issues
 			 *  and print error messages to the console
 			 *  */
-			if (file_error_handler(1, fd_data) != 0)
-			{
-				free_strs(2, 1, files);
-				return 1;
-			}
-		}
-		else
-		{
+			if (file_error_handler(1, fd_data) != 0) return STATUS_ERROR;
+		
+		}else {
 			fd_index = create_file(files[0]);
 			fd_data = create_file(files[1]);
+			fd_schema = create_file(files[2]);
 			/*
 			 * file_error_handler will close the file descriptors if there are issues
 			 *  and print error messages to the console
 			 *  */
-			if (file_error_handler(2, fd_index, fd_data) != 0)
-			{
-				free_strs(2, 1, files);
-				return 1;
-			}
+			if (file_error_handler(3, fd_index, fd_data, fd_schema) != 0) return STATUS_ERROR;
 		}
 
-		if (schema_def)
-		{ /* case when user creates a file with only file definition*/
+		if (schema_def) { 
+			/* case when user creates a file with only file definition*/
 			int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
 
-			if (fields_count == 0)
-			{
-				printf("type syntax might be wrong.\n");
+			if (fields_count == 0) {
+				fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
-				free_strs(2, 1, files);
-				return 1;
+				return STATUS_ERROR;
 			}
-			if (fields_count > MAX_FIELD_NR)
-			{
+
+			if (fields_count > MAX_FIELD_NR) {
 				printf("Too many fields, max %d fields each file definition.\n", MAX_FIELD_NR);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
@@ -206,26 +196,22 @@ int main(int argc, char *argv[])
 
 			struct Schema sch = {fields_count, NULL, NULL};
 
-			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
-			{
+			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch)) {
 				printf("can't create file definition %s:%d.\n", F, L - 1);
 				free(buf_sdf);
 				free(buf_t);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
-				free_strs(2, 1, files);
-				return 1;
+				return STATUS_ERROR;
 			}
 
 			struct Header_d hd = {0, 0, sch};
 
-			if (!create_header(&hd))
-			{
+			if (!create_header(&hd)) {
 				free(buf_sdf), free(buf_t);
 				free_schema(&sch);
 				close_file(2, fd_index, fd_data);
 				delete_file(2, files[0], files[1]);
-				free_strs(2, 1, files);
 				return 1;
 			}
 

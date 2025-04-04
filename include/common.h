@@ -9,4 +9,5 @@
 #define UPDATE_OLD 6 // you can overwrite the old record with no worries!
 #define UPDATE_OLDN 8
 #define ALREADY_KEY 9
+#define EFLENGTH 10 /*file path or name too long */
 #endif

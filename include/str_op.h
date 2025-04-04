@@ -7,6 +7,10 @@
 
 #define MAX_KEY 4294967296
 
+#define MAX_FILE_PATH_LENGTH 1024
+
+
+
 #define ASCII_INT_MAX 526            /*the sum of ASCII values for every char in INT_MAX*/
 #define ASCII_INT_MIN 572            /*the sum of ASCII values for every char in INT_MIN*/
 #define ASCII_LONG_MAX 1000          /*the sum of ASCII values for every char in LONG_MAX*/
@@ -28,7 +32,7 @@ the number in e.i (int or long)*/
 int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);
-char **two_file_path(char *file_path);
+int three_file_path(char *file_path, char files[][]);
 int count_fields(char *fields, const char *target);
 int get_type(char *s);
 char **get_fileds_name(char *fields_name, int fields_count, int steps);

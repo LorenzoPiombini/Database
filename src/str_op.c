@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <errno.h>
 #include "str_op.h"
+#include "common.h"
 #include "debug.h"
 
 int get_array_values(char *src, char ***values)
@@ -100,53 +101,24 @@ void *key_converter(char *key, int *key_type)
 	return converted;
 }
 
-char **two_file_path(char *file_path)
+int three_file_path(char *file_path, char files[][])
 {
-	static char *dat = ".dat";
-	static char *ind = ".inx";
+	char *dat = ".dat";
+	char *ind = ".inx";
+	char *sch = ".sch";
 
 	size_t len = strlen(file_path) + strlen(ind) + 1;
 
-	char *index = calloc(len, sizeof(char));
-	char *data = calloc(len, sizeof(char));
-
-	if (!index || !data)
-	{
-		printf("calloc failed. str_op.c l %d", __LINE__ - 3);
-
-		if (!index)
-		{
-			free(data);
-		}
-		else
-		{
-			free(index);
-		}
-		return NULL;
-	}
-
-	if (snprintf(index, len, "%s%s", file_path, ind) < 0 ||
-		snprintf(data, len, "%s%s", file_path, dat) < 0)
-	{
-		printf("snprintf() failed, %s:%d.\n", F, L - 3);
-		free(index);
-		free(data);
-		return NULL;
-	}
-
-	char **arr = calloc(2, sizeof(char *));
-	if (!arr)
-	{
-		free(index);
-		free(data);
-		__er_calloc(F, L - 4);
-		return NULL;
-	}
-
-	arr[0] = index;
-	arr[1] = data;
-
-	return arr;
+	if(len > MAX_FILE_PATH_LENGTH) return EFLENGTH;
+	
+	strncpy(files[0],file_path,len);
+	strncat(files[0],ind,strlen(ind));
+	strncpy(files[1],file_path,len);
+	strncat(files[1],dat,strlen(dat));
+	strncpy(files[2],file_path,len);
+	strncat(files[2],sch,strlen(dat));
+	
+	return 0;
 }
 
 int count_fields(char *fields, const char *target)

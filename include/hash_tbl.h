@@ -5,15 +5,14 @@
 #include <stdint.h>
 
 #define MAX_KEY 4294967296
+#define MAX_HT_BUCKET 503 
 
 #define STR 1
 #define UINT 2
 
-typedef struct Node
-{
+typedef struct Node {
 	int key_type;
-	union
-	{
+	union {
 		uint32_t n;
 		char *s;
 	} key;
@@ -21,10 +20,9 @@ typedef struct Node
 	struct Node *next;
 } Node;
 
-typedef struct HashTable
-{
+typedef struct HashTable {
 	int size;
-	Node **dataMap;
+	Node data_map[MAX_HT_BUCKET];
 	int (*write)(int fd, struct HashTable *ht);
 } HashTable;
 
