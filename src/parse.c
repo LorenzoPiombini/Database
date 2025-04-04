@@ -429,23 +429,20 @@ int read_header(int fd, struct Header_d *hd)
 	}
 
 	id = ntohl(id); /*changing the bytes to host endianess*/
-	if (id != HEADER_ID_SYS)
-	{
+	if (id != HEADER_ID_SYS) {
 		printf("this is not a db file.\n");
 		return 0;
 	}
 
 	unsigned short vs = 0;
-	if (read(fd, &vs, sizeof(vs)) == -1)
-	{
+	if (read(fd, &vs, sizeof(vs)) == -1) {
 		perror("reading version from header.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
 	vs = ntohs(vs);
-	if (vs != VS)
-	{
+	if (vs != VS) {
 		printf("this file was edited from a different software.\n");
 		return 0;
 	}
@@ -454,16 +451,14 @@ int read_header(int fd, struct Header_d *hd)
 	hd->version = vs;
 
 	uint16_t field_n = 0;
-	if (read(fd, &field_n, sizeof(field_n)) == -1)
-	{
+	if (read(fd, &field_n, sizeof(field_n)) == -1) {
 		perror("reading field_number header.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 	hd->sch_d.fields_num = (unsigned short)ntohs(field_n);
 
-	if (hd->sch_d.fields_num == 0)
-	{
+	if (hd->sch_d.fields_num == 0) {
 		printf("no schema in this header.Please check data integrety.\n");
 		return 1;
 	}
@@ -471,8 +466,7 @@ int read_header(int fd, struct Header_d *hd)
 	//	printf("fields number %u.", hd->sch_d.fields_num);
 	for (int i = 0; i < hd->sch_d.fields_num; i++) {
 		uint32_t l_end = 0;
-		if (read(fd, &l_end, sizeof(l_end)) == -1)
-		{
+		if (read(fd, &l_end, sizeof(l_end)) == -1) {
 			perror("reading size of field name.\n");
 			printf("parse.c l %d.\n", __LINE__ - 3);
 			return 0;
@@ -776,28 +770,30 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 		free_strs(fields_num, 1, names);
 		return 0;
 	}
+
 	int i = 0, j = 0, x = 0, found = 0;
 	int actual_fields = 0;
 	unsigned char new_fields = 0;
 
 	char pos[fields_num]; /* to store the field position that are already in the schema*/
-	for (i = 0; i < fields_num; i++)
-		pos[i] = 'n';
+	memset(pos,'n',fields_num);
 
 	for (i = 0; i < sch->fields_num; i++)
 	{
 		for (j = 0; j < fields_num; j++)
 		{
-			if (strcmp(sch->fields_name[i], names[j]) == 0)
-			{
-				new_fields = 1;
+			if(names[j] == NULL) continue;
+			if (strncmp(sch->fields_name[i], names[j],strlen(names[j])) == 0) {
 				found++;
 				pos[x] = j; /* save the position of the field that is already in the schema*/
 				x++;
+				free(names[j]);
+				names[j] = NULL;
+			} else {
+				new_fields = 1;
 			}
 
-			if (found == fields_num)
-			{
+			if (found == fields_num) {
 				printf("fields already exist.\n");
 				free_strs(fields_num, 1, names);
 				free(types_i);
@@ -808,128 +804,22 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 
 	actual_fields = fields_num - found;
 
-	/* char** and ValueTypes will be used if any of the fields are already in the schema */
-	/* -------------- so we do not need to add them or add them twice  ------------------*/
-	char **names_n = NULL;
-	enum ValueType *types_i_n = NULL;
-
-	if (new_fields)
-	{
+	int new_start = sch->fields_num;
+	if (new_fields) {
 		/* check which fields are already in the schema if any */
-		for (i = 0; i < fields_num; i++)
-		{
-			if (pos[i] == 'n')
-				continue;
 
-			int ind = pos[i];
-			free(names[ind]);
-			names[ind] = NULL;
-		}
-
-		names_n = calloc(actual_fields, sizeof(char *));
-		if (!names_n)
-		{
-			printf("calloc failed. %s:%d.\n", F, L - 3);
-			free_strs(fields_num, 1, names);
-			free(types_i);
-			return 0;
-		}
-
-		types_i_n = calloc(actual_fields, sizeof(int));
-		if (!types_i_n)
-		{
-			printf("calloc failed. %s:%d.\n", F, L - 3);
-			free_strs(fields_num, 1, names);
-			free(types_i);
-			free(names_n);
-			return 0;
-		}
-
-		for (i = 0, j = 0; i < fields_num; i++)
-		{
-			if (names[i])
-			{
-				names_n[j] = NULL;
-				names_n[j] = strdup(names[i]);
-				types_i_n[j] = types_i[i];
-				j++;
+		for (i = 0; i < fields_num; i++) {
+			if (names[i]) {
+				strncpy(sch->fields_name[new_start],names[i],strlen(names[i]));
+				sch->types = types_i[i];
 				free(names[i]);
 				names[i] = NULL;
+				new_start++;
 			}
 		}
 
 		free(names);
 		free(types_i);
-	}
-
-	char **new_names = realloc(sch->fields_name, (sch->fields_num + actual_fields) * sizeof(char *));
-	if (!new_names)
-	{
-		printf("realloc failed. %s:%d", F, L - 3);
-		free_strs(fields_num, 1, names);
-		free(types_i);
-		return 0;
-	}
-
-	sch->fields_name = new_names;
-
-	enum ValueType *new_types = realloc(sch->types, (sch->fields_num + actual_fields) * sizeof(int));
-	if (!new_types)
-	{
-		printf("realloc failed. %s:%d", F, L - 3);
-		free_strs(fields_num, 1, names);
-		free(types_i);
-		return 0;
-	}
-
-	sch->types = new_types;
-
-	if (new_fields)
-		printf("new field added: ");
-
-	for (i = sch->fields_num, j = 0; i < sch->fields_num + actual_fields; i++)
-	{
-		sch->fields_name[i] = NULL;
-		if (names_n)
-		{
-			if (names_n[j])
-			{
-				printf("%s, ", names_n[j]);
-				sch->fields_name[i] = strdup(names_n[j]);
-				sch->types[i] = types_i_n[j];
-				free(names_n[j]);
-				names_n[j] = NULL;
-				j++;
-			}
-		}
-		else if (names)
-		{
-			if (names[j])
-			{
-
-				sch->fields_name[i] = strdup(names[j]);
-				sch->types[i] = types_i[j];
-				free(names[j]);
-				names[j] = NULL;
-				j++;
-			}
-		}
-	}
-
-	if (new_fields)
-		printf("\n");
-
-	sch->fields_num += actual_fields;
-
-	if (!new_fields)
-	{
-		free(names);
-		free(types_i);
-	}
-	else
-	{
-		free(names_n);
-		free(types_i_n);
 	}
 
 	return 1;
