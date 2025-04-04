@@ -47,35 +47,36 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 	}
 
 	fclose(fp);
-	//	printf("%s\n%s\ni is %d\n", lines[i-1], lines[1],i);
-	//	getchar();
 
-	/*creates two file for our system */
-	int fd_index = -1, fd_data = -1;
-	char **files = two_file_path(file_path);
+	/*creates three files for the system */
+	int fd_index = -1;
+	int fd_data = -1;
+	int fd_schema = -1;
+
+	char files[3][MAX_FILE_PATH_LENGTH]= {0};
+	three_file_path(file_path, files);
 
 	fd_index = create_file(files[0]);
 	fd_data = create_file(files[1]);
+	fd_schema = create_file(files[2]);
 
 	/* create target file */
-	if (!create_empty_file(fd_data, fd_index, recs))
+	if (!create_empty_file(fd_schema,fd_data, fd_index, recs))
 	{
 		printf("create empty file failed, build.c:%d.\n", __LINE__ - 1);
-		close_file(2, fd_index, fd_data);
-		delete_file(2, files[0], files[1]);
-		free(files[0]), free(files[1]), free(files);
+		close_file(3,fd_schema, fd_index, fd_data);
+		delete_file(3, files[0], files[1],files[2]);
 		return 0;
 	}
 
-	HashTable ht = {0, NULL, write_ht};
+	HashTable ht = {0, 0, write_ht};
 
 	begin_in_file(fd_index);
 	if (!read_index_file(fd_index, &ht))
 	{
 		printf("file pointer failed, build.c:%d.\n", __LINE__ - 1);
-		close_file(2, fd_index, fd_data);
-		delete_file(2, files[0], files[1]);
-		free(files[0]), free(files[1]), free(files);
+		close_file(3,fd_schema, fd_index, fd_data);
+		delete_file(3, files[0], files[1],files[2]);
 		return 0;
 	}
 
@@ -104,14 +105,13 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 				printf("could not write index file. build.c l %d.\n", __LINE__ - 1);
 				destroy_hasht(&ht);
 				free_strs(recs, 1, lines);
-				free(files[0]), free(files[1]), free(files);
-				close_file(2, fd_index, fd_data);
+				close_file(3,fd_schema, fd_index, fd_data);
+				delete_file(3, files[0], files[1],files[2]);
 				return 0;
 			}
 
-			close_file(2, fd_index, fd_data);
+			close_file(3,fd_schema, fd_index, fd_data);
 			destroy_hasht(&ht);
-			free(files[0]), free(files[1]), free(files);
 			free_strs(recs, 1, lines);
 			return 0;
 		}
@@ -123,15 +123,13 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 		printf("could not write index file. build.c l %d.\n", __LINE__ - 1);
 		destroy_hasht(&ht);
 		free_strs(recs, 1, lines);
-		free(files[0]), free(files[1]), free(files);
-		close_file(2, fd_index, fd_data);
+		close_file(3,fd_schema, fd_index, fd_data);
 		return 0;
 	}
 
 	destroy_hasht(&ht);
 	free_strs(recs, 1, lines);
-	free(files[0]), free(files[1]), free(files);
-	close_file(2, fd_index, fd_data);
+	close_file(3,fd_schema, fd_index, fd_data);
 	return 1;
 }
 

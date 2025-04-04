@@ -101,7 +101,7 @@ void *key_converter(char *key, int *key_type)
 	return converted;
 }
 
-int three_file_path(char *file_path, char files[][])
+int three_file_path(char *file_path, char files[][MAX_FILE_PATH_LENGTH])
 {
 	char *dat = ".dat";
 	char *ind = ".inx";

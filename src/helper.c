@@ -9,34 +9,20 @@
 #include "str_op.h"
 #include "debug.h"
 
-unsigned char create_empty_file(int fd_data, int fd_index, int bucket_ht)
+unsigned char create_empty_file(int fd_schema, int fd_data, int fd_index, int bucket_ht)
 {
 
-	struct Schema sch = {0, NULL, NULL};
+	struct Schema sch = {0};
 	struct Header_d hd = {HEADER_ID_SYS, VS, sch};
 
-	size_t hd_st = compute_size_header((void *)&hd);
-	if (hd_st >= MAX_HD_SIZE)
-	{
-		printf("File definition is bigger than the limit.\n");
-		return 0;
-	}
-
-	if (!write_empty_header(fd_data, &hd))
+	if (!write_empty_header(fd_schema, &hd))
 	{
 		printf("helper.c l %d.\n", __LINE__ - 1);
 		return 0;
 	}
 
-	if (!padding_file(fd_data, MAX_HD_SIZE, hd_st))
-	{
-		printf("padding failed. helper.c:%d.\n", __LINE__ - 1);
-		return 0;
-	}
-
 	int bucket = bucket_ht > 0 ? bucket_ht : 7;
-	Node **dataMap = calloc(bucket, sizeof(Node *));
-	HashTable ht = {bucket, dataMap, write_ht};
+	HashTable ht = {bucket, 0, write_ht};
 
 	if (!ht.write(fd_index, &ht))
 	{

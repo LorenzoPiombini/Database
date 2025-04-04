@@ -556,6 +556,7 @@ int main(int argc, char *argv[])
 		} else {
 			fd_index = open_file(files[0], 0);
 			fd_data = open_file(files[1], 0);
+			fd_schema = open_file(files[2], 0);
 			/* file_error_handler will close the file descriptors if there are issues */
 			if (file_error_handler(2, fd_index, fd_data) != 0) {
 				printf("Error in creating or opening files,%s:%d.\n", F, L - 2);
@@ -3678,13 +3679,10 @@ int main(int argc, char *argv[])
 					free_record(new_rec, new_rec->fields_num);
 				}
 
-				free_schema(&hd.sch_d);
 				printf("record %s updated!\n", key);
-				close_file(2, fd_index, fd_data);
+				close_file(3,fd_schema, fd_index, fd_data);
 				free(pos_u);
-				free(positions);
 				free_record(rec, rec->fields_num);
-				free_strs(2, 1, files);
 				free_record_array(index, &recs_old);
 				if (shared_locks)
 				{
@@ -3724,7 +3722,7 @@ int main(int argc, char *argv[])
 				return 0;
 			} /*end of if(update_pos > 0)*/
 
-			free_schema(&hd.sch_d);
+			close_file(1,fd_schema);
 
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 			struct Record_f *new_rec = NULL;
@@ -3735,11 +3733,7 @@ int main(int argc, char *argv[])
 				close_file(2, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
 				free_record(rec_old, rec_old->fields_num);
-				free_strs(2, 1, files);
-				if (new_rec)
-				{
-					free_record(new_rec, new_rec->fields_num);
-				}
+				if (new_rec)free_record(new_rec, new_rec->fields_num);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -3786,7 +3780,6 @@ int main(int argc, char *argv[])
 					close_file(2, fd_index, fd_data);
 					free_record(rec, rec->fields_num);
 					free_record(rec_old, rec_old->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -3831,7 +3824,6 @@ int main(int argc, char *argv[])
 					close_file(2, fd_index, fd_data);
 					free_record(rec, rec->fields_num);
 					free_record(rec_old, rec_old->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -3873,7 +3865,6 @@ int main(int argc, char *argv[])
 				close_file(2, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
 				free_record(rec_old, rec_old->fields_num);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -3923,7 +3914,6 @@ int main(int argc, char *argv[])
 					free_record(rec, rec->fields_num);
 					free_record(rec_old, rec_old->fields_num);
 					free_record(new_rec, new_rec->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -3969,7 +3959,6 @@ int main(int argc, char *argv[])
 					free_record(rec, rec->fields_num);
 					free_record(rec_old, rec_old->fields_num);
 					free_record(new_rec, new_rec->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -4016,7 +4005,6 @@ int main(int argc, char *argv[])
 					free_record(rec, rec->fields_num);
 					free_record(rec_old, rec_old->fields_num);
 					free_record(new_rec, new_rec->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -4062,7 +4050,6 @@ int main(int argc, char *argv[])
 					free_record(rec, rec->fields_num);
 					free_record(rec_old, rec_old->fields_num);
 					free_record(new_rec, new_rec->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -4108,7 +4095,6 @@ int main(int argc, char *argv[])
 					free_record(rec, rec->fields_num);
 					free_record(rec_old, rec_old->fields_num);
 					free_record(new_rec, new_rec->fields_num);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -4151,7 +4137,6 @@ int main(int argc, char *argv[])
 				free_record(rec, rec->fields_num);
 				free_record(rec_old, rec_old->fields_num);
 				free_record(new_rec, new_rec->fields_num);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -4197,8 +4182,6 @@ int main(int argc, char *argv[])
 		{ /* show file definitions */
 			print_schema(hd.sch_d);
 			close_file(1, fd_data);
-			free_schema(&hd.sch_d);
-			free_strs(2, 1, files);
 			return 0;
 		}
 
@@ -4215,8 +4198,7 @@ int main(int argc, char *argv[])
 													 files[0], 0, fd_i_s, RD_IND, fd_index)) == 0)
 					{
 						__er_acquire_lock_smo(F, L - 3);
-						free_strs(2, 1, files);
-						close_file(2, fd_index, fd_data);
+						close_file(3,fd_schema, fd_index, fd_data);
 						if (munmap(shared_locks, sizeof(lock_info) *
 													 MAX_NR_FILE_LOCKABLE) == -1)
 						{
@@ -4231,14 +4213,12 @@ int main(int argc, char *argv[])
 				} while (result_i == WTLK || result_i == MAX_WTLK);
 			}
 
-			HashTable ht = {0, NULL};
+			HashTable ht = {0};
 			HashTable *p_ht = &ht;
 			if (!read_index_nr(index_nr, fd_index, &p_ht))
 			{
 				printf("reading index file failed, %s:%d.\n", F, L - 1);
-				close_file(2, fd_index, fd_data);
-				free_schema(&hd.sch_d);
-				free_strs(2, 1, files);
+				close_file(3,fd_schema, fd_index, fd_data);
 				if (shared_locks)
 				{ /*release the locks before exit*/
 					int result_d = 0;
@@ -4299,9 +4279,8 @@ int main(int argc, char *argv[])
 			}
 
 			destroy_hasht(p_ht);
-			free_schema(&hd.sch_d);
 			close_file(2, fd_index, fd_data);
-			free_strs(2, 1, files);
+			close_file(3,fd_schema, fd_index, fd_data);
 			free_keys_data(keys_data);
 			if (shared_locks)
 			{ /*release the locks before exit*/
@@ -4337,8 +4316,7 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		free_schema(&hd.sch_d);
-
+		close_file(1,fd_schema);
 		if (key) /*display record*/
 		{
 			/*acquire WR_REC and WR_IND locks*/
@@ -4357,7 +4335,6 @@ int main(int argc, char *argv[])
 					{
 						__er_acquire_lock_smo(F, L - 5);
 						close_file(2, fd_index, fd_data);
-						free_strs(2, 1, files);
 						if (munmap(shared_locks,
 								   sizeof(lock_info) * MAX_NR_FILE_LOCKABLE) == -1)
 						{
@@ -4371,13 +4348,12 @@ int main(int argc, char *argv[])
 				} while (result_d == MAX_WTLK || result_d == WTLK || result_i == MAX_WTLK || result_i == WTLK);
 			}
 
-			HashTable ht = {0, NULL};
+			HashTable ht = {0};
 			HashTable *p_ht = &ht;
 			if (!read_index_nr(0, fd_index, &p_ht))
 			{
 				printf("reading index file failed, %s:%d.\n", F, L - 1);
 				close_file(2, fd_index, fd_data);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -4423,7 +4399,6 @@ int main(int argc, char *argv[])
 				fprintf(stderr, "error to convert key");
 				destroy_hasht(p_ht);
 				close_file(2, fd_index, fd_data);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -4478,7 +4453,6 @@ int main(int argc, char *argv[])
 				printf("record not found.\n");
 				destroy_hasht(p_ht);
 				close_file(2, fd_index, fd_data);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -4521,7 +4495,6 @@ int main(int argc, char *argv[])
 			{
 				__er_file_pointer(F, L - 1);
 				close_file(2, fd_index, fd_data);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -4564,7 +4537,6 @@ int main(int argc, char *argv[])
 			{
 				printf("read record failed, main.c l %d.\n", __LINE__ - 1);
 				close_file(2, fd_data, fd_index);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -4608,8 +4580,6 @@ int main(int argc, char *argv[])
 			{
 				close_file(2, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
-				close_file(2, fd_data, fd_index);
-				free_strs(2, 1, files);
 				if (shared_locks)
 				{
 					int result_i = 0, result_d = 0;
@@ -4658,7 +4628,6 @@ int main(int argc, char *argv[])
 					printf("calloc failed, main.c l %d.\n", __LINE__ - 2);
 					free_record(rec, rec->fields_num);
 					close_file(2, fd_data, fd_index);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -4705,7 +4674,6 @@ int main(int argc, char *argv[])
 					__er_file_pointer(F, L - 1);
 					free_record_array(counter, &recs);
 					close_file(2, fd_data, fd_index);
-					free_strs(2, 1, files);
 					if (shared_locks)
 					{
 						int result_i = 0, result_d = 0;
@@ -4752,7 +4720,6 @@ int main(int argc, char *argv[])
 						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
 						free_record_array(counter, &recs);
 						close_file(2, fd_data, fd_index);
-						free_strs(2, 1, files);
 						if (shared_locks)
 						{
 							int result_i = 0, result_d = 0;
@@ -4795,7 +4762,6 @@ int main(int argc, char *argv[])
 						__er_file_pointer(F, L - 1);
 						free_record_array(counter, &recs);
 						close_file(2, fd_index, fd_data);
-						free_strs(2, 1, files);
 						if (shared_locks)
 						{
 							int result_i = 0, result_d = 0;
@@ -4839,7 +4805,6 @@ int main(int argc, char *argv[])
 						printf("read record failed, main.c l %d.\n", __LINE__ - 2);
 						free_record_array(counter, &recs);
 						close_file(2, fd_data, fd_index);
-						free_strs(2, 1, files);
 						if (shared_locks)
 						{
 							int result_i = 0, result_d = 0;
@@ -4892,7 +4857,6 @@ int main(int argc, char *argv[])
 
 			if (shared_locks)
 			{
-				free_strs(2, 1, files);
 				close_file(2, fd_index, fd_data);
 				int result_i = 0, result_d = 0;
 				do
@@ -4928,7 +4892,6 @@ int main(int argc, char *argv[])
 			}
 
 			close_file(2, fd_index, fd_data);
-			free_strs(2, 1, files);
 			return 0;
 		}
 	}

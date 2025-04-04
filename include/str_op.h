@@ -29,10 +29,14 @@ the number in e.i (int or long)*/
 #define IN_FLOAT 102
 #define IN_DOUBLE 103
 
+
+
+
+
 int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);
-int three_file_path(char *file_path, char files[][]);
+int three_file_path(char *file_path, char files[][MAX_FILE_PATH_LENGTH]);
 int count_fields(char *fields, const char *target);
 int get_type(char *s);
 char **get_fileds_name(char *fields_name, int fields_count, int steps);
