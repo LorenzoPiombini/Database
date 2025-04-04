@@ -454,7 +454,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 		if (read(fd, &type, sizeof(type)) == -1) {
 			fprintf(stderr, "can't read key type, %s:%d.\n",
 					F, L - 3);
-			free_nodes(ht->data_map, size);
+			free_nodes(ht->data_map, ht->size);
 			return 0;
 		}
 
@@ -470,7 +470,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				char *key = calloc(size + 1, sizeof(char));
 				if (!key) {
 					perror("memory for key");
-					free_nodes(ht->data_map, size);
+					free_nodes(ht->data_map, ht->size);
 					return 0;
 				}
 
@@ -479,7 +479,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 					read(fd, &v_n, sizeof(v_n)) == -1) {
 
 					perror("reading index file");
-					free_nodes(ht->data_map, size);
+					free_nodes(ht->data_map, ht->size);
 					free(key);
 					return 0;
 				}
@@ -490,7 +490,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				if (!newNode)
 				{
 					perror("memory for node");
-					free_nodes(ht->data_map, size);
+					free_nodes(ht->data_map, ht->size);
 					free(key);
 					return 0;
 				}
@@ -501,7 +501,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 					fprintf(stderr,
 							"strdup() failed, %s:%d.\n",
 							F, L - 3);
-					free_nodes(ht->data_map, size);
+					free_nodes(ht->data_map, ht->size);
 					free(key);
 					return 0;
 				}
@@ -527,9 +527,8 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			}
 			else
 			{
-				fprintf(stderr,
-						"read index failed, %s:%d\n", F, L - 2);
-				free_nodes(ht->data_map, size);
+				fprintf(stderr,"read index failed, %s:%d\n", F, L - 2);
+				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
 			break;
@@ -541,14 +540,14 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			if (read(fd, &k, sizeof(k)) == -1)
 			{
 				fprintf(stderr, "read index failed.\n");
-				free_nodes(ht->data_map, size);
+				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
 
 			if (read(fd, &value, sizeof(value)) == -1)
 			{
 				fprintf(stderr, "read index failed.\n");
-				free_nodes(ht->data_map, size);
+				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
 
@@ -556,7 +555,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			if (!new_node)
 			{
 				__er_calloc(F, L - 2);
-				free_nodes(ht->data_map, size);
+				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
 
@@ -569,7 +568,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			if (index == -1)
 			{
 				fprintf(stderr, "read index failed.%s:%d\n", F, L - 2);
-				free_nodes(ht->data_map, size);
+				free_nodes(ht->data_map, ht->size);
 				free_ht_node(new_node);
 				return 0;
 			}
@@ -590,7 +589,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 		}
 		default:
 			fprintf(stderr, "key type not supported.\n");
-			free_nodes(ht->data_map, size);
+			free_nodes(ht->data_map, ht->size);
 			return 0;
 		}
 	}
@@ -5727,7 +5726,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 		 * reallocated hastable array
 		 * */
 		if (ht[i].data_map[0] == NULL) {
-			if (write_index_body(fd, i, &ht[i]) == -1) {
+			if (!write_index_body(fd, i, &ht[i])) {
 				fprintf(stderr,"write_index_body() failed %s:%d.\n",F, L - 3);
 				free_ht_array(ht, total_indexes);
 				return -1;
@@ -5737,10 +5736,8 @@ int add_index(int index_nr, char *file_name, int bucket)
 			continue;
 		}
 
-		if (write_index_body(fd, i, &ht[i]) == -1) {
-			fprintf(stderr,
-					"write_index_body() failed %s:%d.\n",
-					F, L - 3);
+		if (!write_index_body(fd, i, &ht[i])) {
+			fprintf(stderr,	"write_index_body() failed %s:%d.\n",F, L - 3);
 			free_ht_array(ht, total_indexes);
 			return -1;
 		}

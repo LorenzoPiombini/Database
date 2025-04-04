@@ -12,14 +12,6 @@
 #include "str_op.h"
 #include "debug.h"
 
-int hash_tbl_init(int bucket, HashTable *ht)
-{
-	if(size > MAX_HT_BUCKET) return -1;
-
-	(*ht).size = bucket;
-	memset(*ht,0,bucket);
-	return 0;
-}
 
 void print_hash_table(HashTable tbl)
 {
@@ -81,10 +73,10 @@ int write_ht(int fd, HashTable *ht)
 	}
 
 	for (i = 0; i < ht->size; i++) {
-		if (ht->dataMap[i] == NULL)
+		if (ht->data_map[i] == NULL)
 			continue;
 
-		Node *current = ht->dataMap[i];
+		Node *current = ht->data_map[i];
 		while (current != NULL) {
 			switch (current->key_type)
 			{
@@ -172,7 +164,7 @@ int hash(void *key, int size, int key_type)
 off_t get(void *key, HashTable *tbl, int key_type)
 {
 	int index = hash(key, tbl->size, key_type);
-	Node *temp = tbl->dataMap[index];
+	Node *temp = tbl->data_map[index];
 	while (temp != NULL)
 	{
 		switch (key_type) {
@@ -234,8 +226,8 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 	new_node->value = value;
 	new_node->next = NULL;
 
-	if (tbl->dataMap[index] == NULL) {
-		tbl->dataMap[index] = new_node;
+	if (tbl->data_map[index] == NULL) {
+		tbl->data_map[index] = new_node;
 	}else if (key_type == STR){
 		/*for key strings*/
 		/*
@@ -243,9 +235,9 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		 * the base  element of the index
 		 * */
 		size_t key_len = 0;
-		if ((key_len = strlen(tbl->dataMap[index]->key.s)) == strlen(new_node->key.s))
+		if ((key_len = strlen(tbl->data_map[index]->key.s)) == strlen(new_node->key.s))
 		{
-			if (strncmp(tbl->dataMap[index]->key.s, new_node->key.s, ++key_len) == 0)
+			if (strncmp(tbl->data_map[index]->key.s, new_node->key.s, ++key_len) == 0)
 			{
 				printf("key %s, already exist.\n", new_node->key.s);
 				free(new_node->key.s);
@@ -258,7 +250,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		 * check all the nodes in the index
 		 * for duplicates keys
 		 * */
-		Node *temp = tbl->dataMap[index];
+		Node *temp = tbl->data_map[index];
 		while (temp->next != NULL) {
 			if ((key_len = strlen(temp->next->key.s)) == strlen(new_node->key.s)) {
 				if (strncmp(temp->next->key.s, new_node->key.s, ++key_len) == 0) {
@@ -278,14 +270,14 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		temp->next = new_node;
 	}
 	else if (key_type == UINT) {
-		if (tbl->dataMap[index]->key.n == new_node->key.n) {
+		if (tbl->data_map[index]->key.n == new_node->key.n) {
 			printf("could not insert new node \"%u\"\n", new_node->key.n);
 			printf("key already exist. Choose another key value.\n");
 			free(new_node);
 			return 0;
 		}
 
-		Node *temp = tbl->dataMap[index];
+		Node *temp = tbl->data_map[index];
 		while (temp->next) {
 			if (temp->next->key.n == new_node->key.n) {
 				printf("could not insert new node \"%u\"\n", new_node->key.n);
@@ -304,7 +296,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 Node *delete(void *key, HashTable *tbl, int key_type)
 {
 	int index = hash(key, tbl->size, key_type);
-	Node *current = tbl->dataMap[index];
+	Node *current = tbl->data_map[index];
 	Node *previous = NULL;
 
 	while (current != NULL)
@@ -316,7 +308,7 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 			{
 				if (previous == NULL)
 				{
-					tbl->dataMap[index] = current->next;
+					tbl->data_map[index] = current->next;
 				}
 				else {
 					previous->next = current->next;
@@ -333,7 +325,7 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 			if (current->key.n == *(uint32_t *)key)
 			{
 				if (previous == NULL)
-					tbl->dataMap[index] = current->next;
+					tbl->data_map[index] = current->next;
 				else
 					previous->next = current->next;
 
@@ -366,12 +358,12 @@ void free_ht_array(HashTable *ht, int l)
 void destroy_hasht(HashTable *tbl)
 {
 
-	if (!tbl->dataMap)
+	if (!tbl->data_map)
 		return;
 
 	int i = 0;
 	for (i = 0; i < tbl->size; i++) {
-		Node *current = tbl->dataMap[i];
+		Node *current = tbl->data_map[i];
 		while (current != NULL) {
 			switch (current->key_type) {
 			case STR:
@@ -420,7 +412,7 @@ struct Keys_ht *keys(HashTable *ht)
 	int index = 0;
 	for (i = 0; i < ht->size; i++)
 	{
-		Node *temp = ht->dataMap[i];
+		Node *temp = ht->data_map[i];
 		while (temp != NULL)
 		{
 			if (temp->key_type == STR)
@@ -460,14 +452,14 @@ int len(HashTable tbl)
 {
 	int counter = 0;
 
-	if (tbl.dataMap == NULL)
+	if (tbl.data_map== NULL)
 	{
 		return 0;
 	}
 
 	for (int i = 0; i < tbl.size; i++)
 	{
-		Node *temp = tbl.dataMap[i];
+		Node *temp = tbl.data_map[i];
 		while (temp != NULL)
 		{
 			counter++;
@@ -478,11 +470,11 @@ int len(HashTable tbl)
 	return counter;
 }
 
-void free_nodes(Node **dataMap, int size)
+void free_nodes(Node **data_map, int size)
 {
 	int i = 0;
 	for (i = 0; i < size; i++) {
-		Node *current = (*dataMap)[i];
+		Node *current = (*data_map);
 		while (current) {
 			switch (current->key_type)
 			{
@@ -543,7 +535,7 @@ void free_keys_data(struct Keys_ht *data)
 	free(data);
 }
 
-/*if mode is set to 1 it will overwrite the condtent of dest
+/*if mode is set to 1 it will overwrite the content of dest
 	if mode is 0 then the src HashTable will be added to the dest, maintaing whatever is in dest*/
 unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 {
@@ -556,29 +548,23 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 	if (mode == 1)
 	{
 		destroy_hasht(dest);
-		Node **data_map = calloc(src->size, sizeof(Node *));
-		if (!data_map)
-		{
-			__er_calloc(F, L - 2);
-			return 0;
-		}
 
 		(*dest).size = src->size;
-		(*dest).dataMap = data_map;
+		memset((*dest).data_map,0,sizeof(Node*)*MAX_HT_BUCKET);
 	}
 
 	for (register int i = 0; i < src->size; i++)
 	{
-		if (src->dataMap[i])
+		if (src->data_map[i])
 		{
-			switch (src->dataMap[i]->key_type)
+			switch (src->data_map[i]->key_type)
 			{
 			case STR:
 			{
-				set((void *)src->dataMap[i]->key.s,
-					src->dataMap[i]->key_type,
-					src->dataMap[i]->value, dest);
-				Node *next = src->dataMap[i]->next;
+				set((void *)src->data_map[i]->key.s,
+					src->data_map[i]->key_type,
+					src->data_map[i]->value, dest);
+				Node *next = src->data_map[i]->next;
 				while (next)
 				{
 					set(next->key.s,
@@ -590,10 +576,10 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 			}
 			case UINT:
 			{
-				set((void *)&src->dataMap[i]->key.n,
-					src->dataMap[i]->key_type,
-					src->dataMap[i]->value, dest);
-				Node *next = src->dataMap[i]->next;
+				set((void *)&src->data_map[i]->key.n,
+					src->data_map[i]->key_type,
+					src->data_map[i]->value, dest);
+				Node *next = src->data_map[i]->next;
 				while (next)
 				{
 					set((void *)&next->key.n,

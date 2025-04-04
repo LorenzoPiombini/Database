@@ -46,7 +46,6 @@ struct Keys_ht
  * */
 #define COPRIME 2837
 
-unsigned char hash_tbl_init(int bucket, HashTable *ht);
 void print_hash_table(HashTable tbl);
 int write_ht(int fd, HashTable *ht);
 int hash(void *key, int size, int key_type);

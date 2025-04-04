@@ -69,7 +69,8 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 		return 0;
 	}
 
-	HashTable ht = {0, 0, write_ht};
+	HashTable ht = {0};
+	ht.write = write_ht;
 
 	begin_in_file(fd_index);
 	if (!read_index_file(fd_index, &ht))
@@ -95,7 +96,7 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 			continue;
 		}
 
-		if (append_to_file(fd_data, fd_index, file_path, k, str, files, &ht) == 0)
+		if (append_to_file(fd_data, fd_index, file_path, k, str, &ht) == 0)
 		{
 			printf("%s\t%s\n i is %d\n", str, k, i);
 
@@ -199,18 +200,19 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	int j = 0;
 	for (j = 0; j < i; j++)
 	{
-		char **files = two_file_path(files_n[j]);
+		char files[3][MAX_FILE_PATH_LENGTH] = {0};
+		three_file_path(files_n[j],files);
 		int fd_index = create_file(files[0]);
 		int fd_data = create_file(files[1]);
+		int fd_schema = create_file(files[2]);
 		if (fd_index == -1 || fd_data == -1)
 		{
 			fprintf(stderr, "system already exist!\n");
-			free_strs(2, 1, files);
 			free_strs(lines, 2, files_n, schemas);
 			return 0;
 		}
 
-		if (!create_file_with_schema(fd_data, fd_index, schemas[j], buckets[j], indexes[j]))
+		if (!create_file_with_schema(fd_schema, fd_data, fd_index, schemas[j], buckets[j], indexes[j]))
 		{
 			delete_file(2, files[0], files[1]);
 			free_strs(2, 1, files);

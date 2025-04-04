@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* file descriptors */
-	int fd_index = -1, 
+	int fd_index = -1; 
 	int fd_data = -1;
 	int fd_schema = -1;
 
@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
 			}
 
 			if (fields_count > MAX_FIELD_NR) {
-				frintf(stderr,"(%s): too many fields, max %d fields each file definition.\n",prog, MAX_FIELD_NR);
+				fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n",prog, MAX_FIELD_NR);
 				close_file(3, fd_index, fd_data,fd_schema);
 				delete_file(3, files[0], files[1], files[2]);
 				return STATUS_ERROR;
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
 			/* init the Schema structure*/
 			struct Schema sch = {0};
 			sch.fields_num = fields_count;
-			memset(sch.types,-1,MAX_FIELD_NR);
+			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
 			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch)) {
 				fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
 				destroy_hasht(&ht);
 			}
 
-			fprintf("File created successfully!\n");
+			fprintf(stdout,"(%s): File created successfully!\n",prog);
 
 			close_file(2, fd_index, fd_data);
 			return 0;
