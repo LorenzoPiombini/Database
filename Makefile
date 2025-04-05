@@ -141,8 +141,7 @@ clean:
 	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) $(LIBDIR)/$(SHAREDLIBht) $(LIBDIR)/$(SHAREDLIBl) $(LIBDIR)/$(SHAREDLIBbst) 
 	sudo ldconfig
 	rm -f obj/*.o 
-	rm -f bin/*
-	rm *.so
+	sudo rm -f *.so
 	sudo rm -f $(TARGET)
 	rm *.dat *.inx *.sch
 	rm *core*

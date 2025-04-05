@@ -732,41 +732,36 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 {
 	char **names = get_fileds_name(buffer, fields_num, 2);
 
-	if (!names)
-	{
+	if (!names) {
 		printf("Error in getting the fields name");
 		return 0;
 	}
 
 	enum ValueType *types_i = get_value_types(buf_t, fields_num, 2);
 
-	if (!types_i)
-	{
+	if (!types_i) {
 		printf("Error in getting the fields types");
 		free_strs(fields_num, 1, names);
 		return 0;
 	}
 
-	int i = 0, j = 0, x = 0, found = 0;
+	int x = 0;
+	int found = 0;
 	unsigned char new_fields = 0;
 
-	char pos[fields_num]; /* to store the field position that are already in the schema*/
-	memset(pos,'n',fields_num);
-
-	for (i = 0; i < sch->fields_num; i++)
-	{
-		for (j = 0; j < fields_num; j++)
-		{
-			if(names[j] == NULL) continue;
+	int pos[fields_num]; /* to store the field position that are already in the schema*/
+	memset(pos,-1,fields_num);
+	
+	for (int i = 0; i < sch->fields_num; i++) {
+		for (int j = 0; j < fields_num; j++) {
+			if(pos[j] == j) continue;
 			if (strncmp(sch->fields_name[i], names[j],strlen(names[j])) == 0) {
 				found++;
 				pos[x] = j; /* save the position of the field that is already in the schema*/
 				x++;
-				free(names[j]);
-				names[j] = NULL;
 			} else {
 				new_fields = 1;
-			}
+			} 
 
 			if (found == fields_num) {
 				printf("fields already exist.\n");
@@ -777,24 +772,21 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 		}
 	}
 
-
-	int new_start = sch->fields_num;
 	if (new_fields) {
 		/* check which fields are already in the schema if any */
 
-		for (i = 0; i < fields_num; i++) {
-			if (names[i]) {
-				strncpy(sch->fields_name[new_start],names[i],strlen(names[i]));
-				sch->types[new_start] = types_i[i];
-				free(names[i]);
-				names[i] = NULL;
-				new_start++;
-			}
+		for (int i = 0; i < fields_num; i++) {
+			if(pos[i] == i) continue; 
+			strncpy(sch->fields_name[sch->fields_num],names[i],strlen(names[i]));
+			sch->types[sch->fields_num] = types_i[i];
+			sch->fields_num++;
 		}
 
-		free(names);
+		free_strs(fields_num, 1, names);
 		free(types_i);
+		return 1;
 	}
+
 
 	return 1;
 }
