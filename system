@@ -1,6 +1,0 @@
-user|user_id:t_l:username:t_s:email:t_s:passwd:t_s:bussines_name:t_s|0|0
-income|income_id:t_l:user_id:t_l:source:t_s:amount:t_d:category:t_s:date_received:t_l:notes:t_s|0|0
-expense|expense_id:t_l:user_id:t_l:vendor:t_s:category:t_s:amount:t_d:date_incurred:t_l:notes:t_s|0|0
-category|category_id:t_l:user_id:t_l:name:t_s:type:t_s|0|0
-monthly_report|report_id:t_l:user_id:t_l:year:t_i:month:t_i:total_income:t_d:total_expense:t_d:net_profit:t_d|0|0
-
