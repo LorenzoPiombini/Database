@@ -217,12 +217,10 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		if (!create_file_with_schema(fd_schema, fd_index, schemas[j], buckets[j], indexes[j]))
 		{
 			delete_file(2, files[0], files[1]);
-			free_strs(2, 1, files);
 			close_file(2, fd_data, fd_index);
 			return 0;
 		}
 
-		free_strs(2, 1, files);
 		close_file(2, fd_index, fd_data);
 	}
 
