@@ -15,7 +15,7 @@
 #define WT_RSLK 8
 #define RLOCK 9
 #define WLOCK 10
-#define WUNLOCK 11
+#define UNLOCK 11
 #define LOCKED 12
 
 /* lock info for a file */
