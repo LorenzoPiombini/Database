@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <semaphore.h>
 #include <string.h>
+#include <stdarg.h>
 #include "lock.h"
 #include "debug.h"
 #include "str_op.h"
@@ -452,7 +453,7 @@ int lock(int fd, int flag){
 		return -1;
 	}
 	
-	size_t l = number_of_digits(st.st_ino) + strlen(".lock")+1;
+	size_t l = number_of_digit(st.st_ino) + strlen(".lock")+1;
 	char file_name[l];
 	memset(buff,0,l);
 	if(snprintf(file_name,l,"%ld.lock",st.st_ino) < 0){
@@ -462,7 +463,7 @@ int lock(int fd, int flag){
 
 
 	FILE *fp = fopen(buff,"r");
-	if(fp && flag == LOCK) {
+	if(fp && (flag == LOCK || flag == RLOCK)) {
 		fclose(fp);
 		return WTLK; 
 	} else if(fp && UNLOCK){
@@ -483,7 +484,7 @@ int lock(int fd, int flag){
 		fprintf(stderr,"cannot compare pids\n");
 		fclose(fp);
 		return -1;
-	}else if (!fp && flag == LOCK){
+	}else if (!fp && flag == WLOCK){
 		fp = fopen(buff,"w");
 		if(!fp){
 			fprintf(stderr,"can't aquire lock on file.\n");
@@ -494,38 +495,51 @@ int lock(int fd, int flag){
 		size_t pid_str_l = number_of_digit(pid)+2;
 		char strpid[pid_str_l];
 		memset(strpid,0,pid_str_l);
+
 		if(snprintf(strpid,pid_str_l,"%ld\n",pid) < 0){
 			fprintf(stderr,"can't aquire lock on file.\n");
 			return -1;
 		}
+
 		fputs(strpid,fp);
 		fclose(fp);
 		return 0;
-	}
+	}else if(!fp && flag == RLOCK) return 0;
 
 	return -1;
 }
 
-unsigned char is_locked(int fd, off_t rec_offset, off_t rec_size)
+int is_locked(int files, ...)
 {
-	struct flock lock;
-	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = rec_offset;
-	lock.l_len = rec_size;
+	
+	va_list args;
+	va_start(args, count);
+	
+	for(int i = 0; i < files; i++){
+		int fd = va_arg(args,int);
+		struct stat st;
+		if(fstat(fd,&st) != 0){
+			fprintf(stderr,"can't verify lock status\n");
+			return -1;
+		}
+		
+		size_t l = number_of_digit(st.st_ino)+ strlen(".lock")+1;
+		char file_name[l];
+		memset(file_name,0,l);
+			
+		if(snprintf(file_name,l,"%ld.lock",st.st_ino) < 0){
+			fprintf(stderr,"can't verify lock status\n");
+			return -1;
+		}
 
-	if (fcntl(fd, F_GETLK, &lock) == -1)
-	{
-		perror("fcntl failed:");
-		return FCNTL_ERR;
+		FILE *fp = fopen(file_name,"r");
+		if (fp) {
+			fclose(fp);	
+			return LOCKED;
+		} 
+			
 	}
-
-	if (lock.l_type == F_UNLCK)
-	{
-		return 0;
-	}
-
-	return 1;
+	return 0;
 }
 
 unsigned char lock_record(int fd, off_t rec_offset, off_t rec_size, int lock_type)
