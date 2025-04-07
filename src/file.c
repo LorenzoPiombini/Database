@@ -665,18 +665,15 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 	/*--------------------------------------------------*/
 	char *buff_w = NULL;
-	for (i = 0; i < rec->fields_num; i++)
-	{
+	for (i = 0; i < rec->fields_num; i++) {
 		size_t str_l = strlen(rec->fields[i].field_name);
 		uint64_t str_l_ne = bswap_64((uint64_t)str_l);
-		if (write(fd, &str_l_ne, sizeof(str_l_ne)) < 0)
-		{
+		if (write(fd, &str_l_ne, sizeof(str_l_ne)) < 0) {
 			perror("write size name");
 			return 0;
 		}
 
-		if (write(fd, rec->fields[i].field_name, str_l) < 0)
-		{
+		if (write(fd, rec->fields[i].field_name, str_l) < 0) {
 			perror("write field name");
 			return 0;
 		}
@@ -757,6 +754,9 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			else
 			{
+
+				__n_buff_update = 0;
+				eof = 0;
 				/*save the starting offset for the string record*/
 				if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR)
 				{
@@ -838,8 +838,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
 
-				if (new_lt > buff_update)
-				{
+				if (new_lt > buff_update) {
 					/*
 					 * if the new length is bigger then the buffer,
 					 * set the file pointer to the end of the file

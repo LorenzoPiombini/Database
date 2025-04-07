@@ -519,10 +519,8 @@ int is_locked(int files, ...)
 	for(int i = 0; i < files; i++){
 		int fd = va_arg(args,int);
 		struct stat st;
-		if(fstat(fd,&st) != 0){
-			fprintf(stderr,"can't verify lock status\n");
-			return -1;
-		}
+		if(fstat(fd,&st) != 0)
+			continue;
 		
 		size_t l = number_of_digit(st.st_ino)+ strlen(".lock")+1;
 		char file_name[l];

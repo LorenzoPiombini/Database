@@ -460,13 +460,7 @@ int main(int argc, char *argv[])
 
 		/* there is no real lock when flag RLOCK is passed to lock funtion
 		 * so if an error occured we do not have to release the lock */
-		int r = 0;
-		while((r = lock(fd_data,RLOCK)) == WTLK);
-		if(r == -1){
-			fprintf(stderr,"can't acquire or release proper lock.\n");
-			return STATUS_ERROR;
-		}	
-	
+		while((is_locked(3,fd_schema,fd_data,fd_index)) == LOCKED);
 
 		/* ensure the file is a db file */
 		/* init the Schema structure*/
