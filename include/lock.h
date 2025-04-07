@@ -13,6 +13,8 @@
 #define WTLK 6
 #define MAX_WTLK 7
 #define WT_RSLK 8
+#define LOCK 9
+#define UNLOCK 10
 
 /* lock info for a file */
 typedef struct
@@ -44,5 +46,6 @@ unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 unsigned char is_locked(int fd, off_t rec_offset, off_t rec_size);
 unsigned char lock_record(int fd, off_t rec_offset, off_t rec_size, int lock_type);
 unsigned char unlock_record(int fd, off_t rec_offset, off_t rec_size);
+int lock(int fd, int flag);
 
 #endif /* lock.h */

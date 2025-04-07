@@ -1,13 +1,14 @@
+#include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <semaphore.h>
-#include <stdio.h>
 #include <string.h>
 #include "lock.h"
 #include "debug.h"
+#include "str_op.h"
 #include "parse.h"
 #include "common.h"
 
@@ -441,6 +442,68 @@ unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos, int *loc
 	sem_post(sem);
 	sem_close(sem);
 	return 1;
+}
+
+int lock(int fd, int flag){
+
+	struct stat st;
+	if(fstat(fd,&st) != 0){
+		fprintf(stderr,"can't aquire lock on file.");
+		return -1;
+	}
+	
+	size_t l = number_of_digits(st.st_ino) + strlen(".lock")+1;
+	char file_name[l];
+	memset(buff,0,l);
+	if(snprintf(file_name,l,"%ld.lock",st.st_ino) < 0){
+		fprintf(stderr,"can't aquire lock on file.");
+		return -1;
+	}
+
+
+	FILE *fp = fopen(buff,"r");
+	if(fp && flag == LOCK) {
+		fclose(fp);
+		return WTLK; 
+	} else if(fp && UNLOCK){
+		char line[80] = {0};
+		while(fgets(line,80,fp));
+
+		char *endptr;
+		pid_t p_on_file = strtol(line,&endptr,10);
+		if(*endptr == '\0' || *endptr == '\n'){
+			if(p_on_file == getpid()){
+				fclose(fp);
+				unlink(file_name);
+				return 0;
+			}
+			return -1;
+		}
+
+		fprintf(stderr,"cannot compare pids\n");
+		fclose(fp);
+		return -1;
+	}else if (!fp && flag == LOCK){
+		fp = fopen(buff,"w");
+		if(!fp){
+			fprintf(stderr,"can't aquire lock on file.\n");
+			return -1;
+		}
+
+		pid_t pid = getpid();
+		size_t pid_str_l = number_of_digit(pid)+2;
+		char strpid[pid_str_l];
+		memset(strpid,0,pid_str_l);
+		if(snprintf(strpid,pid_str_l,"%ld\n",pid) < 0){
+			fprintf(stderr,"can't aquire lock on file.\n");
+			return -1;
+		}
+		fputs(strpid,fp);
+		fclose(fp);
+		return 0;
+	}
+
+	return -1;
 }
 
 unsigned char is_locked(int fd, off_t rec_offset, off_t rec_size)
