@@ -11,7 +11,7 @@
 
 int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
-	memset(rec,0,sizeof(rec));
+	memset(&rec,0,sizeof(rec));
 	strncpy((*rec).file_name,file_name,strlen(file_name));
 	(*rec).fields_num = sch.fields_num;
 }
@@ -430,7 +430,7 @@ void free_record(struct Record_f *rec, int fields_num)
 	}
 }
 
-void print_record(int count, struct Record_f **recs)
+void print_record(int count, struct Record_f *recs)
 {
 
 	int i = 0, j = 0, max = 0;
@@ -439,57 +439,57 @@ void print_record(int count, struct Record_f **recs)
 
 	for (j = 0; j < count; j++)
 	{
-		struct Record_f *rec = recs[j];
-		for (i = 0; i < rec->fields_num; i++)
+		struct Record_f rec = recs[j];
+		for (i = 0; i < rec.fields_num; i++)
 		{
-			if (max < (int)strlen(rec->fields[i].field_name))
+			if (max < (int)strlen(rec.fields[i].field_name))
 			{
-				max = (int)strlen(rec->fields[i].field_name);
+				max = (int)strlen(rec.fields[i].field_name);
 			}
 		}
 
-		for (i = 0; i < rec->fields_num; i++)
+		for (i = 0; i < rec.fields_num; i++)
 		{
-			if(rec->field_set[i] == 0) continue;
+			if(rec.field_set[i] == 0) continue;
 
-			strip('"', rec->fields[i].field_name);
-			printf("%-*s\t", max++, rec->fields[i].field_name);
-			switch (rec->fields[i].type)
+			strip('"', rec.fields[i].field_name);
+			printf("%-*s\t", max++, rec.fields[i].field_name);
+			switch (rec.fields[i].type)
 			{
 			case TYPE_INT:
-				printf("%d\n", rec->fields[i].data.i);
+				printf("%d\n", rec.fields[i].data.i);
 				break;
 			case TYPE_LONG:
-				printf("%ld\n", rec->fields[i].data.l);
+				printf("%ld\n", rec.fields[i].data.l);
 				break;
 			case TYPE_FLOAT:
-				printf("%.2f\n", rec->fields[i].data.f);
+				printf("%.2f\n", rec.fields[i].data.f);
 				break;
 			case TYPE_STRING:
-				strip('"', rec->fields[i].data.s);
-				printf("%s\n", rec->fields[i].data.s);
+				strip('"', rec.fields[i].data.s);
+				printf("%s\n", rec.fields[i].data.s);
 				break;
 			case TYPE_BYTE:
-				printf("%u\n", rec->fields[i].data.b);
+				printf("%u\n", rec.fields[i].data.b);
 				break;
 			case TYPE_DOUBLE:
-				printf("%.2f\n", rec->fields[i].data.d);
+				printf("%.2f\n", rec.fields[i].data.d);
 				break;
 			case TYPE_ARRAY_INT:
 			{
 				int k;
-				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				for (k = 0; k < rec.fields[i].data.v.size; k++)
 				{
-					if (rec->fields[i].data.v.size - k > 1)
+					if (rec.fields[i].data.v.size - k > 1)
 					{
-						if (!rec->fields[i].data.v.elements.i[k])
+						if (!rec.fields[i].data.v.elements.i[k])
 							continue;
 
-						printf("%d, ", *rec->fields[i].data.v.elements.i[k]);
+						printf("%d, ", *rec.fields[i].data.v.elements.i[k]);
 					}
 					else
 					{
-						printf("%d.\n", *rec->fields[i].data.v.elements.i[k]);
+						printf("%d.\n", *rec.fields[i].data.v.elements.i[k]);
 					}
 				}
 
@@ -498,15 +498,15 @@ void print_record(int count, struct Record_f **recs)
 			case TYPE_ARRAY_LONG:
 			{
 				int k;
-				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				for (k = 0; k < rec.fields[i].data.v.size; k++)
 				{
-					if (rec->fields[i].data.v.size - k > 1)
+					if (rec.fields[i].data.v.size - k > 1)
 					{
-						printf("%ld, ", *rec->fields[i].data.v.elements.l[k]);
+						printf("%ld, ", *rec.fields[i].data.v.elements.l[k]);
 					}
 					else
 					{
-						printf("%ld.\n", *rec->fields[i].data.v.elements.l[k]);
+						printf("%ld.\n", *rec.fields[i].data.v.elements.l[k]);
 					}
 				}
 				break;
@@ -514,15 +514,15 @@ void print_record(int count, struct Record_f **recs)
 			case TYPE_ARRAY_FLOAT:
 			{
 				int k;
-				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				for (k = 0; k < rec.fields[i].data.v.size; k++)
 				{
-					if (rec->fields[i].data.v.size - k > 1)
+					if (rec.fields[i].data.v.size - k > 1)
 					{
-						printf("%.2f, ", *rec->fields[i].data.v.elements.f[k]);
+						printf("%.2f, ", *rec.fields[i].data.v.elements.f[k]);
 					}
 					else
 					{
-						printf("%.2f.\n", *rec->fields[i].data.v.elements.f[k]);
+						printf("%.2f.\n", *rec.fields[i].data.v.elements.f[k]);
 					}
 				}
 				break;
@@ -530,16 +530,16 @@ void print_record(int count, struct Record_f **recs)
 			case TYPE_ARRAY_STRING:
 			{
 				int k;
-				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				for (k = 0; k < rec.fields[i].data.v.size; k++)
 				{
-					if (rec->fields[i].data.v.size - k > 1)
+					if (rec.fields[i].data.v.size - k > 1)
 					{
-						strip('"', rec->fields[i].data.v.elements.s[k]);
-						printf("%s, ", rec->fields[i].data.v.elements.s[k]);
+						strip('"', rec.fields[i].data.v.elements.s[k]);
+						printf("%s, ", rec.fields[i].data.v.elements.s[k]);
 					}
 					else
 					{
-						printf("%s.\n", rec->fields[i].data.v.elements.s[k]);
+						printf("%s.\n", rec.fields[i].data.v.elements.s[k]);
 					}
 				}
 				break;
@@ -547,15 +547,15 @@ void print_record(int count, struct Record_f **recs)
 			case TYPE_ARRAY_BYTE:
 			{
 				int k;
-				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				for (k = 0; k < rec.fields[i].data.v.size; k++)
 				{
-					if (rec->fields[i].data.v.size - k > 1)
+					if (rec.fields[i].data.v.size - k > 1)
 					{
-						printf("%u, ", *rec->fields[i].data.v.elements.b[k]);
+						printf("%u, ", *rec.fields[i].data.v.elements.b[k]);
 					}
 					else
 					{
-						printf("%u.\n", *rec->fields[i].data.v.elements.b[k]);
+						printf("%u.\n", *rec.fields[i].data.v.elements.b[k]);
 					}
 				}
 				break;
@@ -563,15 +563,15 @@ void print_record(int count, struct Record_f **recs)
 			case TYPE_ARRAY_DOUBLE:
 			{
 				int k;
-				for (k = 0; k < rec->fields[i].data.v.size; k++)
+				for (k = 0; k < rec.fields[i].data.v.size; k++)
 				{
-					if (rec->fields[i].data.v.size - k > 1)
+					if (rec.fields[i].data.v.size - k > 1)
 					{
-						printf("%.2f, ", *rec->fields[i].data.v.elements.d[k]);
+						printf("%.2f, ", *rec.fields[i].data.v.elements.d[k]);
 					}
 					else
 					{
-						printf("%ld.\n", *rec->fields[i].data.v.elements.l[k]);
+						printf("%ld.\n", *rec.fields[i].data.v.elements.l[k]);
 					}
 				}
 				break;
@@ -588,8 +588,8 @@ void free_record_array(int len, struct Record_f **recs)
 {
 	for (int i = 0; i < len; i++)
 	{
-		if(*rec)
-			free_record((*recs)[i], (*recs)[i].fields_num);
+		if(*recs)
+			free_record(&(*recs)[i],  (*recs)[i].fields_num);
 	}
 	free(*recs);
 }
@@ -619,7 +619,7 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 			if (i < size_ia)
 			{
 				if (len_ia[i] != 0)
-					free_record_array(len_ia[i], &(*array)[i]);
+					free_record_array(len_ia[i], (*array)[i]);
 			}
 			else
 			{
@@ -632,14 +632,9 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 	free(*array);
 }
 
-unsigned char copy_rec(struct Record_f *src, struct Record_f **dest)
+unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schema sch)
 {
-	*dest = create_record(src->file_name, src->fields_num);
-	if (!*dest)
-	{
-		printf("create_record failed %s:%d.\n", F, L - 3);
-		return 0;
-	}
+	create_record(src->file_name, sch, dest);
 
 	char data[30];
 	for (int i = 0; i < src->fields_num; i++)
