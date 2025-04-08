@@ -2,6 +2,8 @@
 #define RECORD_H
 
 #include <sys/types.h>
+#include <stdint.h>
+#include "parse.h" 
 #define MAX_FIELD_LENGTH 32
 #define MAX_FILE_NAME_LEN 1024
 #define MAX_FIELD_NR 200
@@ -62,13 +64,14 @@ struct Field {
 struct Record_f {
 	char file_name[MAX_FILE_NAME_LEN];
 	int fields_num;
-	struct Field fields[MAX_FILE_NAME_LEN];
+	uint8_t field_set[MAX_FIELD_NR];
+	struct Field fields[MAX_FIELD_NR];
 };
 
 int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
-struct Record_f *create_record(char *file_name, int fields_num);
+int create_record(char *file_name, struct Schema sch, struct Record_f *rec);
 unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value);
 void free_record(struct Record_f *rec, int fields_num);
 void print_record(int count, struct Record_f **recs);

@@ -315,15 +315,13 @@ unsigned char indexes_on_file(int fd, int *p_i_nr)
 	}
 
 	uint32_t a_s = 0;
-	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR)
-	{
+	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR) {
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
 	int array_size = (int)ntohl(a_s);
-	if (array_size == 0)
-	{
+	if (array_size == 0) {
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
@@ -336,11 +334,9 @@ unsigned char nr_bucket(int fd, int *p_buck)
 {
 	HashTable ht = {0};
 	HashTable *pht = &ht;
-	if (!read_index_nr(0, fd, &pht))
-	{
+	if (!read_index_nr(0, fd, &pht)) {
 		printf("read from file failed. %s:%d.\n", F, L - 2);
-		if (ht.size > 0)
-		{
+		if (ht.size > 0) {
 			destroy_hasht(&ht);
 		}
 		return 0;
@@ -353,22 +349,19 @@ unsigned char nr_bucket(int fd, int *p_buck)
 
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 {
-	if (begin_in_file(fd) == STATUS_ERROR)
-	{
+	if (begin_in_file(fd) == STATUS_ERROR) {
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
 	uint32_t a_s = 0;
-	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR)
-	{
+	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR) {
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
 	int array_size = (int)ntohl(a_s);
-	if (array_size == 0)
-	{
+	if (array_size == 0) {
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
@@ -376,14 +369,12 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	*p_index = array_size;
 
 	*ht = calloc(array_size, sizeof(HashTable));
-	if (!*ht)
-	{
+	if (!*ht) {
 		printf("calloc failed. %s:%d.\n", F, L - 3);
 		return 0;
 	}
 	int i = 0;
-	for (i = 0; i < array_size; i++)
-	{
+	for (i = 0; i < array_size; i++) {
 		HashTable ht_n = {0};
 		ht_n.write = write_ht;
 
@@ -636,13 +627,12 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	off_t go_back_to = 0;
         
 	/*this you can cancel*/
-	uint32_t rfn_ne = htonl((uint32_t)rec->fields_num);
+	/*uint32_t rfn_ne = htonl((uint32_t)rec->fields_num);
 	if (write(fd, &rfn_ne, sizeof(rfn_ne)) < 0) {
 		perror("could not write fields number");
 		return 0;
-	}
+	}*/
 
-	register unsigned char i = 0;
 	/* ----------these variables are used to handle the strings-------- */
 	/* now each string fields can be updated regardless the string size */
 	/* ----------some realities might required such a feature----------- */
@@ -653,11 +643,19 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	off_t move_to = 0, bg_pos = 0;
 
 	/*--------------------------------------------------*/
+
+	for(int i = 0; i < rec->fields_num; i++){
+		if(write(fd,&rec->field_set,sizeof(uint8_t)) == -1){
+			fprintf(stderr,"cannot write field bits, %s:%d.\n",F,L-1);
+			return -1;
+		}
+	}
+
 	char *buff_w = NULL;
-	for (i = 0; i < rec->fields_num; i++) {
+	for (int i = 0; i < rec->fields_num; i++) {
 
 		/*writing the field name make no sense*/
-		size_t str_l = strlen(rec->fields[i].field_name);
+		/*size_t str_l = strlen(rec->fields[i].field_name);
 		uint64_t str_l_ne = bswap_64((uint64_t)str_l);
 		if (write(fd, &str_l_ne, sizeof(str_l_ne)) < 0) {
 			perror("write size name");
@@ -667,14 +665,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		if (write(fd, rec->fields[i].field_name, str_l) < 0) {
 			perror("write field name");
 			return 0;
-		}
+		}*/
 		
 		/*writing the type make no sense*/
-		uint32_t type_ne = htonl((uint32_t)rec->fields[i].type);
+		/*uint32_t type_ne = htonl((uint32_t)rec->fields[i].type);
 		if (write(fd, &type_ne, sizeof(type_ne)) < 0) {
 			perror("could not write fields type");
 			return 0;
-		}
+		}*/
 
 		switch (rec->fields[i].type){
 		case TYPE_INT:
@@ -4693,7 +4691,13 @@ off_t get_update_offset(int fd)
 	return (off_t)bswap_64(urec_ne);
 }
 
-struct Record_f *read_file(int fd, char *file_name)
+
+/*
+ * read_file:
+ *  reads a record from a file,
+ *  the caller must inistialized the struct Record_f
+ * */
+int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 {
 
 	/*
@@ -4703,31 +4707,34 @@ struct Record_f *read_file(int fd, char *file_name)
 	 * and the name type and last, but not least 
 	 * you will have the order in which the fields are written to file. 	
 	 * */
-	uint32_t rfn_ne = 0;
+/*	uint32_t rfn_ne = 0;
 	if (read(fd, &rfn_ne, sizeof(rfn_ne)) < 0) {
 		perror("could not read fields number:");
 		printf(" %s:%d.\n", __FILE__, __LINE__ - 1);
 		return NULL;
 	}
 
-	int fields_num_r = htonl(rfn_ne);
-	struct Record_f *rec = create_record(file_name, fields_num_r);
-	if (!rec) {
-		printf("create record failed, %s:%d.\n", __FILE__, __LINE__ - 2);
-		return NULL;
-	}
+	int fields_num_r = htonl(rfn_ne);*/
+	
+	create_record(file_name, sch,rec);
 
-	register unsigned char i = 0;
 	off_t str_loc = 0;
 	size_t buff_update = 0; /* to get the real size of the string*/
 	off_t move_to = 0;
 	size_t l = 0;
-	for (i = 0; i < rec->fields_num; i++)
-	{
 
-		uint64_t str_l_ne = 0;
-		if (read(fd, &str_l_ne, sizeof(str_l_ne)) < 0)
-		{
+	for(int i = 0; i < rec->fields_num; i++){
+		if(read(fd,&rec->field_set,sizeof(uint8_t)) == -1){
+			fprintf(stderr,"cannot read field bits, %s:%d.\n",F,L-1);
+			return -1;
+		}
+	}
+
+
+	for (int i = 0; i < rec->fields_num; i++) {
+		if(rec->field_set[i] == 0) continue;
+		/*uint64_t str_l_ne = 0;
+		if (read(fd, &str_l_ne, sizeof(str_l_ne)) < 0) {
 			perror("could not read size of field name, file.c l 458.\n");
 			free_record(rec, fields_num_r);
 			return NULL;
@@ -4737,15 +4744,13 @@ struct Record_f *read_file(int fd, char *file_name)
 		//	printf("size is %ld",lt);
 		rec->fields[i].field_name = calloc(lt + 1, sizeof(char));
 
-		if (!rec->fields[i].field_name)
-		{
+		if (!rec->fields[i].field_name) {
 			printf("no memory for field name, file.cl 466.\n");
 			free_record(rec, rec->fields_num);
 			return NULL;
 		}
 
-		if (read(fd, rec->fields[i].field_name, lt) < 0)
-		{
+		if (read(fd, rec->fields[i].field_name, lt) < 0) {
 			perror("could not read field name, file.c l 472");
 			free_record(rec, rec->fields_num);
 			return NULL;
@@ -4753,36 +4758,34 @@ struct Record_f *read_file(int fd, char *file_name)
 
 		rec->fields[i].field_name[lt] = '\0';
 		uint32_t ty_ne = 0;
-		if (read(fd, &ty_ne, sizeof(ty_ne)) < 0)
-		{
+		if (read(fd, &ty_ne, sizeof(ty_ne)) < 0) {
 			perror("could not read type file.c l 481.");
 			free_record(rec, rec->fields_num);
 			return NULL;
 		}
 
-		rec->fields[i].type = (enum ValueType)ntohl(ty_ne);
-		switch (rec->fields[i].type)
-		{
+		rec->fields[i].type = (enum ValueType)ntohl(ty_ne);*/
+
+		switch (rec->fields[i].type) {
 		case TYPE_INT:
 		{
 			uint32_t i_ne = 0;
-			if (read(fd, &i_ne, sizeof(uint32_t)) < 0)
-			{
+			if (read(fd, &i_ne, sizeof(uint32_t)) < 0) {
 				perror("could not read type int file.c 491.\n");
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 			rec->fields[i].data.i = (int)ntohl(i_ne);
 			break;
 		}
-		case TYPE_LONG:
+		case TYPE_LONG: 
 		{
 			uint64_t l_ne = 0;
 			if (read(fd, &l_ne, sizeof(l_ne)) < 0)
 			{
 				perror("could not read type long, file.c 498.\n");
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			rec->fields[i].data.l = (long)bswap_64(l_ne);
@@ -4791,11 +4794,10 @@ struct Record_f *read_file(int fd, char *file_name)
 		case TYPE_FLOAT:
 		{
 			uint32_t f_ne = 0;
-			if (read(fd, &f_ne, sizeof(uint32_t)) < 0)
-			{
+			if (read(fd, &f_ne, sizeof(uint32_t)) < 0) {
 				perror("could not read type float, file.c l 505.\n");
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			rec->fields[i].data.f = ntohf(f_ne);
@@ -4809,7 +4811,8 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				perror("can't read string location: ");
 				printf(" %s:%d", F, L - 3);
-				return 0;
+				free_record(rec, rec->fields_num);
+				return -1;
 			}
 			str_loc = (size_t)bswap_64(str_loc_ne);
 
@@ -4819,7 +4822,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			l = (size_t)bswap_64(l_ne);
@@ -4830,7 +4833,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			buff_update = (size_t)bswap_64(bu_up_ne);
@@ -4844,7 +4847,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					__er_file_pointer(F, L - 2);
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				uint64_t l_ne = 0;
@@ -4854,7 +4857,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
@@ -4862,7 +4865,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				l = (size_t)bswap_64(l_ne);
@@ -4873,7 +4876,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				printf("calloc failed: %s:%d.\n", F, L - 3);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			char *all_buf = calloc(buff_update, sizeof(char));
@@ -4881,7 +4884,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				printf("calloc failed file.c l 532.\n");
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			/*read the actual string*/
@@ -4889,7 +4892,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				perror("could not read buffer string, file.c l 539.\n");
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			strncpy(rec->fields[i].data.s, all_buf, l);
@@ -4903,7 +4906,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					__er_file_pointer(F, L - 2);
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 			}
 
@@ -4917,7 +4920,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				perror("could not read type byte: ");
 				printf(" %s:%d.\n", F, L - 2);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			rec->fields[i].data.b = ntohb(b_ne);
@@ -4931,7 +4934,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				perror("could not read type double:");
 				printf(" %s:%d.\n", F, L - 2);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 
 			rec->fields[i].data.d = ntohd(d_ne);
@@ -4954,7 +4957,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int sz = (int)ntohl(size_array);
@@ -4963,7 +4966,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int padd = (int)ntohl(padding);
@@ -4975,12 +4978,12 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 					int num = (int)ntohl(num_ne);
 					rec->fields[i].data.v.insert((void *)&num,
-												 &rec->fields[i].data.v,
-												 rec->fields[i].type);
+						&rec->fields[i].data.v,
+						rec->fields[i].type);
 				}
 
 				if (padd > 0)
@@ -4989,7 +4992,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 
@@ -4998,7 +5001,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				if (go_back_here == 0)
@@ -5013,7 +5016,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 			} while (array_upd > 0);
@@ -5022,7 +5025,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 			break;
 		}
@@ -5043,7 +5046,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int sz = (int)ntohl(size_array);
@@ -5052,7 +5055,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int padd = (int)ntohl(padding);
@@ -5064,7 +5067,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 					long num = (long)bswap_64(num_ne);
 					rec->fields[i].data.v.insert((void *)&num,
@@ -5078,7 +5081,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 
@@ -5087,7 +5090,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				if (go_back_here == 0)
@@ -5101,7 +5104,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 			} while (array_upd > 0);
@@ -5110,7 +5113,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 			break;
 		}
@@ -5131,7 +5134,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int sz = (int)ntohl(size_array);
@@ -5140,7 +5143,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int padd = (int)ntohl(padding);
@@ -5154,7 +5157,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						perror("can't read string location: ");
 						printf(" %s:%d", F, L - 3);
-						return 0;
+						return -1;
 					}
 					str_loc = (size_t)bswap_64(str_loc_ne);
 
@@ -5164,7 +5167,7 @@ struct Record_f *read_file(int fd, char *file_name)
 						perror("read from file failed: ");
 						printf("%s:%d.\n", F, L - 2);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 
 					l = (size_t)bswap_64(l_ne);
@@ -5175,7 +5178,7 @@ struct Record_f *read_file(int fd, char *file_name)
 						perror("read from file failed: ");
 						printf("%s:%d.\n", F, L - 2);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 
 					buff_update = (size_t)bswap_64(bu_up_ne);
@@ -5189,7 +5192,7 @@ struct Record_f *read_file(int fd, char *file_name)
 						{
 							__er_file_pointer(F, L - 2);
 							free_record(rec, rec->fields_num);
-							return NULL;
+							return -1;
 						}
 
 						uint64_t l_ne = 0;
@@ -5199,7 +5202,7 @@ struct Record_f *read_file(int fd, char *file_name)
 							perror("read file: ");
 							printf("%s:%d", F, L - 2);
 							free_record(rec, rec->fields_num);
-							return NULL;
+							return -1;
 						}
 
 						if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
@@ -5207,7 +5210,7 @@ struct Record_f *read_file(int fd, char *file_name)
 							perror("read file: ");
 							printf("%s:%d", F, L - 2);
 							free_record(rec, rec->fields_num);
-							return NULL;
+							return -1;
 						}
 
 						l = (size_t)bswap_64(l_ne);
@@ -5219,7 +5222,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						printf("calloc failed file.c l 532.\n");
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 
 					/*read the actual string*/
@@ -5227,12 +5230,12 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						perror("could not read buffer string, file.c l 539.\n");
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 
 					rec->fields[i].data.v.insert((void *)all_buf,
-												 &rec->fields[i].data.v,
-												 rec->fields[i].type);
+							 &rec->fields[i].data.v,
+							 rec->fields[i].type);
 					free(all_buf);
 
 					/*set file pointer back at the end of the original str record*/
@@ -5242,7 +5245,7 @@ struct Record_f *read_file(int fd, char *file_name)
 						{
 							__er_file_pointer(F, L - 2);
 							free_record(rec, rec->fields_num);
-							return NULL;
+							return -1;
 						}
 					}
 				}
@@ -5253,7 +5256,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 
@@ -5262,7 +5265,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				if (go_back_here == 0)
@@ -5276,7 +5279,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 			} while (array_upd > 0);
@@ -5285,7 +5288,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 			break;
 		}
@@ -5306,7 +5309,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int sz = (int)ntohl(size_array);
@@ -5315,7 +5318,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int padd = (int)ntohl(padding);
@@ -5327,7 +5330,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 
 					float num = ntohf(num_ne);
@@ -5342,7 +5345,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 
@@ -5351,7 +5354,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				if (go_back_here == 0)
@@ -5366,7 +5369,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+						return -1;
 					}
 				}
 			} while (array_upd > 0);
@@ -5375,7 +5378,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
-				return NULL;
+				return -1;
 			}
 			break;
 		}
@@ -5396,7 +5399,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int sz = (int)ntohl(size_array);
@@ -5405,7 +5408,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int padd = (int)ntohl(padding);
@@ -5417,7 +5420,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
-						return NULL;
+					return -1;
 					}
 					double num = ntohd(num_ne);
 					rec->fields[i].data.v.insert((void *)&num,
@@ -5431,7 +5434,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+					return -1;
 					}
 				}
 
@@ -5440,7 +5443,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				if (go_back_here == 0)
@@ -5454,7 +5457,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+					return -1;
 					}
 				}
 			} while (array_upd > 0);
@@ -5463,7 +5466,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
-				return NULL;
+					return -1;
 			}
 			break;
 		}
@@ -5484,7 +5487,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int sz = (int)ntohl(size_array);
@@ -5493,7 +5496,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				int padd = (int)ntohl(padding);
@@ -5505,7 +5508,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
-						return NULL;
+					return -1;
 					}
 
 					unsigned char num = ntohb(num_ne);
@@ -5520,7 +5523,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+					return -1;
 					}
 				}
 
@@ -5529,7 +5532,7 @@ struct Record_f *read_file(int fd, char *file_name)
 				{
 					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
-					return NULL;
+					return -1;
 				}
 
 				if (go_back_here == 0)
@@ -5543,7 +5546,7 @@ struct Record_f *read_file(int fd, char *file_name)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
-						return NULL;
+					return -1;
 					}
 				}
 			} while (array_upd > 0);
@@ -5552,7 +5555,7 @@ struct Record_f *read_file(int fd, char *file_name)
 			{
 				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
-				return NULL;
+					return -1;
 			}
 			break;
 		}

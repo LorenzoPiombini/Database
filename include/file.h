@@ -3,6 +3,7 @@
 
 #include "record.h"
 #include "hash_tbl.h"
+#include "parse.h"
 
 int open_file(char *fileName, int use_trunc);
 int create_file(char *fileName);
@@ -21,7 +22,7 @@ unsigned char read_index_file(int fd, HashTable *ht);
 size_t record_size_on_disk(void *rec_f);
 int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update);
 off_t get_update_offset(int fd);
-struct Record_f *read_file(int fd, char *file_name);
+int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch);
 int file_error_handler(int count, ...);
 int padding_file(int fd, int bytes, size_t hd_st);
 unsigned char indexes_on_file(int fd, int *p_i_nr);

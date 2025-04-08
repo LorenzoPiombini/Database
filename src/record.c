@@ -9,54 +9,24 @@
 #include "debug.h"
 #include "str_op.h"
 
-struct Record_f *create_record(char *file_name, int fields_num)
+int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
-	struct Record_f *rec = malloc(sizeof(struct Record_f));
-
-	if (!rec)
-	{
-		printf("memmory allocation, record.c l 11.\n");
-		return NULL;
-	}
-	rec->file_name = strdup(file_name);
-	if (!rec->file_name)
-	{
-		printf("memory allocation file_name, record.c l 17.\n");
-		free(rec);
-		return NULL;
-	}
-
-	rec->fields_num = fields_num;
-
-	rec->fields = calloc(fields_num, sizeof(struct Field));
-	if (!rec->fields)
-	{
-		printf("Memory allocation fields, record.c l 26.\n");
-		free(rec->file_name);
-		free(rec);
-		return NULL;
-	}
-
-	return rec;
+	memset(rec,0,sizeof(rec));
+	strncpy((*rec).file_name,file_name,strlen(file_name));
+	(*rec).fields_num = sch.fields_num;
 }
 
 unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value)
 {
-	rec->fields[index].field_name = strdup(field_name);
-	if (!rec->fields[index].field_name)
-	{
-		fprintf(stderr, "strdup() failed %s:%d.\n", F, L - 3);
-		return 0;
-	}
+	strncpy(rec->fields[index].field_name,field_name,strlen(field_name));
 	rec->fields[index].type = type;
+	rec->field_set[index] = 1;
 
-	switch (type)
-	{
+	switch (type) {
 	case TYPE_INT:
 	case TYPE_ARRAY_INT:
 	{
-		if (type == TYPE_ARRAY_INT)
-		{
+		if (type == TYPE_ARRAY_INT) {
 			if (!rec->fields[index].data.v.elements.i)
 			{
 				rec->fields[index].data.v.insert = insert_element;
@@ -67,75 +37,61 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 			while (t)
 			{
 
-				if (!is_integer(t))
-				{
+				if (!is_integer(t)) {
 					printf("invalid value for integer type: %s.\n", value);
 					return 0;
 				}
 
 				int range = 0;
-				if ((range = is_number_in_limits(t)) == 0)
-				{
+				if ((range = is_number_in_limits(t)) == 0) {
 					printf("integer value not allowed in this system.\n");
 					return 0;
 				}
 
-				if (range == IN_INT)
-				{
+				if (range == IN_INT) {
 					/*convert the value to long and then cast it to int */
 					/*i do not want to use atoi*/
 					long n = strtol(t, NULL, 10);
-					if (n == ERANGE || n == EINVAL)
-					{
+					if (n == ERANGE || n == EINVAL) {
 						printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 						return 0;
 					}
 
 					int num = (int)n;
 					rec->fields[index].data.v.insert((void *)&num,
-													 &rec->fields[index].data.v,
-													 type);
-				}
-				else
-				{
+							&rec->fields[index].data.v,
+							 type);
+				}else{
 					printf("the integer value is not valid for this system.\n");
 					return 0;
 				}
 
 				t = strtok(NULL, ",");
 			}
-		}
-		else
-		{
+		} else {
 
-			if (!is_integer(value))
-			{
+			if (!is_integer(value)){
 				printf("invalid value for integer type: %s.\n", value);
 				return 0;
 			}
 
 			int range = 0;
-			if ((range = is_number_in_limits(value)) == 0)
-			{
+			if ((range = is_number_in_limits(value)) == 0) {
 				printf("integer value not allowed in this system.\n");
 				return 0;
 			}
 
-			if (range == IN_INT)
-			{
+			if (range == IN_INT){
 				/*convert the value to long and then cast it to int */
 				/*i do not want to use atoi*/
 				long n = strtol(value, NULL, 10);
-				if (n == ERANGE || n == EINVAL)
-				{
+				if (n == ERANGE || n == EINVAL) {
 					printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 					return 0;
 				}
 
 				rec->fields[index].data.i = (int)n;
-			}
-			else
-			{
+			}else {
 				printf("the integer value is not valid for this system.\n");
 				return 0;
 			}
@@ -146,66 +102,52 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 	case TYPE_ARRAY_LONG:
 	{
 
-		if (type == TYPE_ARRAY_LONG)
-		{
-			if (!rec->fields[index].data.v.elements.l)
-			{
+		if (type == TYPE_ARRAY_LONG){
+			if (!rec->fields[index].data.v.elements.l) {
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
 			char *t = strtok(value, ",");
-			while (t)
-			{
-				if (!is_integer(t))
-				{
+			while (t){
+				if (!is_integer(t)){
 					printf("invalid value for long integer type: %s.\n", value);
 					return 0;
 				}
 
 				int range = 0;
-				if ((range = is_number_in_limits(t)) == 0)
-				{
+				if ((range = is_number_in_limits(t)) == 0) {
 					printf("long value not allowed in this system.\n");
 					return 0;
 				}
 
-				if (range == IN_INT || range == IN_LONG)
-				{
+				if (range == IN_INT || range == IN_LONG) {
 					long n = strtol(t, NULL, 10);
-					if (n == ERANGE || n == EINVAL)
-					{
+					if (n == ERANGE || n == EINVAL){
 						printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 						return 0;
 					}
 					rec->fields[index].data.v.insert((void *)&n,
-													 &rec->fields[index].data.v,
-													 type);
+								 &rec->fields[index].data.v,type);
 				}
 				t = strtok(NULL, ",");
 			}
-		}
-		else
-		{
+		} else {
 
-			if (!is_integer(value))
-			{
+			if (!is_integer(value)) {
 				printf("invalid value for long integer type: %s.\n", value);
 				return 0;
 			}
 
 			int range = 0;
-			if ((range = is_number_in_limits(value)) == 0)
-			{
+			if ((range = is_number_in_limits(value)) == 0) {
 				printf("long value not allowed in this system.\n");
 				return 0;
 			}
 
-			if (range == IN_INT || range == IN_LONG)
-			{
+			if (range == IN_INT || range == IN_LONG) {
 				long n = strtol(value, NULL, 10);
-				if (n == ERANGE || n == EINVAL)
-				{
+				if (n == ERANGE || n == EINVAL) {
 					printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 					return 0;
 				}
@@ -226,10 +168,8 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 			}
 
 			char *t = strtok(value, ",");
-			while (t)
-			{
-				if (!is_floaintg_point(t))
-				{
+			while (t){
+				if (!is_floaintg_point(t)) {
 					printf("invalid value for float type: %s.\n", value);
 					return 0;
 				}
@@ -251,17 +191,13 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 					}
 
 					rec->fields[index].data.v.insert((void *)&f,
-													 &rec->fields[index].data.v,
-													 type);
+							 &rec->fields[index].data.v,type);
 				}
 				t = strtok(NULL, ",");
 			}
-		}
-		else
-		{
+		} else {
 
-			if (!is_floaintg_point(value))
-			{
+			if (!is_floaintg_point(value)) {
 				printf("invalid value for float type: %s.\n", value);
 				return 0;
 			}
@@ -299,22 +235,14 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 			}
 
 			char *t = strtok(value, ",");
-			while (t)
-			{
-				rec->fields[index].data.v.insert((void *)t,
-												 &rec->fields[index].data.v,
-												 type);
+			while (t) {
+				rec->fields[index].data.v.insert((void *)t,&rec->fields[index].data.v,type);
 				t = strtok(NULL, ",");
 			}
-		}
-		else
-		{
+		} else {
 			rec->fields[index].data.s = strdup(value);
-			if (!rec->fields[index].data.s)
-			{
-				fprintf(stderr,
-						"strdup() failed %s:%d.\n",
-						F, L - 4);
+			if (!rec->fields[index].data.s) {
+				fprintf(stderr,"strdup() failed %s:%d.\n",F, L - 4);
 				return 0;
 			}
 		}
@@ -354,9 +282,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 				}
 
 				unsigned char num = (unsigned char)un;
-				rec->fields[index].data.v.insert((void *)&num,
-												 &rec->fields[index].data.v,
-												 type);
+				rec->fields[index].data.v.insert((void *)&num,&rec->fields[index].data.v,type);
 				t = strtok(NULL, ",");
 			}
 		}
@@ -467,12 +393,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 
 void free_record(struct Record_f *rec, int fields_num)
 {
-	int i;
-	if (!rec)
-		return;
-
-	for (i = 0; i < fields_num; i++)
-	{
+	for (int i = 0; i < fields_num; i++){
 		if (rec->fields[i].field_name)
 			free(rec->fields[i].field_name);
 
@@ -502,10 +423,6 @@ void free_record(struct Record_f *rec, int fields_num)
 			return;
 		}
 	}
-
-	free(rec->fields);
-	free(rec->file_name);
-	free(rec);
 }
 
 void print_record(int count, struct Record_f **recs)
