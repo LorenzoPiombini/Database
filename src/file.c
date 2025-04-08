@@ -21,20 +21,17 @@ int open_file(char *fileName, int use_trunc)
 {
 	int fd = 0;
 
-	if (!use_trunc)
-	{
+	if (!use_trunc) {
 		fd = open(fileName, O_RDWR | O_NOFOLLOW, S_IRWXU);
 	}
-	else
-	{
+	else {
 		fd = open(fileName, O_WRONLY | O_TRUNC | O_NOFOLLOW, S_IRWXU);
 	}
 
-	if (fd == STATUS_ERROR)
-	{
+	if (fd == STATUS_ERROR) {
 		printf("file %s ", fileName);
 		perror("open");
-		return -1;
+		return STATUS_ERROR;
 	}
 
 	return fd;
@@ -43,19 +40,17 @@ int open_file(char *fileName, int use_trunc)
 int create_file(char *fileName)
 {
 	int fd = open(fileName, O_RDONLY | O_NOFOLLOW);
-	if (fd != STATUS_ERROR)
-	{
+	if (fd != STATUS_ERROR) {
 		printf("File already exist.\n");
 		close(fd);
-		return -1;
+		return STATUS_ERROR;
 	}
 
 	fd = open(fileName, O_RDWR | O_CREAT | O_NOFOLLOW, S_IRWXU);
 
-	if (fd == STATUS_ERROR)
-	{
+	if (fd == STATUS_ERROR) {
 		perror("open");
-		return -1;
+		return STATUS_ERROR;
 	}
 
 	return fd;
@@ -87,8 +82,7 @@ void delete_file(unsigned short count, ...)
 	va_list args;
 	va_start(args, count);
 
-	for (i = 0; i < count; i++)
-	{
+	for (i = 0; i < count; i++) {
 		char *file_name = va_arg(args, char *);
 		if (unlink(file_name) != 0)
 			sum++;
@@ -102,14 +96,14 @@ off_t begin_in_file(int fd)
 {
 
 	off_t pos = lseek(fd, 0, SEEK_SET);
-	if (pos == STATUS_ERROR)
-	{
+	if (pos == STATUS_ERROR) {
 		perror("set begin in file");
 		return pos;
 	}
 
 	return pos;
 }
+
 off_t get_file_offset(int fd)
 {
 
@@ -151,7 +145,7 @@ off_t find_record_position(int fd, off_t offset)
 /*
  * move_in_file_bytes will change the file pointer of offset bytes
  *	example:
- *		move_in_file_bytes(fd, -4); will move the file pointear backwords of 4 bytes
+ *		move_in_file_bytes(fd, -4); will move the file pointer backwords of 4 bytes
  *
  * */
 off_t move_in_file_bytes(int fd, off_t offset)
@@ -159,8 +153,7 @@ off_t move_in_file_bytes(int fd, off_t offset)
 	off_t current_p = get_file_offset(fd);
 	off_t move_to = current_p + offset;
 	off_t pos = 0;
-	if ((pos = lseek(fd, move_to, SEEK_SET)) == STATUS_ERROR)
-	{
+	if ((pos = lseek(fd, move_to, SEEK_SET)) == STATUS_ERROR) {
 		perror("seeking offset.");
 		return pos;
 	}
@@ -223,16 +216,13 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 		return 0;
 	}
 
-	if (find_record_position(fd, sizeof(int)) == -1)
-	{
+	if (find_record_position(fd, sizeof(int)) == -1) {
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
-	if (i != 0)
-	{
-		if (move_in_file_bytes(fd, i * sizeof(pos)) == -1)
-		{
+	if (i != 0) {
+		if (move_in_file_bytes(fd, i * sizeof(pos)) == -1) {
 			__er_file_pointer(F, L - 2);
 			return 0;
 		}
@@ -319,8 +309,7 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 
 unsigned char indexes_on_file(int fd, int *p_i_nr)
 {
-	if (begin_in_file(fd) == STATUS_ERROR)
-	{
+	if (begin_in_file(fd) == STATUS_ERROR) {
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
@@ -645,10 +634,10 @@ size_t record_size_on_disk(void *rec_f)
 int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update)
 {
 	off_t go_back_to = 0;
-
+        
+	/*this you can cancel*/
 	uint32_t rfn_ne = htonl((uint32_t)rec->fields_num);
-	if (write(fd, &rfn_ne, sizeof(rfn_ne)) < 0)
-	{
+	if (write(fd, &rfn_ne, sizeof(rfn_ne)) < 0) {
 		perror("could not write fields number");
 		return 0;
 	}
@@ -666,6 +655,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	/*--------------------------------------------------*/
 	char *buff_w = NULL;
 	for (i = 0; i < rec->fields_num; i++) {
+
+		/*writing the field name make no sense*/
 		size_t str_l = strlen(rec->fields[i].field_name);
 		uint64_t str_l_ne = bswap_64((uint64_t)str_l);
 		if (write(fd, &str_l_ne, sizeof(str_l_ne)) < 0) {
@@ -677,31 +668,28 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			perror("write field name");
 			return 0;
 		}
-
+		
+		/*writing the type make no sense*/
 		uint32_t type_ne = htonl((uint32_t)rec->fields[i].type);
-		if (write(fd, &type_ne, sizeof(type_ne)) < 0)
-		{
+		if (write(fd, &type_ne, sizeof(type_ne)) < 0) {
 			perror("could not write fields type");
 			return 0;
 		}
 
-		switch (rec->fields[i].type)
-		{
+		switch (rec->fields[i].type){
 		case TYPE_INT:
 		{
 			uint32_t i_ne = htonl(rec->fields[i].data.i);
-			if (write(fd, &i_ne, sizeof(i_ne)) < 0)
-			{
+			if (write(fd, &i_ne, sizeof(i_ne)) < 0){
 				perror("error in writing int type to file.\n");
 				return 0;
 			}
 			break;
 		}
-		case TYPE_LONG:
+		case TYPE_LONG: 
 		{
 			uint64_t l_ne = bswap_64((uint64_t)rec->fields[i].data.l);
-			if (write(fd, &l_ne, sizeof(l_ne)) < 0)
-			{
+			if (write(fd, &l_ne, sizeof(l_ne)) < 0) {
 				perror("error in writing long type to file.\n");
 				return 0;
 			}
@@ -4708,9 +4696,15 @@ off_t get_update_offset(int fd)
 struct Record_f *read_file(int fd, char *file_name)
 {
 
+	/*
+	 * this you can avoid to read 
+	 * read the schema file instead 
+	 * so you will have the name of the fields 
+	 * and the name type and last, but not least 
+	 * you will have the order in which the fields are written to file. 	
+	 * */
 	uint32_t rfn_ne = 0;
-	if (read(fd, &rfn_ne, sizeof(rfn_ne)) < 0)
-	{
+	if (read(fd, &rfn_ne, sizeof(rfn_ne)) < 0) {
 		perror("could not read fields number:");
 		printf(" %s:%d.\n", __FILE__, __LINE__ - 1);
 		return NULL;
@@ -4718,8 +4712,7 @@ struct Record_f *read_file(int fd, char *file_name)
 
 	int fields_num_r = htonl(rfn_ne);
 	struct Record_f *rec = create_record(file_name, fields_num_r);
-	if (!rec)
-	{
+	if (!rec) {
 		printf("create record failed, %s:%d.\n", __FILE__, __LINE__ - 2);
 		return NULL;
 	}
