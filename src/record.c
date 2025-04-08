@@ -16,11 +16,16 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	(*rec).fields_num = sch.fields_num;
 }
 
-unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value)
+unsigned char set_field(struct Record_f *rec, 
+				int index, 
+				char *field_name, 
+				enum ValueType type, 
+				char *value,
+				uint8_t field_bit)
 {
 	strncpy(rec->fields[index].field_name,field_name,strlen(field_name));
 	rec->fields[index].type = type;
-	rec->field_set[index] = 1;
+	rec->field_set[index] = field_bit;
 
 	switch (type) {
 	case TYPE_INT:
@@ -445,6 +450,8 @@ void print_record(int count, struct Record_f **recs)
 
 		for (i = 0; i < rec->fields_num; i++)
 		{
+			if(rec->field_set[i] == 0) continue;
+
 			strip('"', rec->fields[i].field_name);
 			printf("%-*s\t", max++, rec->fields[i].field_name);
 			switch (rec->fields[i].type)
@@ -577,18 +584,12 @@ void print_record(int count, struct Record_f **recs)
 	printf("\n#################################################################\n\n");
 }
 
-void free_record_array(int len, struct Record_f ***recs)
+void free_record_array(int len, struct Record_f **recs)
 {
-	int i = 0;
-	for (i = 0; i < len; i++)
+	for (int i = 0; i < len; i++)
 	{
-		if (*recs)
-		{
-			if ((*recs)[i])
-			{
-				free_record((*recs)[i], (*recs)[i]->fields_num);
-			}
-		}
+		if(*rec)
+			free_record((*recs)[i], (*recs)[i].fields_num);
 	}
 	free(*recs);
 }

@@ -653,7 +653,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 	char *buff_w = NULL;
 	for (int i = 0; i < rec->fields_num; i++) {
-
+		if(rec->field_set[i] == 0) continue;
 		/*writing the field name make no sense*/
 		/*size_t str_l = strlen(rec->fields[i].field_name);
 		uint64_t str_l_ne = bswap_64((uint64_t)str_l);
@@ -5564,7 +5564,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 	}
 
-	return rec;
+	return 0;
 }
 
 int file_error_handler(int count, ...)

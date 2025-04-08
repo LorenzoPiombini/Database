@@ -260,7 +260,6 @@ int main(int argc, char *argv[])
 			/* creates a file with full definitons (fields and value)*/
 
 			int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
-			struct Record_f *rec = NULL;
 
 			if (fields_count > MAX_FIELD_NR) {
 				fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
@@ -276,17 +275,17 @@ int main(int argc, char *argv[])
 			sch.fields_num = fields_count;
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
-			rec =  parse_d_flag_input(file_path, fields_count,
-						buffer, buf_t, buf_v, &sch, 0);
+			struct Record_f rec = {0};
+			struct Record_f temp = {0};
+			if(parse_d_flag_input(file_path, fields_count,
+						buffer, buf_t, buf_v, &sch, 0,&rec,&temp) == -1) {
+				fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+				goto clean_on_error_2;
+			}
 
 			free(buffer); 
 			free(buf_t);
 			free(buf_v);
-
-			if (!rec) {
-				fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
-				goto clean_on_error_2;
-			}
 
 			struct Header_d hd = {0, 0, sch};
 			if (!create_header(&hd)) {
@@ -302,7 +301,7 @@ int main(int argc, char *argv[])
 
 			if (only_dat) {
 				printf("File created successfully!\n");
-				free_record(rec, fields_count);
+				free_record(&rec, fields_count);
 				close_file(2, fd_data,fd_schema);
 				return 0;
 			}
@@ -349,7 +348,7 @@ int main(int argc, char *argv[])
 						}
 					}
 
-					if (!write_file(fd_data, rec, 0, update)) {
+					if (!write_file(fd_data, &rec, 0, update)) {
 						printf("write to file failed, %s:%d.\n", F, L - 1);
 						destroy_hasht(&ht);
 						goto clean_on_error_2;
@@ -366,14 +365,14 @@ int main(int argc, char *argv[])
 			}
 
 			printf("File created successfully.\n");
-			free_record(rec, fields_count); // this free the memory allocated for the record
+			free_record(&rec, fields_count); // this free the memory allocated for the record
 			close_file(3, fd_index, fd_data,fd_schema);
 			return 0;
 			
 			clean_on_error_2:
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
-			if(rec) free_record(rec, fields_count);
+			free_record(&rec, fields_count);
 			return STATUS_ERROR;
 
 		}else {
@@ -794,8 +793,9 @@ int main(int argc, char *argv[])
 		if (!update && data_to_add) { 
 			/* append data to the specified file*/
 			int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
-			struct Record_f *rec = NULL;
 
+			struct Record_f rec = {0};
+			struct Record_f temp = {0};
 			if (fields_count > MAX_FIELD_NR) {
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 				goto clean_on_error_7;
@@ -805,9 +805,8 @@ int main(int argc, char *argv[])
 			char *buf_t = strdup(data_to_add);
 			char *buf_v = strdup(data_to_add);
 
-
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
-										file_path, &rec, &hd);
+										file_path, &rec, &temp, &hd);
 
 			if (check == SCHEMA_ERR || check == 0) {
 				free(buffer);
@@ -819,10 +818,6 @@ int main(int argc, char *argv[])
 			free(buffer);
 			free(buf_t);
 			free(buf_v);
-			if (!rec) {
-				printf("error creating record, %s:%d\n", F, L - 1);
-				goto clean_on_error_7;
-			}
 
 
 			int lock_f = 0;
@@ -895,15 +890,14 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			if (!write_file(fd_data, rec, 0, update)) {
+			if (!write_file(fd_data, &rec, 0, update)) {
 				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
 				free_ht_array(ht, index);
 				goto clean_on_error_7;
 			}
 
 			close_file(1, fd_index);
-			free_record(rec, rec->fields_num);
-			rec = NULL;
+			free_record(&rec, rec.fields_num);
 
 			fd_index = open_file(files[0], 1); // opening with O_TRUNC
 
@@ -943,7 +937,7 @@ int main(int argc, char *argv[])
 
 			clean_on_error_7:
 			close_file(3,fd_schema, fd_index, fd_data);
-			if(rec) free_record(rec, rec->fields_num);
+			free_record(&rec, rec.fields_num);
 		}
 
 		if (update && data_to_add && key) { 
@@ -951,9 +945,10 @@ int main(int argc, char *argv[])
 
 			// 1 - check the schema with the one on file
 			int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
-			struct Record_f *rec = NULL;
-			struct Record_f *rec_old = NULL;
-			struct Record_f *new_rec = NULL;
+			struct Record_f rec = {0};
+			struct Record_f temp = {0};
+			struct Record_f rec_old = {0};
+			struct Record_f new_rec = {0};
 
 			if (fields_count > MAX_FIELD_NR) {
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
@@ -965,7 +960,7 @@ int main(int argc, char *argv[])
 			char *buf_v = strdup(data_to_add);
 
 			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
-						file_path, &rec, &hd);
+						file_path, &rec, &temp, &hd);
 			free(buffer);
 			free(buf_t);
 			free(buf_v);
@@ -985,7 +980,7 @@ int main(int argc, char *argv[])
 					fprintf(stderr,"can't acquire or release proper lock.\n");
 					goto clean_on_error;
 				}
-			lock_f = 1;
+				lock_f = 1;
 				close_file(1,fd_schema);
 				fd_schema = open_file(files[2],1); /*open with O_TRUNCATE*/
 
@@ -1011,7 +1006,8 @@ int main(int argc, char *argv[])
 					fprintf(stderr,"can't acquire or release proper lock.\n");
 					goto clean_on_error;
 				}
-						lock_f = 1;}
+				lock_f = 1;
+			}
 
 
 			HashTable ht = {0};
@@ -1053,9 +1049,8 @@ int main(int argc, char *argv[])
 			}
 
 			/*read the old record, aka the record that we want to update*/
-			rec_old = read_file(fd_data, file_path);
-			if (!rec_old) {
-				printf("reading record failed main.c l %d.\n", __LINE__ - 2);
+			if(read_file(fd_data, file_path,&rec_old,sch) == -1) {
+				printf("reading record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
 				goto clean_on_error;
 			}
 
@@ -1072,13 +1067,13 @@ int main(int argc, char *argv[])
 				and if the record is fragmented we read all the data
 				and we store in the recs_old */
 
-			struct Record_f **recs_old = NULL;
+			struct Record_f *recs_old = NULL;
 			off_t *pos_u = NULL;
 			if (updated_rec_pos > 0)
 			{
 				int index = 2;
 				int pos_i = 2;
-				recs_old = calloc(index, sizeof(struct Record_f *));
+				recs_old = calloc(index, sizeof(struct Record_f));
 				if (!recs_old) {
 					__er_calloc(F, L - 2);
 					goto clean_on_error;
@@ -1101,8 +1096,8 @@ int main(int argc, char *argv[])
 					goto clean_on_error;
 				}
 
-				struct Record_f *rec_old_s = read_file(fd_data, file_path);
-				if (!rec_old_s) {
+				struct Record_f rec_old_s = {0};
+				if(read_file(fd_data, file_path,&rec_old_s,sch) == -1) {
 					printf("error reading file, main.c l %d.\n", __LINE__ - 2);
 					free(pos_u);
 					free_record_array(index, &recs_old);
@@ -1119,7 +1114,7 @@ int main(int argc, char *argv[])
 				while ((updated_rec_pos = get_update_offset(fd_data)) > 0) {
 					index++;
 					pos_i++;
-					struct Record_f **recs_old_n = realloc(recs_old,index * sizeof(struct Record_f*));
+					struct Record_f *recs_old_n = realloc(recs_old,index * sizeof(struct Record_f));
 					if (!recs_old_n){
 						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
 						free(pos_u);
@@ -1140,8 +1135,8 @@ int main(int argc, char *argv[])
 					pos_u = pos_u_n;
 					pos_u[pos_i - 1] = updated_rec_pos;
 
-					struct Record_f *rec_old_new = read_file(fd_data, file_path);
-					if (!rec_old_new) {
+					struct Record_f rec_old_new  = {0};
+					if(read_file(fd_data, file_path, &rec_old_new, sch) == -1){
 						printf("error reading file, %s:%d.\n", F, L - 1);
 						free(pos_u);
 						free_record_array(index, &recs_old);
@@ -1436,16 +1431,15 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		close_file(1,fd_schema);
 		if (key) { 
 			/*display record*/
-			while(is_locked(2,fd_index,fd_data) == LOCKED);
+			while(is_locked(3,fd_index,fd_data) == LOCKED);
 
 			HashTable ht = {0};
 			HashTable *p_ht = &ht;
 			if (!read_index_nr(0, fd_index, &p_ht)) {
 				printf("reading index file failed, %s:%d.\n", F, L - 1);
-				close_file(2, fd_index, fd_data);
+				close_file(3, fd_index, fd_data);
 				return STATUS_ERROR;
 			}
 
@@ -1455,7 +1449,7 @@ int main(int argc, char *argv[])
 			if (key_type == UINT && !key_conv) {
 				fprintf(stderr, "error to convert key");
 				destroy_hasht(p_ht);
-				close_file(2, fd_index, fd_data);
+				close_file(3, fd_index, fd_data);
 				return STATUS_ERROR;
 			} else if (key_type == UINT) {
 				if (key_conv) {
@@ -1469,28 +1463,28 @@ int main(int argc, char *argv[])
 			if (offset == -1) {
 				printf("record not found.\n");
 				destroy_hasht(p_ht);
-				close_file(2, fd_index, fd_data);
+				close_file(3, fd_index, fd_data);
 				return STATUS_ERROR;
 			}
 
 			destroy_hasht(p_ht);
 			if (find_record_position(fd_data, offset) == -1) {
 				__er_file_pointer(F, L - 1);
-				close_file(2, fd_index, fd_data);
+				close_file(3, fd_index, fd_data);
 				return STATUS_ERROR;
 			}
 
 			struct Record_f *rec = read_file(fd_data, file_path);
 			if (!rec) {
 				printf("read record failed, main.c l %d.\n", __LINE__ - 1);
-				close_file(2, fd_data, fd_index);
+				close_file(3, fd_index, fd_data);
 				return STATUS_ERROR;
 			}
 
 			off_t offt_rec_up_pos = get_file_offset(fd_data);
 			off_t update_rec_pos = get_update_offset(fd_data);
 			if (update_rec_pos == -1) {
-				close_file(2, fd_index, fd_data);
+				close_file(3, fd_index, fd_data);
 				free_record(rec, rec->fields_num);
 				return STATUS_ERROR;
 			}
@@ -1503,7 +1497,7 @@ int main(int argc, char *argv[])
 				if (!recs) {
 					printf("calloc failed, main.c l %d.\n", __LINE__ - 2);
 					free_record(rec, rec->fields_num);
-					close_file(2, fd_data, fd_index);
+					close_file(3, fd_index, fd_data);
 					return STATUS_ERROR;
 				}
 
@@ -1514,7 +1508,7 @@ int main(int argc, char *argv[])
 				if (find_record_position(fd_data, offt_rec_up_pos) == -1) {
 					__er_file_pointer(F, L - 1);
 					free_record_array(counter, &recs);
-					close_file(2, fd_data, fd_index);
+					close_file(3, fd_index, fd_data);
 					return STATUS_ERROR;
 				}
 
@@ -1524,22 +1518,22 @@ int main(int argc, char *argv[])
 					if (!recs) {
 						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
 						free_record_array(counter, &recs);
-						close_file(2, fd_data, fd_index);
+						close_file(3, fd_index, fd_data);
 						return STATUS_ERROR;
 					}
 
 					if (find_record_position(fd_data, update_rec_pos) == -1) {
 						__er_file_pointer(F, L - 1);
 						free_record_array(counter, &recs);
-						close_file(2, fd_index, fd_data);
+						close_file(3, fd_index, fd_data);
 						return STATUS_ERROR;
 					}
 
-					struct Record_f *rec_n = read_file(fd_data, file_path);
-					if (!rec_n) {
-						printf("read record failed, main.c l %d.\n", __LINE__ - 2);
+					struct Record_f rec = {0};
+					if(read_file(fd_data, file_path,&rec,sch) == -1) {
+						printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
 						free_record_array(counter, &recs);
-						close_file(2, fd_data, fd_index);
+						close_file(3, fd_index, fd_data);
 						return STATUS_ERROR;
 					}
 					recs[counter - 1] = rec_n;
@@ -1554,7 +1548,7 @@ int main(int argc, char *argv[])
 				free_record_array(counter, &recs);
 			}
 
-			close_file(2, fd_index, fd_data);
+			close_file(3, fd_index, fd_data);
 			return 0;
 		}
 	}

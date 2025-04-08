@@ -49,20 +49,18 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 	char *buf_t = strdup(data_to_add);
 	char *buf_v = strdup(data_to_add);
 
-	struct Record_f *rec = NULL;
+	struct Record_f rec ={0};
+	struct Record_f temp = {0};
 	struct Schema sch = {0};
 	struct Header_d hd = {0, 0, sch};
 
 	begin_in_file(fd_data);
-	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count, file_path, &rec, &hd);
+	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count, file_path, &rec, &temp, &hd);
 
-	free(buffer), free(buf_t), free(buf_v);
+	free(buffer);
+	free(buf_t);
+	free(buf_v);
 	if (check == SCHEMA_ERR || check == 0) {
-		return 0;
-	}
-
-	if (!rec) {
-		printf("error creating record, helper.c l %d\n", __LINE__ - 1);
 		return 0;
 	}
 
@@ -74,41 +72,38 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 		*fd_schema = open_file(files[2],1);
 
 		if(file_error_handler(1,*fd_schema) != 0) {
-			free_record(rec, rec->fields_num);
+			free_record(&rec, rec.fields_num);
 			return 0;
 		}
 
 		if (!write_header(*fd_schema, &hd))
 		{
 			printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
-			free_record(rec, rec->fields_num);
+			free_record(&rec, rec.fields_num);
 			return 0;
 		}
 	}
 
 	off_t eof = go_to_EOF(fd_data);
-	if (eof == -1)
-	{
+	if (eof == -1) {
 		printf("file pointer failed, helper.c l %d.\n", __LINE__ - 2);
-		free_record(rec, rec->fields_num);
+		free_record(&rec, rec.fields_num);
 		return 0;
 	}
 
 	int key_type = is_num(key);
-	if (!set((void *)key, key_type, eof, ht))
-	{
-		free_record(rec, rec->fields_num);
+	if (!set((void *)key, key_type, eof, ht)) {
+		free_record(&rec, rec.fields_num);
 		return ALREADY_KEY;
 	}
 
-	if (!write_file(fd_data, rec, 0, 0))
-	{
+	if (!write_file(fd_data, &rec, 0, 0)) {
 		printf("write to file failed, helper.c l %d.\n", __LINE__ - 1);
-		free_record(rec, rec->fields_num);
+		free_record(&rec, rec.fields_num);
 		return 0;
 	}
 
-	free_record(rec, rec->fields_num);
+	free_record(&rec, rec.fields_num);
 	return 1;
 }
 

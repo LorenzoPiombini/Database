@@ -3,13 +3,29 @@
 
 #include <sys/types.h>
 #include <stdint.h>
-#include "parse.h" 
-#define MAX_FIELD_LENGTH 32
 #define MAX_FILE_NAME_LEN 1024
-#define MAX_FIELD_NR 200
 
 /*default dynamic array size*/
 #define DEF_SIZE 1
+
+#define HEADER_ID_SYS 0x657A3234
+#define VS 1
+#define MAX_HD_SIZE 7232
+#define MAX_FIELD_NR 200 /*max field nr in a file */
+#define MAX_FIELD_LT 32	 /*max char length for a field name*/
+
+struct Schema {
+	unsigned short fields_num;
+	char fields_name[MAX_FIELD_NR][MAX_FIELD_LT];
+	int types[MAX_FIELD_NR];
+};
+
+struct Header_d
+{
+	unsigned int id_n;
+	unsigned short version;
+	struct Schema sch_d;
+};
 
 
 
@@ -46,7 +62,7 @@ struct array
 };
 
 struct Field {
-	char field_name[MAX_FIELD_LENGTH];
+	char field_name[MAX_FIELD_LT];
 	enum ValueType type;
 
 	union {
@@ -72,10 +88,10 @@ int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
 int create_record(char *file_name, struct Schema sch, struct Record_f *rec);
-unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value);
+unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value,uint8_t field_bit);
 void free_record(struct Record_f *rec, int fields_num);
 void print_record(int count, struct Record_f **recs);
-void free_record_array(int len, struct Record_f ***recs);
+void free_record_array(int len, struct Record_f **recs);
 void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int size_ia);
 unsigned char copy_rec(struct Record_f *src, struct Record_f **dest);
 unsigned char get_index_rec_field(char *field_name, struct Record_f **recs, int recs_len,int *field_i_r, int *rec_index);
