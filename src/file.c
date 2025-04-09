@@ -645,7 +645,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	/*--------------------------------------------------*/
 
 	for(int i = 0; i < rec->fields_num; i++){
-		if(write(fd,&rec->field_set,sizeof(uint8_t)) == -1){
+		if(write(fd,&rec->field_set[i],sizeof(uint8_t)) == -1){
 			fprintf(stderr,"cannot write field bits, %s:%d.\n",F,L-1);
 			return -1;
 		}
@@ -4724,7 +4724,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 	size_t l = 0;
 
 	for(int i = 0; i < rec->fields_num; i++){
-		if(read(fd,&rec->field_set,sizeof(uint8_t)) == -1){
+		if(read(fd,&rec->field_set[i],sizeof(uint8_t)) == -1){
 			fprintf(stderr,"cannot read field bits, %s:%d.\n",F,L-1);
 			return -1;
 		}

@@ -87,7 +87,7 @@ struct Record_f {
 int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
-int create_record(char *file_name, struct Schema sch, struct Record_f *rec);
+void create_record(char *file_name, struct Schema sch, struct Record_f *rec);
 unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value,uint8_t field_bit);
 void free_record(struct Record_f *rec, int fields_num);
 void print_record(int count, struct Record_f *recs);

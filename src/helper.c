@@ -50,12 +50,11 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 	char *buf_v = strdup(data_to_add);
 
 	struct Record_f rec ={0};
-	struct Record_f temp = {0};
 	struct Schema sch = {0};
 	struct Header_d hd = {0, 0, sch};
 
 	begin_in_file(fd_data);
-	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count, file_path, &rec, &temp, &hd);
+	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count, file_path, &rec, &hd);
 
 	free(buffer);
 	free(buf_t);

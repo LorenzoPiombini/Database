@@ -146,7 +146,7 @@ unsigned char set_memory_obj(lock_info **shared_locks)
 			we reach the lockable file limit for the system.
 */
 unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *lock_pos_arr,
-							   char *file_n, off_t start, off_t rec_len, int mode, int fd)
+							   char *file_n, off_t start, off_t rec_len, int mode)
 {
 
 	if (!*shared_locks)

@@ -12,8 +12,7 @@ int parse_d_flag_input(char *file_path,
 			char *buf_v,
 			struct Schema *sch, 
 			int check_sch,
-			struct Record_f *rec,
-			struct Record_f *temp);
+			struct Record_f *rec);
 
 unsigned char perform_checks_on_schema(char *buffer, 
 					char *buf_t, 
@@ -21,7 +20,6 @@ unsigned char perform_checks_on_schema(char *buffer,
 					int fields_count,
 					char *file_path, 
 					struct Record_f *rec, 
-					struct Record_f *temp, 
 					struct Header_d *hd);
 int create_header(struct Header_d *hd);
 int write_empty_header(int fd, struct Header_d *hd);

@@ -43,7 +43,7 @@ typedef size_t compute_bytes(void *); /*pointer to a fucntion that computes the 
 unsigned char free_memory_object(char *smo_name);
 unsigned char set_memory_obj(lock_info **shared_locks);
 unsigned char acquire_lock_smo(lock_info **shared_locks, int *lock_pos, int *lock_pos_arr,
-                               char *file_n, off_t start, off_t rec_len, int mode, int fd_data);
+                               char *file_n, off_t start, off_t rec_len, int mode);
 unsigned char release_lock_smo(lock_info **shared_locks, int *lock_pos, int *lock_pos_arr);
 int is_locked(int files, ...);
 unsigned char lock_record(int fd, off_t rec_offset, off_t rec_size, int lock_type);
