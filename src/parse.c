@@ -1913,93 +1913,76 @@ unsigned char compare_old_rec_update_rec(struct Record_f *rec_old,
 
 void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Record_f *rec, int index)
 {
-	int i = 0, j = 0, x = 0;
+	int i = 0, j = 0;
 	for (i = 0; i < index; i++) {
 		if (positions[i] != 'y')
 			positions[i] = 'n';
 
 		for (j = 0; j < recs_old[i].fields_num; j++) {
-			for (x = 0; x < rec->fields_num; x++) {
-				if(rec->field_set[x] == 0) continue;
+				if(rec->field_set[j] == 0) continue;
 
-				if (rec->field_set[x] == 1 && recs_old[i].field_set[j] == 1) {
-					switch (rec->fields[x].type) {
+				if (rec->field_set[j] == 1 && recs_old[i].field_set[j] == 1) {
+					switch (rec->fields[j].type) {
 					case TYPE_INT:
-						if (rec->fields[x].data.i != 0){
-							if (recs_old[i].fields[j].data.i != rec->fields[x].data.i) {
-								recs_old[i].fields[j].data.i = rec->fields[x].data.i;
+							if (recs_old[i].fields[j].data.i != rec->fields[j].data.i) {
+								recs_old[i].fields[j].data.i = rec->fields[j].data.i;
 								positions[i] = 'y';
 							}
-						}
 						break;
 					case TYPE_LONG:
-						if (rec->fields[x].data.l != 0){
-							if (recs_old[i].fields[j].data.l != rec->fields[x].data.l) {
-								recs_old[i].fields[j].data.l = rec->fields[x].data.l;
+							if (recs_old[i].fields[j].data.l != rec->fields[j].data.l) {
+								recs_old[i].fields[j].data.l = rec->fields[j].data.l;
 								positions[i] = 'y';
 							}
-						}
 						break;
 					case TYPE_FLOAT:
-						if (rec->fields[x].data.f != 0.0)
-						{
-							if (recs_old[i].fields[j].data.f != rec->fields[x].data.f)
+							if (recs_old[i].fields[j].data.f != rec->fields[j].data.f)
 							{
-								recs_old[i].fields[j].data.f = rec->fields[x].data.f;
+								recs_old[i].fields[j].data.f = rec->fields[j].data.f;
 								positions[i] = 'y';
 							}
-						}
 						break;
 					case TYPE_STRING:
-						if (strcmp(rec->fields[x].data.s, "null") != 0)
-						{
 							if (strcmp(recs_old[i].fields[j].data.s,
-									   rec->fields[x].data.s) != 0)
+									   rec->fields[j].data.s) != 0)
 							{
 								if (recs_old[i].fields[j].data.s != NULL) {
 									free(recs_old[i].fields[j].data.s);
 									recs_old[i].fields[j].data.s = NULL;
 								}
 
-								recs_old[i].fields[j].data.s = strdup(rec->fields[x].data.s);
+								recs_old[i].fields[j].data.s = strdup(rec->fields[j].data.s);
 								positions[i] = 'y';
 							}
-						}
 						break;
 					case TYPE_BYTE:
-						if (rec->fields[x].data.b != 0.0)
-						{
-							if (recs_old[i].fields[j].data.b != rec->fields[x].data.b)
+							if (recs_old[i].fields[j].data.b != rec->fields[j].data.b)
 							{
-								recs_old[i].fields[j].data.b = rec->fields[x].data.b;
+								recs_old[i].fields[j].data.b = rec->fields[j].data.b;
 								positions[i] = 'y';
 							}
-						}
 						break;
 					case TYPE_DOUBLE:
-						if (rec->fields[x].data.d != 0.0)
-						{
-							if (recs_old[i].fields[j].data.d != rec->fields[x].data.d)
+							if (recs_old[i].fields[j].data.d != rec->fields[j].data.d)
 							{
-								recs_old[i].fields[j].data.d = rec->fields[x].data.d;
+								recs_old[i].fields[j].data.d = rec->fields[j].data.d;
 								positions[i] = 'y';
 							}
-						}
 						break;
 					case TYPE_ARRAY_INT:
-						if (rec->fields[x].data.v.elements.i)
+						if (rec->fields[j].data.v.elements.i)
 						{
-							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.i[0] == 0)
+							if (rec->fields[j].data.v.size == 1 && *rec->fields[j].data.v.elements.i[0] == 0)
 								break;
 
 							/*check the values*/
-							if (rec->fields[x].data.v.size == recs_old[i].fields[j].data.v.size)
+							if (rec->fields[j].data.v.size == recs_old[i].fields[j].data.v.size)
 							{
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									if (*recs_old[i].fields[j].data.v.elements.i[a] == *rec->fields[x].data.v.elements.i[a])
+									if (*recs_old[i].fields[j].data.v.elements.i[a] == *rec->fields[j].data.v.elements.i[a])
 										continue;
-									*recs_old[i].fields[j].data.v.elements.i[a] = *rec->fields[x].data.v.elements.i[a];
+									*recs_old[i].fields[j].data.v.elements.i[a] = *rec->fields[j].data.v.elements.i[a];
 								}
 								positions[i] = 'y';
 								break;
@@ -2014,12 +1997,12 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 								 * */
 								recs_old[i].fields[j].data.v.
 									destroy(&recs_old[i].fields[j].data.v, 
-											rec->fields[x].type);
+											rec->fields[j].type);
 
-								for (int a = 0; a < rec->fields[x].data.v.size; a++) {
+								for (int a = 0; a < rec->fields[j].data.v.size; a++) {
 									recs_old[i].fields[j].data.v.
-									insert((void *)rec->fields[x].data.v.elements.i[a],
-									&recs_old[i].fields[j].data.v, rec->fields[x].type);
+									insert((void *)rec->fields[j].data.v.elements.i[a],
+									&recs_old[i].fields[j].data.v, rec->fields[j].type);
 								}
 								positions[i] = 'y';
 								break;
@@ -2028,18 +2011,18 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 
 						break;
 					case TYPE_ARRAY_LONG:
-						if (rec->fields[x].data.v.elements.l)
+						if (rec->fields[j].data.v.elements.l)
 						{
-							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.l[0] == 0)
+							if (rec->fields[j].data.v.size == 1 && *rec->fields[j].data.v.elements.l[0] == 0)
 								break;
 							/*check the values*/
-							if (rec->fields[x].data.v.size == recs_old[i].fields[j].data.v.size)
+							if (rec->fields[j].data.v.size == recs_old[i].fields[j].data.v.size)
 							{
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									if (*recs_old[i].fields[j].data.v.elements.l[a] == *rec->fields[x].data.v.elements.l[a])
+									if (*recs_old[i].fields[j].data.v.elements.l[a] == *rec->fields[j].data.v.elements.l[a])
 										continue;
-									*recs_old[i].fields[j].data.v.elements.l[a] = *rec->fields[x].data.v.elements.l[a];
+									*recs_old[i].fields[j].data.v.elements.l[a] = *rec->fields[j].data.v.elements.l[a];
 								}
 								positions[i] = 'y';
 								break;
@@ -2054,12 +2037,12 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 								 * */
 								recs_old[i].fields[j].data.v.
 									destroy(&recs_old[i].fields[j].data.v, 
-											rec->fields[x].type);
+											rec->fields[j].type);
 
-								for (int a = 0; a < rec->fields[x].data.v.size; a++) {
+								for (int a = 0; a < rec->fields[j].data.v.size; a++) {
 									recs_old[i].fields[j].data.v.
-									insert((void *)rec->fields[x].data.v.elements.l[a],
-									 &recs_old[i].fields[x].data.v, rec->fields[x].type);
+									insert((void *)rec->fields[j].data.v.elements.l[a],
+									 &recs_old[i].fields[j].data.v, rec->fields[j].type);
 								}
 								positions[i] = 'y';
 								break;
@@ -2068,18 +2051,18 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 
 						break;
 					case TYPE_ARRAY_FLOAT:
-						if (rec->fields[x].data.v.elements.f)
+						if (rec->fields[j].data.v.elements.f)
 						{
-							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.f[0] == 0.0)
+							if (rec->fields[j].data.v.size == 1 && *rec->fields[j].data.v.elements.f[0] == 0.0)
 								break;
 							/*check the values*/
-							if (rec->fields[x].data.v.size == recs_old[i].fields[j].data.v.size)
+							if (rec->fields[j].data.v.size == recs_old[i].fields[j].data.v.size)
 							{
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									if (*recs_old[i].fields[j].data.v.elements.f[a] == *rec->fields[x].data.v.elements.f[a])
+									if (*recs_old[i].fields[j].data.v.elements.f[a] == *rec->fields[j].data.v.elements.f[a])
 										continue;
-									*recs_old[i].fields[j].data.v.elements.f[a] = *rec->fields[x].data.v.elements.f[a];
+									*recs_old[i].fields[j].data.v.elements.f[a] = *rec->fields[j].data.v.elements.f[a];
 								}
 								positions[i] = 'y';
 								break;
@@ -2092,11 +2075,11 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 								 * and in the old record we create a new one we the data
 								 * of the new record
 								 * */
-								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[x].type);
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[j].type);
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									recs_old[i].fields[j].data.v.insert((void *)rec->fields[x].data.v.elements.f[a],
-																		 &recs_old[i].fields[j].data.v, rec->fields[x].type);
+									recs_old[i].fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.f[a],
+																		 &recs_old[i].fields[j].data.v, rec->fields[j].type);
 								}
 								positions[i] = 'y';
 								break;
@@ -2105,18 +2088,17 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 
 						break;
 					case TYPE_ARRAY_DOUBLE:
-						if (rec->fields[x].data.v.elements.d)
+						if (rec->fields[j].data.v.elements.d)
 						{
-							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.d[0] == 0.0)
+							if (rec->fields[j].data.v.size == 1 && *rec->fields[j].data.v.elements.d[0] == 0.0)
 								break;
 							/*check the values*/
-							if (rec->fields[x].data.v.size == recs_old[i].fields[j].data.v.size)
+							if (rec->fields[j].data.v.size == recs_old[i].fields[j].data.v.size)
 							{
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									if (*recs_old[i].fields[j].data.v.elements.d[a] == *rec->fields[x].data.v.elements.d[a])
-										continue;
-									*recs_old[i].fields[j].data.v.elements.d[a] = *rec->fields[x].data.v.elements.d[a];
+									if (*recs_old[i].fields[j].data.v.elements.d[a] == *rec->fields[j].data.v.elements.d[a]) continue;
+									*recs_old[i].fields[j].data.v.elements.d[a] = *rec->fields[j].data.v.elements.d[a];
 								}
 								positions[i] = 'y';
 								break;
@@ -2129,11 +2111,11 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 								 * and in the old record we create a new one we the data
 								 * of the new record
 								 * */
-								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[x].type);
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[j].type);
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									recs_old[i].fields[j].data.v.insert((void *)rec->fields[x].data.v.elements.d[a],
-																		 &recs_old[i].fields[j].data.v, rec->fields[x].type);
+									recs_old[i].fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.d[a],
+																		 &recs_old[i].fields[j].data.v, rec->fields[j].type);
 								}
 								positions[i] = 'y';
 								break;
@@ -2142,18 +2124,18 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 
 						break;
 					case TYPE_ARRAY_BYTE:
-						if (rec->fields[x].data.v.elements.b)
+						if (rec->fields[j].data.v.elements.b)
 						{
-							if (rec->fields[x].data.v.size == 1 && *rec->fields[x].data.v.elements.b[0] == 0)
+							if (rec->fields[j].data.v.size == 1 && *rec->fields[j].data.v.elements.b[0] == 0)
 								break;
 							/*check the values*/
-							if (rec->fields[x].data.v.size == recs_old[i].fields[j].data.v.size)
+							if (rec->fields[j].data.v.size == recs_old[i].fields[j].data.v.size)
 							{
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									if (*recs_old[i].fields[j].data.v.elements.b[a] == *rec->fields[x].data.v.elements.b[a])
+									if (*recs_old[i].fields[j].data.v.elements.b[a] == *rec->fields[j].data.v.elements.b[a])
 										continue;
-									*recs_old[i].fields[j].data.v.elements.b[a] = *rec->fields[x].data.v.elements.b[a];
+									*recs_old[i].fields[j].data.v.elements.b[a] = *rec->fields[j].data.v.elements.b[a];
 								}
 								positions[i] = 'y';
 								break;
@@ -2166,11 +2148,11 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 								 * and in the old record we create a new one we the data
 								 * of the new record
 								 * */
-								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[x].type);
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[j].type);
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									recs_old[i].fields[j].data.v.insert((void *)rec->fields[x].data.v.elements.b[a],
-																		 &recs_old[i].fields[j].data.v, rec->fields[x].type);
+									recs_old[i].fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.b[a],
+																		 &recs_old[i].fields[j].data.v, rec->fields[j].type);
 								}
 								positions[i] = 'y';
 								break;
@@ -2179,20 +2161,20 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 
 						break;
 					case TYPE_ARRAY_STRING:
-						if (rec->fields[x].data.v.elements.s)
+						if (rec->fields[j].data.v.elements.s)
 						{
-							if (rec->fields[x].data.v.size == 1 && strcmp(rec->fields[x].data.v.elements.s[0], "null") == 0)
+							if (rec->fields[j].data.v.size == 1 && strcmp(rec->fields[j].data.v.elements.s[0], "null") == 0)
 								break;
 							/*check the values*/
-							if (rec->fields[x].data.v.size == recs_old[i].fields[j].data.v.size)
+							if (rec->fields[j].data.v.size == recs_old[i].fields[j].data.v.size)
 							{
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									if (strcmp(recs_old[i].fields[j].data.v.elements.s[a], rec->fields[x].data.v.elements.s[a]) == 0)
+									if (strcmp(recs_old[i].fields[j].data.v.elements.s[a], rec->fields[j].data.v.elements.s[a]) == 0)
 									{
 										free(recs_old[i].fields[j].data.v.elements.s[a]);
 										recs_old[i].fields[j].data.v.elements.s[a] = NULL;
-										recs_old[i].fields[j].data.v.elements.s[a] = strdup(rec->fields[x].data.v.elements.s[a]);
+										recs_old[i].fields[j].data.v.elements.s[a] = strdup(rec->fields[j].data.v.elements.s[a]);
 										if (!recs_old[i].fields[j].data.v.elements.s[a])
 										{
 											fprintf(stderr, "strdup() failed %s:%d.\n", F, L - 2);
@@ -2212,11 +2194,11 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 								 * and in the old record we create a new one we the data
 								 * of the new record
 								 * */
-								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[x].type);
-								for (int a = 0; a < rec->fields[x].data.v.size; a++)
+								recs_old[i].fields[j].data.v.destroy(&recs_old[i].fields[j].data.v, rec->fields[j].type);
+								for (int a = 0; a < rec->fields[j].data.v.size; a++)
 								{
-									recs_old[i].fields[j].data.v.insert((void *)rec->fields[x].data.v.elements.s[a],
-																		 &recs_old[i].fields[j].data.v, rec->fields[x].type);
+									recs_old[i].fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.s[a],
+																		 &recs_old[i].fields[j].data.v, rec->fields[j].type);
 								}
 								positions[i] = 'y';
 								break;
@@ -2229,7 +2211,7 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 						positions[0] = '0';
 						return;
 					}
-				}
+				
 			}
 		}
 	}

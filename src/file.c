@@ -625,8 +625,8 @@ size_t record_size_on_disk(void *rec_f)
 int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update)
 {
 	off_t go_back_to = 0;
-        
-	/*this you can cancel*/
+	        
+	
 	/*uint32_t rfn_ne = htonl((uint32_t)rec->fields_num);
 	if (write(fd, &rfn_ne, sizeof(rfn_ne)) < 0) {
 		perror("could not write fields number");
@@ -644,35 +644,32 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 	/*--------------------------------------------------*/
 
+	int count = 0;
+	for(int i = 0; i < rec->fields_num; i++)
+		if (rec->field_set[i] == 1) count++;
+
+
+	uint32_t count_ne = htonl((uint32_t)count);
+	if (write(fd, &count_ne, sizeof(count_ne)) < 0) {
+		perror("could not write fields number");
+		return 0;
+	}
+
+
 	for(int i = 0; i < rec->fields_num; i++){
-		if(write(fd,&rec->field_set[i],sizeof(uint8_t)) == -1){
-			fprintf(stderr,"cannot write field bits, %s:%d.\n",F,L-1);
-			return -1;
+		if (rec->field_set[i] == 0) continue;
+
+		/*position in the field_set array*/
+		uint32_t i_ne = htonl((uint32_t)i);
+		if (write(fd, &i_ne, sizeof(i_ne)) < 0) {
+			perror("could not write fields number");
+			return 0;
 		}
 	}
 
 	char *buff_w = NULL;
 	for (int i = 0; i < rec->fields_num; i++) {
 		if(rec->field_set[i] == 0) continue;
-		/*writing the field name make no sense*/
-		/*size_t str_l = strlen(rec->fields[i].field_name);
-		uint64_t str_l_ne = bswap_64((uint64_t)str_l);
-		if (write(fd, &str_l_ne, sizeof(str_l_ne)) < 0) {
-			perror("write size name");
-			return 0;
-		}
-
-		if (write(fd, rec->fields[i].field_name, str_l) < 0) {
-			perror("write field name");
-			return 0;
-		}*/
-		
-		/*writing the type make no sense*/
-		/*uint32_t type_ne = htonl((uint32_t)rec->fields[i].type);
-		if (write(fd, &type_ne, sizeof(type_ne)) < 0) {
-			perror("could not write fields type");
-			return 0;
-		}*/
 
 		switch (rec->fields[i].type){
 		case TYPE_INT:
@@ -4707,64 +4704,41 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 	 * and the name type and last, but not least 
 	 * you will have the order in which the fields are written to file. 	
 	 * */
-/*	uint32_t rfn_ne = 0;
-	if (read(fd, &rfn_ne, sizeof(rfn_ne)) < 0) {
+
+	create_record(file_name, sch,rec);
+	/*read the count of the field written*/
+	uint32_t cvf_ne = 0;
+	if (read(fd, &cvf_ne, sizeof(cvf_ne)) < 0) {
 		perror("could not read fields number:");
 		printf(" %s:%d.\n", __FILE__, __LINE__ - 1);
-		return NULL;
+		return -1;
 	}
 
-	int fields_num_r = htonl(rfn_ne);*/
+	int count_valid_fields = (int)ntohl(cvf_ne);
+	for(int i = 0; i < count_valid_fields; i++){
+
+		/*position in the field_set array*/
+		uint32_t i_ne =  0;
+		if (read(fd, &i_ne, sizeof(i_ne)) < 0) {
+			perror("could not write fields number");
+			return 0;
+		}
+
+		int index = (int)ntohl(i_ne); 
+
+		rec->field_set[index] = 1;
+	}
+
 	
-	create_record(file_name, sch,rec);
 
 	off_t str_loc = 0;
 	size_t buff_update = 0; /* to get the real size of the string*/
 	off_t move_to = 0;
 	size_t l = 0;
 
-	for(int i = 0; i < rec->fields_num; i++){
-		if(read(fd,&rec->field_set[i],sizeof(uint8_t)) == -1){
-			fprintf(stderr,"cannot read field bits, %s:%d.\n",F,L-1);
-			return -1;
-		}
-	}
-
 
 	for (int i = 0; i < rec->fields_num; i++) {
 		if(rec->field_set[i] == 0) continue;
-		/*uint64_t str_l_ne = 0;
-		if (read(fd, &str_l_ne, sizeof(str_l_ne)) < 0) {
-			perror("could not read size of field name, file.c l 458.\n");
-			free_record(rec, fields_num_r);
-			return NULL;
-		}
-		size_t lt = (size_t)bswap_64(str_l_ne);
-
-		//	printf("size is %ld",lt);
-		rec->fields[i].field_name = calloc(lt + 1, sizeof(char));
-
-		if (!rec->fields[i].field_name) {
-			printf("no memory for field name, file.cl 466.\n");
-			free_record(rec, rec->fields_num);
-			return NULL;
-		}
-
-		if (read(fd, rec->fields[i].field_name, lt) < 0) {
-			perror("could not read field name, file.c l 472");
-			free_record(rec, rec->fields_num);
-			return NULL;
-		}
-
-		rec->fields[i].field_name[lt] = '\0';
-		uint32_t ty_ne = 0;
-		if (read(fd, &ty_ne, sizeof(ty_ne)) < 0) {
-			perror("could not read type file.c l 481.");
-			free_record(rec, rec->fields_num);
-			return NULL;
-		}
-
-		rec->fields[i].type = (enum ValueType)ntohl(ty_ne);*/
 
 		switch (rec->fields[i].type) {
 		case TYPE_INT:

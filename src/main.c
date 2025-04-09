@@ -607,7 +607,7 @@ int main(int argc, char *argv[])
 
 
 			/*release WR_HEADER lock */
-			while((r = lock(fd_schema,WLOCK)) == WTLK);
+			while((r = lock(fd_schema,UNLOCK)) == WTLK);
 			if(r == -1){
 				fprintf(stderr,"can't acquire or release proper lock.\n");
 				goto clean_on_error_5;
