@@ -1922,7 +1922,7 @@ void find_fields_to_update(struct Record_f *recs_old, char *positions, struct Re
 			for (x = 0; x < rec->fields_num; x++) {
 				if(rec->field_set[x] == 0) continue;
 
-				if (strcmp(rec->fields[x].field_name, recs_old[i].fields[j].field_name) == 0) {
+				if (rec->field_set[x] == 1 && recs_old[i].field_set[j] == 1) {
 					switch (rec->fields[x].type) {
 					case TYPE_INT:
 						if (rec->fields[x].data.i != 0){

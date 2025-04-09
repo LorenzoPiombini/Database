@@ -1095,7 +1095,7 @@ int main(int argc, char *argv[])
 				}
 
 				struct Record_f rec_old_s = {0};
-				if(read_file(fd_data, file_path,&rec_old_s,sch) == -1) {
+				if(read_file(fd_data, file_path,&rec_old_s,hd.sch_d) == -1) {
 					printf("error reading file, main.c l %d.\n", __LINE__ - 2);
 					free(pos_u);
 					free_record_array(index, &recs_old);
@@ -1134,7 +1134,7 @@ int main(int argc, char *argv[])
 					pos_u[pos_i - 1] = updated_rec_pos;
 
 					struct Record_f rec_old_new  = {0};
-					if(read_file(fd_data, file_path, &rec_old_new, sch) == -1){
+					if(read_file(fd_data, file_path, &rec_old_new, hd.sch_d) == -1){
 						printf("error reading file, %s:%d.\n", F, L - 1);
 						free(pos_u);
 						free_record_array(index, &recs_old);
