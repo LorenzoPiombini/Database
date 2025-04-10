@@ -5,6 +5,11 @@
 #include "hash_tbl.h"
 #include "parse.h"
 
+
+
+struct File_handle;
+
+
 int open_file(char *fileName, int use_trunc);
 int create_file(char *fileName);
 void close_file(int count, ...);
