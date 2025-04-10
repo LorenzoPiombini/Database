@@ -1165,13 +1165,14 @@ int main(int argc, char *argv[])
 
 				/* write the update records to file */
 				int i = 0;
+				int changed = 0;
 				unsigned short updates = 0; /* bool value if 0 no updates*/
-				for (i = 0; i < index; i++)
-				{
+				for (i = 0; i < index; i++) {
 					if (positions[i] == 'n')
 						continue;
 
 					++updates;
+					changed = 1;
 					if (find_record_position(fd_data, pos_u[i]) == -1) {
 						__er_file_pointer(F, L - 1);
 						free(pos_u);
@@ -1196,6 +1197,39 @@ int main(int argc, char *argv[])
 
 					if (!write_file(fd_data, &recs_old[i], right_update_pos, update)) {
 						printf("error write file, %s:%d.\n", F, L - 1);
+						free(pos_u);
+						free_record_array(index, &recs_old);
+						goto clean_on_error;
+					}
+				}
+				
+				if(check == SCHEMA_CT && !changed) {
+					
+					off_t eof = go_to_EOF(fd_data); /* file pointer to the end*/
+					if (eof == -1) {
+						__er_file_pointer(F, L - 1);
+						free(pos_u);
+						free_record_array(index, &recs_old);
+						goto clean_on_error;
+					}
+
+					/*writing the new part of the schema to the file*/
+					if (!write_file(fd_data, &rec, 0, 0)) {
+						printf("write to file failed, %s:%d.\n", F, L - 1);
+						free(pos_u);
+						free_record_array(index, &recs_old);
+						goto clean_on_error;
+					}
+						
+					if(find_record_position(fd_data,pos_u[index-1]) == -1){
+						__er_file_pointer(F, L - 1);
+						free(pos_u);
+						free_record_array(index, &recs_old);
+						goto clean_on_error;
+					}
+
+					if(!write_file(fd_data,&recs_old[index-1],eof,update)){
+						__er_file_pointer(F, L - 1);
 						free(pos_u);
 						free_record_array(index, &recs_old);
 						goto clean_on_error;
@@ -1231,7 +1265,7 @@ int main(int argc, char *argv[])
 					/*the position of new_rec in the old part of the record
 					 was already set at line ????*/
 				}
-
+	
 				if (check == SCHEMA_NW && updates == 0) {
 					/* store the EOF value*/
 					off_t eof = 0;
