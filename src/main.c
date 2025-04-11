@@ -1065,101 +1065,60 @@ int main(int argc, char *argv[])
 				and if the record is fragmented we read all the data
 				and we store in the recs_old */
 
-			struct Record_f *recs_old = NULL;
-			off_t *pos_u = NULL;
-			if (updated_rec_pos > 0)
-			{
-				int index = 2;
-				int pos_i = 2;
-				recs_old = calloc(index, sizeof(struct Record_f));
-				if (!recs_old) {
-					__er_calloc(F, L - 2);
-					goto clean_on_error;
-				}
-
-				pos_u = calloc(pos_i, sizeof(off_t));
-				if (!pos_u) {
-					__er_calloc(F, L - 2);
-					free_record_array(index, &recs_old);
-					goto clean_on_error;
-				}
-
-				pos_u[0] = offset;			/*first record position*/
-				pos_u[1] = updated_rec_pos; /*first updated record position*/
+			struct Recs_old recs_old = {0};
+			if (updated_rec_pos > 0) {
+				/*first record position*/
+				insert_rec(&recs_old,&rec_old,offset);
 
 				if (find_record_position(fd_data, updated_rec_pos) == -1) {
 					__er_file_pointer(F, L - 1);
-					free(pos_u);
-					free_record_array(index, &recs_old);
+					free_recs_old(&recs_old);
 					goto clean_on_error;
 				}
 
 				struct Record_f rec_old_s = {0};
 				if(read_file(fd_data, file_path,&rec_old_s,hd.sch_d) == -1) {
 					printf("error reading file, main.c l %d.\n", __LINE__ - 2);
-					free(pos_u);
-					free_record_array(index, &recs_old);
+					free_recs_old(&recs_old);
 					goto clean_on_error;
 				}
 
-				recs_old[0] = rec_old;
-				recs_old[1] = rec_old_s;
-
+				/*first updated record position*/
+				insert_rec(&recs_old,&rec_old_s,updated_rec_pos);
+				
 				/*at this point we have the first two fragment of the record,
 					 but potentially there could be many fragments,
 					so we check with a loop that stops when the read of the
 					update_rec_pos gives 0 or -1 (error)*/
+
 				while ((updated_rec_pos = get_update_offset(fd_data)) > 0) {
-					index++;
-					pos_i++;
-					struct Record_f *recs_old_n = realloc(recs_old,index * sizeof(struct Record_f));
-					if (!recs_old_n){
-						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
-						free(pos_u);
-						free_record_array(index, &recs_old);
-						goto clean_on_error;
-					}
-
-					recs_old = recs_old_n;
-
-					off_t *pos_u_n = realloc(pos_u, pos_i * sizeof(off_t));
-					if (!pos_u_n) {
-						printf("realloc failed for positions, %s%d.\n", F, L - 2);
-						free(pos_u);
-						free_record_array(index, &recs_old);
-						goto clean_on_error;
-					}
-
-					pos_u = pos_u_n;
-					pos_u[pos_i - 1] = updated_rec_pos;
-
 					struct Record_f rec_old_new  = {0};
 					if(read_file(fd_data, file_path, &rec_old_new, hd.sch_d) == -1){
 						printf("error reading file, %s:%d.\n", F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
-					recs_old[index - 1] = rec_old_new;
+					insert_rec(&recs_old,&rec_old_new,updated_rec_pos);
 				}
 
 				/* here we have the all record in memory and we have
 					to  check which fields in the record we have to update*/
 
-				char positions[index];
-				memset(positions,0,index);
+				int size_pos = recs_old.capacity + recs_old.dynamic_capacity;
+				char positions[size_pos];
+				memset(positions,0,size_pos);
+
 				/* this function check all records from the file
 				   against the new record setting the values that we have to update
 				   and populates in  the char array positions. If an element contain 'y'
 				   you have to update the field  at that index position of 'y'. */
 
-				find_fields_to_update(recs_old, positions, &rec, index);
+				find_fields_to_update(&recs_old, positions, &rec);
 
 				if (positions[0] != 'n' && positions[0] != 'y') {
 					printf("check on fields failed, %s:%d.\n", F, L - 1);
-					free(pos_u);
-					free_record_array(index, &recs_old);
+					free_recs_old(&recs_old);
 					goto clean_on_error;
 				}
 
@@ -1167,38 +1126,35 @@ int main(int argc, char *argv[])
 				int i = 0;
 				int changed = 0;
 				unsigned short updates = 0; /* bool value if 0 no updates*/
-				for (i = 0; i < index; i++) {
+				for (i = 0; i < size_pos; i++) {
 					if (positions[i] == 'n')
 						continue;
 
 					++updates;
 					changed = 1;
-					if (find_record_position(fd_data, pos_u[i]) == -1) {
+					if (find_record_position(fd_data, recs_old.pos_u[i]) == -1) {
 						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
 					off_t right_update_pos = 0;
-					if ((index - i) > 1)
-						right_update_pos = pos_u[i + 1];
+					if ((size_pos - i) > 1)
+						right_update_pos = recs_old.pos_u[i + 1];
 
-					if (index - i == 1 && check == SCHEMA_NW) {
+					if (size_pos - i == 1 && check == SCHEMA_NW) {
 						right_update_pos = go_to_EOF(fd_data);
-						if (find_record_position(fd_data, pos_u[i]) == -1 ||
+						if (find_record_position(fd_data, recs_old.pos_u[i]) == -1 ||
 							right_update_pos == -1){
 							printf("error file pointer, %s:%d.\n", F, L - 2);
-							free(pos_u);
-							free_record_array(index, &recs_old);
+							free_recs_old(&recs_old);
 							goto clean_on_error;
 						}
 					}
 
-					if (!write_file(fd_data, &recs_old[i], right_update_pos, update)) {
+					if (!write_file(fd_data, &recs_old.recs[i], right_update_pos, update)) {
 						printf("error write file, %s:%d.\n", F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 				}
@@ -1208,56 +1164,64 @@ int main(int argc, char *argv[])
 					off_t eof = go_to_EOF(fd_data); /* file pointer to the end*/
 					if (eof == -1) {
 						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
 					/*writing the new part of the schema to the file*/
 					if (!write_file(fd_data, &rec, 0, 0)) {
 						printf("write to file failed, %s:%d.\n", F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 						
-					if(find_record_position(fd_data,pos_u[index-1]) == -1){
-						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
-						goto clean_on_error;
-					}
+					if(size_pos <= MAX_RECS_OLD_CAP){
+						if(find_record_position(fd_data,recs_old.pos_u[size_pos-1]) == -1){
+							__er_file_pointer(F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
 
-					if(!write_file(fd_data,&recs_old[index-1],eof,update)){
-						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
-						goto clean_on_error;
-					}
+						if(!write_file(fd_data,&recs_old.recs[size_pos-1],eof,update)){
+							__er_file_pointer(F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
+					 } else if(size_pos > MAX_RECS_OLD_CAP){
+						 int index = size_pos - MAX_RECS_OLD_CAP -1;
+						 if(find_record_position(fd_data,recs_old.pos_u_r[index]) == -1){
+							__er_file_pointer(F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
+
+						if(!write_file(fd_data,&recs_old.recs_r[index],eof,update)){
+							__er_file_pointer(F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
+					 }
 				}
 
 				if (check == SCHEMA_NW && updates > 0) {
-					if (!create_new_fields_from_schema(recs_old, &rec, &hd.sch_d,
-							 index, &new_rec, file_path)) {
+					if (create_new_fields_from_schema(&recs_old, &rec, &hd.sch_d,
+							 &new_rec, file_path) == -1) {
 						printf("create new fileds failed,  %s:%d.\n", F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
 					off_t eof = go_to_EOF(fd_data); /* file pointer to the end*/
 					if (eof == -1) {
 						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
 					/*writing the new part of the schema to the file*/
 					if (!write_file(fd_data, &new_rec, 0, 0)) {
 						printf("write to file failed, %s:%d.\n", F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
@@ -1271,51 +1235,64 @@ int main(int argc, char *argv[])
 					off_t eof = 0;
 					if ((eof = go_to_EOF(fd_data)) == -1) {
 						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
-						goto clean_on_error;
-					}
-
-					/*find the position of the last piece of the record*/
-					off_t initial_pos = 0;
-					if ((initial_pos = find_record_position(fd_data, pos_u[index - 1])) == -1) {
-						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
 					/*re-write the record*/
-					if (write_file(fd_data, &recs_old[index - 1], eof, update) == -1) {
-						printf("write to file failed, %s:%d.\n", F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
-						goto clean_on_error;
+					if(size_pos <= MAX_RECS_OLD_CAP){
+						/*find the position of the last piece of the record*/
+						if ((find_record_position(fd_data, recs_old.pos_u[size_pos - 1])) == -1) {
+							__er_file_pointer(F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
+
+
+						if (write_file(fd_data, &recs_old.recs[size_pos - 1], eof, update) == -1) {
+							printf("write to file failed, %s:%d.\n", F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
+					} else if (size_pos > MAX_RECS_OLD_CAP){
+						int index = size_pos - MAX_RECS_OLD_CAP -1;
+
+						/*find the position of the last piece of the record*/
+						if ((find_record_position(fd_data, recs_old.pos_u_r[index])) == -1) {
+							__er_file_pointer(F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
+
+
+						if (write_file(fd_data, &recs_old.recs_r[index], eof, update) == -1) {
+							printf("write to file failed, %s:%d.\n", F, L - 1);
+							free_recs_old(&recs_old);
+							goto clean_on_error;
+						}
+
 					}
 
 					/*move to EOF*/
 					if ((go_to_EOF(fd_data)) == -1) {
 						__er_file_pointer(F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
 					/*create the new record*/
 					struct Record_f new_rec = {0};
-					if (!create_new_fields_from_schema(recs_old, &rec, &hd.sch_d,
-								index, &new_rec, file_path)) {
+					if (!create_new_fields_from_schema(&recs_old, &rec, &hd.sch_d,
+								&new_rec, file_path)) {
 						printf("create new fields failed, %s:%d.\n",__FILE__, __LINE__ - 2);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 
 					/*write the actual new data*/
 					if (!write_file(fd_data, &new_rec, 0, 0)) {
 						printf("write to file failed, %s:%d.\n", F, L - 1);
-						free(pos_u);
-						free_record_array(index, &recs_old);
+						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
 					free_record(&new_rec, new_rec.fields_num);
@@ -1324,16 +1301,19 @@ int main(int argc, char *argv[])
 				printf("record %s updated!\n", key);
 				while(lock(fd_index,UNLOCK) == WTLK);
 				close_file(3,fd_schema, fd_index, fd_data);
-				free(pos_u);
 				free_record(&rec, rec.fields_num);
-				free_record_array(index, &recs_old);
+				free_recs_old(&recs_old);
 				return 0;
 			} /*end of if(update_pos > 0)*/
 
 
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 			memset(&new_rec,0,sizeof(struct Record_f));
-			unsigned char comp_rr = compare_old_rec_update_rec(&rec_old, &rec, &new_rec, file_path, check, data_to_add, fields_count,hd);
+			recs_old.recs[0] = rec_old;
+			recs_old.pos_u[0] = offset;
+			unsigned char comp_rr = compare_old_rec_update_rec(&recs_old, &rec, &new_rec,
+									file_path, check, data_to_add, 
+									fields_count,hd);
 			if (comp_rr == 0) {
 				printf(" compare records failed, %s:%d.\n", F, L - 4);
 				goto clean_on_error;
@@ -1341,13 +1321,13 @@ int main(int argc, char *argv[])
 
 			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLD) {
 				// set the position back to the record
-				if (find_record_position(fd_data, offset) == -1) {
+				if (find_record_position(fd_data, recs_old.pos_u[0]) == -1) {
 					__er_file_pointer(F, L - 1);
 					goto clean_on_error;
 				}
 
 				// write the updated record to the file
-				if (!write_file(fd_data, &rec_old, 0, update)) {
+				if (!write_file(fd_data, &recs_old.recs[0], 0, update)) {
 					printf("write to file failed, %s:%d.\n", F, L - 1);
 					goto clean_on_error;
 				}
@@ -1370,13 +1350,13 @@ int main(int argc, char *argv[])
 				}
 
 				// put the position back to the record
-				if (find_record_position(fd_data, offset) == -1) {
+				if (find_record_position(fd_data, recs_old.pos_u[0]) == -1) {
 					__er_file_pointer(F, L - 1);
 					goto clean_on_error;
 				}
 
 				// update the old record :
-				if (!write_file(fd_data, &rec_old, eof, update)) {
+				if (!write_file(fd_data, &recs_old.recs[0], eof, update)) {
 					printf("can't write record, %s:%d.\n", __FILE__, __LINE__ - 1);
 					goto clean_on_error;
 				}
@@ -1405,8 +1385,8 @@ int main(int argc, char *argv[])
 
 			return 0; /*this should be unreachable*/
 			clean_on_error:
-			close_file(3, fd_schema, fd_index, fd_data);
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
+			close_file(3, fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
 			free_record(&rec_old, rec_old.fields_num);
 			free_record(&new_rec, new_rec.fields_num);

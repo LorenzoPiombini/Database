@@ -1343,3 +1343,77 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		return;
 	}
 }
+
+
+int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
+{
+	if(buffer->capacity < MAX_RECS_OLD_CAP) {
+		buffer->recs[buffer->capacity] = *rec;
+		buffer->pos_u[buffer->capacity] = pos;
+		buffer->capacity++;
+		return 0;
+	}
+	
+	errno = 0;
+	if(buffer->dynamic_capacity == 0){
+		buffer->recs_r = calloc(MAX_RECS_OLD_CAP,sizeof(struct Record_f));
+		if(!buffer->recs_r){
+			perror("recs_r calloc");
+			if(errno == ENOMEM) return errno;
+			return -1;
+		}
+
+		buffer->pos_u_r = calloc(MAX_RECS_OLD_CAP,sizeof(off_t));
+		if(!buffer->pos_u_r){
+			perror("pos_u_r calloc");
+			if(errno == ENOMEM) return errno;
+			return -1;
+		}
+
+		buffer->recs_r[buffer->dynamic_capacity] = *rec;
+		buffer->pos_u_r[buffer->dynamic_capacity] = pos;
+		buffer->dynamic_capacity++;
+		return 0;
+
+	}else if(buffer->dynamic_capacity < MAX_RECS_OLD_CAP){
+		buffer->recs_r[buffer->dynamic_capacity] = *rec;
+		buffer->dynamic_capacity++;
+		return 0;
+	}else if(buffer->dynamic_capacity == 500 || buffer->dynamic_capacity > 500){
+
+		struct Record_f *new_recs_r = realloc(buffer->recs_r,++(buffer->dynamic_capacity) * sizeof(struct Record_f));
+		if(!new_recs_r){
+			perror("new_recs_r realloc");
+			if(errno == ENOMEM) return errno;
+			return -1;
+		}
+		
+		off_t *new_pos_u_r = realloc(buffer->pos_u_r,buffer->dynamic_capacity * sizeof(off_t));
+		if(!new_pos_u_r){
+			perror("new_pos_u_r realloc");
+			if(errno == ENOMEM) return errno;
+			return -1;
+		}
+
+		buffer->recs_r = new_recs_r;
+		buffer->recs_r[buffer->dynamic_capacity - 1] = *rec;
+		buffer->pos_u_r = new_pos_u_r;
+		buffer->pos_u_r[buffer->dynamic_capacity] = pos;
+		return 0;
+	}
+	
+	return -1;
+}
+
+void free_recs_old(struct Recs_old *buffer)
+{
+	if(buffer->dynamic_capacity == 0){
+		for(int i = 0; i < buffer->capacity; i++)
+			free_record(&buffer->recs[i],buffer->recs[i].fields_num);
+	}else {
+		struct Record_f *p = buffer->recs;
+		free_record_array(buffer->capacity,&p);
+		free_record_array(buffer->dynamic_capacity,&buffer->recs_r);
+		free(buffer->pos_u_r);
+	}
+}
