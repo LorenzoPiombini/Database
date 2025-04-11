@@ -2227,17 +2227,30 @@ int create_new_fields_from_schema(struct Recs_old *recs_old,
 							struct Record_f *new_rec, 
 							char *file_path)
 {
-	int i = 0;
-	int sum = 0;
-	for (i = 0; i < recs_old->capacity; i++)
-		sum += recs_old->recs[i].fields_num;
 
-	create_record(file_path, *sch, new_rec);
+	create_record(file_path, *sch,new_rec);
+	int cont = 0;
+	int n_i = 0;
+	int l = 0;
+	int new_fields_indexes[MAX_FIELD_NR] = {-1};
+	for (int j = 0, i = 0; j < sch->fields_num; j++, i++) {
+		if(i < recs_old->capacity){
+			for (int x = 0; x < recs_old->recs[i].fields_num; x++) {
 
-	i = 0;
-	register unsigned char j = 0, x = 0, n_i = 0, found = 0;
-	for (j = 0; j < sch->fields_num; j++) {
-		if (i == recs_old->capacity) {
+				if (strncmp(recs_old->recs[i].fields[x].field_name, 
+							sch->fields_name[j],
+							strlen(sch->fields_name[j])) == 0){
+
+					if(recs_old->recs[i].field_set[x] == 1){
+						cont = 1;
+						break;
+					}
+				}
+			}
+		}
+		if(cont){
+			cont = 0;
+
 			switch (sch->types[j]) {
 			case TYPE_INT:
 			case TYPE_BYTE:
@@ -2285,115 +2298,142 @@ int create_new_fields_from_schema(struct Recs_old *recs_old,
 				printf("invalid type %d.", sch->types[j]);
 				return -1;
 			}
+
+			n_i++;
 			continue;
 		}
 
-		for (x = 0; x < recs_old->recs[i].fields_num; x++) {
-			if (strncmp(recs_old->recs[i].fields[x].field_name, 
-						sch->fields_name[j],
-						strlen(sch->fields_name[j])) == 0){
-				++found;
-				break;
-			}
-		}
-
-		if (found == recs_old->recs[i].fields_num) {
-			found = 0;
-			i++;
-		}
-	}
-
-	/* setting the proper value for the new part of the schema */
-
-	for (j = 0; j < rec->fields_num; j++) {
-		for (x = 0; x < (*new_rec).fields_num; x++) {
-			if (strncmp(rec->fields[j].field_name, 
-						(*new_rec).fields[x].field_name,
-						strlen(rec->fields[j].field_name)) == 0) {
-				switch (rec->fields[j].type){
-				case TYPE_INT:
-					new_rec->fields[x].data.i = rec->fields[j].data.i;
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_BYTE:
-					new_rec->fields[x].data.b = rec->fields[j].data.b;
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_LONG:
-					new_rec->fields[x].data.l = rec->fields[j].data.l;
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_FLOAT:
-					new_rec->fields[x].data.f = rec->fields[j].data.f;
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_DOUBLE:
-					new_rec->fields[x].data.d = rec->fields[j].data.d;
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_STRING:
-					free(new_rec->fields[x].data.s);
-					new_rec->fields[x].data.s = NULL;
-					new_rec->fields[x].data.s = strdup(rec->fields[j].data.s);
-					if(!new_rec->fields[x].data.s){
-						fprintf(stderr,"strdup() failed, %s:%d.\n",F,L-2);
-						return -1;
-					}
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_ARRAY_INT:
-					new_rec->fields[x].data.v.destroy(&rec->fields[j].data.v, rec->fields[j].type);
-					for (int a = 0; a < rec->fields[j].data.v.size; a++){
-						new_rec->fields[x].data.v.insert((void *)rec->fields[j].data.v.elements.i[a],
-								&rec->fields[j].data.v, rec->fields[j].type);
-					}
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_ARRAY_LONG:
-					new_rec->fields[x].data.v.destroy(&rec->fields[j].data.v, rec->fields[j].type);
-					for (int a = 0; a < rec->fields[j].data.v.size; a++) {
-						new_rec->fields[x].data.v.insert((void *)rec->fields[j].data.v.elements.l[a],
-								&rec->fields[j].data.v, rec->fields[j].type);
-					}
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_ARRAY_BYTE:
-					new_rec->fields[x].data.v.destroy(&rec->fields[j].data.v, rec->fields[j].type);
-					for (int a = 0; a < rec->fields[j].data.v.size; a++){
-						new_rec->fields[x].data.v.insert((void *)rec->fields[j].data.v.elements.b[a],
-								&rec->fields[j].data.v, rec->fields[j].type);
-					}
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_ARRAY_FLOAT:
-					new_rec->fields[x].data.v.destroy(&rec->fields[j].data.v, rec->fields[j].type);
-					for (int a = 0; a < rec->fields[j].data.v.size; a++){
-						new_rec->fields[x].data.v.insert((void *)rec->fields[j].data.v.elements.f[a],
-								&rec->fields[j].data.v, rec->fields[j].type);
-					}
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_ARRAY_DOUBLE:
-					new_rec->fields[x].data.v.destroy(&rec->fields[j].data.v, rec->fields[j].type);
-					for (int a = 0; a < rec->fields[j].data.v.size; a++) {
-						new_rec->fields[x].data.v.insert((void *)rec->fields[j].data.v.elements.d[a],
-								&rec->fields[j].data.v, rec->fields[j].type);
-					}
-					new_rec->field_set[x] = 1;
-					break;
-				case TYPE_ARRAY_STRING:
-					new_rec->fields[x].data.v.destroy(&rec->fields[j].data.v, rec->fields[j].type);
-					for (int a = 0; a < rec->fields[j].data.v.size; a++) {
-						new_rec->fields[x].data.v.insert((void *)rec->fields[j].data.v.elements.s[a],
-								&rec->fields[j].data.v, rec->fields[j].type);
-					}
-					new_rec->field_set[x] = 1;
-					break;
-				default:
-					printf("data type not suprted: %d.", rec->fields[j].type);
+		new_fields_indexes[l] = j;
+		l++;
+		switch (sch->types[j]) {
+			case TYPE_INT:
+			case TYPE_BYTE:
+			case TYPE_LONG:
+				if (!set_field(new_rec, n_i, sch->fields_name[j], sch->types[j], "0",1)){
+					printf("set_field failed, %s:%d.\n", F, L - 2);
 					return -1;
 				}
+				break;
+			case TYPE_FLOAT:
+			case TYPE_DOUBLE:
+				if (!set_field(new_rec, n_i, sch->fields_name[j], sch->types[j], "0.0",1)) {
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return -1;
+				}
+				break;
+			case TYPE_STRING:
+				if (!set_field(new_rec, n_i, sch->fields_name[j], sch->types[j], "null",1)) {
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return -1;
+				}
+				break;
+			case TYPE_ARRAY_INT:
+			case TYPE_ARRAY_LONG:
+			case TYPE_ARRAY_BYTE:
+				if (!set_field(new_rec, n_i, sch->fields_name[j], sch->types[j], "0",1)) {
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return -1;
+				}
+				break;
+			case TYPE_ARRAY_FLOAT:
+			case TYPE_ARRAY_DOUBLE:
+				if (!set_field(new_rec, n_i, sch->fields_name[j], sch->types[j], "0.0",1)) {
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return -1;
+				}
+				break;
+			case TYPE_ARRAY_STRING:
+				if (!set_field(new_rec, n_i, sch->fields_name[j], sch->types[j], "null,null",1)) {
+					printf("set_field failed, %s:%d.\n", F, L - 2);
+					return -1;
+				}
+				break;
+			default:
+				printf("invalid type %d.", sch->types[j]);
+				return -1;
 			}
+
+			n_i++;
+
+	}
+
+
+
+	/* setting the proper value for the new part of the schema */
+	
+	for (int j = 0; j < l; j++) {
+		int x = new_fields_indexes[j];
+		if (x < 0) break;
+		switch (rec->fields[x].type){
+			case TYPE_INT:
+				new_rec->fields[x].data.i = rec->fields[x].data.i;
+				break;
+			case TYPE_BYTE:
+				new_rec->fields[x].data.b = rec->fields[x].data.b;
+				break;
+			case TYPE_LONG:
+				new_rec->fields[x].data.l = rec->fields[x].data.l;
+				break;
+			case TYPE_FLOAT:
+				new_rec->fields[x].data.f = rec->fields[x].data.f;
+				break;
+			case TYPE_DOUBLE:
+				new_rec->fields[x].data.d = rec->fields[x].data.d;
+				break;
+			case TYPE_STRING:
+				free(new_rec->fields[x].data.s);
+				new_rec->fields[x].data.s = NULL;
+				new_rec->fields[x].data.s = strdup(rec->fields[x].data.s);
+				if(!new_rec->fields[x].data.s){
+					fprintf(stderr,"strdup() failed, %s:%d.\n",F,L-2);
+					return -1;
+				}
+				break;
+			case TYPE_ARRAY_INT:
+				new_rec->fields[x].data.v.destroy(&rec->fields[x].data.v, rec->fields[x].type);
+				for (int a = 0; a < rec->fields[x].data.v.size; a++){
+					new_rec->fields[x].data.v.insert((void *)rec->fields[x].data.v.elements.i[a],
+							&rec->fields[x].data.v, rec->fields[x].type);
+				}
+				break;
+			case TYPE_ARRAY_LONG:
+				new_rec->fields[x].data.v.destroy(&rec->fields[x].data.v, rec->fields[x].type);
+				for (int a = 0; a < rec->fields[x].data.v.size; a++) {
+					new_rec->fields[x].data.v.insert((void *)rec->fields[x].data.v.elements.l[a],
+							&rec->fields[x].data.v, rec->fields[x].type);
+				}
+				break;
+			case TYPE_ARRAY_BYTE:
+				new_rec->fields[x].data.v.destroy(&rec->fields[x].data.v, rec->fields[x].type);
+				for (int a = 0; a < rec->fields[x].data.v.size; a++){
+					new_rec->fields[x].data.v.insert((void *)rec->fields[x].data.v.elements.b[a],
+							&rec->fields[x].data.v, rec->fields[x].type);
+				}
+				break;
+			case TYPE_ARRAY_FLOAT:
+				new_rec->fields[x].data.v.destroy(&rec->fields[x].data.v, rec->fields[x].type);
+				for (int a = 0; a < rec->fields[x].data.v.size; a++){
+					new_rec->fields[x].data.v.insert((void *)rec->fields[x].data.v.elements.f[a],
+							&rec->fields[x].data.v, rec->fields[x].type);
+				}
+				break;
+			case TYPE_ARRAY_DOUBLE:
+				new_rec->fields[x].data.v.destroy(&rec->fields[x].data.v, rec->fields[x].type);
+				for (int a = 0; a < rec->fields[x].data.v.size; a++) {
+					new_rec->fields[x].data.v.insert((void *)rec->fields[x].data.v.elements.d[a],
+							&rec->fields[x].data.v, rec->fields[x].type);
+				}
+				break;
+			case TYPE_ARRAY_STRING:
+				new_rec->fields[x].data.v.destroy(&rec->fields[x].data.v, rec->fields[x].type);
+				for (int a = 0; a < rec->fields[x].data.v.size; a++) {
+					new_rec->fields[x].data.v.insert((void *)rec->fields[x].data.v.elements.s[a],
+							&rec->fields[x].data.v, rec->fields[x].type);
+				}
+				break;
+			default:
+				printf("data type not suprted: %d.", rec->fields[x].type);
+				return -1;
 		}
 	}
 
