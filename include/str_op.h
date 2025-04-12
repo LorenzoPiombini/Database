@@ -8,7 +8,7 @@
 #define MAX_KEY 4294967296
 
 #define MAX_FILE_PATH_LENGTH 1024
-
+#define MAX_FILED_LT 32
 
 
 #define ASCII_INT_MAX 526            /*the sum of ASCII values for every char in INT_MAX*/
@@ -39,9 +39,9 @@ void *key_converter(char *key, int *key_type);
 int three_file_path(char *file_path, char files[][MAX_FILE_PATH_LENGTH]);
 int count_fields(char *fields, const char *target);
 int get_type(char *s);
-char **get_fileds_name(char *fields_name, int fields_count, int steps);
+int get_fileds_name(char *fields_name, int fields_count, int steps, char names[][MAX_FILE_PATH_LENGTH]);
 unsigned char check_fields_integrity(char **names, int fields_count);
-enum ValueType *get_value_types(char *fields_input, int fields_count, int steps);
+int get_value_types(char *fields_input, int fields_count, int steps, int *types);
 void free_strs(int fields_num, int count, ...);
 char **get_values(char *fields_input, int fields_count);
 unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dta_blocks[][500]);

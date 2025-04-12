@@ -126,8 +126,7 @@ int count_fields(char *fields, const char *target)
 	int c = 0;
 	const char *p = fields;
 
-	while ((p = strstr(p, target)) != NULL)
-	{
+	while ((p = strstr(p, target)) != NULL) {
 		c++;
 		p += strlen(target);
 	}
@@ -135,19 +134,13 @@ int count_fields(char *fields, const char *target)
 	return c;
 }
 
-int get_type(char *s)
-{
+int get_type(char *s){
 
-	if (strcmp(s, "TYPE_INT") == 0)
-	{
+	if (strcmp(s, "TYPE_INT") == 0) {
 		return 0;
-	}
-	else if (strcmp(s, "TYPE_LONG") == 0)
-	{
+	} else if (strcmp(s, "TYPE_LONG") == 0){
 		return 1;
-	}
-	else if (strcmp(s, "TYPE_FLOAT") == 0)
-	{
+	} else if (strcmp(s, "TYPE_FLOAT") == 0) {
 		return 2;
 	}
 	else if (strcmp(s, "TYPE_STRING") == 0)
@@ -238,36 +231,18 @@ int get_type(char *s)
 	return -1;
 }
 
-char **get_fileds_name(char *fields_name, int fields_count, int steps)
+int get_fileds_name(char *fields_name, int fields_count, int steps, char names[][MAX_FILED_LT])
 {
 
-	if (fields_count == 0)
-		return NULL;
+	if (fields_count == 0) return -1;
 
 	int j = 0;
-	char **names_f = calloc(fields_count, sizeof(char *));
 	char *s = NULL;
 
-	if (!names_f)
-	{
-		perror("memory");
-		return NULL;
-	}
 	char *cp_fv = fields_name;
-	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count)
-	{
+	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count) {
 		strip('_', s);
-		names_f[j] = strdup(s);
-		if (!names_f[j])
-		{
-			perror("error duplicating token, str_op.c l 92\n");
-			while (j-- > 0)
-			{
-				free(names_f[j]);
-			}
-			free(names_f);
-			return NULL;
-		}
+		strncpy(names[j],s,strlen(s));
 
 		j++;
 
@@ -277,18 +252,16 @@ char **get_fileds_name(char *fields_name, int fields_count, int steps)
 			strtok_r(NULL, ":", &cp_fv);
 	}
 
-	return names_f;
+	return 0;
 }
 
-unsigned char check_fields_integrity(char **names, int fields_count)
+unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_count)
 {
-	for (int i = 0; i < fields_count; i++)
-	{
+	for (int i = 0; i < fields_count; i++) {
 		if ((fields_count - i) == 1)
 			break;
 
-		for (int j = 0; j < fields_count; j++)
-		{
+		for (int j = 0; j < fields_count; j++) {
 			if (((fields_count - i) > 1) && ((fields_count - j) > 1))
 			{
 				if (j == i)
@@ -308,21 +281,13 @@ unsigned char check_fields_integrity(char **names, int fields_count)
 	return 1;
 }
 
-enum ValueType *get_value_types(char *fields_input, int fields_count, int steps)
+int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 {
 
-	if (fields_count == 0)
-		return NULL;
+	if (fields_count == 0) return -1;
 
 	int i = steps == 3 ? 0 : 1;
 	int j = 0;
-
-	enum ValueType *types = calloc(fields_count, sizeof(enum ValueType));
-	if (!types)
-	{
-		__er_calloc(F, L - 3);
-		return NULL;
-	}
 
 	char *s = NULL;
 	char *copy_fv = NULL;
@@ -339,45 +304,35 @@ enum ValueType *get_value_types(char *fields_input, int fields_count, int steps)
 			free(types);
 			return NULL;
 		}
-		types[j] = (enum ValueType)result;
+		types[j] = result;
 		i++;
 	}
 	else
 	{
 		printf("type token not found in get_value_types().\n");
-		free(types);
-		return NULL;
+		return -1;
 	}
 
-	while ((s = strtok_r(NULL, ":", &copy_fv)) != NULL)
-	{
-		if ((i % 3 == 0) && (j < fields_count - 1))
-		{
+	while ((s = strtok_r(NULL, ":", &copy_fv)) != NULL) {
+		if ((i % 3 == 0) && (j < fields_count - 1)) {
 			j++;
 			int r  = get_type(s);
-			if (r == -1)
-			{
+			if (r == -1){
 				printf("check input format: fieldName:TYPE:value.\n");
-				free(types);
-				return NULL;
+				return -1;
 			}
-			types[j] = (enum ValueType)r;
+			types[j] = r;
 		}
 
-		if (steps != 3 && i == 2)
-		{
+		if (steps != 3 && i == 2) {
 			i++;
-		}
-		else if (steps != 3 && i == 3)
-		{
+		}else if (steps != 3 && i == 3) {
 			i--;
-		}
-		else
-		{
+		}else{
 			i++;
 		}
 	}
-	return types;
+	return 0;
 }
 
 char **get_values(char *fields_input, int fields_count)
