@@ -25,11 +25,16 @@ int create_header(struct Header_d *hd);
 int write_empty_header(int fd, struct Header_d *hd);
 int write_header(int fd, struct Header_d *hd);
 int read_header(int fd, struct Header_d *hd);
-unsigned char ck_input_schema_fields(char **names, enum ValueType *types_i, struct Header_d hd);
+unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd);
 unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Header_d hd);
-int sort_input_like_header_schema(int schema_tp, int fields_num, struct Schema *sch, char **names, char **values,
-								  enum ValueType *types_i);
-unsigned char ck_schema_contain_input(char **names, enum ValueType *types_i, struct Header_d hd, int fields_num);
+int sort_input_like_header_schema(int schema_tp, 
+					int fields_num, 
+					struct Schema *sch, 
+					char names[][MAX_FIELD_LT], 
+					char **values,
+					int *types_i);
+
+unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd, int fields_num);
 unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_tm, struct Schema *sch);
 int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, struct Schema *sch);
 unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old, 
@@ -37,8 +42,6 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 						struct Record_f *new_rec,
 						char *file_path,
 						unsigned char check, 
-						char *buffer, 
-						int fields_num,
 						struct Header_d hd);
 
 void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Record_f *rec);

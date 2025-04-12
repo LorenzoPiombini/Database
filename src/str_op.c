@@ -299,11 +299,7 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 	if (s)
 	{
 		int result = get_type(s);
-		if (result == -1)
-		{
-			free(types);
-			return NULL;
-		}
+		if (result == -1) return -1;
 		types[j] = result;
 		i++;
 	}

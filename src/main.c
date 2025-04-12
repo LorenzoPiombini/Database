@@ -1312,8 +1312,7 @@ int main(int argc, char *argv[])
 			recs_old.recs[0] = rec_old;
 			recs_old.pos_u[0] = offset;
 			unsigned char comp_rr = compare_old_rec_update_rec(&recs_old, &rec, &new_rec,
-									file_path, check, data_to_add, 
-									fields_count,hd);
+									file_path, check,hd);
 			if (comp_rr == 0) {
 				printf(" compare records failed, %s:%d.\n", F, L - 4);
 				goto clean_on_error;

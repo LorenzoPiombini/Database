@@ -425,51 +425,49 @@ int read_header(int fd, struct Header_d *hd)
 	return 1; // successed
 }
 
-unsigned char ck_input_schema_fields(char **names, enum ValueType *types_i, struct Header_d hd)
+unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd)
 {
 	int fields_eq = 0;
 	int types_eq = 0;
 
 	char **copy_sch = calloc(hd.sch_d.fields_num, sizeof(char *));
-
 	if (!copy_sch)
 	{
-		printf("calloc failed, parse.c l %d.\n", __LINE__ - 3);
+		printf("calloc failed, %s:%d.\n",__FILE__, __LINE__ - 3);
 		return 0;
 	}
 
-	enum ValueType types_cp[hd.sch_d.fields_num];
+	int types_cp[hd.sch_d.fields_num];
+	memset(types_cp,-1,hd.sch_d.fields_num);
 
-	register unsigned char i = 0;
-	for (i = 0; i < hd.sch_d.fields_num; i++)
-	{
+	char *names_array_for_sort[MAX_FIELD_NR] = {0};
+
+	for (int i = 0; i < hd.sch_d.fields_num; i++) {
 		copy_sch[i] = hd.sch_d.fields_name[i];
 		types_cp[i] = hd.sch_d.types[i];
+		names_array_for_sort[i] = names[i];
 	}
 
 	/*sorting the name and type arrays  */
-	if (hd.sch_d.fields_num > 1)
-	{
+	if (hd.sch_d.fields_num > 1) {
 		quick_sort(types_i, 0, hd.sch_d.fields_num - 1);
 		quick_sort(types_cp, 0, hd.sch_d.fields_num - 1);
-		quick_sort_str(names, 0, hd.sch_d.fields_num - 1);
+		quick_sort_str(names_array_for_sort, 0, hd.sch_d.fields_num - 1);
 		quick_sort_str(copy_sch, 0, hd.sch_d.fields_num - 1);
 	}
 
-	register unsigned char j = 0;
-	for (i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++)
-	{
+	
+	for (int i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++) {
 		// printf("%s == %s\n",copy_sch[i],names[j]);
-		if (strcmp(copy_sch[i], names[j]) == 0)
+		if (strncmp(copy_sch[i], names_array_for_sort[j],strlen(names_array_for_sort[i])) == 0)
 			fields_eq++;
 
 		// printf("%d == %d\n",types_cp[i], types_i[j]);
-		if (types_cp[i] == types_i[j])
+		if ((int)types_cp[i] == types_i[j])
 			types_eq++;
 	}
 
-	if (fields_eq != hd.sch_d.fields_num || types_eq != hd.sch_d.fields_num)
-	{
+	if (fields_eq != hd.sch_d.fields_num || types_eq != hd.sch_d.fields_num) {
 		printf("Schema different than file definition.\n");
 		free(copy_sch);
 		return SCHEMA_ERR;
@@ -484,54 +482,34 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Heade
 	char *names_cs = strdup(buffer);
 	char *types_cs = strdup(buf_t);
 
-	enum ValueType *types_i = get_value_types(types_cs, fields_n, 3);
+	int types_i[MAX_FIELD_NR]= {-1};
+	char names[MAX_FIELD_NR][MAX_FIELD_LT]= {0};
+	get_value_types(types_cs, fields_n, 3,types_i);
+	get_fileds_name(names_cs, fields_n, 3,names);
 
-	if (!types_i)
-	{
-		printf("could not get types from input, parse.c:%d.\n", __LINE__ - 4);
-		free(names_cs);
-		free(types_cs);
-		return 0;
-	}
-
-	char **names = get_fileds_name(names_cs, fields_n, 3);
-	if (!names)
-	{
-		printf("could not get fields name from input, parse.c:%d.\n", __LINE__ - 3);
-		;
-		free(names_cs), free(types_cs), free(types_i);
-		return 0;
-	}
-
-	if (hd.sch_d.fields_num == fields_n)
-	{
-		//	printf("the fields are == to the schema asper qty.\n");
+	if (hd.sch_d.fields_num == fields_n) {
 		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
-		switch (ck_rst)
-		{
+		switch (ck_rst) {
 		case SCHEMA_ERR:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return SCHEMA_ERR;
 		case SCHEMA_EQ:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return SCHEMA_EQ;
 		default:
 			printf("check on Schema failed.\n");
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return 0;
 		}
-	}
-	else if (hd.sch_d.fields_num < fields_n)
-	{ /* case where the header needs to be updated */
-		if (((fields_n - hd.sch_d.fields_num) + hd.sch_d.fields_num) > MAX_FIELD_NR)
-		{
+	} else if (hd.sch_d.fields_num < fields_n) {
+		/* case where the header needs to be updated */
+		if (((fields_n - hd.sch_d.fields_num) + hd.sch_d.fields_num) > MAX_FIELD_NR) {
 			printf("cannot add the new fileds, limit is %d fields.\n", MAX_FIELD_NR);
+			free(names_cs);
+			free(types_cs);
 			return SCHEMA_ERR;
 		}
 		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
@@ -539,18 +517,15 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Heade
 		switch (ck_rst)
 		{
 		case SCHEMA_ERR:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return SCHEMA_ERR;
 		case SCHEMA_EQ:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return SCHEMA_NW;
 		default:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return 0;
 		}
@@ -559,48 +534,48 @@ unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Heade
 	{ /*case where the fileds are less than the schema */
 		// if they are in the schema and the types are correct, return SCHEMA_CT
 		// create a record with only the values provided and set the other values to 0;
-		// printf("last data should be here.\n");
 
 		int ck_rst = ck_schema_contain_input(names, types_i, hd, fields_n);
 
-		switch (ck_rst)
-		{
+		switch (ck_rst) {
 		case SCHEMA_ERR:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return SCHEMA_ERR;
 		case SCHEMA_CT:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return SCHEMA_CT;
 		default:
-			free_strs(fields_n, 1, names);
-			free(types_i), free(names_cs);
+			free(names_cs);
 			free(types_cs);
 			return 0;
 		}
 	}
 
 	// this is unreachable
-	free_strs(fields_n, 1, names);
-	free(types_i), free(names_cs);
+	free(names_cs);
 	free(types_cs);
 	return 1;
 }
 
-int sort_input_like_header_schema(int schema_tp, int fields_num, struct Schema *sch, char **names, char **values, enum ValueType *types_i)
+int sort_input_like_header_schema(int schema_tp, 
+					int fields_num, 
+					struct Schema *sch, 
+					char names[][MAX_FIELD_LT], 
+					char **values, 
+					int *types_i)
 {
 	int f_n = schema_tp == SCHEMA_NW ? sch->fields_num : fields_num;
 	int value_pos[f_n];
+	memset(value_pos,0,f_n);
+
 	register unsigned char i, j;
 
-	for (i = 0; i < f_n; i++)
-	{
+	for (i = 0; i < f_n; i++) {
 		for (j = 0; j < sch->fields_num; j++)
 		{
-			if (strcmp(names[i], sch->fields_name[j]) == 0)
+			if (strncmp(names[i], sch->fields_name[j], strlen(names[i])) == 0)
 			{
 				value_pos[i] = j;
 				break;
@@ -609,41 +584,32 @@ int sort_input_like_header_schema(int schema_tp, int fields_num, struct Schema *
 	}
 
 	char **temp_val = calloc(fields_num, sizeof(char *));
-	if (!temp_val)
-	{
+	if (!temp_val) {
 		__er_calloc(F, L - 3);
 		return 0;
 	}
 
-	char **temp_name = calloc(fields_num, sizeof(char *));
-	if (!temp_name)
-	{
-		__er_calloc(F, L - 3);
-		free(temp_val);
-		return 0;
-	}
+	char temp_name[MAX_FIELD_NR][MAX_FIELD_LT] = {0}; 
 
-	enum ValueType temp_types[fields_num];
+	int temp_types[MAX_FIELD_NR] = {-1};
 
-	for (i = 0; i < f_n; i++)
-	{
+	for (i = 0; i < f_n; i++) {
 		temp_val[value_pos[i]] = values[i];
-		temp_name[value_pos[i]] = names[i];
+		strncpy(temp_name[value_pos[i]],names[i],strlen(names[i]));
 		temp_types[value_pos[i]] = types_i[i];
 	}
 
-	for (i = 0; i < f_n; i++)
-	{
+	for (i = 0; i < f_n; i++) {
 		values[i] = temp_val[i];
-		names[i] = temp_name[i];
+		strncpy(names[i],temp_name[i],strlen(temp_name[i]));
 		types_i[i] = temp_types[i];
 	}
 
-	free(temp_val), free(temp_name);
+	free(temp_val);
 	return 1;
 }
 
-unsigned char ck_schema_contain_input(char **names, enum ValueType *types_i, struct Header_d hd, int fields_num)
+unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd, int fields_num)
 {
 	// printf("fields are %d",fields_num);
 	register unsigned char i = 0, j = 0;
@@ -677,20 +643,11 @@ unsigned char ck_schema_contain_input(char **names, enum ValueType *types_i, str
 
 unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, struct Schema *sch)
 {
-	char **names = get_fileds_name(buffer, fields_num, 2);
 
-	if (!names) {
-		printf("Error in getting the fields name");
-		return 0;
-	}
-
-	enum ValueType *types_i = get_value_types(buf_t, fields_num, 2);
-
-	if (!types_i) {
-		printf("Error in getting the fields types");
-		free_strs(fields_num, 1, names);
-		return 0;
-	}
+	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
+	int types_i[MAX_FIELD_NR] = {-1};
+	get_fileds_name(buffer, fields_num, 2, names);
+	get_value_types(buf_t, fields_num, 2,types_i);
 
 	int x = 0;
 	int found = 0;
@@ -712,8 +669,6 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 
 			if (found == fields_num) {
 				printf("fields already exist.\n");
-				free_strs(fields_num, 1, names);
-				free(types_i);
 				return 0;
 			}
 		}
@@ -729,8 +684,6 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 			sch->fields_num++;
 		}
 
-		free_strs(fields_num, 1, names);
-		free(types_i);
 		return 1;
 	}
 
@@ -741,23 +694,16 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, struct Schema *sch)
 {
 
-	char **names = get_fileds_name(buffer, fields_num, 2);
-
-	if (!names)
-	{
-		printf("Error in getting the fields name");
-		return 0;
-	}
+	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
+	get_fileds_name(buffer, fields_num, 2,names);
 
 	/*check if the fields name are correct- if not - input is incorrect */
-	for (int i = 0; i < fields_num; i++)
-	{
+	for (int i = 0; i < fields_num; i++) {
 
-		if (names[i] == NULL)
+		if (names[i][0] == '\0')
 		{
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
-			free_strs(fields_num, 1, names);
 			return 0;
 		}
 		else if (strstr(names[i], "TYPE STRING") ||
@@ -787,7 +733,6 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		{
 			printf("invalid input.\ninput syntax: \
 					fieldName:TYPE:value\n");
-			free_strs(fields_num, 1, names);
 			return 0;
 		}
 
@@ -795,30 +740,22 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		{
 			printf("invalid input.\n");
 			printf("one or more filed names are too long.\n");
-			free_strs(fields_num, 1, names);
 			return 0;
 		}
 	}
 
-	if (!check_fields_integrity(names, fields_num))
-	{
+	if (!check_fields_integrity(names, fields_num)) {
 		printf("invalid input, one or more fields have the same name.\n");
 		printf("input syntax: fieldName:TYPE:value\n");
-		free_strs(fields_num, 1, names);
 		return 0;
 	}
 
 	for (int j = 0; j < fields_num; j++)
-		if (names[j])
 			strncpy(sch->fields_name[j],names[j],strlen(names[j]));
 
-	enum ValueType *types_i = get_value_types(buf_t, fields_num, 2);
+	int types_i[MAX_FIELD_NR] = {-1};
+	get_value_types(buf_t, fields_num, 2,types_i);
 
-	if (!types_i) {
-		printf("Error in getting the types.\n");
-		free_strs(fields_num, 1, names);
-		return 0;
-	}
 
 	for (int i = 0; i < fields_num; i++)
 	{
@@ -837,8 +774,6 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 		{
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
-			free_strs(fields_num, 1, names);
-			free(types_i);
 			return 0;
 		}
 	}
@@ -846,9 +781,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	for (int i = 0; i < fields_num; i++)
 		sch->types[i] = types_i[i];
 
-	free_strs(fields_num, 1, names);
-	free(types_i);
-	return 1; // scheam creation succssed
+	return 1; // schema creation succssed
 }
 
 unsigned char perform_checks_on_schema(char *buffer, 
@@ -903,19 +836,13 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 						struct Record_f *new_rec, 
 						char *file_path,
 						unsigned char check, 
-						char *buffer, 
-						int fields_num,
 						struct Header_d hd)
 {
 	unsigned char i = 0, j = 0;
 	int changed = 0;
-
+	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
+	int types_i[MAX_FIELD_NR]= {-1}; 
 	if (check == SCHEMA_CT ) {
-		char **names = get_fileds_name(buffer, fields_num, 3);
-		if (!names) {
-			printf("no memory for names, parse.c l 864.\n");
-			return 0;
-		}
 
 		for (j = 0; j < rec_old->recs[0].fields_num; j++) {
 			if (rec->field_set[j] == 1 && rec_old->recs[0].field_set[j] == 1) {
@@ -1110,7 +1037,6 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 		}
 
 
-		free_strs(fields_num, 1, names);
 		if(changed){
 			return UPDATE_OLD;
 		}else {
@@ -1316,34 +1242,15 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 		return UPDATE_OLD;
 	}
 
-	if (rec_old->recs[0].fields_num < rec->fields_num)
-	{
+	if (rec_old->recs[0].fields_num < rec->fields_num) {
 		int elements = rec->fields_num - rec_old->recs[0].fields_num;
 
 		create_record(file_path, hd.sch_d, new_rec);
 
-		char **names = calloc(elements, sizeof(char *));
-		if (!names)
-		{
-			printf("calloc failed at parse.c l 875.\n");
-			return 0;
-		}
-
-		enum ValueType *types_i = calloc(elements, sizeof(enum ValueType));
-
-		if (!types_i)
-		{
-			printf("calloc failed at parse.c l 881.\n");
-			free_strs(elements, 1, names);
-			return 0;
-		}
 
 		char **values = calloc(elements, sizeof(char *));
-		if (!values)
-		{
+		if (!values) {
 			printf("calloc failed at parse.c l 827.\n");
-			free_strs(elements, 1, names);
-			free(types_i);
 			return 0;
 		}
 
@@ -1614,8 +1521,6 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 									if (!rec_old->recs[0].fields[i].data.v.elements.s[a])
 									{
 										fprintf(stderr, "strdup() failed,%s:%d.\n", F, L - 2);
-										free_strs(elements, 1, names);
-										free(types_i);
 										return 0;
 									}
 								}
@@ -1644,8 +1549,7 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 					break;
 				default:
 					printf("invalid type! type -> %d.\n", rec->fields[i].type);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free(values);
 					return 0;
 				}
 			}
@@ -1656,14 +1560,7 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 			if (i < rec_old->recs[0].fields_num)
 				continue;
 
-			names[j] = strdup(rec->fields[i].field_name);
-			if (!names[j])
-			{
-				fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-				free_strs(elements, 1, names);
-				free(types_i);
-				return 0;
-			}
+			strncpy(names[j],rec->fields[i].field_name,strlen(rec->fields[i].field_name));
 			types_i[j] = rec->fields[i].type;
 			char buffer[64];
 
@@ -1673,16 +1570,14 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 				if (snprintf(buffer, sizeof(buffer), "%d", rec->fields[i].data.i) < 0)
 				{
 					fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				values[j] = strdup(buffer);
 				if (!values[j])
 				{
 					fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				break;
@@ -1690,16 +1585,14 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 				if (snprintf(buffer, sizeof(buffer), "%ld", rec->fields[i].data.l) < 0)
 				{
 					fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				values[j] = strdup(buffer);
 				if (!values[j])
 				{
 					fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				break;
@@ -1707,8 +1600,7 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 				if (snprintf(buffer, sizeof(buffer), "%f", rec->fields[i].data.f))
 				{
 					fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 
@@ -1716,8 +1608,7 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 				if (!values[j])
 				{
 					fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				break;
@@ -1726,8 +1617,7 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 				if (!values[j])
 				{
 					fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				break;
@@ -1735,16 +1625,14 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 				if (snprintf(buffer, sizeof(buffer), "%u", rec->fields[i].data.b) < 0)
 				{
 					fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				values[j] = strdup(buffer);
 				if (!values[j])
 				{
 					fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				break;
@@ -1752,16 +1640,14 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 				if (snprintf(buffer, sizeof(buffer), "%lf", rec->fields[i].data.d) < 0)
 				{
 					fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				values[j] = strdup(buffer);
 				if (!values[j])
 				{
 					fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-					free_strs(elements, 1, names);
-					free(types_i);
+					free_strs(elements, 1, values);
 					return 0;
 				}
 				break;
@@ -1851,8 +1737,7 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 			}
 			default:
 				printf("invalid type! type -> %d.\n", rec->fields[i].type);
-				free_strs(elements, 1, names);
-				free(types_i);
+				free_strs(elements, 1, values);
 				return 0;
 			}
 			j++;
@@ -1869,14 +1754,12 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 
 			if (!set_field(new_rec, i, names[i], types_i[i], values[i],1)) {
 				printf("set_field failed, %s:%d.\n", F, L - 2);
-				free_strs(elements, 2, names, values);
-				free(types_i);
+				free_strs(elements, 1, values);
 				return 0;
 			}
 		}
 
-		free_strs(elements, 2, names, values);
-		free(types_i);
+		free_strs(elements, 1, values);
 		return UPDATE_OLDN;
 	}
 	return 0;
