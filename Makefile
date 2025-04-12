@@ -147,19 +147,19 @@ clean:
 	rm *core*
 	 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -fsanitize=address -fpie -pie -z relro -z now -z noexecstack
+	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack
 
 
 
 obj/%.o : src/%.c
-	sudo gcc  -Wall -Wextra -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
+	sudo gcc  -Wall -Wextra -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie 
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 $(TARGET)_prod: $(OBJ_PROD)
 	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack
 
 obj/%_prod.o : src/%.c
-	sudo gcc -O -Wall -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC
+	sudo gcc -Wall -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC
 
 
 

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+
+git add src/*.* include/*.*
+git commit -m "$1"
+git push origin main
