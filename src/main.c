@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
 
 
 			if (only_dat) {
-				fprintf(stderr,"(%s): File created successfully!\n",prog);
+				fprintf(stdout,"(%s): File created successfully!\n",prog);
 				close_file(2, fd_data, fd_schema);
 				return 0;
 			}

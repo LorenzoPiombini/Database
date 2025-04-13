@@ -626,12 +626,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	off_t go_back_to = 0;
 	        
 	
-	/*uint32_t rfn_ne = htonl((uint32_t)rec->fields_num);
-	if (write(fd, &rfn_ne, sizeof(rfn_ne)) < 0) {
-		perror("could not write fields number");
-		return 0;
-	}*/
-
 	/* ----------these variables are used to handle the strings-------- */
 	/* now each string fields can be updated regardless the string size */
 	/* ----------some realities might required such a feature----------- */

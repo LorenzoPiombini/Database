@@ -226,7 +226,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 int create_header(struct Header_d *hd)
 {
 
-	if (hd->sch_d.fields_name == NULL || hd->sch_d.types == NULL) {
+	if (hd->sch_d.fields_name[0][0] == '\0' || hd->sch_d.types[0] == -1) {
 		printf("\nschema is NULL.\ncreate header failed, parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
@@ -270,10 +270,10 @@ int write_empty_header(int fd, struct Header_d *hd)
 
 int write_header(int fd, struct Header_d *hd)
 {
-	if (hd->sch_d.fields_name == NULL ||
-		hd->sch_d.types == NULL)
+	if (hd->sch_d.fields_name[0][0] == '\0' ||
+		hd->sch_d.types[0] == -1)
 	{
-		printf("\nschema is NULL.\ncreate header failed, parse.c l %d.\n", __LINE__ - 3);
+		printf("\nschema is NULL.\ncreate header failed, %s:%d.\n",__FILE__, __LINE__ - 3);
 		return 0;
 	}
 
@@ -304,8 +304,7 @@ int write_header(int fd, struct Header_d *hd)
 	}
 
 	register unsigned char i = 0;
-	for (i = 0; i <= hd->sch_d.fields_num - 1; i++)
-	{
+	for (i = 0; i <= hd->sch_d.fields_num - 1; i++) {
 		size_t l = strlen(hd->sch_d.fields_name[i]) + 1;
 		uint32_t l_end = htonl((uint32_t)l);
 

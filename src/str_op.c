@@ -66,8 +66,7 @@ void *key_converter(char *key, int *key_type)
 {
 	void *converted = NULL;
 	*key_type = is_num(key);
-	switch (*key_type)
-	{
+	switch (*key_type) {
 	case 2:
 	{
 		char *end;
@@ -76,15 +75,13 @@ void *key_converter(char *key, int *key_type)
 		if (l == 0 || errno == EINVAL)
 			return NULL;
 
-		if (l == MAX_KEY)
-		{
+		if (l == MAX_KEY) {
 			fprintf(stderr, "key value out fo range.\n");
 			return NULL;
 		}
 
 		converted = calloc(1, sizeof(uint32_t));
-		if (!converted)
-		{
+		if (!converted) {
 			__er_calloc(F, L - 2);
 			return NULL;
 		}

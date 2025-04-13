@@ -106,35 +106,6 @@ test:
 	$(TARGET) -f item -a code:TYPE_STRING:pio-u-ES:weight:TYPE_DOUBLE:10.9 -k ui11
 	$(TARGET) -f item -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k ui10
 
-pause:
-	@bash -c 'read -p "Press any key to continue..." -n 1 -s'
-
-memory:
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -a code:TYPE_STRING:"man78-g-hus":price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0 -nf item -k ui7
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf test7789 -a name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6     
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f test -D0 -k pi90
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf prova  -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a price:TYPE_FLOAT:67.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"met90-x-us":unit:TYPE_STRING:"each":weight:TYPE_DOUBLE:45.43 -k ui9
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -nf cmc 
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a code:TYPE_STRING:nhy-X-it -k ui10
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a code:TYPE_STRING:pio-u-ES:weight:TYPE_DOUBLE:10.9 -k ui11
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -R code:TYPE_STRING:country:t_s:length:t_d:cost:t_s
-	$(MAKE) pause
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --undef-value-errors=yes -s $(TARGET) -f item -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k ui10
-	$(MAKE) pause
-
 clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	sudo rm -f $(INCLUDEDIR)/file.h $(INCLUDEDIR)/str_op.h $(INCLUDEDIR)/record.h $(INCLUDEDIR)/parse.h $(INCLUDEDIR)/bst.h $(INCLUDEDIR)/hash_tbl.h $(INCLUDEDIR)/lock.h 
@@ -143,6 +114,7 @@ clean:
 	rm -f obj/*.o 
 	sudo rm -f *.so
 	sudo rm -f $(TARGET)
+	rm -f *.lock
 	rm *.dat *.inx *.sch
 	rm *core*
 	 
