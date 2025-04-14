@@ -335,6 +335,7 @@ int main(int argc, char *argv[])
 					} else if (key_type == UINT) {
 						if (key_conv) {
 							if (!set(key_conv, key_type, offset, &ht)) {
+								free(key_conv);
 								goto clean_on_error_2;
 							}
 							free(key_conv);
@@ -755,12 +756,12 @@ int main(int argc, char *argv[])
 			printf("record %s deleted!.\n", key);
 			free_ht_node(record_del);
 			close_file(1, fd_index);
-			fd_index = open_file(files[0], 1); // opening with O_TRUNC
+			fd_index = open_file(files[0], 1); // opening with o_trunc
 
 			/*  write the index file */
 
 			if (!write_index_file_head(fd_index, index)) {
-				printf("write to file failed, %s:%d", F, L - 2);
+				printf("write to file failed, %s:%d", F, L- 2);
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
