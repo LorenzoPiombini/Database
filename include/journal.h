@@ -4,6 +4,7 @@
 #include "hash_tbl.h"
 
 #define JINX "journal.inx"
+#define JHST "journal_history.db"
 #define J_DEL "journal_del.db"
 #define J_ADD "journal_add.db"
 
@@ -26,7 +27,7 @@ struct stack{
 	int capacity;
 	int dynamic_capacty;
 	struct Node_stack elements[MAX_STACK_CAP];
-	struct Node_stack dynamic_elements;
+	struct Node_stack *dynamic_elements;
 };
 
 

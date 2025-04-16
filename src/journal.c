@@ -12,6 +12,7 @@
 
 static char p[] ="db";
 
+static void error(char *msg,int line);
 
 int journal_del(off_t offset, void *key, int key_type)
 {
@@ -282,7 +283,7 @@ int write_journal_index(int fd,struct stack *index)
 	if(index->capacity == 0) return -1;
 
 
-	/* TODO: 
+	/*  
 	 * check if capacity is bigger then MAX_STACK_CAP
 	 * if true, you have to 
 	 * write 400 entry to an HISTORY-index
@@ -293,8 +294,98 @@ int write_journal_index(int fd,struct stack *index)
 	 * */
 
 	if(index->capacity == MAX_STACK_CAP){
-	
-	
+		int fd_hst = open_file(JHST,0);
+		if(fd_hsp == -1){
+			fd_hst = create_file(JHST,0);
+			if(fd_hsp == -1){
+				error("can't create history file.",__LINE__-2);
+				return -1;
+			}
+		}
+
+		int hst_cap = 0;
+		int nw_cap = 0;
+		if(index->dynamic_capacty == 0){
+
+			hst_cap = index->capacity -100;
+			if(index->dynamic_capacty > 0)
+				nw_cap = 100 + index->dynamic_capacty;
+		}	
+
+		uint32_t cap_ne = htonl(hst_cap);
+		if(write(fd_hsp,&cap_ne,sizeof(cap_ne)) == -1){
+			error("can't write to journal index file.",__LINE__-1);
+			close(fd_hst);
+			return -1;
+		}
+
+		for(int i = 0; i < hst_cap;i++){
+
+			uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
+			if(write(fd_hst,&ts_ne,sizeof(ts_ne)) == -1){
+				error("can't write to journal index file.",__LINE__-1);
+				close(fd_hst);
+				return -1;
+			}
+				
+			uint64_t ot_ne = bswap_64((index->elements[i].offset));
+			if(write(fd_hst,&ot_ne,sizeof(ot_ne)) == -1){
+				error("can't write to journal index file.",__LINE__-1);
+				close(fd_hst);
+				return -1;
+			}
+		}
+
+		close(fd_hst);
+		if(nw_cap == 0)
+			nw_cap = 100;
+			
+		uint32_t nw_cap_ne = htonl(nw_cap);
+		if(write(fd,&nw_cap_ne,sizeof(nw_cap_ne)) == -1){
+				error("can't write to journal index file.",__LINE__-1);
+				return -1;
+		}
+			
+		
+		if(nw_cap == 100)
+			nw_cap = MAX_STACK_CAP;
+
+		for(int i = hst_cap ; i < nw_cap;i++){
+			
+			if(i >= MAX_STACK_CAP){
+				struct Node_stack *temp = index->dynamic_elements;
+				while(temp){
+					uint64_t ts_ne = bswap_64((temp->dynamic_elements->timestemp));
+					if(write(fd,&ts_ne,sizeof(ts_ne)) == -1){
+						error("can't write to journal index file.",__LINE__-1);
+						return -1;
+					}
+
+					uint64_t ot_ne = bswap_64((temp->dynamic_elements[i].offset));
+					if(write(fd,&ot_ne,sizeof(ot_ne)) == -1){
+						error("can't write to journal index file.",__LINE__-1);
+						return -1;
+					}
+
+					temp = temp->next;
+				}
+			}
+
+			uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
+			if(write(fd,&ts_ne,sizeof(ts_ne)) == -1){
+				error("can't write to journal index file.",__LINE__-1);
+				return -1;
+			}
+				
+			uint64_t ot_ne = bswap_64((index->elements[i].offset));
+			if(write(fd,&ot_ne,sizeof(ot_ne)) == -1){
+				error("can't write to journal index file.",__LINE__-1);
+				return -1;
+			}
+		}
+
+		return 0;
+			
 	}
 
 
@@ -306,8 +397,23 @@ int write_journal_index(int fd,struct stack *index)
 
 	
 	for(int i = 0; i < index->capacity; i++){
-		if()
+		uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
+		if(write(fd,&ts_ne,sizeof(ts_ne)) == -1){
+			error("can't write to journal index file.",__LINE__-1);
+			return -1;
+		}
 
+		uint64_t ot_ne = bswap_64((index->elements[i].offset));
+		if(write(fd,&ot_ne,sizeof(ot_ne)) == -1){
+			error("can't write to journal index file.",__LINE__-1);
+			return -1;
+		}
 	}
+	return 0;
 
+}
+
+static void error(char *msg,int line)
+{
+	fprintf(stderr,"(%s): %s, %s:%d.\n",p,msg,__FILE__,line);
 }
