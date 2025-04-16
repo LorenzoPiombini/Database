@@ -10,7 +10,7 @@
 #include "journal.h"
 #include "file.h"
 
-char p[] ="db";
+static char p[] ="db";
 
 
 int journal_del(off_t offset, void *key, int key_type)
@@ -68,7 +68,8 @@ int journal_del(off_t offset, void *key, int key_type)
 
 	switch(key_type){
 	case STR:
-	{	size_t l = strlen((char *) key)+1;
+	{	
+		size_t l = strlen((char *) key)+1;
 		uint64_t l_ne = bswap_64(l);
 		char buff[l];
 		memset(buff,0,l);
@@ -153,21 +154,17 @@ int journal_del(off_t offset, void *key, int key_type)
 			return -1;
 		}
 
-	
-
 		time_t t = time(NULL);	
 		int key_type = UINT;
-		if (!set((void*)&t, key_type, offset, &ht[0])) {
-				close_file(2,fd,fd_inx);
-				return -1;
+		if (!set((void *)&t, key_type, offset, &ht[0])) {
+			close_file(2,fd,fd_inx);
+			return -1;
 		}
-
 
 		close_file(1, fd_inx);
 		fd_inx = open_file(JINX, 1); // opening with o_trunc
 
 		/*  write the index file */
-
 		if (!write_index_file_head(fd_inx, index)) {
 			printf("write to file failed, %s:%d",__FILE__,__LINE__ - 2);
 			free_ht_array(ht,index);
@@ -190,4 +187,127 @@ int journal_del(off_t offset, void *key, int key_type)
 
 	return 0;
 }
-int journal_add(off_t offset, void *key);
+
+ 
+int push(struct stack *index, struct Node_stack node);
+{
+	if(index->capacity < MAX_STACK_CAP ){
+		index->elements[index->capacity] = node; 
+		index->capacity++;
+		return 0;
+	}
+	
+	if(index->dynamic_capacty == 0) {
+		index->dynamic_elements = calloc(1,sizeof(struct Node_stack));
+		if(!index->dynamic_elements){
+			fprintf(stderr,"(%s): calloc failed.\n",p);
+			return -1;
+		}
+		index->dynamic_elements->timestemp = node->timestemp;
+		index->dynamic_elements->offset = node->offset;
+		index->dynamic_capacty++;
+		return 0;
+	}
+	
+	struct Node_stack nd = calloc(s,sizeof(struct Node_stack));
+	if(!nd){
+		fprintf(stderr,"(%s): calloc failed.\n",p);
+		return -1;
+	}
+	
+	
+	nd->timestemp = node->timestemp;
+	nd->offset = node->offset;
+	index->dynamic_elements->next = nd;
+	index->dynamic_capacty++;
+	return 0;
+}
+int pop(struct stack *index){
+	if(index->capacity < MAX_STACK_CAP){
+		memset(&index->elements[index->capacity - 1],0,sizeof(struct Node_stack));
+		index->capacity--;
+		return 0;
+	}
+	
+	if(index->dynamic_capacty == 0) return -1;
+
+	struct Node_stack *temp = index->dynamic_elements;
+	while(temp) {
+
+		if(!temp->next->next) {
+			struct Node_stack temp_s = temp; 
+			temp_s->next = NULL;
+		}
+
+		temp = temp->next;
+	}
+
+	free(temp);
+	index->dynamic_capacty--;
+	return 0;
+}
+
+int peek(struct stack *index, struct Node_stack *node)
+{
+	if(index->capacity < MAX_STACK_CAP){
+		*node = index->elements[index->capacity-1];
+		return 0;
+	}
+	
+	struct Node_stack *temp = index->dynamic_elements;
+	while(temp) temp = temp->next;
+
+	node->timestemp = temp->timestemp;
+	node->offset = temp->offset;
+
+	return 0;
+}
+
+int is_empty(struct stack *index)
+{
+	return index->capacity == 0;
+
+}
+
+int free_stack(struct stack *index)
+{
+	if(index->dynamic_capacty == 0 ) return;
+	
+	while(index->dynamic_capacty > 0) pop(index);
+	
+}
+
+int write_journal_index(int fd,struct stack *index)
+{
+	if(index->capacity == 0) return -1;
+
+
+	/* TODO: 
+	 * check if capacity is bigger then MAX_STACK_CAP
+	 * if true, you have to 
+	 * write 400 entry to an HISTORY-index
+	 * and write the most recent 100 to a new truncated (so you erase the content)
+	 * journal index file,
+	 * so you can keep the system efficient, and avoid to use memory allocations
+	 * extensevely
+	 * */
+
+	if(index->capacity == MAX_STACK_CAP){
+	
+	
+	}
+
+
+	uint32_t cap_ne = htonl(index->capacity);
+	if(write(fd,&cap_ne,sizeof(cap_ne)) == -1){
+		fprintf(stderr,"(%s): can't write journal index file.",p);
+		return -1;
+	}
+
+	
+	for(int i = 0; i < index->capacity; i++){
+		if()
+
+	}
+
+}

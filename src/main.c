@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <semaphore.h>
+#include "journal.h"
 #include "common.h"
 #include "file.h"
 #include "record.h"
@@ -752,7 +752,24 @@ int main(int argc, char *argv[])
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
+			
+			/*this will saved the record that we deleted,
+			 * so we can undo this operations */
+			if(record_del->key_type == STR){
+				if(journal_del(record_del->value, 
+						(void *)record_del->key.s, 
+						record_del->key_type) == -1){
+					fprintf(stderr,"(%s): failed to save del data.\n",prog);
+				}
+			}else{
+				if(journal_del(record_del->value, 
+						(void *)&record_del->key.n, 
+						record_del->key_type) == -1){
+					fprintf(stderr,"(%s): failed to save del data.\n",prog);
+					
+				}
 
+			}
 			printf("record %s deleted!.\n", key);
 			free_ht_node(record_del);
 			close_file(1, fd_index);
