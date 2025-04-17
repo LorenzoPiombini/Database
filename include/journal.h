@@ -13,6 +13,11 @@
 
 #define DEL_INX 0
 
+/*errors*/
+#define EJCAP 2 /*index file has MAX_STACK_CAP elements*/
+
+
+
 /*stack for journal index file */
 
 #define MAX_STACK_CAP 500
@@ -37,6 +42,6 @@ int peek(struct stack *index);
 int is_empty(struct stack *index);
 
 int journal_del(off_t offset, void *key, int key_type);
-int write_index_journal(struct stack *index);
+int write_journal_index(int *fd,struct stack *index);
 
 #endif

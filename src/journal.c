@@ -16,7 +16,6 @@ static void error(char *msg,int line);
 
 int journal_del(off_t offset, void *key, int key_type)
 {
-
 	int create = 0;
 	int fd = open_file(J_DEL,0);
 	int fd_inx = open_file(JINX,0);
@@ -101,90 +100,45 @@ int journal_del(off_t offset, void *key, int key_type)
 		return -1;
 	}
 
+
 	/*write timestamp and offt of the new journal entry */
-	if(create){
-		/*  write the index file */
-		int bucket = 7;
-		int index_num = 5;
-
-		if (!write_index_file_head(fd_inx, index_num)) {
-			fprintf(stderr,"(%s): write to '%s' failed, %s:%d",
-				p,JINX,__FILE__,__LINE__-1);
-			close_file(2,fd,fd_inx);
-			return -1;
-		}
-
-		for (int i = 0; i < index_num; i++) {
-			HashTable ht = {0};
-			ht.size = bucket;
-			ht.write = write_ht;
-
-			if (i == DEL_INX) {
-
-				time_t t = time(NULL);	
-				int key_type = UINT;
-				if (!set((void*)&t, key_type, offset, &ht)) {
-					close_file(2,fd,fd_inx);
-					return -1;
-				}
-
-			}
-
-			if (!write_index_body(fd_inx, i, &ht)) {
-				fprintf(stderr,"(%s): write to '%s' failed, %s:%d",
-				p,JINX,__FILE__,__LINE__-1);
-				destroy_hasht(&ht);
-				close_file(2,fd,fd_inx);
-				return -1;
-			}
-
-			destroy_hasht(&ht);
-		}
-
 	
-	}else{
-		HashTable *ht = NULL;
-		int index = 0;
-		int *p_index = &index;
-		/* load all indexes in memory */
-		if (!read_all_index_file(fd_inx, &ht, p_index)) {
-			fprintf(stderr,"(%s): read index from '%s' failed, %s:%d",
-			p,JINX,__FILE__,__LINE__-1);
-			destroy_hasht(ht);
+	if(create){
+		struct stack index = {0};
+		
+		index.elements[0].timestamp = time(NULL); 
+		if(write_journal_index(&fd_inx,&index) == -1){
+			error("write index file failed",__LINE__-1);
 			close_file(2,fd,fd_inx);
 			return -1;
 		}
 
-		time_t t = time(NULL);	
-		int key_type = UINT;
-		if (!set((void *)&t, key_type, offset, &ht[0])) {
-			close_file(2,fd,fd_inx);
-			return -1;
-		}
-
-		close_file(1, fd_inx);
-		fd_inx = open_file(JINX, 1); // opening with o_trunc
-
-		/*  write the index file */
-		if (!write_index_file_head(fd_inx, index)) {
-			printf("write to file failed, %s:%d",__FILE__,__LINE__ - 2);
-			free_ht_array(ht,index);
-			return -1;
-		}
-
-		for (int i = 0; i < index; i++){
-
-			if (!write_index_body(fd_inx, i, &ht[i])) {
-				printf("write to file failed. %s:%d.\n",__FILE__,__LINE__ - 2);
-				free_ht_array(ht,index);
-				return -1;
-			}
-
-			destroy_hasht(&ht[i]);
-		}
+		return 0;
+	}
 
 
-	}	
+	/* load all indexes in memory */
+	struct stack index = {0};
+	if (!read_journal_index(fd_inx, &index)) {
+		fprintf(stderr,"(%s): read index from '%s' failed, %s:%d",
+		p,JINX,__FILE__,__LINE__-1);
+		close_file(2,fd,fd_inx);
+		return -1;
+	}
+
+	struct Node_stack node = {time(NULL),eof,NULL};
+	if(push(&index,node) == -1){
+		error("failed to push on journal stack",__LINE__-1);
+		close_file(2,fd,fd_inx);
+		return -1;
+	}
+
+	/* write the index file */
+	if (write_journal_index(&fd_inx, &index) == -1) {
+		printf("write to file failed, %s:%d",__FILE__,__LINE__ - 2);
+		close_file(2,fd,fd_inx);
+		return -1;
+	}
 
 	return 0;
 }
@@ -278,11 +232,9 @@ int free_stack(struct stack *index)
 	
 }
 
-int write_journal_index(int fd,struct stack *index)
+int write_journal_index(int *fd,struct stack *index)
 {
 	if(index->capacity == 0) return -1;
-
-
 	/*  
 	 * check if capacity is bigger then MAX_STACK_CAP
 	 * if true, you have to 
@@ -308,19 +260,21 @@ int write_journal_index(int fd,struct stack *index)
 		if(index->dynamic_capacty == 0){
 
 			hst_cap = index->capacity -100;
-			if(index->dynamic_capacty > 0)
-				nw_cap = 100 + index->dynamic_capacty;
 		}	
 
+		if(index->dynamic_capacty > 0){
+			nw_cap = 100 + index->dynamic_capacty;
+			hst_cap = index->capacity-100;
+		}
+
 		uint32_t cap_ne = htonl(hst_cap);
-		if(write(fd_hsp,&cap_ne,sizeof(cap_ne)) == -1){
+		if(write(fd_hsp,&cap_ne,sizeof(cap_ne)) == -1) {
 			error("can't write to journal index file.",__LINE__-1);
 			close(fd_hst);
 			return -1;
 		}
 
 		for(int i = 0; i < hst_cap;i++){
-
 			uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
 			if(write(fd_hst,&ts_ne,sizeof(ts_ne)) == -1){
 				error("can't write to journal index file.",__LINE__-1);
@@ -336,16 +290,19 @@ int write_journal_index(int fd,struct stack *index)
 			}
 		}
 
-		close(fd_hst);
+		close_file(2,*fd,fd_hst);
 		if(nw_cap == 0)
 			nw_cap = 100;
-			
+
+		/*open with O_TRUNC*/
+		*fd = open_file(JINX,1); 
+		if(file_error_handler(1,*fd) > 0) return -1;
+
 		uint32_t nw_cap_ne = htonl(nw_cap);
-		if(write(fd,&nw_cap_ne,sizeof(nw_cap_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				return -1;
+		if(write(*fd,&nw_cap_ne,sizeof(nw_cap_ne)) == -1){
+			error("can't write to journal index file.",__LINE__-1);
+			return -1;
 		}
-			
 		
 		if(nw_cap == 100)
 			nw_cap = MAX_STACK_CAP;
@@ -356,36 +313,44 @@ int write_journal_index(int fd,struct stack *index)
 				struct Node_stack *temp = index->dynamic_elements;
 				while(temp){
 					uint64_t ts_ne = bswap_64((temp->dynamic_elements->timestemp));
-					if(write(fd,&ts_ne,sizeof(ts_ne)) == -1){
+					if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
 						error("can't write to journal index file.",__LINE__-1);
 						return -1;
 					}
 
 					uint64_t ot_ne = bswap_64((temp->dynamic_elements[i].offset));
-					if(write(fd,&ot_ne,sizeof(ot_ne)) == -1){
+					if(write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
 						error("can't write to journal index file.",__LINE__-1);
 						return -1;
 					}
 
 					temp = temp->next;
 				}
+				close(*fd);
+				*fd = open_file(JINX,0);
+				if(file_error_handler(1,*fd) != 0) return -1;
+
+				return 0;
 			}
 
 			uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
-			if(write(fd,&ts_ne,sizeof(ts_ne)) == -1){
+			if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
 				error("can't write to journal index file.",__LINE__-1);
 				return -1;
 			}
 				
 			uint64_t ot_ne = bswap_64((index->elements[i].offset));
-			if(write(fd,&ot_ne,sizeof(ot_ne)) == -1){
+			if(write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
 				error("can't write to journal index file.",__LINE__-1);
 				return -1;
 			}
 		}
 
+		close(*fd);
+		*fd = open_file(JINX,0);
+		if(file_error_handler(1,*fd) != 0) return -1;
+
 		return 0;
-			
 	}
 
 
@@ -409,10 +374,49 @@ int write_journal_index(int fd,struct stack *index)
 			return -1;
 		}
 	}
-	return 0;
+	close(*fd);
+	*fd = open_file(JINX,0);
+	if(file_error_handler(1,*fd) != 0) return -1;
 
+	return 0;
 }
 
+int read_journal_index(int fd,struct stack *index)
+{
+	uint32_t cap_ne = 0;
+	if(read(fd,&cap_ne,sizeof(cap_ne)) == -1){
+		fprintf(stderr,"(%s): can't write journal index file.",p);
+		return -1;
+	}
+
+
+	int cap = (int)ntohl(cap_ne);
+	if(cap == 0 || cap >= MAX_STACK_CAP) {
+		return cap == 0 ? -1 : EJCAP;
+	}
+
+	for(int i = 0; i < cap; i++){
+		
+		uint64_t ts_ne = 0;
+		if(read(fd,&ts_ne,sizeof(ts_ne)) == -1){
+			error("read journal index failed",__LINE__-1);
+			return -1;
+		}
+		
+		index->elements[i].timestemp = (time_t) bswap64(ts_ne);
+		
+		uint64_t os_ne = 0;
+		if(read(fd,&os_ne,sizeof(os_ne)) == -1){
+			error("read journal index failed",__LINE__-1);
+			return -1;
+		}
+		
+		index->elements[i].offset = (off_t) bswap64(os_ne);
+		index->capacity++;
+	}
+
+	return 0;
+}
 static void error(char *msg,int line)
 {
 	fprintf(stderr,"(%s): %s, %s:%d.\n",p,msg,__FILE__,line);
