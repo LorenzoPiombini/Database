@@ -36,12 +36,14 @@ struct stack{
 };
 
 
-int push(struct stack *index);
+int push(struct stack *index, struct Node_stack node);
 int pop(struct stack *index);
-int peek(struct stack *index);
+int peek(struct stack *index, struct Node_stack *node);
 int is_empty(struct stack *index);
 
 int journal_del(off_t offset, void *key, int key_type);
 int write_journal_index(int *fd,struct stack *index);
+int read_journal_index(int fd,struct stack *index);
+void free_stack(struct stack *index);
 
 #endif

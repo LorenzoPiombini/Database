@@ -3,6 +3,8 @@
 
 #include <time.h>
 
+#define ISO_W_ADJ 10
+
 unsigned char is_date_this_week(char* str_d);
 int get_week_number(struct tm* time_in);
 unsigned char convert_date_str(char *str, struct tm* input_date);

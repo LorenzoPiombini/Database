@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <byteswap.h>
 #include <stdint.h>
@@ -105,21 +106,24 @@ int journal_del(off_t offset, void *key, int key_type)
 	
 	if(create){
 		struct stack index = {0};
-		
-		index.elements[0].timestamp = time(NULL); 
+		struct Node_stack  node = {time(NULL),eof,NULL};
+		index.elements[0] = node;
+		index.capacity++;
+
 		if(write_journal_index(&fd_inx,&index) == -1){
 			error("write index file failed",__LINE__-1);
 			close_file(2,fd,fd_inx);
 			return -1;
 		}
 
+		close_file(2,fd,fd_inx);
 		return 0;
 	}
 
 
 	/* load all indexes in memory */
 	struct stack index = {0};
-	if (!read_journal_index(fd_inx, &index)) {
+	if (read_journal_index(fd_inx, &index) == -1) {
 		fprintf(stderr,"(%s): read index from '%s' failed, %s:%d",
 		p,JINX,__FILE__,__LINE__-1);
 		close_file(2,fd,fd_inx);
@@ -139,12 +143,13 @@ int journal_del(off_t offset, void *key, int key_type)
 		close_file(2,fd,fd_inx);
 		return -1;
 	}
-
+	
+	close_file(2,fd,fd_inx);
 	return 0;
 }
 
  
-int push(struct stack *index, struct Node_stack node);
+int push(struct stack *index, struct Node_stack node)
 {
 	if(index->capacity < MAX_STACK_CAP ){
 		index->elements[index->capacity] = node; 
@@ -158,39 +163,38 @@ int push(struct stack *index, struct Node_stack node);
 			fprintf(stderr,"(%s): calloc failed.\n",p);
 			return -1;
 		}
-		index->dynamic_elements->timestemp = node->timestemp;
-		index->dynamic_elements->offset = node->offset;
+		index->dynamic_elements->timestamp = node.timestamp;
+		index->dynamic_elements->offset = node.offset;
 		index->dynamic_capacty++;
 		return 0;
 	}
 	
-	struct Node_stack nd = calloc(s,sizeof(struct Node_stack));
+	struct Node_stack *nd = calloc(1,sizeof(struct Node_stack));
 	if(!nd){
 		fprintf(stderr,"(%s): calloc failed.\n",p);
 		return -1;
 	}
 	
 	
-	nd->timestemp = node->timestemp;
-	nd->offset = node->offset;
+	nd->timestamp = node.timestamp;
+	nd->offset = node.offset;
 	index->dynamic_elements->next = nd;
 	index->dynamic_capacty++;
 	return 0;
 }
 int pop(struct stack *index){
-	if(index->capacity < MAX_STACK_CAP){
+	if(index->capacity <= MAX_STACK_CAP && index->dynamic_capacty == 0){
 		memset(&index->elements[index->capacity - 1],0,sizeof(struct Node_stack));
 		index->capacity--;
 		return 0;
 	}
 	
-	if(index->dynamic_capacty == 0) return -1;
 
 	struct Node_stack *temp = index->dynamic_elements;
 	while(temp) {
 
 		if(!temp->next->next) {
-			struct Node_stack temp_s = temp; 
+			struct Node_stack *temp_s = temp; 
 			temp_s->next = NULL;
 		}
 
@@ -212,7 +216,7 @@ int peek(struct stack *index, struct Node_stack *node)
 	struct Node_stack *temp = index->dynamic_elements;
 	while(temp) temp = temp->next;
 
-	node->timestemp = temp->timestemp;
+	node->timestamp = temp->timestamp;
 	node->offset = temp->offset;
 
 	return 0;
@@ -224,12 +228,11 @@ int is_empty(struct stack *index)
 
 }
 
-int free_stack(struct stack *index)
+void free_stack(struct stack *index)
 {
 	if(index->dynamic_capacty == 0 ) return;
 	
 	while(index->dynamic_capacty > 0) pop(index);
-	
 }
 
 int write_journal_index(int *fd,struct stack *index)
@@ -247,9 +250,9 @@ int write_journal_index(int *fd,struct stack *index)
 
 	if(index->capacity == MAX_STACK_CAP){
 		int fd_hst = open_file(JHST,0);
-		if(fd_hsp == -1){
-			fd_hst = create_file(JHST,0);
-			if(fd_hsp == -1){
+		if(fd_hst == -1){
+			fd_hst = create_file(JHST);
+			if(fd_hst == -1){
 				error("can't create history file.",__LINE__-2);
 				return -1;
 			}
@@ -268,14 +271,14 @@ int write_journal_index(int *fd,struct stack *index)
 		}
 
 		uint32_t cap_ne = htonl(hst_cap);
-		if(write(fd_hsp,&cap_ne,sizeof(cap_ne)) == -1) {
+		if(write(fd_hst,&cap_ne,sizeof(cap_ne)) == -1) {
 			error("can't write to journal index file.",__LINE__-1);
 			close(fd_hst);
 			return -1;
 		}
 
 		for(int i = 0; i < hst_cap;i++){
-			uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
+			uint64_t ts_ne = bswap_64((index->elements[i].timestamp));
 			if(write(fd_hst,&ts_ne,sizeof(ts_ne)) == -1){
 				error("can't write to journal index file.",__LINE__-1);
 				close(fd_hst);
@@ -312,13 +315,13 @@ int write_journal_index(int *fd,struct stack *index)
 			if(i >= MAX_STACK_CAP){
 				struct Node_stack *temp = index->dynamic_elements;
 				while(temp){
-					uint64_t ts_ne = bswap_64((temp->dynamic_elements->timestemp));
+					uint64_t ts_ne = bswap_64((temp->timestamp));
 					if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
 						error("can't write to journal index file.",__LINE__-1);
 						return -1;
 					}
 
-					uint64_t ot_ne = bswap_64((temp->dynamic_elements[i].offset));
+					uint64_t ot_ne = bswap_64((temp->offset));
 					if(write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
 						error("can't write to journal index file.",__LINE__-1);
 						return -1;
@@ -333,7 +336,7 @@ int write_journal_index(int *fd,struct stack *index)
 				return 0;
 			}
 
-			uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
+			uint64_t ts_ne = bswap_64((index->elements[i].timestamp));
 			if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
 				error("can't write to journal index file.",__LINE__-1);
 				return -1;
@@ -355,21 +358,21 @@ int write_journal_index(int *fd,struct stack *index)
 
 
 	uint32_t cap_ne = htonl(index->capacity);
-	if(write(fd,&cap_ne,sizeof(cap_ne)) == -1){
+	if(write(*fd,&cap_ne,sizeof(cap_ne)) == -1){
 		fprintf(stderr,"(%s): can't write journal index file.",p);
 		return -1;
 	}
 
 	
 	for(int i = 0; i < index->capacity; i++){
-		uint64_t ts_ne = bswap_64((index->elements[i].timestemp));
-		if(write(fd,&ts_ne,sizeof(ts_ne)) == -1){
+		uint64_t ts_ne = bswap_64((index->elements[i].timestamp));
+		if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
 			error("can't write to journal index file.",__LINE__-1);
 			return -1;
 		}
 
 		uint64_t ot_ne = bswap_64((index->elements[i].offset));
-		if(write(fd,&ot_ne,sizeof(ot_ne)) == -1){
+		if(write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
 			error("can't write to journal index file.",__LINE__-1);
 			return -1;
 		}
@@ -403,7 +406,7 @@ int read_journal_index(int fd,struct stack *index)
 			return -1;
 		}
 		
-		index->elements[i].timestemp = (time_t) bswap64(ts_ne);
+		index->elements[i].timestamp = (time_t) bswap_64(ts_ne);
 		
 		uint64_t os_ne = 0;
 		if(read(fd,&os_ne,sizeof(os_ne)) == -1){
@@ -411,7 +414,7 @@ int read_journal_index(int fd,struct stack *index)
 			return -1;
 		}
 		
-		index->elements[i].offset = (off_t) bswap64(os_ne);
+		index->elements[i].offset = (off_t) bswap_64(os_ne);
 		index->capacity++;
 	}
 

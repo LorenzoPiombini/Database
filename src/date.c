@@ -89,7 +89,7 @@ unsigned char extract_date(char* key, char *date)
 	memset(cpy_dt,0,size);
 
 	for(i = start, j = 0; i < end; i++) {
-		cp_dt[j] = key[i];
+		cpy_dt[j] = key[i];
 		j++;
 	}
 		
