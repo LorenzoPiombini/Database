@@ -766,7 +766,7 @@ int main(int argc, char *argv[])
 			}else{
 				if(journal(fd_index, 
 						record_del->value, 
-						record_del->key.n, 
+						&record_del->key.n, 
 						record_del->key_type, 
 						J_DEL)){
 					fprintf(stderr,"(%s): failed to save del data.\n",prog);

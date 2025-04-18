@@ -23,7 +23,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 		create = 1;
 		fd = create_file(JINX);
 		if(fd == -1){
-			fprintf(stderr,"(%s): can't create or open '%s'.\n",p,J_DEL);
+			fprintf(stderr,"(%s): can't create or open '%s'.\n",p,JINX);
 			return -1;
 		}
 	}
@@ -135,7 +135,7 @@ int push(struct stack *index, struct Node_stack node)
 		index->dynamic_elements->key_type = node.key_type;
 		switch(node.key_type){
 		case STR:
-			strncpy(index->dynamic_elements->key.s,node.key.s,strlen(node.key));
+			strncpy(index->dynamic_elements->key.s,node.key.s,strlen(node.key.s));
 			break;
 		case UINT:
 			index->dynamic_elements->key.n= node.key.n;
@@ -143,7 +143,7 @@ int push(struct stack *index, struct Node_stack node)
 			break;
 		}
 		index->dynamic_elements->offset = node.offset;
-		index-.dynamic_elements->operation = node.operation;
+		index->dynamic_elements->operation = node.operation;
 		index->dynamic_capacty++;
 		return 0;
 	}
@@ -159,7 +159,7 @@ int push(struct stack *index, struct Node_stack node)
 	nd->key_type = node.key_type;
 	switch(node.key_type){
 	case STR:
-		strncpy(nd->key.s,node.key.s,strlen(node.key));
+		strncpy(nd->key.s,node.key.s,strlen(node.key.s));
 		break;
 	case UINT:
 		nd->key.n= node.key.n;
@@ -208,10 +208,28 @@ int peek(struct stack *index, struct Node_stack *node)
 	}
 	
 	struct Node_stack *temp = index->dynamic_elements;
-	while(temp) temp = temp->next;
+	while(temp) {
+		if(!temp->next->next) break;
+
+		temp = temp->next;
+	}
 
 	node->timestamp = temp->timestamp;
+	strncpy(node->file_name,temp->file_name,strlen(temp->file_name));
+	node->key_type = temp->key_type;
+	switch(node->key_type){
+	case STR:
+		strncpy(node->key.s,temp->key.s,strlen(temp->key.s));
+		break;
+	case UINT:
+		node->key.n = temp->key.n;
+		break;
+	default:
+		break;
+	}
+
 	node->offset = temp->offset;
+	node->operation = temp->operation;
 
 	return 0;
 }
@@ -316,7 +334,7 @@ int write_journal_index(int *fd,struct stack *index)
 				break;
 			}
 			default:
-				error("key not supported."__LINE__);
+				error("key not supported.",__LINE__);
 				close(fd_hst);
 				return -1;
 			}
@@ -400,7 +418,7 @@ int write_journal_index(int *fd,struct stack *index)
 								break;
 							}
 						default:
-							error("key not supported."__LINE__);
+							error("key not supported.",__LINE__);
 							return -1;
 					}
 
@@ -467,7 +485,7 @@ int write_journal_index(int *fd,struct stack *index)
 				break;
 			}
 			default:
-				error("key not supported."__LINE__);
+				error("key not supported.",__LINE__);
 				return -1;
 			}
 
@@ -545,7 +563,7 @@ int write_journal_index(int *fd,struct stack *index)
 					break;
 				}
 			default:
-				error("key not supported."__LINE__);
+				error("key not supported.",__LINE__);
 				return -1;
 		}
 
