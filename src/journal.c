@@ -15,75 +15,65 @@ static char p[] ="db";
 
 static void error(char *msg,int line);
 
-int journal_del(off_t offset, void *key, int key_type)
+int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 {
 	int create = 0;
-	int fd = open_file(J_DEL,0);
-	int fd_inx = open_file(JINX,0);
-	if(fd == -1 && fd_inx == -1){
+	int fd = open_file(JINX,0);
+	if(fd == -1){
 		create = 1;
-		fd = create_file(J_DEL);
-		fd_inx = create_file(JINX);
-		if(fd == -1 || fd_inx == -1){
+		fd = create_file(JINX);
+		if(fd == -1){
 			fprintf(stderr,"(%s): can't create or open '%s'.\n",p,J_DEL);
 			return -1;
 		}
-	} else if (fd == -1 || fd_inx == -1){
-		fprintf(stderr,"(%s): can't create or open '%s'.\n",p,J_DEL);
-		return -1;
 	}
 
-	off_t eof = go_to_EOF(fd);
-	if(eof == -1){
-		fprintf(stderr,"(%s): can't reach EOF for '%s'.\n",p,J_DEL);
-		close_file(2,fd,fd_inx);
-		return -1;
-	}
-	
 	/*
 	 * each journal record will store : 
-	 * - 8 bit flag ( if 0 record is in the original file
-	 *   		  if 1 record is in delete archive)
+	 * - timestamp
 	 * - the file path
 	 * - off_t
 	 * - key   
 	 * */
 	
+	struct stack index = {0};
+	struct Node_stack  node = {0};
+	if(create){
+		index.capacity++;
+	} else {
 
-	uint8_t flag = DEL_ORIG;
-	if(write(fd,&flag,sizeof(flag)) == -1){
-		fprintf(stderr,
-				"(%s): write to '%s' failed, %s:%d.\n",
-				p,J_DEL,__FILE__,__LINE__-1);
-		close_file(2,fd,fd_inx);
-		return -1;
+		if (read_journal_index(fd, &index) == -1) {
+			fprintf(stderr,"(%s): read index from '%s' failed, %s:%d",
+					p,JINX,__FILE__,__LINE__-1);
+			close(fd);
+			return -1;
+		}
 	}
-
+	
+	/*get the file name from the caller file descriptor */
 	ssize_t buf_size = 0;
 	char path[1024] = {0};
 	char file_name[1024] = {0};
 	
 	if(snprintf(path,1024,PROC_PATH,fd) < 0){
 		error("snpritnf() failed",__LINE__ - 1);
-		close_file(2,fd,fd_inx);
+		close(fd);
 		return -1;
 	}
 
 	if((buf_size = readlink(path,file_name,1024-1)) == -1){
 		error("cannot get full path.",__LINE__-1);
-		close_file(2,fd,fd_inx);
+		close(fd);
 		return -1;
 	}
-
-	uint64_t offset_ne = bswap_64(offset);
-	if(write(fd,&offset_ne,sizeof(offset_ne)) == -1){
-		fprintf(stderr,
-				"(%s): write to '%s' failed, %s:%d.\n",
-				p,J_DEL,__FILE__,__LINE__-1);
-		close_file(1,fd);
+	
+	if(buf_size == 1024){
+		error("file name is not completed",__LINE__-7);
+		close(fd);
 		return -1;
 	}
-
+	
+	node.
 	switch(key_type){
 	case STR:
 	{	
@@ -121,32 +111,9 @@ int journal_del(off_t offset, void *key, int key_type)
 
 	/*write timestamp and offt of the new journal entry */
 	
-	if(create){
-		struct stack index = {0};
-		struct Node_stack  node = {time(NULL),eof,NULL};
-		index.elements[0] = node;
-		index.capacity++;
-
-		if(write_journal_index(&fd_inx,&index) == -1){
-			error("write index file failed",__LINE__-1);
-			close_file(2,fd,fd_inx);
-			return -1;
-		}
-
-		close_file(2,fd,fd_inx);
-		return 0;
-	}
-
 
 	/* load all indexes in memory */
-	struct stack index = {0};
-	if (read_journal_index(fd_inx, &index) == -1) {
-		fprintf(stderr,"(%s): read index from '%s' failed, %s:%d",
-		p,JINX,__FILE__,__LINE__-1);
-		close_file(2,fd,fd_inx);
-		return -1;
-	}
-
+	
 	struct Node_stack node = {time(NULL),eof,NULL};
 	if(push(&index,node) == -1){
 		error("failed to push on journal stack",__LINE__-1);

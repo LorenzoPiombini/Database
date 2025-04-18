@@ -4,9 +4,11 @@
 #include "hash_tbl.h"
 
 #define JINX "journal.inx"
-#define JHST "journal_history.db"
-#define J_DEL "journal_del.db"
-#define J_ADD "journal_add.db"
+
+
+/* operations */
+#define J_DEL 0
+#define J_ADD 1
 
 #define DEL_REG 1 	/*0000 0001*/
 #define DEL_ORIG 0 	/*0000 0000*/
@@ -14,6 +16,8 @@
 #define DEL_INX 0
 
 #define PROC_PATH "/proc/self/fd/%d"
+#define MAX_FILE_NAME 1024
+
 
 /*errors*/
 #define EJCAP 2 /*index file has MAX_STACK_CAP elements*/
@@ -26,6 +30,11 @@
 
 struct Node_stack{
 	time_t timestamp;
+	char file_name[MAX_FILE_NAME];
+	union{
+		char *s;
+		uint32_t n;
+	}key;
 	off_t offset;
 	struct Node_stack *next;
 };
