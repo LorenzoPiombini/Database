@@ -756,20 +756,24 @@ int main(int argc, char *argv[])
 			/*this will saved the record that we deleted,
 			 * so we can undo this operations */
 			if(record_del->key_type == STR){
-				if(journal_del(record_del->value, 
-						(void *)record_del->key.s, 
-						record_del->key_type) == -1){
+ 				if(journal(fd_index, 
+						record_del->value, 
+						record_del->key.s, 
+						record_del->key_type, 
+						J_DEL)){
 					fprintf(stderr,"(%s): failed to save del data.\n",prog);
 				}
 			}else{
-				if(journal_del(record_del->value, 
-						(void *)&record_del->key.n, 
-						record_del->key_type) == -1){
+				if(journal(fd_index, 
+						record_del->value, 
+						record_del->key.n, 
+						record_del->key_type, 
+						J_DEL)){
 					fprintf(stderr,"(%s): failed to save del data.\n",prog);
-					
 				}
 
 			}
+
 			printf("record %s deleted!.\n", key);
 			free_ht_node(record_del);
 			close_file(1, fd_index);

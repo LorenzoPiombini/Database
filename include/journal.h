@@ -4,6 +4,7 @@
 #include "hash_tbl.h"
 
 #define JINX "journal.inx"
+#define JHST "jarchive.inx"
 
 
 /* operations */
@@ -17,6 +18,7 @@
 
 #define PROC_PATH "/proc/self/fd/%d"
 #define MAX_FILE_NAME 1024
+#define MAX_KEY_STRING 1024
 
 
 /*errors*/
@@ -27,15 +29,16 @@
 /*stack for journal index file */
 
 #define MAX_STACK_CAP 500
-
 struct Node_stack{
 	time_t timestamp;
 	char file_name[MAX_FILE_NAME];
+	int key_type;
 	union{
-		char *s;
+		char s[MAX_KEY_STRING];
 		uint32_t n;
 	}key;
 	off_t offset;
+	int operation;
 	struct Node_stack *next;
 };
 
@@ -52,7 +55,7 @@ int pop(struct stack *index);
 int peek(struct stack *index, struct Node_stack *node);
 int is_empty(struct stack *index);
 
-int journal_del(off_t offset, void *key, int key_type);
+int journal(int caller_fd, off_t offset, void *key, int key_type, int operation);
 int write_journal_index(int *fd,struct stack *index);
 int read_journal_index(int fd,struct stack *index);
 void free_stack(struct stack *index);
