@@ -44,6 +44,7 @@ int journal_del(off_t offset, void *key, int key_type)
 	 * each journal record will store : 
 	 * - 8 bit flag ( if 0 record is in the original file
 	 *   		  if 1 record is in delete archive)
+	 * - the file path
 	 * - off_t
 	 * - key   
 	 * */
@@ -54,6 +55,22 @@ int journal_del(off_t offset, void *key, int key_type)
 		fprintf(stderr,
 				"(%s): write to '%s' failed, %s:%d.\n",
 				p,J_DEL,__FILE__,__LINE__-1);
+		close_file(2,fd,fd_inx);
+		return -1;
+	}
+
+	ssize_t buf_size = 0;
+	char path[1024] = {0};
+	char file_name[1024] = {0};
+	
+	if(snprintf(path,1024,PROC_PATH,fd) < 0){
+		error("snpritnf() failed",__LINE__ - 1);
+		close_file(2,fd,fd_inx);
+		return -1;
+	}
+
+	if((buf_size = readlink(path,file_name,1024-1)) == -1){
+		error("cannot get full path.",__LINE__-1);
 		close_file(2,fd,fd_inx);
 		return -1;
 	}

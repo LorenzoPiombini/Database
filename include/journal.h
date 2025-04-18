@@ -13,6 +13,8 @@
 
 #define DEL_INX 0
 
+#define PROC_PATH "/proc/self/fd/%d"
+
 /*errors*/
 #define EJCAP 2 /*index file has MAX_STACK_CAP elements*/
 
