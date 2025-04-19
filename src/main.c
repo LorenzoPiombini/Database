@@ -758,17 +758,18 @@ int main(int argc, char *argv[])
 			if(record_del->key_type == STR){
  				if(journal(fd_index, 
 						record_del->value, 
-						record_del->key.s, 
+						(void*)record_del->key.s, 
 						record_del->key_type, 
-						J_DEL)){
+						J_DEL) == -1){
 					fprintf(stderr,"(%s): failed to save del data.\n",prog);
 				}
 			}else{
+				uint32_t kn = record_del->key.n;
 				if(journal(fd_index, 
 						record_del->value, 
-						&record_del->key.n, 
+						(void*)&kn, 
 						record_del->key_type, 
-						J_DEL)){
+						J_DEL) == -1){
 					fprintf(stderr,"(%s): failed to save del data.\n",prog);
 				}
 

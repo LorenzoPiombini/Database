@@ -37,12 +37,9 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	 * - key   
 	 * */
 	
-	struct stack index = {0};
+	static struct stack index = {0};
 	struct Node_stack  node = {0};
-	if(create){
-		index.capacity++;
-	} else {
-
+	if(!create){
 		if (read_journal_index(fd, &index) == -1) {
 			fprintf(stderr,"(%s): read index from '%s' failed, %s:%d",
 					p,JINX,__FILE__,__LINE__-1);
@@ -242,6 +239,7 @@ int is_empty(struct stack *index)
 
 void free_stack(struct stack *index)
 {
+	memset(index,0,sizeof(*index));
 	if(index->dynamic_capacty == 0 ) return;
 	
 	while(index->dynamic_capacty > 0) pop(index);

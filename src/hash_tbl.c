@@ -358,9 +358,6 @@ void free_ht_array(HashTable *ht, int l)
 void destroy_hasht(HashTable *tbl)
 {
 
-	if (!tbl->data_map)
-		return;
-
 	int i = 0;
 	for (i = 0; i < tbl->size; i++) {
 		Node *current = tbl->data_map[i];
@@ -452,10 +449,7 @@ int len(HashTable tbl)
 {
 	int counter = 0;
 
-	if (tbl.data_map== NULL)
-	{
-		return 0;
-	}
+	if (tbl.size == 0) return 0;
 
 	for (int i = 0; i < tbl.size; i++)
 	{

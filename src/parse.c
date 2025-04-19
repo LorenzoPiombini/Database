@@ -294,7 +294,6 @@ int write_header(int fd, struct Header_d *hd)
 	}
 
 	uint16_t fn = htons((uint16_t)hd->sch_d.fields_num);
-	//	printf("Writing fields_num (network order): %u\n", fn);
 
 	if (write(fd, &fn, sizeof(fn)) == -1)
 	{
@@ -304,29 +303,23 @@ int write_header(int fd, struct Header_d *hd)
 	}
 
 	register unsigned char i = 0;
-	for (i = 0; i <= hd->sch_d.fields_num - 1; i++) {
+	for (i = 0; i < hd->sch_d.fields_num; i++) {
 		size_t l = strlen(hd->sch_d.fields_name[i]) + 1;
 		uint32_t l_end = htonl((uint32_t)l);
 
-		if (hd->sch_d.fields_name[i])
-		{
-			if (write(fd, &l_end, sizeof(l_end)) == -1)
-			{
-				perror("write size of name in header.\n");
-				printf("parse.c l %d.\n", __LINE__ - 3);
-				return 0;
-			}
+		if (write(fd, &l_end, sizeof(l_end)) == -1) {
+			perror("write size of name in header.\n");
+			printf("parse.c l %d.\n", __LINE__ - 3);
+			return 0;
+		}
 
-			if (write(fd, hd->sch_d.fields_name[i], l) == -1)
-			{
-				perror("write name of field in header.\n");
-				printf("parse.c l %d.\n", __LINE__ - 3);
-				return 0;
-			}
+		if (write(fd, hd->sch_d.fields_name[i], l) == -1) {
+			perror("write name of field in header.\n");
+			printf("parse.c l %d.\n", __LINE__ - 3);
+			return 0;
 		}
 	}
-	for (i = 0; i < hd->sch_d.fields_num; i++)
-	{
+	for (i = 0; i < hd->sch_d.fields_num; i++) {
 
 		uint32_t type = htonl((uint32_t)hd->sch_d.types[i]);
 		if (write(fd, &type, sizeof(type)) == -1)
@@ -2293,19 +2286,16 @@ int create_new_fields_from_schema(struct Recs_old *recs_old,
 
 void print_schema(struct Schema sch)
 {
-	if (sch.fields_name && sch.types)
-	{
-		printf("definition:\n");
-		int i = 0;
+	printf("definition:\n");
+	int i = 0;
 
-		char c = ' ';
-		printf("Field Name%-*cType\n", 11, c);
-		printf("__________________________\n");
-		for (i = 0; i < sch.fields_num; i++)
+	char c = ' ';
+	printf("Field Name%-*cType\n", 11, c);
+	printf("__________________________\n");
+	for (i = 0; i < sch.fields_num; i++) {
+		printf("%s%-*c", sch.fields_name[i], (int)(15 - strlen(sch.fields_name[i])), c);
+		switch (sch.types[i])
 		{
-			printf("%s%-*c", sch.fields_name[i], (int)(15 - strlen(sch.fields_name[i])), c);
-			switch (sch.types[i])
-			{
 			case TYPE_INT:
 				printf("int.\n");
 				break;
@@ -2345,7 +2335,6 @@ void print_schema(struct Schema sch)
 			default:
 				printf("\n");
 				break;
-			}
 		}
 	}
 
@@ -2369,12 +2358,8 @@ size_t compute_size_header(void *header)
 	sum += sizeof(hd->id_n) + sizeof(hd->version) + sizeof(hd->sch_d.fields_num) + sizeof(hd->sch_d);
 	int i = 0;
 
-	for (i = 0; i < hd->sch_d.fields_num; i++)
-	{
-		if (hd->sch_d.fields_name[i])
-		{
-			sum += strlen(hd->sch_d.fields_name[i]);
-		}
+	for (i = 0; i < hd->sch_d.fields_num; i++) {
+		sum += strlen(hd->sch_d.fields_name[i]);
 
 		sum += sizeof(hd->sch_d.types[i]);
 	}
