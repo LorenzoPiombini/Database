@@ -1762,7 +1762,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 	int i = 0, j = 0;
 	if(recs_old->dynamic_capacity == 0){
 		for (i = 0; i < recs_old->capacity; i++) {
-			if (positions[i] != 'y')
+			if (positions[i] != 'y' || positions[i] != 'e')
 				positions[i] = 'n';
 
 			for(j = 0; j < recs_old->recs[i].fields_num; j++) {
@@ -1774,20 +1774,26 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 							if (recs_old->recs[i].fields[j].data.i != rec->fields[j].data.i) {
 								recs_old->recs[i].fields[j].data.i = rec->fields[j].data.i;
 								positions[i] = 'y';
+								break;
 							}
+							positions[i] = 'e';
 							break;
 						case TYPE_LONG:
 							if (recs_old->recs[i].fields[j].data.l != rec->fields[j].data.l) {
 								recs_old->recs[i].fields[j].data.l = rec->fields[j].data.l;
 								positions[i] = 'y';
+								break;
 							}
+							positions[i] = 'e';
 							break;
 						case TYPE_FLOAT:
 							if (recs_old->recs[i].fields[j].data.f != rec->fields[j].data.f)
 							{
 								recs_old->recs[i].fields[j].data.f = rec->fields[j].data.f;
 								positions[i] = 'y';
+								break;
 							}
+							positions[i] = 'e';
 							break;
 						case TYPE_STRING:
 							if (strcmp(recs_old->recs[i].fields[j].data.s,
@@ -1800,21 +1806,27 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 
 								recs_old->recs[i].fields[j].data.s = strdup(rec->fields[j].data.s);
 								positions[i] = 'y';
+								break;
 							}
+							positions[i] = 'e';
 							break;
 						case TYPE_BYTE:
 							if (recs_old->recs[i].fields[j].data.b != rec->fields[j].data.b)
 							{
 								recs_old->recs[i].fields[j].data.b = rec->fields[j].data.b;
 								positions[i] = 'y';
+								break;
 							}
+							positions[i] = 'e';
 							break;
 						case TYPE_DOUBLE:
 							if (recs_old->recs[i].fields[j].data.d != rec->fields[j].data.d)
 							{
 								recs_old->recs[i].fields[j].data.d = rec->fields[j].data.d;
 								positions[i] = 'y';
+								break;
 							}
+							positions[i] = 'e';
 							break;
 						case TYPE_ARRAY_INT:
 							if (rec->fields[j].data.v.elements.i)
@@ -1856,6 +1868,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 								}
 							}
 
+							positions[i] = 'e';
 							break;
 						case TYPE_ARRAY_LONG:
 							if (rec->fields[j].data.v.elements.l)
@@ -1895,6 +1908,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 									break;
 								}
 							}
+							positions[i] = 'e';
 
 							break;
 						case TYPE_ARRAY_FLOAT:
@@ -1933,6 +1947,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 								}
 							}
 
+							positions[i] = 'e';
 							break;
 						case TYPE_ARRAY_DOUBLE:
 							if (rec->fields[j].data.v.elements.d)
@@ -1969,6 +1984,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 								}
 							}
 
+							positions[i] = 'e';
 							break;
 						case TYPE_ARRAY_BYTE:
 							if (rec->fields[j].data.v.elements.b)
@@ -2006,6 +2022,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 								}
 							}
 
+							positions[i] = 'e';
 							break;
 						case TYPE_ARRAY_STRING:
 							if (rec->fields[j].data.v.elements.s)
@@ -2052,6 +2069,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 								}
 							}
 
+							positions[i] = 'e';
 							break;
 						default:
 							printf("no matching type\n");

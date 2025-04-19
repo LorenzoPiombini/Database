@@ -110,6 +110,7 @@ unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum 
 void free_record(struct Record_f *rec, int fields_num);
 void print_record(int count, struct Record_f *recs);
 void free_record_array(int len, struct Record_f **recs);
+void free_records(int len,struct Record_f *recs);
 void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int size_ia);
 unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schema sch);
 unsigned char get_index_rec_field(char *field_name, struct Record_f **recs, int recs_len,int *field_i_r, int *rec_index);

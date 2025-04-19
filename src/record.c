@@ -402,7 +402,6 @@ unsigned char set_field(struct Record_f *rec,
 void free_record(struct Record_f *rec, int fields_num)
 {
 	for (int i = 0; i < fields_num; i++){
-
 		switch (rec->fields[i].type) {
 		case TYPE_INT:
 		case TYPE_LONG:
@@ -421,7 +420,9 @@ void free_record(struct Record_f *rec, int fields_num)
 		case TYPE_ARRAY_STRING:
 		case TYPE_ARRAY_BYTE:
 		case TYPE_ARRAY_DOUBLE:
-			rec->fields[i].data.v.destroy(&rec->fields[i].data.v, rec->fields[i].type);
+			if(rec->fields[i].data.v.destroy)
+				rec->fields[i].data.v.destroy(&rec->fields[i].data.v, 
+							rec->fields[i].type);
 			break;
 		default:
 			fprintf(stderr, "type not supported.\n");
@@ -586,14 +587,19 @@ void print_record(int count, struct Record_f *recs)
 
 void free_record_array(int len, struct Record_f **recs)
 {
-	for (int i = 0; i < len; i++)
-	{
-		if(*recs)
+	for (int i = 0; i < len; i++) {
 			free_record(&(*recs)[i],  (*recs)[i].fields_num);
 	}
 	free(*recs);
 }
 
+void free_records(int len,struct Record_f *recs)
+{
+	for (int i = 0; i < len; i++) {
+			free_record(&recs[i],  recs[i].fields_num);
+	}
+	free(recs);
+}
 /* this parameters are:
 	- int len => the length of the array() Record_f***
 	- Record_f*** array => the arrays of record arrays

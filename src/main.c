@@ -899,6 +899,7 @@ int main(int argc, char *argv[])
 				if (key_conv) {
 					if (!set(key_conv, key_type, eof, &ht[0])){
 						free(key_conv);
+						free_ht_array(ht, index);
 						goto clean_on_error_7;
 					}
 					free(key_conv);
@@ -960,6 +961,7 @@ int main(int argc, char *argv[])
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3,fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
+			return STATUS_ERROR;
 		}
 
 		if (update && data_to_add && key) { 
@@ -1126,7 +1128,7 @@ int main(int argc, char *argv[])
 				}
 
 				/* here we have the all record in memory and we have
-					to  check which fields in the record we have to update*/
+					to check which fields in the record we have to update*/
 
 				int size_pos = recs_old.capacity + recs_old.dynamic_capacity;
 				char positions[size_pos];
@@ -1148,10 +1150,16 @@ int main(int argc, char *argv[])
 				/* write the update records to file */
 				int i = 0;
 				int changed = 0;
+				int no_updates = 0;
 				unsigned short updates = 0; /* bool value if 0 no updates*/
 				for (i = 0; i < size_pos; i++) {
 					if (positions[i] == 'n')
 						continue;
+
+					if(positions[i] == 'e') {
+						no_updates = 1;
+						continue;
+					}
 
 					++updates;
 					changed = 1;
@@ -1183,7 +1191,10 @@ int main(int argc, char *argv[])
 				}
 				
 				if(check == SCHEMA_CT && !changed) {
-					
+					if(no_updates){
+						free_recs_old(&recs_old);
+						goto clean_on_error;
+					}
 					off_t eof = go_to_EOF(fd_data); /* file pointer to the end*/
 					if (eof == -1) {
 						__er_file_pointer(F, L - 1);
@@ -1410,8 +1421,9 @@ int main(int argc, char *argv[])
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
-			free_record(&rec_old, rec_old.fields_num);
+			//free_record(&rec_old, rec_old.fields_num);
 			free_record(&new_rec, new_rec.fields_num);
+			return STATUS_ERROR;
 		} /*end of update path*/
 
 		/* reading the file to show data */
@@ -1525,6 +1537,7 @@ int main(int argc, char *argv[])
 			int counter = 1;
 			struct Record_f *recs = NULL;
 
+			struct Record_f rec_n = {0};
 			if (update_rec_pos > 0) {
 				recs = calloc(counter, sizeof(struct Record_f));
 				if (!recs) {
@@ -1540,32 +1553,32 @@ int main(int argc, char *argv[])
 				//  again for the reading process to be successful
 				if (find_record_position(fd_data, offt_rec_up_pos) == -1) {
 					__er_file_pointer(F, L - 1);
-					free_record_array(counter, &recs);
+					free_records(counter, recs);
 					close_file(3, fd_schema,fd_index, fd_data);
 					return STATUS_ERROR;
 				}
 
 				while ((update_rec_pos = get_update_offset(fd_data)) > 0) {
 					counter++;
-					recs = realloc(recs, counter * sizeof(struct Record_f));
-					if (!recs) {
+					struct Record_f *recs_new = realloc(recs, counter * sizeof(struct Record_f));
+					if (!recs_new) {
 						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
-						free_record_array(counter, &recs);
+						free_records(counter, recs);
 						close_file(3, fd_schema,fd_index, fd_data);
 						return STATUS_ERROR;
 					}
-
+					recs = recs_new;
 					if (find_record_position(fd_data, update_rec_pos) == -1) {
 						__er_file_pointer(F, L - 1);
-						free_record_array(counter, &recs);
 						close_file(3, fd_schema,fd_index, fd_data);
+						free_records(counter, recs);
 						return STATUS_ERROR;
 					}
 
-					struct Record_f rec_n = {0};
+					memset(&rec_n,0,sizeof(struct Record_f));
 					if(read_file(fd_data, file_path,&rec_n,hd.sch_d) == -1) {
 						printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
-						free_record_array(counter, &recs);
+						free_records(counter, recs);
 						close_file(3, fd_schema,fd_index, fd_data);
 						return STATUS_ERROR;
 					}
@@ -1578,7 +1591,7 @@ int main(int argc, char *argv[])
 				free_record(&rec, rec.fields_num);
 			}else {
 				print_record(counter, recs);
-				free_record_array(counter, &recs);
+				free_records(counter, recs);
 			}
 
 			close_file(3, fd_schema,fd_index, fd_data);
