@@ -4,6 +4,7 @@
 /* for Record_f, ValueTypes */
 #include "record.h"
 
+#define NO_TYPE 0
 
 int parse_d_flag_input(char *file_path, 
 			int fields_num, 
@@ -27,6 +28,7 @@ int write_header(int fd, struct Header_d *hd);
 int read_header(int fd, struct Header_d *hd);
 unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd);
 unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Header_d hd);
+int check_schema_with_no_types(char names[][MAX_FILED_LT], struct Header_d hd);
 int sort_input_like_header_schema(int schema_tp, 
 					int fields_num, 
 					struct Schema *sch, 

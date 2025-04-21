@@ -814,8 +814,16 @@ int main(int argc, char *argv[])
 
 		if (!update && data_to_add) { 
 			/* append data to the specified file*/
-			int fields_count = count_fields(data_to_add,NULL);
+		
+			int fields_count = 0;
+			unsigned char check = 0;
+			if(check_handle_input_mode(data_to_add) == 0){
+				check = check_schema()	
+			}
 
+			fields_counts = count_fields(data_to_add,NULL);
+
+			/*check schema*/
 			struct Record_f rec = {0};
 			if (fields_count > MAX_FIELD_NR) {
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
@@ -826,7 +834,7 @@ int main(int argc, char *argv[])
 			char *buf_t = strdup(data_to_add);
 			char *buf_v = strdup(data_to_add);
 
-			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
+			check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
 										file_path, &rec, &hd);
 
 			if (check == SCHEMA_ERR || check == 0) {

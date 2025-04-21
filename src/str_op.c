@@ -11,12 +11,13 @@
 #include "debug.h"
 
 
-int check_handke_input_mode(char *buffer)
+int check_handle_input_mode(char *buffer)
 {
 	if(strstr(buffer,TYPE_)!= NULL || strstr(buffer,T_) != NULL) return 1;
 
 	return 0;
 }
+
 int get_array_values(char *src, char ***values)
 {
 	int items = count_fields(src, ",");
@@ -104,6 +105,40 @@ void *key_converter(char *key, int *key_type)
 
 	return converted;
 }
+
+int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_NR])
+{
+	char *delim = ":";
+	char *first = NULL;
+	char *p = buff;
+	char *last = NULL;
+	
+	int i = 0;
+	while((first = strstr(buff,delim)) != NULL && (last=strstr(&p[(first+1) - buff],delim)) != NULL){
+		int size = first - buffer;
+		int next_start = last - buffer;
+		char cpy[size+1];
+		memset(cpy,0,size+1);
+		strncpy(names[i],buff,size);
+
+		buff += next_start+1;
+		i++;
+	}
+
+	if(first){
+		if(*(first + 1) != '\0') {
+			int size = buff - first;
+			strncpy(names[i],buff,size);
+		}
+	}else{
+		return -1;
+	}
+
+	return i;
+
+
+}
+
 
 int three_file_path(char *file_path, char files[][MAX_FILE_PATH_LENGTH])
 {

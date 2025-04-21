@@ -24,7 +24,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 	int types_i[MAX_FIELD_NR] = {-1};
 	if(strstr(buffer,TYPE_) != NULL || strstr(buffer,T_) != NULL) target = 1; 
 
-	if(target){
+	if(mode){
 		get_fileds_name(buffer, fields_num, 3, names);
 		get_value_types(buf_t, fields_num, 3, types_i);
 	}else{
@@ -434,8 +434,7 @@ unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, s
 	int types_eq = 0;
 
 	char **copy_sch = calloc(hd.sch_d.fields_num, sizeof(char *));
-	if (!copy_sch)
-	{
+	if (!copy_sch) {
 		printf("calloc failed, %s:%d.\n",__FILE__, __LINE__ - 3);
 		return 0;
 	}
@@ -486,20 +485,27 @@ char **extract_fields_value_types_from_input(char *buffer,
 				int *check)
 {
 	
-	int types_i[MAX_FILED_NR] = {0};
-
+	int types_i[MAX_FILED_NR];
+	memset(types_i,-1,sizeof(int)*MAX_FILED_NR);
+	
 	int count = get_names_with_no_type_skip_value(buffer,names);
-
 	char **values = get_values_with_no_types(buffer,count);
 
 	for(int i = 0; i , hd->sch_d.fields_num;i++)
 		types_i[i] = assign_type(values[i]);		
 
+	
+	char *sorted_names[MAX_FILED_LT] = {0};
+	switch(check_schema_with_no_types(names,*hd,sorted_names)){
+	case SCHEMA_EQ:
+			parse_d_flag_input()
+
+	}
+
 	int check = 0;
+
 	if (hd->sch_d.fields_num == count) {
-		if(hd->sch_d.types[0] == -1){
-			
-		}
+	
 		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
 		switch (ck_rst) {
 		case SCHEMA_ERR:
@@ -559,8 +565,40 @@ char **extract_fields_value_types_from_input(char *buffer,
 	return values;
 }
 
-int check_schema_with_no_types(char *buffer, struct Header_d hd){
-		
+int check_schema_with_no_types(char names[][MAX_FILED_LT], struct Header_d hd, char **sorted_names){
+	int fields_eq = 0;
+
+	char *copy_sch[MAX_FILED_LT] = {0};
+	for (int i = 0; i < hd.sch_d.fields_num; i++) {
+		copy_sch[i] = hd.sch_d.fields_name[i];
+		sorted_names[i] = names[i];
+	}
+
+	/*sorting the name and type arrays  */
+	if (hd.sch_d.fields_num > 1) {
+		quick_sort_str(sorted_names, 0, hd.sch_d.fields_num - 1);
+		quick_sort_str(copy_sch, 0, hd.sch_d.fields_num - 1);
+	}
+
+	
+	for (int i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++) {
+		// printf("%s == %s\n",copy_sch[i],names[j]);
+		if (strncmp(copy_sch[i], sorted_names[j],strlen(sorted_names[j])) == 0)
+			fields_eq++;
+
+	}
+
+	if (fields_eq != hd.sch_d.fields_num) { 
+		if(fields_eq == 0){
+			printf("Schema different than file definition.\n");
+			return SCHEMA_ERR;
+		}
+
+		return SCHEMA_CT;
+	}
+
+	return SCHEMA_EQ;
+	
 
 }
 unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Header_d hd)
@@ -659,8 +697,7 @@ int sort_input_like_header_schema(int schema_tp,
 	register unsigned char i, j;
 
 	for (i = 0; i < f_n; i++) {
-		for (j = 0; j < sch->fields_num; j++)
-		{
+		for (j = 0; j < sch->fields_num; j++) {
 			if (strncmp(names[i], sch->fields_name[j], strlen(names[i])) == 0)
 			{
 				value_pos[i] = j;
@@ -889,7 +926,7 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	return 1; // schema creation succssed
 }
 
-unsigned char perform_checks_on_schema(char *buffer, 
+unsigned char perform_checks_on_schema(int mode,char *buffer, 
 					char *buf_t, 
 					char *buf_v, 
 					int fields_count,
@@ -900,6 +937,9 @@ unsigned char perform_checks_on_schema(char *buffer,
 
 	// check if the schema on the file is equal to the input Schema.
 
+	if(mode == NO_TYPE){
+		check_schema_with_no_types()
+	}
 	if (hd->sch_d.fields_num != 0)
 	{
 		unsigned char check = check_schema(fields_count, buffer, buf_t, *hd);
