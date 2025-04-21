@@ -43,7 +43,8 @@ enum ValueType
 	TYPE_ARRAY_FLOAT,
 	TYPE_ARRAY_STRING,
 	TYPE_ARRAY_BYTE,
-	TYPE_ARRAY_DOUBLE
+	TYPE_ARRAY_DOUBLE,
+	TYPE_FILE
 };
 
 struct array
@@ -61,6 +62,17 @@ struct array
 	void (*destroy)(struct array *, enum ValueType);
 };
 
+struct Record_f;	
+
+struct File_field{
+	off_t offset;
+	union{
+		uint32_t n;
+		char *s;
+	}key;
+	struct Record_f *rec;
+};
+
 struct Field {
 	char field_name[MAX_FIELD_LT];
 	enum ValueType type;
@@ -71,10 +83,10 @@ struct Field {
 		float f;
 		char *s;
 		unsigned char b;
-		off_t offset;
 		double d;
 		struct array v;
-	} data;
+		struct File_field *file;
+	}data;
 };
 
 struct Record_f {

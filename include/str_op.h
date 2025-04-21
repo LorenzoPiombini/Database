@@ -37,9 +37,10 @@ int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);
 int three_file_path(char *file_path, char files[][MAX_FILE_PATH_LENGTH]);
-int count_fields(char *fields, const char *target);
+int count_fields(char *fields, const char *user_target);
 int get_type(char *s);
 int get_fileds_name(char *fields_name, int fields_count, int steps, char names[][MAX_FILED_LT]);
+int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT]);
 unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_count);
 int get_value_types(char *fields_input, int fields_count, int steps, int *types);
 void free_strs(int fields_num, int count, ...);
@@ -57,5 +58,6 @@ size_t number_of_digit(int n);
 float __round_alt(float n);
 unsigned char is_number_in_limits(char *value);
 int find_last_char(const char c, char *src);
+int assign_type(char *value);
 
 #endif /* STR_OP_H */

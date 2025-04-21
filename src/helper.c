@@ -37,7 +37,7 @@ unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char *key,
 		char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
 {
-	int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
+	int fields_count = count_fields(data_to_add, NULL);
 
 	if (fields_count > MAX_FIELD_NR)
 	{
@@ -108,7 +108,7 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 
 unsigned char create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int bucket_ht, int indexes)
 {
-	int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
+	int fields_count = count_fields(schema_def, NULL);
 
 	if (fields_count > MAX_FIELD_NR)
 	{

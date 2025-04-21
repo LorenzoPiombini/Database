@@ -118,15 +118,64 @@ int three_file_path(char *file_path, char files[][MAX_FILE_PATH_LENGTH])
 	return 0;
 }
 
-int count_fields(char *fields, const char *target)
+int count_fields(char *fields, const char *user_target)
 {
 	int c = 0;
 	const char *p = fields;
-
-	while ((p = strstr(p, target)) != NULL) {
-		c++;
-		p += strlen(target);
+	if(user_target){
+		while ((p = strstr(p, user_target)) != NULL) {
+			c++;
+			p += strlen(new_target);
+		}
+		return c;
 	}
+	
+
+	char *target = TYPE_;
+
+
+	if(strstr(p,"::") != NULL) return 0;
+
+	if(strstr(p,target) == NULL){
+		char *new_target = T_;
+		if(strstr(p,new_target) != NULL){
+			while ((p = strstr(p, new_target)) != NULL) {
+				c++;
+				p += strlen(new_target);
+			}
+		}
+	} else {
+		char *second_target = T_;
+		if(strstr(p,second_target) != NULL){
+			while ((p = strstr(p, second_target)) != NULL) {
+				c++;
+				p += strlen(new_target);
+			}
+		}
+
+		p = fields;
+		while ((p = strstr(p, target)) != NULL) {
+				c++;
+				p += strlen(new_target);
+		}
+
+	}
+
+	if(c == 0){
+		p = fields;
+		int pos = 0;
+		char *new_target = ":";
+		while((p = strstr(p,new_target))){
+			pos = p - fields;
+			c++;
+			p += strlen(new_target);
+		}
+
+		if(fields[pos+1] != '\0') c++;
+
+	}
+	
+	
 
 	return c;
 }
@@ -228,6 +277,27 @@ int get_type(char *s){
 	return -1;
 }
 
+int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
+{
+	
+	char *p = fields_name;
+	char *delim = NULL;
+	int j = 0;
+	int pos = 0;
+	if(strstr(p,":") == NULL) return -1;
+	while((delim = strstr(p,":"))){
+		int size = delim - p;
+		pos = delim - fields_name;
+		strncpy(names[j],p,size);
+		p += size +1;
+		j++;
+	}
+
+	if(fields_name[pos + 1] != '\0') strncpy(names[j],p,strlen(p));
+
+	return 0;
+}
+
 int get_fileds_name(char *fields_name, int fields_count, int steps, char names[][MAX_FILED_LT])
 {
 
@@ -277,6 +347,26 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 	}
 	return 1;
 }
+
+
+int assign_type(char *value)
+{
+	if(is_floaintg_point(value)) {
+		if(is_number_in_limits(value)) return TYPE_DOUBLE;
+
+		return -1;
+	}
+
+	if(is_integer(value)){
+		if(is_number_in_limits(value)) return TYPE_LONG;
+
+		return -1;
+	}
+
+	return TYPE_STRING;
+}
+
+
 
 int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 {

@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 
 		if (schema_def) { 
 			/* case when user creates a file with only file definition*/
-			int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
+			int fields_count = count_fields(schema_def,NULL);
 
 			if (fields_count == 0) {
 				fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 			char *buf_sdf = strdup(schema_def);
 			char *buf_t = strdup(schema_def);
 
-			/* init the Schema structure*/
+			/* init he Schema structure*/
 			struct Schema sch = {0};
 			sch.fields_num = fields_count;
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 
 			struct Header_d hd = {0, 0, sch};
 
-			if (!create_header(&hd)) goto clean_on_error;
+			if (!create_header(&hd)) goto clean_on_error_1;
 
 			if (!write_header(fd_schema, &hd)) {
 				fprintf(stderr,"(%s): write schema failed, %s:%d.\n",prog, F, L - 1);
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
 		if (data_to_add) { 
 			/* creates a file with full definitons (fields and value)*/
 
-			int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
+			int fields_count = count_fields(data_to_add,NULL); 
 
 			if (fields_count > MAX_FIELD_NR) {
 				fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
@@ -563,7 +563,7 @@ int main(int argc, char *argv[])
 			/* add field to schema */
 			/* locks here are released that is why we do not have to release them if an error occurs*/
 			/*check if the fields are in limit*/
-			int fields_count = count_fields(schema_def, TYPE_) + count_fields(schema_def, T_);
+			int fields_count = count_fields(schema_def,NULL);
 
 			if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > MAX_FIELD_NR) {
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
@@ -814,7 +814,7 @@ int main(int argc, char *argv[])
 
 		if (!update && data_to_add) { 
 			/* append data to the specified file*/
-			int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
+			int fields_count = count_fields(data_to_add,NULL);
 
 			struct Record_f rec = {0};
 			if (fields_count > MAX_FIELD_NR) {
@@ -968,7 +968,7 @@ int main(int argc, char *argv[])
 			/* updating an existing record */
 
 			// 1 - check the schema with the one on file
-			int fields_count = count_fields(data_to_add, TYPE_) + count_fields(data_to_add, T_);
+			int fields_count = count_fields(data_to_add,NULL);
 			struct Record_f rec = {0};
 			struct Record_f rec_old = {0};
 			struct Record_f new_rec = {0};

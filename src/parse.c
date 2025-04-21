@@ -226,7 +226,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 int create_header(struct Header_d *hd)
 {
 
-	if (hd->sch_d.fields_name[0][0] == '\0' || hd->sch_d.types[0] == -1) {
+	if (hd->sch_d.fields_name[0][0] == '\0') {
 		printf("\nschema is NULL.\ncreate header failed, parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
@@ -270,9 +270,7 @@ int write_empty_header(int fd, struct Header_d *hd)
 
 int write_header(int fd, struct Header_d *hd)
 {
-	if (hd->sch_d.fields_name[0][0] == '\0' ||
-		hd->sch_d.types[0] == -1)
-	{
+	if (hd->sch_d.fields_name[0][0] == '\0') {
 		printf("\nschema is NULL.\ncreate header failed, %s:%d.\n",__FILE__, __LINE__ - 3);
 		return 0;
 	}
@@ -319,6 +317,7 @@ int write_header(int fd, struct Header_d *hd)
 			return 0;
 		}
 	}
+
 	for (i = 0; i < hd->sch_d.fields_num; i++) {
 
 		uint32_t type = htonl((uint32_t)hd->sch_d.types[i]);
@@ -637,9 +636,17 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 {
 
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
-	int types_i[MAX_FIELD_NR] = {-1};
-	get_fileds_name(buffer, fields_num, 2, names);
-	get_value_types(buf_t, fields_num, 2,types_i);
+	int types_i[MAX_FIELD_NR] = {0};
+	int target = 0;
+	if(strstr(buffer,TYPE_) != NULL || strstr(buffer,T_) != NULL) target = 1;
+
+	if(target){
+		get_fileds_name(buffer, fields_num, 2, names);
+		get_value_types(buf_t, fields_num, 2,types_i);
+	}else{
+		get_fields_name_with_no_type(buffer, names);
+		memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
+	}
 
 	int x = 0;
 	int found = 0;
@@ -686,8 +693,16 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, struct Schema *sch)
 {
 
+	int target = 0;
+	if(strstr(buf_t,T_) != NULL || strstr(buf_t,TYPE_) != NULL) target = 1;
+	
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
-	get_fileds_name(buffer, fields_num, 2,names);
+	if(target)
+		get_fileds_name(buffer, fields_num, 2,names);
+	else
+		if(get_fields_name_with_no_type(buffer,names) == -1) return 0;
+
+
 
 	/*check if the fields name are correct- if not - input is incorrect */
 	for (int i = 0; i < fields_num; i++) {
@@ -745,28 +760,31 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	for (int j = 0; j < fields_num; j++)
 			strncpy(sch->fields_name[j],names[j],strlen(names[j]));
 
-	int types_i[MAX_FIELD_NR] = {-1};
-	get_value_types(buf_t, fields_num, 2,types_i);
+	int types_i[MAX_FIELD_NR] = {0};
+	
+	if(target) 
+		get_value_types(buf_t, fields_num, 2,types_i);
+	else
+		memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 
-
-	for (int i = 0; i < fields_num; i++)
-	{
-		if (types_i[i] != TYPE_INT &&
-			types_i[i] != TYPE_FLOAT &&
-			types_i[i] != TYPE_LONG &&
-			types_i[i] != TYPE_DOUBLE &&
-			types_i[i] != TYPE_BYTE &&
-			types_i[i] != TYPE_STRING &&
-			types_i[i] != TYPE_ARRAY_INT &&
-			types_i[i] != TYPE_ARRAY_LONG &&
-			types_i[i] != TYPE_ARRAY_FLOAT &&
-			types_i[i] != TYPE_ARRAY_STRING &&
-			types_i[i] != TYPE_ARRAY_BYTE &&
-			types_i[i] != TYPE_ARRAY_DOUBLE)
-		{
-			printf("invalid input.\n");
-			printf("input syntax: fieldName:TYPE:value\n");
-			return 0;
+	if(target){
+		for (int i = 0; i < fields_num; i++) {
+			if (types_i[i] != TYPE_INT &&
+					types_i[i] != TYPE_FLOAT &&
+					types_i[i] != TYPE_LONG &&
+					types_i[i] != TYPE_DOUBLE &&
+					types_i[i] != TYPE_BYTE &&
+					types_i[i] != TYPE_STRING &&
+					types_i[i] != TYPE_ARRAY_INT &&
+					types_i[i] != TYPE_ARRAY_LONG &&
+					types_i[i] != TYPE_ARRAY_FLOAT &&
+					types_i[i] != TYPE_ARRAY_STRING &&
+					types_i[i] != TYPE_ARRAY_BYTE &&
+					types_i[i] != TYPE_ARRAY_DOUBLE) {
+				printf("invalid input.\n");
+				printf("input syntax: fieldName:TYPE:value\n");
+				return 0;
+			}
 		}
 	}
 
