@@ -10,6 +10,13 @@
 #include "common.h"
 #include "debug.h"
 
+
+int check_handke_input_mode(char *buffer)
+{
+	if(strstr(buffer,TYPE_)!= NULL || strstr(buffer,T_) != NULL) return 1;
+
+	return 0;
+}
 int get_array_values(char *src, char ***values)
 {
 	int items = count_fields(src, ",");
@@ -125,7 +132,7 @@ int count_fields(char *fields, const char *user_target)
 	if(user_target){
 		while ((p = strstr(p, user_target)) != NULL) {
 			c++;
-			p += strlen(new_target);
+			p += strlen(user_target);
 		}
 		return c;
 	}
@@ -149,14 +156,14 @@ int count_fields(char *fields, const char *user_target)
 		if(strstr(p,second_target) != NULL){
 			while ((p = strstr(p, second_target)) != NULL) {
 				c++;
-				p += strlen(new_target);
+				p += strlen(second_target);
 			}
 		}
 
 		p = fields;
 		while ((p = strstr(p, target)) != NULL) {
 				c++;
-				p += strlen(new_target);
+				p += strlen(target);
 		}
 
 	}
@@ -418,13 +425,55 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 	return 0;
 }
 
+char ** get_values_with_no_types(char *buff,int fields_count)
+{
+	char *delim = ":";
+	char *first = NULL;
+	char *p = buff;
+	char *last = NULL;
+	
+	char **values = calloc(fields_count, sizeof(char *));
+	if (!values) {
+		perror("memory get values");
+		return NULL;
+	}
+
+	int i = 0;
+	while((first = strstr(buff,delim)) != NULL && (last=strstr(&p[(first+1) - buff],delim)) != NULL){
+		int start = last - first;
+		int size = start-1;
+		char cpy[size+1];
+		memset(cpy,0,size+1);
+		strncpy(cpy,&buff[start],size);
+		values[i] = strdup(cpy);
+		if(!values[i]){
+			fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
+			return NULL;
+		}
+		buff += size+2;
+		i++;
+	}
+
+	if(first){
+		if(*(first + 1) != '\0') {
+			values[i] = strdup(&first[1]);
+			if(!values[i]){
+				fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
+				return NULL;
+			}
+
+		}
+	}
+
+	return values;
+}
+
 char **get_values(char *fields_input, int fields_count)
 {
 	int i = 0, j = 0;
 
 	char **values = calloc(fields_count, sizeof(char *));
-	if (!values)
-	{
+	if (!values) {
 		perror("memory get values");
 		return NULL;
 	}

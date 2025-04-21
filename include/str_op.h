@@ -44,6 +44,7 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT]);
 unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_count);
 int get_value_types(char *fields_input, int fields_count, int steps, int *types);
 void free_strs(int fields_num, int count, ...);
+char ** get_values_with_no_types(char *buff,int fields_count);
 char **get_values(char *fields_input, int fields_count);
 unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dta_blocks[][500]);
 int is_file_name_valid(char *str);
@@ -59,5 +60,6 @@ float __round_alt(float n);
 unsigned char is_number_in_limits(char *value);
 int find_last_char(const char c, char *src);
 int assign_type(char *value);
+int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_NR]);
 
 #endif /* STR_OP_H */

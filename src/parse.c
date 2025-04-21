@@ -19,9 +19,19 @@ int parse_d_flag_input(char *file_path, int fields_num,
 							struct Record_f *rec)
 {
 
+	int target = 0;
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
-	get_fileds_name(buffer, fields_num, 3, names);
+	int types_i[MAX_FIELD_NR] = {-1};
+	if(strstr(buffer,TYPE_) != NULL || strstr(buffer,T_) != NULL) target = 1; 
 
+	if(target){
+		get_fileds_name(buffer, fields_num, 3, names);
+		get_value_types(buf_t, fields_num, 3, types_i);
+	}else{
+		get_fields_name_with_no_type(buffer,names);
+		memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
+	}
+	
 	/*check if the fields name are correct- if not - input is incorrect */
 	for (int i = 0; i < fields_num; i++)
 	{
@@ -58,23 +68,25 @@ int parse_d_flag_input(char *file_path, int fields_num,
 		/* true when a new file is created */
 		sch->fields_num = (unsigned short)fields_num;
 
-		for (int j = 0; j < fields_num; j++)
+		for (int j = 0; j < fields_num; j++){
 			strncpy(sch->fields_name[j],names[j], strlen(names[j]));
+			sch->types[j] = types_i[j];
+		}
 	}
 
-	int types_i[MAX_FIELD_NR] = {-1};
-	get_value_types(buf_t, fields_num, 3, types_i);
 
-	if (sch && check_sch == 0){ 
-		/* true when a new file is created or when the schema input is partial*/
-		for (int i = 0; i < fields_num; i++)
-			sch->types[i] = types_i[i];
-	}
-
-	char **values = get_values(buf_v, fields_num);
+	char **values = NULL;
+	int line = 0;
+	if(target) {
+		values = get_values(buf_v, fields_num);
+		line = __LINE__-1;
+	}else{
+		values = get_values_with_no_types(buf_v,fields_num);
+		line = __LINE__-1;
+	}	
 
 	if (!values) {
-		printf("get_values failed, %s:%d.\n",__FILE__, __LINE__ - 3);
+		printf("get_values failed, %s:%d.\n",__FILE__, line);
 		return -1;
 	}
 
@@ -468,6 +480,89 @@ unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, s
 	return SCHEMA_EQ;
 }
 
+char **extract_fields_value_types_from_input(char *buffer, 
+				char names[][MAX_FILED_LT], 
+				struct Header_d *hd, 
+				int *check)
+{
+	
+	int types_i[MAX_FILED_NR] = {0};
+
+	int count = get_names_with_no_type_skip_value(buffer,names);
+
+	char **values = get_values_with_no_types(buffer,count);
+
+	for(int i = 0; i , hd->sch_d.fields_num;i++)
+		types_i[i] = assign_type(values[i]);		
+
+	int check = 0;
+	if (hd->sch_d.fields_num == count) {
+		if(hd->sch_d.types[0] == -1){
+			
+		}
+		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
+		switch (ck_rst) {
+		case SCHEMA_ERR:
+			check = SCHEMA_ERR;
+			break;
+		case SCHEMA_EQ:
+			check = SCHEMA_EQ;
+			break;
+		default:
+			printf("check on Schema failed.\n");
+			free_strs(fields_num, 1, values);
+			return NULL;
+		}
+	} else if (hd.sch_d.fields_num < fields_n) {
+		/* case where the header needs to be updated */
+		if (((fields_n - hd.sch_d.fields_num) + hd.sch_d.fields_num) > MAX_FIELD_NR) {
+			printf("cannot add the new fileds, limit is %d fields.\n", MAX_FIELD_NR);
+			*check = SCHEMA_ERR;
+			free_strs(fields_num, 1, values);
+			return NULL;
+		}
+
+		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
+
+		switch (ck_rst) {
+		case SCHEMA_ERR:
+			check = SCHEMA_ERR;
+			break;
+		case SCHEMA_EQ:
+			check = SCHEMA_NW;
+			break;
+		default:
+			free_strs(fields_num, 1, values);
+			return NULL;
+		}
+	
+	}else if (hd.sch_d.fields_num > fields_n) {
+		/*case where the fileds are less than the schema */
+		// if they are in the schema and the types are correct, return SCHEMA_CT
+		// create a record with only the values provided and set the other values to 0;
+
+		int ck_rst = ck_schema_contain_input(names, types_i, hd, fields_n);
+
+		switch (ck_rst) {
+		case SCHEMA_ERR:
+			check = SCHEMA_ERR;
+			break;
+		case SCHEMA_CT:
+			check = SCHEMA_CT;
+			break;
+		default:
+			free_strs(fields_num, 1, values);
+			return 0;
+		}
+	}
+
+	return values;
+}
+
+int check_schema_with_no_types(char *buffer, struct Header_d hd){
+		
+
+}
 unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Header_d hd)
 {
 	char *names_cs = strdup(buffer);
