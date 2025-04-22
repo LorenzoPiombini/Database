@@ -22,6 +22,14 @@ unsigned char perform_checks_on_schema(char *buffer,
 					char *file_path, 
 					struct Record_f *rec, 
 					struct Header_d *hd);
+
+int parse_input_with_no_type(char *file_path, int fields_num, 
+							char names, 
+							int *types_i, 
+							char **values,
+							struct Schema *sch, 
+							int check_sch,
+							struct Record_f *rec);
 int create_header(struct Header_d *hd);
 int write_empty_header(int fd, struct Header_d *hd);
 int write_header(int fd, struct Header_d *hd);
