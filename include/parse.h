@@ -64,5 +64,5 @@ void print_schema(struct Schema sch);
 void print_header(struct Header_d hd);
 size_t compute_size_header(void *header);
 unsigned char create_data_to_add(struct Schema *sch, char data_to_add[][500]);
-char **extract_fields_value_types_from_input(char *buffer, char names[][MAX_FILED_LT], int *types_i, struct Header_d *hd);
+char **extract_fields_value_types_from_input(char *buffer, char names[][MAX_FILED_LT], int *types_i);
 #endif

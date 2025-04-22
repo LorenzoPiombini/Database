@@ -19,12 +19,11 @@ int parse_d_flag_input(char *file_path, int fields_num,
 							struct Record_f *rec)
 {
 
-	int target = 0;
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
 	int types_i[MAX_FIELD_NR] = {-1};
-	if(strstr(buffer,TYPE_) != NULL || strstr(buffer,T_) != NULL) target = 1; 
+	int target = check_handle_input_mode(buffer);
 
-	if(mode){
+	if(target){
 		get_fileds_name(buffer, fields_num, 3, names);
 		get_value_types(buf_t, fields_num, 3, types_i);
 	}else{
@@ -234,6 +233,19 @@ int parse_d_flag_input(char *file_path, int fields_num,
 	return 0;
 }
 
+int parse_input_with_no_type(char *file_path, int fields_num, 
+							char names, 
+							int *types_i, 
+							char **values,
+							struct Schema *sch, 
+							int check_sch,
+							struct Record_f *rec)
+{
+	/*equal to parse _d_input_flag 
+	 * but we already have the types the values and the names */	
+
+
+}
 
 int create_header(struct Header_d *hd)
 {
