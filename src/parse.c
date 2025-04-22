@@ -479,88 +479,14 @@ unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, s
 	return SCHEMA_EQ;
 }
 
-char **extract_fields_value_types_from_input(char *buffer, 
-				char names[][MAX_FILED_LT], 
-				struct Header_d *hd, 
-				int *check)
+char **extract_fields_value_types_from_input(char *buffer, char names[][MAX_FILED_LT], int *types_i)
 {
-	
-	int types_i[MAX_FILED_NR];
-	memset(types_i,-1,sizeof(int)*MAX_FILED_NR);
 	
 	int count = get_names_with_no_type_skip_value(buffer,names);
 	char **values = get_values_with_no_types(buffer,count);
 
-	for(int i = 0; i , hd->sch_d.fields_num;i++)
-		types_i[i] = assign_type(values[i]);		
-
-	
-	char *sorted_names[MAX_FILED_LT] = {0};
-	switch(check_schema_with_no_types(names,*hd,sorted_names)){
-	case SCHEMA_EQ:
-			parse_d_flag_input()
-
-	}
-
-	int check = 0;
-
-	if (hd->sch_d.fields_num == count) {
-	
-		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
-		switch (ck_rst) {
-		case SCHEMA_ERR:
-			check = SCHEMA_ERR;
-			break;
-		case SCHEMA_EQ:
-			check = SCHEMA_EQ;
-			break;
-		default:
-			printf("check on Schema failed.\n");
-			free_strs(fields_num, 1, values);
-			return NULL;
-		}
-	} else if (hd.sch_d.fields_num < fields_n) {
-		/* case where the header needs to be updated */
-		if (((fields_n - hd.sch_d.fields_num) + hd.sch_d.fields_num) > MAX_FIELD_NR) {
-			printf("cannot add the new fileds, limit is %d fields.\n", MAX_FIELD_NR);
-			*check = SCHEMA_ERR;
-			free_strs(fields_num, 1, values);
-			return NULL;
-		}
-
-		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
-
-		switch (ck_rst) {
-		case SCHEMA_ERR:
-			check = SCHEMA_ERR;
-			break;
-		case SCHEMA_EQ:
-			check = SCHEMA_NW;
-			break;
-		default:
-			free_strs(fields_num, 1, values);
-			return NULL;
-		}
-	
-	}else if (hd.sch_d.fields_num > fields_n) {
-		/*case where the fileds are less than the schema */
-		// if they are in the schema and the types are correct, return SCHEMA_CT
-		// create a record with only the values provided and set the other values to 0;
-
-		int ck_rst = ck_schema_contain_input(names, types_i, hd, fields_n);
-
-		switch (ck_rst) {
-		case SCHEMA_ERR:
-			check = SCHEMA_ERR;
-			break;
-		case SCHEMA_CT:
-			check = SCHEMA_CT;
-			break;
-		default:
-			free_strs(fields_num, 1, values);
-			return 0;
-		}
-	}
+	for(int i = 0; i < count; i++)
+		types_i[i] = assign_type(values[i]);
 
 	return values;
 }
@@ -574,7 +500,7 @@ int check_schema_with_no_types(char names[][MAX_FILED_LT], struct Header_d hd, c
 		sorted_names[i] = names[i];
 	}
 
-	/*sorting the name and type arrays  */
+	/*sorting the name arrays  */
 	if (hd.sch_d.fields_num > 1) {
 		quick_sort_str(sorted_names, 0, hd.sch_d.fields_num - 1);
 		quick_sort_str(copy_sch, 0, hd.sch_d.fields_num - 1);
@@ -582,7 +508,6 @@ int check_schema_with_no_types(char names[][MAX_FILED_LT], struct Header_d hd, c
 
 	
 	for (int i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++) {
-		// printf("%s == %s\n",copy_sch[i],names[j]);
 		if (strncmp(copy_sch[i], sorted_names[j],strlen(sorted_names[j])) == 0)
 			fields_eq++;
 
@@ -937,11 +862,22 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 	// check if the schema on the file is equal to the input Schema.
 
+	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
+	int types_i[MAX_FIELD_NR];
+	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
+	char **values = NULL;
+
 	if(mode == NO_TYPE){
-		check_schema_with_no_types()
+		values = extract_fields_value_types_from_input(buffer,names,types_i);
+		if(!values){
+			fprintf(stderr,"extracting values, names and types failed %s:%d",__FILE__,__LINE__ -2);
+			return 0;
+		}
 	}
+	
 	if (hd->sch_d.fields_num != 0)
 	{
+
 		unsigned char check = check_schema(fields_count, buffer, buf_t, *hd);
 		// printf("check schema is %d",check);
 		switch (check){
