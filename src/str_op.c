@@ -111,32 +111,37 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	char *delim = ":";
 	char *first = NULL;
 	char *p = buffer;
+	char *p2 = buffer;
 	char *last = NULL;
 	
 	int i = 0;
-	while((first = strstr(buffer,delim)) != NULL && (last=strstr(&p[(first+1) - buffer],delim)) != NULL){
-		int size = first - buffer;
-		int next_start = last - buffer;
+	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - buffer],delim)) != NULL)){
+		int size = first - p2;
+		int next_start = last - p2;
 		char cpy[size+1];
 		memset(cpy,0,size+1);
-		strncpy(names[i],buffer,size);
+		strncpy(names[i],p2,size);
 
-		buffer += next_start+1;
+		p2 += next_start+1;
 		i++;
 	}
 
 	if(first){
 		if(*(first + 1) != '\0') {
-			int size = buffer - first;
-			strncpy(names[i],buffer,size);
+			int size = first - p2;
+			strncpy(names[i],p2,size);
+			i++;
 		}
-	}else{
+	}else if(strstr(buffer,delim) == NULL){
+		if(buffer){
+			strncpy(names[i],buffer,strlen(buffer));
+			i++;
+		}
+	}else {
 		return -1;
 	}
 
 	return i;
-
-
 }
 
 
@@ -326,7 +331,13 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 	char *delim = NULL;
 	int j = 0;
 	int pos = 0;
-	if(strstr(p,":") == NULL) return -1;
+	if(strstr(p,":") == NULL){
+		if(p){
+			strncpy(names[j],p,strlen(p));
+			return 0;
+		}
+		
+	}
 	while((delim = strstr(p,":"))){
 		int size = delim - p;
 		pos = delim - fields_name;
@@ -465,6 +476,7 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 	char *delim = ":";
 	char *first = NULL;
 	char *p = buff;
+	char *p2 = buff;
 	char *last = NULL;
 	
 	char **values = calloc(fields_count, sizeof(char *));
@@ -474,18 +486,18 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 	}
 
 	int i = 0;
-	while((first = strstr(buff,delim)) != NULL && (last=strstr(&p[(first+1) - buff],delim)) != NULL){
-		int start = last - first;
-		int size = start-1;
+	while((first = strstr(p2,delim)) != NULL && (last=strstr(&p[(first+1) - buff],delim)) != NULL){
+		int start = (first + 1) - buff;
+		int size = (last - buff) - start;
 		char cpy[size+1];
 		memset(cpy,0,size+1);
-		strncpy(cpy,&buff[start],size);
+		strncpy(cpy,&p2[start],size);
 		values[i] = strdup(cpy);
 		if(!values[i]){
 			fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
 			return NULL;
 		}
-		buff += size+2;
+		p2 = (first + 1) + size+1;
 		i++;
 	}
 

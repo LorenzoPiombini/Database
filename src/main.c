@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
 
 		if (schema_def) { 
 			/* case when user creates a file with only file definition*/
+
 			int fields_count = count_fields(schema_def,NULL);
 
 			if (fields_count == 0) {
@@ -183,7 +184,8 @@ int main(int argc, char *argv[])
 			}
 
 			if (fields_count > MAX_FIELD_NR) {
-				fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n",prog, MAX_FIELD_NR);
+				fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
+						,prog, MAX_FIELD_NR);
 				goto clean_on_error_1;
 			}
 
