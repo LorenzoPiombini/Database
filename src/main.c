@@ -817,11 +817,11 @@ int main(int argc, char *argv[])
 		
 			int fields_count = 0;
 			unsigned char check = 0;
-			if(check_handle_input_mode(data_to_add) == 0){
-				check = check_schema()	
-			}
-
-			fields_counts = count_fields(data_to_add,NULL);
+			int mode = check_handle_input_mode(data_to_add);
+			
+			
+			if(mode == 1)
+				fields_counts = count_fields(data_to_add,NULL);
 
 			/*check schema*/
 			struct Record_f rec = {0};
@@ -829,26 +829,39 @@ int main(int argc, char *argv[])
 				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 				goto clean_on_error_7;
 			}
+			
+			if(mode == 1){	
+				char *buffer = strdup(data_to_add);
+				char *buf_t = strdup(data_to_add);
+				char *buf_v = strdup(data_to_add);
 
-			char *buffer = strdup(data_to_add);
-			char *buf_t = strdup(data_to_add);
-			char *buf_v = strdup(data_to_add);
-
-			check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
+				check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
 										file_path, &rec, &hd);
 
-			if (check == SCHEMA_ERR || check == 0) {
+				if (check == SCHEMA_ERR || check == 0) {
+					free(buffer);
+					free(buf_t);
+					free(buf_v);
+					goto clean_on_error_7;
+				}
+
 				free(buffer);
 				free(buf_t);
 				free(buf_v);
-				goto clean_on_error_7;
+			} else {
+		
+				check = perform_checks_on_schema(data_to_add, NULL, NULL, -1,
+										file_path, &rec, &hd);
+
 			}
-
-			free(buffer);
-			free(buf_t);
-			free(buf_v);
-
-
+			
+			/*
+			 * here you have to save the schema file for 
+			 * SCHEMA_NW 
+			 * SCHEMA_EQ_NT 
+			 * SCHEMA_NW_NT 
+			 * SCHEMA_CT_NT
+			 * */	
 			int lock_f = 0;
 			int r = 0;
 			if (check == SCHEMA_NW){

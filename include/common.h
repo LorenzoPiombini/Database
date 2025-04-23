@@ -10,4 +10,7 @@
 #define UPDATE_OLDN 8
 #define ALREADY_KEY 9
 #define EFLENGTH 10 /*file path or name too long */
+#define SCHEMA_EQ_NT 11 /*schema eq but NO type in the schema file*/
+#define SCHEMA_CT_NT 12 /*intput is part of the schema but NO type in the schema file*/
+#define SCHEMA_NW_NT 13 /*intput is part of the schema but also new part no part of the schema*/
 #endif
