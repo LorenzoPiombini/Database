@@ -2,6 +2,7 @@
 #define PARSE_H
 
 /* for Record_f, ValueTypes */
+
 #include "record.h"
 
 #define NO_TYPE 0
@@ -15,7 +16,7 @@ int parse_d_flag_input(char *file_path,
 			int check_sch,
 			struct Record_f *rec);
 
-unsigned char perform_checks_on_schema(char *buffer, 
+unsigned char perform_checks_on_schema(int mode, char *buffer, 
 					char *buf_t, 
 					char *buf_v, 
 					int fields_count,
@@ -24,7 +25,7 @@ unsigned char perform_checks_on_schema(char *buffer,
 					struct Header_d *hd);
 
 int parse_input_with_no_type(char *file_path, int fields_num, 
-							char names, 
+							char names[][MAX_FIELD_LT], 
 							int *types_i, 
 							char **values,
 							struct Schema *sch, 
@@ -36,7 +37,7 @@ int write_header(int fd, struct Header_d *hd);
 int read_header(int fd, struct Header_d *hd);
 unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd);
 unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Header_d hd);
-int check_schema_with_no_types(char names[][MAX_FILED_LT], struct Header_d hd);
+int check_schema_with_no_types(char names[][MAX_FIELD_LT], struct Header_d hd,char **sorted_names);
 int sort_input_like_header_schema(int schema_tp, 
 					int fields_num, 
 					struct Schema *sch, 
@@ -64,5 +65,5 @@ void print_schema(struct Schema sch);
 void print_header(struct Header_d hd);
 size_t compute_size_header(void *header);
 unsigned char create_data_to_add(struct Schema *sch, char data_to_add[][500]);
-char **extract_fields_value_types_from_input(char *buffer, char names[][MAX_FILED_LT], int *types_i);
+char **extract_fields_value_types_from_input(char *buffer, char names[][MAX_FIELD_LT], int *types_i, int *count);
 #endif

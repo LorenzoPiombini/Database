@@ -60,6 +60,7 @@ float __round_alt(float n);
 unsigned char is_number_in_limits(char *value);
 int find_last_char(const char c, char *src);
 int assign_type(char *value);
-int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_NR]);
+int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT]);
+int check_handle_input_mode(char *buffer);
 
 #endif /* STR_OP_H */

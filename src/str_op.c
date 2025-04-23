@@ -106,29 +106,29 @@ void *key_converter(char *key, int *key_type)
 	return converted;
 }
 
-int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_NR])
+int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 {
 	char *delim = ":";
 	char *first = NULL;
-	char *p = buff;
+	char *p = buffer;
 	char *last = NULL;
 	
 	int i = 0;
-	while((first = strstr(buff,delim)) != NULL && (last=strstr(&p[(first+1) - buff],delim)) != NULL){
+	while((first = strstr(buffer,delim)) != NULL && (last=strstr(&p[(first+1) - buffer],delim)) != NULL){
 		int size = first - buffer;
 		int next_start = last - buffer;
 		char cpy[size+1];
 		memset(cpy,0,size+1);
-		strncpy(names[i],buff,size);
+		strncpy(names[i],buffer,size);
 
-		buff += next_start+1;
+		buffer += next_start+1;
 		i++;
 	}
 
 	if(first){
 		if(*(first + 1) != '\0') {
-			int size = buff - first;
-			strncpy(names[i],buff,size);
+			int size = buffer - first;
+			strncpy(names[i],buffer,size);
 		}
 	}else{
 		return -1;

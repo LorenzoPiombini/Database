@@ -820,8 +820,14 @@ int main(int argc, char *argv[])
 			int mode = check_handle_input_mode(data_to_add);
 			
 			
-			if(mode == 1)
-				fields_counts = count_fields(data_to_add,NULL);
+			if(mode == 1){
+				fields_count = count_fields(data_to_add,NULL);
+				if(fields_count == 0){
+					fprintf(stderr,"(%s):check input syntax.\n",prog);
+					return STATUS_ERROR;
+				}
+
+			}
 
 			/*check schema*/
 			struct Record_f rec = {0};
@@ -835,7 +841,7 @@ int main(int argc, char *argv[])
 				char *buf_t = strdup(data_to_add);
 				char *buf_v = strdup(data_to_add);
 
-				check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
+				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
 										file_path, &rec, &hd);
 
 				if (check == SCHEMA_ERR || check == 0) {
@@ -850,7 +856,7 @@ int main(int argc, char *argv[])
 				free(buf_v);
 			} else {
 		
-				check = perform_checks_on_schema(data_to_add, NULL, NULL, -1,
+				check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1,
 										file_path, &rec, &hd);
 
 			}
@@ -864,9 +870,20 @@ int main(int argc, char *argv[])
 			 * */	
 			int lock_f = 0;
 			int r = 0;
-			if (check == SCHEMA_NW){
-				/*if the schema is new we update the header*/
-				/*aquire lock WR_HEADER*/
+			if (check == SCHEMA_NW ||
+				check == SCHEMA_NW_NT ||
+				check == SCHEMA_CT_NT ||
+				check == SCHEMA_EQ_NT){
+				/*
+				* if the schema is one between 
+				* SCHEMA_NW 
+			 	* SCHEMA_EQ_NT 
+			 	* SCHEMA_NW_NT 
+			 	* SCHEMA_CT_NT
+				* we update the header
+				* */
+				
+				/* aquire lock */
 				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 				while((r = lock(fd_index,WLOCK)) == WTLK);
 				if(r == -1){
@@ -989,25 +1006,34 @@ int main(int argc, char *argv[])
 			/* updating an existing record */
 
 			// 1 - check the schema with the one on file
-			int fields_count = count_fields(data_to_add,NULL);
 			struct Record_f rec = {0};
 			struct Record_f rec_old = {0};
 			struct Record_f new_rec = {0};
+			int mode = check_handle_input_mode(data_to_add);
+			int fields_count = 0;
+			unsigned char check = 0;
+			if(mode == 1){
+				count_fields(data_to_add,NULL);
 
-			if (fields_count > MAX_FIELD_NR) {
-				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-				goto clean_on_error;
+				if (fields_count > MAX_FIELD_NR) {
+					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+					goto clean_on_error;
+				}
+
+				char *buffer = strdup(data_to_add);
+				char *buf_t = strdup(data_to_add);
+				char *buf_v = strdup(data_to_add);
+
+				check = perform_checks_on_schema(mode, buffer, buf_t, buf_v, fields_count,
+						file_path, &rec, &hd);
+				free(buffer);
+				free(buf_t);
+				free(buf_v);
+			} else{
+				check = perform_checks_on_schema(mode, data_to_add, NULL, NULL, -1,
+						file_path, &rec, &hd);
 			}
 
-			char *buffer = strdup(data_to_add);
-			char *buf_t = strdup(data_to_add);
-			char *buf_v = strdup(data_to_add);
-
-			unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count,
-						file_path, &rec, &hd);
-			free(buffer);
-			free(buf_t);
-			free(buf_v);
 			if (check == SCHEMA_ERR || check == 0) {
 				goto clean_on_error;
 			}
@@ -1015,8 +1041,11 @@ int main(int argc, char *argv[])
 			/* updating the schema if it is new */
 			int r = 0;
 			int lock_f = 0;
-			if (check == SCHEMA_NW) {
-				/*acquire WR_HEADER lock */
+			if (check == SCHEMA_NW 		||
+				check == SCHEMA_NW_NT 	||
+				check == SCHEMA_EQ_NT 	||
+				check == SCHEMA_CT_NT ){
+				/*acquire lock */
 
 				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 				while((r = lock(fd_index,WLOCK)) == WTLK);

@@ -37,36 +37,47 @@ unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char *key,
 		char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
 {
-	int fields_count = count_fields(data_to_add, NULL);
 
-	if (fields_count > MAX_FIELD_NR)
-	{
-		printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-		return 0;
-	}
-
-	char *buffer = strdup(data_to_add);
-	char *buf_t = strdup(data_to_add);
-	char *buf_v = strdup(data_to_add);
-
+	int fields_count = 0; 
+	
 	struct Record_f rec ={0};
 	struct Schema sch = {0};
 	struct Header_d hd = {0, 0, sch};
+	unsigned char check = 0;
+
+	int mode = check_handle_input_mode(data_to_add);
+	if(mode == 1){
+		
+		fields_count = count_fields(data_to_add, NULL);
+		if (fields_count > MAX_FIELD_NR) {
+			printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+			return 0;
+		}
+	
+
+		char *buffer = strdup(data_to_add);
+		char *buf_t = strdup(data_to_add);
+		char *buf_v = strdup(data_to_add);
+		check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count, file_path, &rec, &hd);
+
+		free(buffer);
+		free(buf_t);
+		free(buf_v);
+	
+	}else{
+		check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1, file_path, &rec, &hd);
+	}
 
 	begin_in_file(fd_data);
-	unsigned char check = perform_checks_on_schema(buffer, buf_t, buf_v, fields_count, file_path, &rec, &hd);
-
-	free(buffer);
-	free(buf_t);
-	free(buf_v);
 	if (check == SCHEMA_ERR || check == 0) {
 		return 0;
 	}
 
-	if (check == SCHEMA_NW)
-	{ /*if the schema is new we update the header*/
-		// check the header size
-		// printf("header size is: %ld",compute_size_header(hd));
+	if (check == SCHEMA_NW || 
+		check == SCHEMA_NW_NT ||
+		check == SCHEMA_CT_NT ||
+		check == SCHEMA_EQ_NT ) { 
+		/*if the schema is new we update the header*/
 		close_file(1,*fd_schema);
 		*fd_schema = open_file(files[2],1);
 
