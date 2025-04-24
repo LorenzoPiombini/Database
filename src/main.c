@@ -75,8 +75,18 @@ int main(int argc, char *argv[])
 			key = optarg;
 			break;
 		case 'D':
-			del = 1, index_nr = atoi(optarg); // 1 is marking del as true
+		{
+			del = 1;
+			char *endptr;
+			long l = strtol(optarg,&endptr,10);
+			if(*endptr == '\0'){
+				index_nr = (int) l;
+			}else{
+				fprintf(stderr,"option -D value is not a valid number.\n");
+				return -1;
+			}
 			break;
+		}
 		case 't':
 			print_types();
 			return 0;
@@ -96,17 +106,44 @@ int main(int argc, char *argv[])
 			build = 1, txt_f = optarg;
 			break;
 		case 's':
-			bucket_ht = atoi(optarg);
+		{
+			char *endptr;
+			long l = strtol(optarg,&endptr,10);
+			if(*endptr == '\0'){
+				bucket_ht = (int)l;
+			}else{
+				fprintf(stderr,"option -s value is not a valid number.\n");
+				return -1;
+			}
 			break;
+
+		}
 		case 'x':
-			list_keys = 1, index_nr = atoi(optarg);
+			list_keys = 1;
+			char *endptr;
+			long l = strtol(optarg,&endptr,10);
+			if(*endptr == '\0'){
+				index_nr = (int)l;
+			}else{
+				fprintf(stderr,"option -x value is not a valid number.\n");
+				return -1;
+			}
 			break;
 		case 'c':
 			create = 1, txt_f = optarg;
 			break;
 		case 'i':
-			indexes = atoi(optarg);
+		{
+			char *endptr;
+			long l = strtol(optarg,&endptr,10);
+			if(*endptr == '\0'){
+				indexes = (int)l;
+			}else{
+				fprintf(stderr,"option -i value is not a valid number.\n");
+				return -1;
+			}
 			break;
+		}
 		case 'o':
 			options = 1, option = optarg;
 			break;

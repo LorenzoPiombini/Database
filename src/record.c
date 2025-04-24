@@ -30,7 +30,8 @@ unsigned char set_field(struct Record_f *rec,
 	rec->fields[index].type = type;
 	rec->field_set[index] = field_bit;
 
-	switch (type) {
+	int t = (int)type;
+	switch (t) {
 	case TYPE_INT:
 	case TYPE_ARRAY_INT:
 	{
