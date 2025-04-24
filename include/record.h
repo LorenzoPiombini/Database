@@ -13,7 +13,7 @@
 #define MAX_HD_SIZE 7232
 #define MAX_FIELD_NR 200 /*max field nr in a file */
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
-#define MAX_RECS_OLD_CAP 500/*maximum capacity for recs old array */
+#define MAX_RECS_OLD_CAP 100/*maximum capacity for recs old array */
 struct Schema {
 	unsigned short fields_num;
 	char fields_name[MAX_FIELD_NR][MAX_FIELD_LT];

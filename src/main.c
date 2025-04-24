@@ -1395,12 +1395,16 @@ int main(int argc, char *argv[])
 
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 			memset(&new_rec,0,sizeof(struct Record_f));
-			recs_old.recs[0] = rec_old;
-			recs_old.pos_u[0] = offset;
+			
+			if(insert_rec(&recs_old,&rec_old,offset) == -1){
+				printf("insert_rec, %s:%d.\n", F, L - 4);
+				goto clean_on_error;
+			}
+			
 			unsigned char comp_rr = compare_old_rec_update_rec(&recs_old, &rec, &new_rec,
 									file_path, check,hd);
 			if (comp_rr == 0) {
-				printf(" compare records failed, %s:%d.\n", F, L - 4);
+				printf("compare records failed, %s:%d.\n", F, L - 4);
 				goto clean_on_error;
 			}
 
@@ -1422,6 +1426,7 @@ int main(int argc, char *argv[])
 				close_file(2, fd_index, fd_data);
 				free_record(&rec, rec.fields_num);
 				free_record(&rec_old, rec_old.fields_num);
+				free_recs_old(&recs_old);
 				return 0;
 			}
 
@@ -1465,6 +1470,7 @@ int main(int argc, char *argv[])
 				free_record(&rec, rec.fields_num);
 				free_record(&rec_old, rec_old.fields_num);
 				free_record(&new_rec, new_rec.fields_num);
+				free_recs_old(&recs_old);
 				return 0;
 			}
 

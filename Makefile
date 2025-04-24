@@ -119,7 +119,7 @@ clean:
 	rm *core*
 	 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack -fsanitize=address
+	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 
 
 

@@ -1354,7 +1354,33 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 {
 	if(buffer->capacity < MAX_RECS_OLD_CAP) {
-		buffer->recs[buffer->capacity] = *rec;
+		for(int i = 0; i < rec->fields_num; i++){
+			if(rec->field_set[i] == 0){
+				buffer->recs[buffer->capacity].field_set[i] = 0;
+				strncpy(buffer->recs[buffer->capacity].fields[i].field_name,
+						rec->fields[i].field_name,
+						strlen(rec->fields[i].field_name));
+			}
+
+			buffer->recs[buffer->capacity].field_set[i] = 1;
+			strncpy(buffer->recs[buffer->capacity].fields[i].field_name,
+					rec->fields[i].field_name,
+					strlen(rec->fields[i].field_name));
+			buffer->recs[buffer->capacity].fields[i].type = rec->fields[i].type;
+			switch(rec->fields[i].type){
+			case TYPE_STRING:
+				buffer->recs[buffer->capacity].fields[i].data.s = strdup(rec->fields[i].data.s);
+				if(!buffer->recs[buffer->capacity].fields[i].data.s){
+					fprintf(stderr,"strdup() failed %s:%d",__FILE__,__LINE__-1);
+					return -1;
+				} 
+				break;
+			default:
+				break;
+
+			}
+		}
+		buffer->recs[0].fields_num = rec->fields_num;
 		buffer->pos_u[buffer->capacity] = pos;
 		buffer->capacity++;
 		return 0;
