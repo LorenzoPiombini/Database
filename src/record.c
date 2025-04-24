@@ -391,6 +391,8 @@ unsigned char set_field(struct Record_f *rec,
 		}
 		break;
 	}
+	case -1:
+		break;
 	default:
 		printf("invalid type! type -> %d.", type);
 		return 0;
@@ -1360,6 +1362,7 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 				strncpy(buffer->recs[buffer->capacity].fields[i].field_name,
 						rec->fields[i].field_name,
 						strlen(rec->fields[i].field_name));
+				continue;
 			}
 
 			buffer->recs[buffer->capacity].field_set[i] = 1;

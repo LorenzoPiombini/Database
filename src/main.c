@@ -1015,7 +1015,7 @@ int main(int argc, char *argv[])
 			int fields_count = 0;
 			unsigned char check = 0;
 			if(mode == 1){
-				count_fields(data_to_add,NULL);
+				fields_count = count_fields(data_to_add,NULL);
 
 				if (fields_count > MAX_FIELD_NR) {
 					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);

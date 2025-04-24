@@ -269,6 +269,15 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 			uint8_t bitfield = 0; 
 			if (found == 0) {
 				switch (sch->types[i]){
+				case -1:
+					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						free_strs(fields_num, 1, values);
+						free_record(rec, sch->fields_num);
+						return -1;
+					}
+	
+					break;
 				case TYPE_INT:
 				case TYPE_LONG:
 				case TYPE_BYTE:
