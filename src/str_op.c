@@ -21,10 +21,19 @@ int check_handle_input_mode(char *buffer)
 	if((c_delim = count_fields(buffer,":")) == count_fields(buffer,NULL)) return 0;
 	
 	/*at this point the input is hybrid*/
-	if(strstr(buffer,TYPE_)!= NULL || strstr(buffer,T_) != NULL){
-		
+	size_t l = strlen(buffer)+1;
+	char cpy[l];
+	memset(cpy,0,l);
+	strncpy(cpy,buffer,l);
 
+	char *pos_T = NULL;
+	while((pos_T = strstr(cpy,TYPE_))){
+		char *end_T = strstr(pos_T,":");
+		int start = pos_T - cpy;
+		int end = end_T - cpy;
+		strncpy(&cpy[start],"@",(end - start));
 	}
+
 
 	return 0;
 }
