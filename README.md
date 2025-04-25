@@ -1,6 +1,6 @@
-# Database in C
+# Database 
 
-This database utility enables dynamic creation of file definitions at runtime,  without the need to hardcode each file, every time you need to add one. the software will allow you to browse the file databse that it creates, will also install shared libraries on your machine that will be needed to develop a working system on this databes concept, you can develop pretty much anything on this file db.
+This database utility enables dynamic creation of file definitions at runtime, without the need to hardcode each file, every time you need to add one. the software will allow you to browse the file databse that it creates, will also install shared libraries on your machine that will be needed to develop a working system on this databes concept, you can develop pretty much anything on this file db.
 
 as for now, this software is ment to be for **Linux/Unix** systems, and it has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
@@ -9,6 +9,7 @@ as for now, this software is ment to be for **Linux/Unix** systems, and it has b
 
 ## WHAT'S NEW?
 
+since april 2025 there is no need to pass the type when creating a file, the db will assign type when you first write to the file   
 since february 2025 you can create a record where one of the fields is an array.
 for each type supported by the database you can create an array "type":
 
