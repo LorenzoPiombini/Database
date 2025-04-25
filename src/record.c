@@ -405,7 +405,9 @@ unsigned char set_field(struct Record_f *rec,
 void free_record(struct Record_f *rec, int fields_num)
 {
 	for (int i = 0; i < fields_num; i++){
-		switch (rec->fields[i].type) {
+		int t = (int)rec->fields[i].type;
+		switch (t) {
+		case -1:
 		case TYPE_INT:
 		case TYPE_LONG:
 		case TYPE_FLOAT:
@@ -458,8 +460,10 @@ void print_record(int count, struct Record_f *recs)
 
 			strip('"', rec.fields[i].field_name);
 			printf("%-*s\t", max++, rec.fields[i].field_name);
-			switch (rec.fields[i].type)
-			{
+			int t = (int)rec.fields[i].type;
+			switch (t){
+			case -1:
+				break;
 			case TYPE_INT:
 				printf("%d\n", rec.fields[i].data.i);
 				break;

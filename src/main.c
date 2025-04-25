@@ -1468,7 +1468,8 @@ int main(int argc, char *argv[])
 			}
 
 			/*updating the record but we need to write some data in another place in the file*/
-			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLDN && check == SCHEMA_CT) {
+			if (updated_rec_pos == 0 && comp_rr == UPDATE_OLDN && 
+					(check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
 
 				off_t eof = 0;
 				if ((eof = go_to_EOF(fd_data)) == -1) {

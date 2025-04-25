@@ -997,14 +997,18 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 	for(int i = 0; i < count; i++){
 		for(int j = 0; j < sch->fields_num; j++){
 			if(strncmp(names[i],sch->fields_name[j],strlen(names[i])) != 0) continue;
+			
+			if(sch->types[j] == -1) 
+				counter = SCHEMA_CT_NT;
+			else
+				counter++;
 
 			sch->types[j] = types_i[i];	
-			counter++;
 		}
 
 	}
 
-	return counter > 0;
+	return counter ;
 }
 
 int schema_nw_assyign_type(struct Schema *sch_d, char names[][MAX_FIELD_LT], int *types_i, int count)
@@ -1031,7 +1035,7 @@ int schema_nw_assyign_type(struct Schema *sch_d, char names[][MAX_FIELD_LT], int
 	}
 
 	sch_d->fields_num = new_count;
-	return 0;
+	return sch_d->fields_num < new_count;
 }
 
 unsigned char perform_checks_on_schema(int mode,char *buffer, 
@@ -1094,20 +1098,22 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				/*check if the input is part of the schema 
 				 * then assign type accordingly
 				 * */
-				if(schema_ct_assign_type(&hd->sch_d, names,types_i,count) == 0){
+				int result = 0;
+				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,count)) == 0){
 					return SCHEMA_ERR;
 				}
 
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
-								&hd->sch_d, SCHEMA_CT,rec) == -1){
+								&hd->sch_d, SCHEMA_CT,rec) == -1){	
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
 					return 0;
 				}
-				return SCHEMA_CT_NT;
+				
+				return result;
 			}else if(count > hd->sch_d.fields_num){
 				/*schema new */
-				if(schema_nw_assyign_type(&hd->sch_d, names,types_i,count) == 0){
+				if(!schema_nw_assyign_type(&hd->sch_d, names,types_i,count)){
 					return SCHEMA_ERR;
 				}
 
@@ -1140,7 +1146,8 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				return SCHEMA_EQ;
 
 			}else if(count < hd->sch_d.fields_num){
-				if(schema_ct_assign_type(&hd->sch_d, names,types_i,count) == 0){
+				int result = 0;
+				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,count)) == 0){
 					return SCHEMA_ERR;
 				}
 
@@ -1150,10 +1157,13 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 							__FILE__,__LINE__-2);
 					return 0;
 				}
-				return SCHEMA_CT;
+				if(result == SCHEMA_CT_NT)
+					return result;
+				else 
+					return SCHEMA_CT;
 
 			}else if(count > hd->sch_d.fields_num){
-				if(schema_nw_assyign_type(&hd->sch_d, names,types_i,count) == 0){
+				if(!schema_nw_assyign_type(&hd->sch_d, names,types_i,count)){
 					return SCHEMA_ERR;
 				}
 
@@ -1219,10 +1229,10 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 	int changed = 0;
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
 	int types_i[MAX_FIELD_NR]= {-1}; 
-	if (check == SCHEMA_CT ) {
+	if (check == SCHEMA_CT || check == SCHEMA_CT_NT ) {
 
 		for (j = 0; j < rec_old->recs[0].fields_num; j++) {
-			if (rec->field_set[j] == 1 && rec_old->recs[0].field_set[j] == 1) {
+			if (rec->field_set[j] == 1  && rec_old->recs[0].field_set[j] == 1) {
 				changed = 1;
 				switch (rec->fields[j].type) {
 				case TYPE_INT:
@@ -1239,21 +1249,31 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 						rec_old->recs[0].fields[j].data.f = rec->fields[j].data.f;
 					break;
 				case TYPE_STRING:
-					if (strcmp(rec_old->recs[0].fields[j].data.s, rec->fields[j].data.s) != 0)
-					{
-						// free memory before allocating other memory
-						if (rec_old->recs[0].fields[j].data.s != NULL)
-						{
-							free(rec_old->recs[0].fields[j].data.s);
-							rec_old->recs[0].fields[j].data.s = NULL;
-						}
-						rec_old->recs[0].fields[j].data.s = strdup(rec->fields[j].data.s);
-						if (!rec_old->recs[0].fields[j].data.s)
-						{
-							fprintf(stderr, "strdup failed, %s:%d.\n", F, L - 2);
-							return 0;
+					if(rec_old->recs[0].fields[j].data.s){
+						if (strcmp(rec_old->recs[0].fields[j].data.s, 
+									rec->fields[j].data.s) != 0) {
+							// free memory before allocating other memory
+							if (rec_old->recs[0].fields[j].data.s != NULL)
+							{
+								free(rec_old->recs[0].fields[j].data.s);
+								rec_old->recs[0].fields[j].data.s = NULL;
+							}
+							rec_old->recs[0].fields[j]
+								.data.s = strdup(rec->fields[j].data.s);
+
+							if (!rec_old->recs[0].fields[j].data.s)
+							{
+								fprintf(stderr, "strdup failed, %s:%d.\n", F, L - 2);
+								return 0;
+							}
 						}
 					}
+					rec_old->recs[0].fields[j].data.s = strdup(rec->fields[j].data.s);
+					if (!rec_old->recs[0].fields[j].data.s) {
+						fprintf(stderr, "strdup failed, %s:%d.\n", F, L - 2);
+						return 0;
+					}
+
 					break;
 				case TYPE_BYTE:
 					if (rec_old->recs[0].fields[j].data.b != rec->fields[j].data.b)
