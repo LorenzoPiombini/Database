@@ -1376,6 +1376,21 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 					strlen(rec->fields[i].field_name));
 			buffer->recs[buffer->capacity].fields[i].type = rec->fields[i].type;
 			switch(rec->fields[i].type){
+			case TYPE_INT:
+				buffer->recs[buffer->capacity].fields[i].data.i = rec->fields[i].data.i;
+				break;
+			case TYPE_DOUBLE:
+				buffer->recs[buffer->capacity].fields[i].data.d = rec->fields[i].data.d;
+				break;
+			case TYPE_FLOAT:
+				buffer->recs[buffer->capacity].fields[i].data.f = rec->fields[i].data.f;
+				break;
+			case TYPE_LONG:
+				buffer->recs[buffer->capacity].fields[i].data.l = rec->fields[i].data.l;
+				break;
+			case TYPE_BYTE:
+				buffer->recs[buffer->capacity].fields[i].data.b = rec->fields[i].data.b;
+				break;
 			case TYPE_STRING:
 				buffer->recs[buffer->capacity].fields[i].data.s = strdup(rec->fields[i].data.s);
 				if(!buffer->recs[buffer->capacity].fields[i].data.s){

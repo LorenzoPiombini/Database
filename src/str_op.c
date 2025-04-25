@@ -13,7 +13,18 @@
 
 int check_handle_input_mode(char *buffer)
 {
-	if(strstr(buffer,TYPE_)!= NULL || strstr(buffer,T_) != NULL) return 1;
+	int c_t = 0;
+	int c_T = 0;
+	int c_delim = 0;
+	if((c_t = count_fields(buffer,T_)) == count_fields(buffer,NULL)) return 1;
+	if((c_T = count_fields(buffer,TYPE_)) == count_fields(buffer,NULL)) return 1;
+	if((c_delim = count_fields(buffer,":")) == count_fields(buffer,NULL)) return 0;
+	
+	/*at this point the input is hybrid*/
+	if(strstr(buffer,TYPE_)!= NULL || strstr(buffer,T_) != NULL){
+		
+
+	}
 
 	return 0;
 }
