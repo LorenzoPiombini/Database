@@ -213,36 +213,61 @@ int main(int argc, char *argv[])
 		if (schema_def) { 
 			/* case when user creates a file with only file definition*/
 
-			int fields_count = count_fields(schema_def,NULL);
-
-			if (fields_count == 0) {
-				fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
-				goto clean_on_error_1;
-			}
-
-			if (fields_count > MAX_FIELD_NR) {
-				fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
-						,prog, MAX_FIELD_NR);
-				goto clean_on_error_1;
-			}
-
-			char *buf_sdf = strdup(schema_def);
-			char *buf_t = strdup(schema_def);
-
+			int mode = check_handle_input_mode(schema_def);
+			int fields_count = 0; 
+			char *buf_sdf = NULL; 
+			char *buf_t = NULL;
 			/* init he Schema structure*/
 			struct Schema sch = {0};
 			sch.fields_num = fields_count;
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
-			if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch)) {
-				fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
+			if(mode == TYPE){
+				fields_count = count_fields(schema_def,NULL);
+
+				if (fields_count == 0) {
+					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
+					goto clean_on_error_1;
+				}
+
+				if (fields_count > MAX_FIELD_NR) {
+					fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
+							,prog, MAX_FIELD_NR);
+					goto clean_on_error_1;
+				}
+
+				buf_sdf = strdup(schema_def);
+				buf_t = strdup(schema_def);
+
+				if (!create_file_definition_with_no_value(mode,fields_count, buf_sdf, buf_t, &sch)) {
+					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
+					free(buf_sdf);
+					free(buf_t);
+					goto clean_on_error_1;
+				}
 				free(buf_sdf);
 				free(buf_t);
-				goto clean_on_error_1;
-			}
 
-			free(buf_sdf);
-			free(buf_t);
+			}else if (mode == HYB){
+
+				fields_count = count_fields(schema_def,":") -
+					((2*count_fields(schema_def,TYPE_)) + (2 * count_fields(schema_def,T_)));
+
+				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
+					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
+					goto clean_on_error_1;
+				}
+			}else {
+				
+				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
+					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
+					goto clean_on_error_1;
+				}
+
+
+
+
+			}
 
 			struct Header_d hd = {0, 0, sch};
 

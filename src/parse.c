@@ -876,17 +876,46 @@ unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, st
 	return 1;
 }
 
-int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf_t, struct Schema *sch)
+int create_file_definition_with_no_value(int mode, int fields_num, char *buffer, char *buf_t, struct Schema *sch)
 {
 
-	int target = 0;
-	if(strstr(buf_t,T_) != NULL || strstr(buf_t,TYPE_) != NULL) target = 1;
-	
+
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
-	if(target)
-		get_fileds_name(buffer, fields_num, 2,names);
-	else
+	int types_i[MAX_FIELD_NR];
+	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
+
+	switch(mode){
+	case NO_TYPE:
 		if(get_fields_name_with_no_type(buffer,names) == -1) return 0;
+		break;
+	case TYPE:
+		get_fileds_name(buffer, fields_num, 2,names);
+		get_value_types(buf_t, fields_num, 2,types_i);
+		for (int i = 0; i < fields_num; i++) {
+			if (types_i[i] != TYPE_INT &&
+					types_i[i] != TYPE_FLOAT &&
+					types_i[i] != TYPE_LONG &&
+					types_i[i] != TYPE_DOUBLE &&
+					types_i[i] != TYPE_BYTE &&
+					types_i[i] != TYPE_STRING &&
+					types_i[i] != TYPE_ARRAY_INT &&
+					types_i[i] != TYPE_ARRAY_LONG &&
+					types_i[i] != TYPE_ARRAY_FLOAT &&
+					types_i[i] != TYPE_ARRAY_STRING &&
+					types_i[i] != TYPE_ARRAY_BYTE &&
+					types_i[i] != TYPE_ARRAY_DOUBLE) {
+				printf("invalid input.\n");
+				printf("input syntax: fieldName:TYPE:value\n");
+				return 0;
+			}
+		}
+		break;
+	case HYB:
+		fields_num = get_name_types_hybrid(buffer,names,types_i);
+		break;
+	default:
+		return 0;
+	}
 
 
 
@@ -942,37 +971,11 @@ int create_file_definition_with_no_value(int fields_num, char *buffer, char *buf
 	for (int j = 0; j < fields_num; j++)
 			strncpy(sch->fields_name[j],names[j],strlen(names[j]));
 
-	int types_i[MAX_FIELD_NR] = {0};
 	
-	if(target) 
-		get_value_types(buf_t, fields_num, 2,types_i);
-	else
-		memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
-
-	if(target){
-		for (int i = 0; i < fields_num; i++) {
-			if (types_i[i] != TYPE_INT &&
-					types_i[i] != TYPE_FLOAT &&
-					types_i[i] != TYPE_LONG &&
-					types_i[i] != TYPE_DOUBLE &&
-					types_i[i] != TYPE_BYTE &&
-					types_i[i] != TYPE_STRING &&
-					types_i[i] != TYPE_ARRAY_INT &&
-					types_i[i] != TYPE_ARRAY_LONG &&
-					types_i[i] != TYPE_ARRAY_FLOAT &&
-					types_i[i] != TYPE_ARRAY_STRING &&
-					types_i[i] != TYPE_ARRAY_BYTE &&
-					types_i[i] != TYPE_ARRAY_DOUBLE) {
-				printf("invalid input.\n");
-				printf("input syntax: fieldName:TYPE:value\n");
-				return 0;
-			}
-		}
-	}
-
 	for (int i = 0; i < fields_num; i++)
 		sch->types[i] = types_i[i];
 
+	sch->fields_num = fields_num;
 	return 1; // schema creation succssed
 }
 

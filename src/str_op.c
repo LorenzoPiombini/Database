@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <errno.h>
+#include <assert.h>
 #include "str_op.h"
 #include "common.h"
 #include "debug.h"
@@ -13,31 +14,115 @@
 
 int check_handle_input_mode(char *buffer)
 {
-	int c_t = 0;
-	int c_T = 0;
-	int c_delim = 0;
-	if((c_t = count_fields(buffer,T_)) == count_fields(buffer,NULL)) return 1;
-	if((c_T = count_fields(buffer,TYPE_)) == count_fields(buffer,NULL)) return 1;
-	if((c_delim = count_fields(buffer,":")) == count_fields(buffer,NULL)) return 0;
+	int c_t = count_fields(buffer,T_); 
+	int c_T = count_fields(buffer,TYPE_); 
+	int c_delim =  count_fields(buffer,":");
 	
-	/*at this point the input is hybrid*/
-	size_t l = strlen(buffer)+1;
-	char cpy[l];
-	memset(cpy,0,l);
-	strncpy(cpy,buffer,l);
+	if(c_T == 0 && c_t == 0 && c_delim > 0) return NO_TYPE;
+	
+	int v = (c_T * 2) + (c_t * 2);
 
-	char *pos_T = NULL;
-	while((pos_T = strstr(cpy,TYPE_))){
-		char *end_T = strstr(pos_T,":");
-		int start = pos_T - cpy;
-		int end = end_T - cpy;
-		strncpy(&cpy[start],"@",(end - start));
-	}
+	if(c_delim > v) return HYB;
+	if(c_delim == v) return TYPE;
 
-
-	return 0;
+	return -1;
 }
 
+int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
+{
+	size_t size = strlen(buffer) + 1;
+	char cbuf[size];
+	memset(cbuf,0,size);
+	strncpy(cbuf,buffer,size);
+
+	replace('@','^',cbuf);
+	int i = 0;
+	if (strstr(cbuf,TYPE_)){
+		char *pos_T = NULL;
+		while((pos_T = strstr(cbuf,TYPE_))){
+			int start = pos_T - cbuf;
+			/*this change the delimeter so it won't
+			 * be found in the next iteration*/
+			*pos_T= '@';
+			char *end_T = (strstr(pos_T,":"));
+			assert(end_T != NULL);
+
+			/*get the type*/
+			int l = end_T - pos_T;
+			char type[l];
+			memset(type,0,l);
+			strncpy(type,++pos_T,l-1);
+			types_i[i] = get_type(type);
+
+			char *p = &cbuf[start] - 1;
+			while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
+			
+			l = pos_T - p;
+			if(p != &cbuf[0])
+				strncpy(names[i],++p, l -1);
+			else
+				strncpy(names[i],p, l -1);
+
+			i++;
+		}
+	} 
+
+	if(strstr(cbuf,T_)){
+		char *pos_t = NULL;
+		while((pos_t = strstr(cbuf,T_))){
+			int start = pos_t - cbuf;
+
+			/*this change the delimeter so it won't
+			 * be found in the next iteration*/
+			*pos_t= '@';
+			char *end_t = (strstr(pos_t,":"));
+			assert(end_t != NULL); 
+
+			/*get the type*/
+			int l = end_t - pos_t;
+			char type[l];
+			memset(type,0,l);
+			strncpy(type,++pos_t,l-1);
+			types_i[i] = get_type(type);
+
+			char *p = &cbuf[start] - 1;
+			while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
+			
+			l = pos_t - p;
+			if(p != &cbuf[0])
+				strncpy(names[i],++p, l -1);
+			else
+				strncpy(names[i],p, l -1);
+			i++;
+		}
+	}
+
+	
+	char names_s[MAX_FIELD_NR - i][MAX_FILED_LT];
+	memset(names_s,0,(MAX_FIELD_NR - i)*MAX_FILED_LT);
+
+	int s = get_fields_name_with_no_type(cbuf, names_s);
+	
+	int skip = -1;
+	for(int j = 0; j < s; j++){
+		int b = 0;
+		for(int x = 0; x < i; x++){
+			if(strstr(names_s[j],names[x])){
+				skip = j;
+				b = 1;
+				break;
+			}
+		}
+		if (b) break;
+	}
+
+	for(int x = 0; names_s[x][0] != '\0'; x++){
+		if (x == skip) continue;
+		strncpy(names[i],names_s[x],strlen(names_s[x]));
+		i++;
+	}
+	return i;
+}
 int get_array_values(char *src, char ***values)
 {
 	int items = count_fields(src, ",");
@@ -316,6 +401,10 @@ int get_type(char *s){
 	{
 		return 12;
 	}
+	else if (strcmp(s, "TYPE_FILE") == 0)
+	{
+		return 13;
+	}
 	else if (strcmp(s, "t_ai") == 0)
 	{
 		return 7;
@@ -340,6 +429,10 @@ int get_type(char *s){
 	{
 		return 12;
 	}
+	else if (strcmp(s, "t_fl") == 0)
+	{
+		return 13;
+	}
 
 	return -1;
 }
@@ -354,7 +447,8 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 	if(strstr(p,":") == NULL){
 		if(p){
 			strncpy(names[j],p,strlen(p));
-			return 0;
+			j++;
+			return j;
 		}
 		
 	}
@@ -366,9 +460,12 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 		j++;
 	}
 
-	if(fields_name[pos + 1] != '\0') strncpy(names[j],p,strlen(p));
+	if(fields_name[pos + 1] != '\0') {
+		strncpy(names[j],p,strlen(p));
+		j++;
+	}
 
-	return 0;
+	return j;
 }
 
 int get_fileds_name(char *fields_name, int fields_count, int steps, char names[][MAX_FILED_LT])
@@ -462,8 +559,7 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 		if (result == -1) return -1;
 		types[j] = result;
 		i++;
-	}
-	else
+	}	else
 	{
 		printf("type token not found in get_value_types().\n");
 		return -1;

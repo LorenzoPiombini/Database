@@ -2,7 +2,7 @@
 #define STR_OP_H
 #include "record.h"
 
-#define TYPE_ "TYPE_"
+#define TYPE_ ":TYPE_"
 #define T_ ":t_"
 
 #define MAX_KEY 4294967296
@@ -10,6 +10,9 @@
 #define MAX_FILE_PATH_LENGTH 1024
 #define MAX_FILED_LT 32
 
+#define NO_TYPE 0
+#define TYPE 1
+#define HYB 3
 
 #define ASCII_INT_MAX 526            /*the sum of ASCII values for every char in INT_MAX*/
 #define ASCII_INT_MIN 572            /*the sum of ASCII values for every char in INT_MIN*/
@@ -62,5 +65,6 @@ int find_last_char(const char c, char *src);
 int assign_type(char *value);
 int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT]);
 int check_handle_input_mode(char *buffer);
+int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i);
 
 #endif /* STR_OP_H */

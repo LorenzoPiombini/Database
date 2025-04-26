@@ -119,32 +119,37 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 
 unsigned char create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int bucket_ht, int indexes)
 {
-	int fields_count = count_fields(schema_def, NULL);
+	int mode = check_handle_input_mode(schema_def); 
+	int fields_count = 0;
+	char *buf_t = NULL;
+	char *buf_sdf = NULL;
+	if(mode == TYPE){
+		fields_count = count_fields(schema_def, NULL);
 
-	if (fields_count > MAX_FIELD_NR)
-	{
-		printf("Too many fields, max %d fields each file definition.\n", MAX_FIELD_NR);
-		return 0;
+		if (fields_count > MAX_FIELD_NR) {
+			printf("Too many fields, max %d fields each file definition.\n", MAX_FIELD_NR);
+			return 0;
+		}
+	
+		buf_sdf = strdup(schema_def);
+		buf_t = strdup(schema_def);
 	}
-
-	char *buf_sdf = strdup(schema_def);
-	char *buf_t = strdup(schema_def);
 
 	struct Schema sch = {0};
 	sch.fields_num = fields_count;
-	if (!create_file_definition_with_no_value(fields_count, buf_sdf, buf_t, &sch))
-	{
-		free(buf_sdf), free(buf_t);
+	if (!create_file_definition_with_no_value(mode,fields_count, buf_sdf, buf_t, &sch)){
+		if(buf_sdf) free(buf_sdf);
+		if(buf_t) free(buf_t);
 		printf("can't create file definition %s:%d.\n", __FILE__, __LINE__ - 1);
 		return 0;
 	}
 
-	free(buf_sdf), free(buf_t);
+	if(buf_sdf) free(buf_sdf);
+	if(buf_t) free(buf_t);
 	struct Header_d hd = {0, 0, sch};
 
 	if (!create_header(&hd)) return 0;
 
-	// print_size_header(hd);
 
 	if (!write_header(fd_schema, &hd)) return 0;
 
