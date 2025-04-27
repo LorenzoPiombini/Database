@@ -12,7 +12,7 @@
 #include "debug.h"
 
 
-int check_handle_input_mode(char *buffer)
+int check_handle_input_mode(char *buffer, int op)
 {
 	int c_t = count_fields(buffer,T_); 
 	int c_T = count_fields(buffer,TYPE_); 
@@ -20,10 +20,25 @@ int check_handle_input_mode(char *buffer)
 	
 	if(c_T == 0 && c_t == 0 && c_delim > 0) return NO_TYPE;
 	
+	/*for each t_ or TYPE_ delim we need to account for one ':' */
 	int v = (c_T * 2) + (c_t * 2);
 
-	if(c_delim > v) return HYB;
-	if(c_delim == v) return TYPE;
+	switch(op){ 
+	case FCRT:
+	{
+		if(c_delim > v || c_delim == v) return HYB;
+		if(c_delim < v ) return TYPE;
+		break;
+	}
+	case FWRT:
+	{
+		if(c_delim > v ) return HYB;
+		if(c_delim < v || c_delim == v) return TYPE;
+		break;
+	}
+	default:
+		break;	
+	}
 
 	return -1;
 }
@@ -58,8 +73,10 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
 			
 			l = pos_T - p;
+			if(l-2 > MAX_FIELD_LT) return -1;
+
 			if(p != &cbuf[0])
-				strncpy(names[i],++p, l -1);
+				strncpy(names[i],++p, l -2);
 			else
 				strncpy(names[i],p, l -1);
 
@@ -89,8 +106,10 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
 			
 			l = pos_t - p;
+			if(l-2 > MAX_FIELD_LT) return -1;
+
 			if(p != &cbuf[0])
-				strncpy(names[i],++p, l -1);
+				strncpy(names[i],++p, l -2);
 			else
 				strncpy(names[i],p, l -1);
 			i++;

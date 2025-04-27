@@ -10,6 +10,11 @@
 #define MAX_FILE_PATH_LENGTH 1024
 #define MAX_FILED_LT 32
 
+/*operations on files */
+#define FCRT 0
+#define FWRT 1
+
+/* input modes */
 #define NO_TYPE 0
 #define TYPE 1
 #define HYB 3
@@ -64,7 +69,7 @@ unsigned char is_number_in_limits(char *value);
 int find_last_char(const char c, char *src);
 int assign_type(char *value);
 int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT]);
-int check_handle_input_mode(char *buffer);
+int check_handle_input_mode(char *buffer, int op);
 int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i);
 
 #endif /* STR_OP_H */

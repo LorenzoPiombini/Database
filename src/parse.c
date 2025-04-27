@@ -21,7 +21,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
 	int types_i[MAX_FIELD_NR] = {-1};
-	int target = check_handle_input_mode(buffer);
+	int target = check_handle_input_mode(buffer,0);
 
 	if(target){
 		get_fileds_name(buffer, fields_num, 3, names);
@@ -886,7 +886,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 
 	switch(mode){
 	case NO_TYPE:
-		if(get_fields_name_with_no_type(buffer,names) == -1) return 0;
+		if((fields_num = get_fields_name_with_no_type(buffer,names)) == -1) return 0;
 		break;
 	case TYPE:
 		get_fileds_name(buffer, fields_num, 2,names);
@@ -911,7 +911,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 		}
 		break;
 	case HYB:
-		fields_num = get_name_types_hybrid(buffer,names,types_i);
+		if((fields_num = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
 		break;
 	default:
 		return 0;
@@ -932,6 +932,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 				 strstr(names[i], "TYPE BYTE") ||
 				 strstr(names[i], "TYPE FLOAT") ||
 				 strstr(names[i], "TYPE DOUBLE") ||
+				 strstr(names[i], "TYPE FILE") ||
 				 strstr(names[i], "TYPE ARRAY DOUBLE") ||
 				 strstr(names[i], "TYPE ARRAY INT") ||
 				 strstr(names[i], "TYPE ARRAY LONG") ||
@@ -949,7 +950,8 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 				 strstr(names[i], "t_al") ||
 				 strstr(names[i], "t_af") ||
 				 strstr(names[i], "t_ab") ||
-				 strstr(names[i], "t_as")) {
+				 strstr(names[i], "t_as") || 
+				 strstr(names[i], "t_fl")) { 
 			printf("invalid input.\ninput syntax: \
 					fieldName:TYPE:value\n");
 			return 0;

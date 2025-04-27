@@ -45,7 +45,7 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 	struct Header_d hd = {0, 0, sch};
 	unsigned char check = 0;
 
-	int mode = check_handle_input_mode(data_to_add);
+	int mode = check_handle_input_mode(data_to_add, FWRT);
 	if(mode == 1){
 		
 		fields_count = count_fields(data_to_add, NULL);
@@ -119,7 +119,7 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 
 unsigned char create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int bucket_ht, int indexes)
 {
-	int mode = check_handle_input_mode(schema_def); 
+	int mode = check_handle_input_mode(schema_def, FCRT); 
 	int fields_count = 0;
 	char *buf_t = NULL;
 	char *buf_sdf = NULL;

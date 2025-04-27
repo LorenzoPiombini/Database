@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 		if (schema_def) { 
 			/* case when user creates a file with only file definition*/
 
-			int mode = check_handle_input_mode(schema_def);
+			int mode = check_handle_input_mode(schema_def, FCRT);
 			int fields_count = 0; 
 			char *buf_sdf = NULL; 
 			char *buf_t = NULL;
@@ -222,7 +222,9 @@ int main(int argc, char *argv[])
 			sch.fields_num = fields_count;
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
-			if(mode == TYPE){
+			switch(mode){
+			case TYPE:
+			{
 				fields_count = count_fields(schema_def,NULL);
 
 				if (fields_count == 0) {
@@ -247,26 +249,27 @@ int main(int argc, char *argv[])
 				}
 				free(buf_sdf);
 				free(buf_t);
-
-			}else if (mode == HYB){
-
-				fields_count = count_fields(schema_def,":") -
-					((2*count_fields(schema_def,TYPE_)) + (2 * count_fields(schema_def,T_)));
-
+				break;
+			}
+			case HYB:
+			{
 				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
 					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 					goto clean_on_error_1;
 				}
-			}else {
-				
+				break;
+			}
+			case NO_TYPE:	
+			{
 				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
 					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 					goto clean_on_error_1;
 				}
-
-
-
-
+				break;
+			}
+			default:
+				fprintf(stderr,"(%s):invalid input.\n",prog);
+				goto clean_on_error_1;
 			}
 
 			struct Header_d hd = {0, 0, sch};
@@ -881,8 +884,7 @@ int main(int argc, char *argv[])
 		
 			int fields_count = 0;
 			unsigned char check = 0;
-			int mode = check_handle_input_mode(data_to_add);
-			
+			int mode = check_handle_input_mode(data_to_add, FWRT);
 			
 			if(mode == 1){
 				fields_count = count_fields(data_to_add,NULL);
@@ -1073,7 +1075,7 @@ int main(int argc, char *argv[])
 			struct Record_f rec = {0};
 			struct Record_f rec_old = {0};
 			struct Record_f new_rec = {0};
-			int mode = check_handle_input_mode(data_to_add);
+			int mode = check_handle_input_mode(data_to_add,FWRT);
 			int fields_count = 0;
 			unsigned char check = 0;
 			if(mode == 1){
