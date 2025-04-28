@@ -416,7 +416,7 @@ void free_record(struct Record_f *rec, int fields_num)
 		case TYPE_DOUBLE:
 			break;
 		case TYPE_STRING:
-			if (rec->fields[i].data.s)
+			if(rec->fields[i].data.s)
 				free(rec->fields[i].data.s);
 			break;
 		case TYPE_ARRAY_INT:
@@ -1398,12 +1398,73 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 					return -1;
 				} 
 				break;
+			case TYPE_ARRAY_INT:
+			case TYPE_ARRAY_LONG:
+			case TYPE_ARRAY_BYTE:
+			case TYPE_ARRAY_FLOAT:
+			case TYPE_ARRAY_DOUBLE:
+			case TYPE_ARRAY_STRING:
+				buffer->recs[buffer->capacity].fields[i].data.v.insert = insert_element;
+				buffer->recs[buffer->capacity].fields[i].data.v.destroy = free_dynamic_array;
+				switch(rec->fields[i].type){
+				case TYPE_ARRAY_INT:
+					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){
+						buffer->recs[buffer->capacity].fields[i].data.v
+							.insert((void*)rec->fields[i].data.v.elements.i[a],
+								&buffer->recs[buffer->capacity].fields[i].data.v,
+								rec->fields[i].type);
+					}
+					break;
+				case TYPE_ARRAY_LONG:
+					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){
+						buffer->recs[buffer->capacity].fields[i].data.v
+							.insert((void*)rec->fields[i].data.v.elements.l[a],
+								&buffer->recs[buffer->capacity].fields[i].data.v,
+								rec->fields[i].type);
+					}
+					break;
+				case TYPE_ARRAY_BYTE:
+					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){
+						buffer->recs[buffer->capacity].fields[i].data.v
+							.insert((void*)rec->fields[i].data.v.elements.b[a],
+								&buffer->recs[buffer->capacity].fields[i].data.v,
+								rec->fields[i].type);
+					}
+					break;
+				case TYPE_ARRAY_FLOAT:
+					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){
+						buffer->recs[buffer->capacity].fields[i].data.v
+							.insert((void*)rec->fields[i].data.v.elements.f[a],
+								&buffer->recs[buffer->capacity].fields[i].data.v,
+								rec->fields[i].type);
+					}
+					break;
+				case TYPE_ARRAY_DOUBLE:
+					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){	
+						buffer->recs[buffer->capacity].fields[i].data.v
+							.insert((void*)rec->fields[i].data.v.elements.d[a],
+								&buffer->recs[buffer->capacity].fields[i].data.v,
+								rec->fields[i].type);
+					}
+					break;
+				case TYPE_ARRAY_STRING:
+					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){	
+						buffer->recs[buffer->capacity].fields[i].data.v
+							.insert((void*)rec->fields[i].data.v.elements.i[a],
+								&buffer->recs[buffer->capacity].fields[i].data.v,
+								rec->fields[i].type);
+					}
+					break;
+				default:
+					return -1;
+				}
+				break;
 			default:
 				break;
 
 			}
 		}
-		buffer->recs[0].fields_num = rec->fields_num;
+		buffer->recs[buffer->capacity].fields_num = rec->fields_num;
 		buffer->pos_u[buffer->capacity] = pos;
 		buffer->capacity++;
 		return 0;

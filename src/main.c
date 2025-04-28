@@ -1210,6 +1210,7 @@ int main(int argc, char *argv[])
 			if (updated_rec_pos > 0) {
 				/*first record position*/
 				insert_rec(&recs_old,&rec_old,offset);
+				free_record(&rec_old,rec_old.fields_num);
 
 				if (find_record_position(fd_data, updated_rec_pos) == -1) {
 					__er_file_pointer(F, L - 1);
@@ -1226,6 +1227,7 @@ int main(int argc, char *argv[])
 
 				/*first updated record position*/
 				insert_rec(&recs_old,&rec_old_s,updated_rec_pos);
+				free_record(&rec_old_s,rec_old_s.fields_num);
 				
 				/*at this point we have the first two fragment of the record,
 					 but potentially there could be many fragments,
