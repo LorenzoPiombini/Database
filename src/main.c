@@ -630,24 +630,43 @@ int main(int argc, char *argv[])
 			/* add field to schema */
 			/* locks here are released that is why we do not have to release them if an error occurs*/
 			/*check if the fields are in limit*/
-			int fields_count = count_fields(schema_def,NULL);
+			int mode = check_handle_input_mode(schema_def,FCRT);
+			int fields_count = 0; 
+			switch(mode){
+			case NO_TYPE:
+				if (!add_fields_to_schema(mode, fields_count, schema_def, NULL, &hd.sch_d)) {
+					goto clean_on_error_5;
+				}
+				break;
+			case TYPE:
+				fields_count = count_fields(schema_def,NULL);
+				if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > MAX_FIELD_NR) {
+					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+					goto clean_on_error_5;
+				}
 
-			if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > MAX_FIELD_NR) {
-				printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-				goto clean_on_error_5;
-			}
-
-			/*add field provided to the schema*/
-			char *buffer = strdup(schema_def);
-			char *buff_t = strdup(schema_def);
+				/*add field provided to the schema*/
+				char *buffer = strdup(schema_def);
+				char *buff_t = strdup(schema_def);
 			
-			if (!add_fields_to_schema(fields_count, buffer, buff_t, &hd.sch_d)) {
-				free(buffer), free(buff_t);
-				goto clean_on_error_5;
+				if (!add_fields_to_schema(mode, fields_count, buffer, buff_t, &hd.sch_d)) {
+					free(buffer), free(buff_t);
+					goto clean_on_error_5;
+				}
+
+				free(buffer);
+				free(buff_t);
+				break;
+			case HYB:
+				if (!add_fields_to_schema(mode, fields_count, schema_def, NULL, &hd.sch_d)) {
+					goto clean_on_error_5;
+				}
+				break;
+			default:
+
+
 			}
 
-			free(buffer);
-			free(buff_t);
 
 			/* acquire lock WR_HEADER */
 			int lock_f = 0;
@@ -1243,6 +1262,7 @@ int main(int argc, char *argv[])
 					}
 
 					insert_rec(&recs_old,&rec_old_new,updated_rec_pos);
+					free_record(&rec_old_new,rec_old_new.fields_num);
 				}
 
 				/* here we have the all record in memory and we have
@@ -1308,7 +1328,7 @@ int main(int argc, char *argv[])
 					}
 				}
 				
-				if(check == SCHEMA_CT && !changed) {
+				if((check == SCHEMA_CT  ||  check == SCHEMA_CT_NT) && !changed) {
 					if(no_updates){
 						free_recs_old(&recs_old);
 						goto clean_on_error;

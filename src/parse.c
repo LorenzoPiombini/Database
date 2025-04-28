@@ -240,7 +240,7 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 	/*equal to parse _d_input_flag 
 	 * but we already have the types the values and the names */	
 
-	if (check_sch == SCHEMA_CT) { 
+	if (check_sch == SCHEMA_CT || check_sch == SCHEMA_CT_NT) { 
 		/*the input contain one or more BUT NOT ALL, fields in the schema*/
 		create_record(file_path, *sch,rec);
 
@@ -249,13 +249,28 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 			found = 0;
 			for (j = 0; j < fields_num; j++) {
 				if (strcmp(sch->fields_name[i], names[j]) == 0) {
-					if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
-						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
-						free_record(rec, sch->fields_num);
+					switch(check_sch){
+					case SCHEMA_CT_NT:
+						if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
+							printf("set_field failed %s:%d.\n", F, L - 2);
+							free_strs(fields_num, 1, values);
+							free_record(rec, sch->fields_num);
+							return -1;
+						}
+						found++;
+						break;
+					case SCHEMA_CT:
+						if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
+							printf("set_field failed %s:%d.\n", F, L - 2);
+							free_strs(fields_num, 1, values);
+							free_record(rec, sch->fields_num);
+							return -1;
+						}
+						found++;
+						break;
+					default:
 						return -1;
 					}
-					found++;
 				}
 			}
 			char *number = "0";
@@ -813,20 +828,27 @@ unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, 
 	return SCHEMA_ERR;
 }
 
-unsigned char add_fields_to_schema(int fields_num, char *buffer, char *buf_t, struct Schema *sch)
+unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char *buf_t, struct Schema *sch)
 {
 
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
-	int types_i[MAX_FIELD_NR] = {0};
-	int target = 0;
-	if(strstr(buffer,TYPE_) != NULL || strstr(buffer,T_) != NULL) target = 1;
+	int types_i[MAX_FIELD_NR];
+	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 
-	if(target){
+	switch(mode){
+	case TYPE:
 		get_fileds_name(buffer, fields_num, 2, names);
 		get_value_types(buf_t, fields_num, 2,types_i);
-	}else{
-		get_fields_name_with_no_type(buffer, names);
+		break;
+	case NO_TYPE:
+		if((fields_num=get_fields_name_with_no_type(buffer, names)) == 0 ) return 0;
 		memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
+		break;
+	case HYB:
+		if((fields_num = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
+		break;
+	default:
+		return 0;
 	}
 
 	int x = 0;
@@ -1161,7 +1183,9 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				if(parse_input_with_no_type(file_path, count, names, 
 							result == SCHEMA_CT_NT ? types_i : hd->sch_d.types, 
 							values,
-							&hd->sch_d, SCHEMA_CT,rec) == -1){
+							&hd->sch_d, 
+							result == SCHEMA_CT_NT ? result : SCHEMA_CT,
+							rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
 					return 0;
@@ -1178,7 +1202,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				}
 
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
-							&hd->sch_d, SCHEMA_EQ,rec) == -1){
+							&hd->sch_d, SCHEMA_NW,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
 					return 0;
