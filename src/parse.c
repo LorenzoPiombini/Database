@@ -1210,6 +1210,29 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				return SCHEMA_NW;
 			}
 		}
+	} else if(mode == HYB){
+		
+		if((fields_count = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
+
+		/*check if schema has all types */
+		if(schema_has_type(hd)){
+			/*
+			 * check input with 
+			 * missing types if it is correct 
+			 * against the schema types 
+			 * */
+
+
+
+		}				
+		if(fields_count == hd->sch_d.fields_num){
+			/*SCHEMA_EQ */
+		}else if(fields_count < hd->sch_d.fields_num){
+			/*SCHEMA_CT*/
+		} else if(fields_count > hd->sch_d.fields_num){
+			/*SCHEMA_NW*/
+		}
+
 	}
 
 	if (hd->sch_d.fields_num != 0) {
