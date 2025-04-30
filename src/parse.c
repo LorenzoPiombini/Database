@@ -1212,19 +1212,42 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 		}
 	} else if(mode == HYB){
 		
-		if((fields_count = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
 
 		/*check if schema has all types */
+		char **values = NULL;
 		if(schema_has_type(hd)){
 			/*
 			 * check input with 
 			 * missing types if it is correct 
 			 * against the schema types 
 			 * */
+			if((fields_count = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
+			if(get_values_hyb(buffer,&values,fields_count) == -1) return 0;
+				
+			for(int i = 0; i < fields_count; i++){
+				for(int j = 0; j < hd->sch_d.fields_num; j++){
+					if(strncmp(names[i],hd->sch_d.fields_name[j],strlen(names)) != 0) continue;
 
+					if(hd->sch_d.types[j] != types_i[i]) {
+						free_strs(field_count,1,values);
+						return SCHEMA_ERR;
+					}
 
+				}
+			}
 
+			if(parse_input_with_no_type(file_path, count, names, types_i, values,
+						&hd->sch_d, SCHEMA_NW,rec) == -1){
+				fprintf(stderr,"can't parse input to record,%s:%d",
+						__FILE__,__LINE__-2);
+				return 0;
+			}
+
+			if(fields_count == hd->sch_d.fields_num) return SCHEMA_EQ;
+			if(fields_count < hd->sch_d.fields_num)return SCHEMA_CT;
+			if(fields_count > hd->sch_d.fields_num)return SCHEMA_NW;
 		}				
+
 		if(fields_count == hd->sch_d.fields_num){
 			/*SCHEMA_EQ */
 		}else if(fields_count < hd->sch_d.fields_num){

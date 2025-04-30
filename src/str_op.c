@@ -60,7 +60,26 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			 * be found in the next iteration*/
 			*pos_T= '@';
 			char *end_T = (strstr(pos_T,":"));
-			assert(end_T != NULL);
+			if(!end_T){
+				size_t sz = strlen(++pos_T) + 1;
+				char type[sz];
+				memset(type,0,sz);
+				strncpy(type,pos_T,sz);
+				types_i[i] = get_type(type);
+
+				char *p = &cbuf[start] - 1;
+				while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
+
+				sz = pos_T - p;
+				if(sz-2 > MAX_FIELD_LT) return -1;
+
+				if(p != &cbuf[0])
+					strncpy(names[i],++p, sz -2);
+				else
+					strncpy(names[i],p, sz -1);
+
+				break;
+			}
 
 			/*get the type*/
 			int l = end_T - pos_T;
@@ -93,7 +112,27 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			 * be found in the next iteration*/
 			*pos_t= '@';
 			char *end_t = (strstr(pos_t,":"));
-			assert(end_t != NULL); 
+			if(!end_t){
+				size_t sz = strlen(++pos_t) + 1;
+				char type[sz];
+				memset(type,0,sz);
+				strncpy(type,pos_t,sz);
+				types_i[i] = get_type(type);
+
+				char *p = &cbuf[start] - 1;
+				while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
+
+				sz = pos_t - p;
+				if(sz-2 > MAX_FIELD_LT) return -1;
+
+				if(p != &cbuf[0])
+					strncpy(names[i],++p, sz -2);
+				else
+					strncpy(names[i],p, sz -1);
+
+				break;
+			}
+
 
 			/*get the type*/
 			int l = end_t - pos_t;
@@ -606,7 +645,7 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 	return 0;
 }
 
-char ** get_values_hyb(char *buff,char ***values,  int fields_count)
+int get_values_hyb(char *buff,char ***values,  int fields_count)
 {	
 	size_t size = strlen(buff)+1;
 	char cbuff[size];
@@ -619,23 +658,23 @@ char ** get_values_hyb(char *buff,char ***values,  int fields_count)
 		return -1;
 	}
 
-	replace('@','^',cbuf);
+	replace('@','^',cbuff);
 	int i = 0;
 	if(strstr(cbuff,T_)){
 		char *pos_t = NULL;
-		while((pos_t = strstr(cbuf,T_))){
-			int start = pos_t - cbuf;
+		while((pos_t = strstr(cbuff,T_))){
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			*pos_t= '@';
 			char *end_t = (strstr(pos_t,":"));
 			assert(end_t != NULL); 
 
-			char *next = strtsr(end_t+1,":");
+			char *next = strstr(end_t+1,":");
 			if(!next){
 				(*values)[i] = strdup(++end_t);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+					free_strs(i,1,values);
 					return -1;
 				}
 				break;
@@ -650,6 +689,7 @@ char ** get_values_hyb(char *buff,char ***values,  int fields_count)
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+				free_strs(i,1,values);
 				return -1;
 			}
 			i++;
@@ -658,32 +698,34 @@ char ** get_values_hyb(char *buff,char ***values,  int fields_count)
 
 	if(strstr(cbuff,TYPE_)){
 		char *pos_T = NULL;
-		while((pos_T = strstr(cbuf,TYPE_))){
+		while((pos_T = strstr(cbuff,TYPE_))){
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			*pos_T= '@';
 			char *end_T = (strstr(pos_T,":"));
 			assert(end_T != NULL); 
 
-			char *next = strtsr(end_T+1,":");
+			char *next = strstr(end_T+1,":");
 			if(!next){
-				(*values)[i] = strdup(++end_t);
+				(*values)[i] = strdup(++end_T);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+					free_strs(i,1,values);
 					return -1;
 				}
 				break;
 			}
 
-			size_t len = end_t - next + 1;
+			size_t len = end_T - next + 1;
 			char cpy[len];
 			memset(cpy,0,len);
-			*end_t = '@';
-			strncpy(cpy,++end_t,len);
+			*end_T = '@';
+			strncpy(cpy,++end_T,len);
 
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+				free_strs(i,1,values);
 				return -1;
 			}
 			i++;
@@ -692,11 +734,11 @@ char ** get_values_hyb(char *buff,char ***values,  int fields_count)
 
 	if(strstr(cbuff,":")){
 		char *pos_d = NULL;
-		while((pos_d = strstr(cbuf,":"))){
+		while((pos_d = strstr(cbuff,":"))){
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			*pos_d= '@';
-			char *end_d = (strstr(pos_d,":"));
+			char *end_d = strstr(pos_d,":");
 			if(!end_d){
 				(*values)[i] = strdup(++pos_d);
 				if(!(*values)[i]){
@@ -709,18 +751,20 @@ char ** get_values_hyb(char *buff,char ***values,  int fields_count)
 			size_t len = (++pos_d) - end_d + 1;
 			char cpy[len];
 			memset(cpy,0,len);
-			*end_t = '@';
-			strncpy(cpy,++pos_d,len);
+			*end_d = '@';
+			strncpy(cpy,pos_d,len);
 
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+				free_strs(i,1,values);
 				return -1;
 			}
 			i++;
 		}		
 	}
 
+	return 0;
 }
 char ** get_values_with_no_types(char *buff,int fields_count)
 {

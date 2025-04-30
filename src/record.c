@@ -1533,3 +1533,12 @@ void free_recs_old(struct Recs_old *buffer)
 		free(buffer->pos_u_r);
 	}
 }
+
+int schema_has_type(struct Header_d *hd)
+{
+	for(short int i = 0;i < hd->sch_d.fields_num;i++)
+		if(hd->sch_d.types[i] == -1) return 0;
+
+	return 1;
+
+}
