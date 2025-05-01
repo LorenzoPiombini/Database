@@ -1077,35 +1077,37 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 	char **values = NULL;
 	int count = 0;
+	int err = 0;
 
 	if(mode == NO_TYPE){
 		values = extract_fields_value_types_from_input(buffer,names,types_i, &count);
 		if(!values){
 			fprintf(stderr,"extracting values, names and types failed %s:%d",__FILE__,__LINE__ -2);
-			return 0;
+			goto clean_on_error;
 		}
 		
 		/*check if the names are valid names*/
 		if(!check_fields_integrity(names,count)){
 			printf("invalid input, one or more fields have the same name.\n");
 			printf("input syntax: fieldname:type:value\n");
-			return 0;
+			goto clean_on_error;
 		}
 
-		if(hd->sch_d.types[0] == -1){
+		if(!schema_has_type(hd)){
 			/*
-			 * the schema has been saved with no types
-			 * so now we need to assign the types to the schema
+			 * one or more fields in the schema has no type
+			 * we need to assign the types to the schema
 			 * */
 
 			if(count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
-					return 0;
+					goto clean_on_error;
 				}
 
 				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
-					return SCHEMA_ERR;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 
 
@@ -1113,7 +1115,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 								&hd->sch_d, SCHEMA_EQ,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
-					return 0;
+					goto clean_on_error;
 				}
 				return SCHEMA_EQ_NT;
 
@@ -1123,28 +1125,32 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				 * */
 				int result = 0;
 				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,count)) == 0){
-					return SCHEMA_ERR;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
-								&hd->sch_d, SCHEMA_CT,rec) == -1){	
+								&hd->sch_d, 
+								SCHEMA_CT_NT,rec) == -1){	
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
-					return 0;
+					goto clean_on_error;
 				}
 				
 				return result;
 			}else if(count > hd->sch_d.fields_num){
 				/*schema new */
 				if(!schema_nw_assyign_type(&hd->sch_d, names,types_i,count)){
-					return SCHEMA_ERR;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								&hd->sch_d, SCHEMA_EQ,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
-					return 0;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 				return SCHEMA_NW_NT;
 			}
@@ -1158,11 +1164,12 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
-					return 0;
+					goto clean_on_error;
 				}
 
 				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
-					return SCHEMA_ERR;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 
 
@@ -1170,14 +1177,15 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 							&hd->sch_d, SCHEMA_EQ,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
-					return 0;
+					goto clean_on_error;
 				}
 				return SCHEMA_EQ;
 
 			}else if(count < hd->sch_d.fields_num){
 				int result = 0;
 				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,count)) == 0){
-					return SCHEMA_ERR;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 
 				if(parse_input_with_no_type(file_path, count, names, 
@@ -1188,7 +1196,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 							rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
-					return 0;
+					goto clean_on_error;
 				}
 
 				if(result == SCHEMA_CT_NT)
@@ -1198,14 +1206,16 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 			}else if(count > hd->sch_d.fields_num){
 				if(!schema_nw_assyign_type(&hd->sch_d, names,types_i,count)){
-					return SCHEMA_ERR;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 							&hd->sch_d, SCHEMA_NW,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
-					return 0;
+					err = SCHEMA_ERR;
+					goto clean_on_error;
 				}
 				return SCHEMA_NW;
 			}
@@ -1221,16 +1231,16 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			 * missing types if it is correct 
 			 * against the schema types 
 			 * */
-			if((fields_count = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
-			if(get_values_hyb(buffer,&values,fields_count) == -1) return 0;
+			if((fields_count = get_name_types_hybrid(buffer,names,types_i)) == -1) goto clean_on_error;
+			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
 				
 			for(int i = 0; i < fields_count; i++){
 				for(int j = 0; j < hd->sch_d.fields_num; j++){
-					if(strncmp(names[i],hd->sch_d.fields_name[j],strlen(names)) != 0) continue;
+					if(strncmp(names[i],hd->sch_d.fields_name[j],strlen(names[i])) != 0) continue;
 
 					if(hd->sch_d.types[j] != types_i[i]) {
-						free_strs(field_count,1,values);
-						return SCHEMA_ERR;
+						err = SCHEMA_ERR;
+						goto clean_on_error;
 					}
 
 				}
@@ -1239,23 +1249,76 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(parse_input_with_no_type(file_path, count, names, types_i, values,
 						&hd->sch_d, SCHEMA_NW,rec) == -1){
 				fprintf(stderr,"can't parse input to record,%s:%d",
-						__FILE__,__LINE__-2);
-				return 0;
+					__FILE__,__LINE__-2);
+				goto clean_on_error;
 			}
-
+			
+			free_strs(fields_count,1,values);
 			if(fields_count == hd->sch_d.fields_num) return SCHEMA_EQ;
 			if(fields_count < hd->sch_d.fields_num)return SCHEMA_CT;
 			if(fields_count > hd->sch_d.fields_num)return SCHEMA_NW;
-		}				
+		}else{
+			if(count == hd->sch_d.fields_num){
+				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, values, types_i)){
+					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					goto clean_on_error;
+				}
 
-		if(fields_count == hd->sch_d.fields_num){
-			/*SCHEMA_EQ */
-		}else if(fields_count < hd->sch_d.fields_num){
-			/*SCHEMA_CT*/
-		} else if(fields_count > hd->sch_d.fields_num){
-			/*SCHEMA_NW*/
+				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+
+
+				if(parse_input_with_no_type(file_path, count, names, types_i, values,
+							&hd->sch_d, SCHEMA_EQ,rec) == -1){
+					fprintf(stderr,"can't parse input to record,%s:%d",
+							__FILE__,__LINE__-2);
+					goto clean_on_error;
+				}
+				return SCHEMA_EQ;
+
+			}else if(count < hd->sch_d.fields_num){
+				int result = 0;
+				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,count)) == 0){
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+
+				if(parse_input_with_no_type(file_path, count, names, 
+							result == SCHEMA_CT_NT ? types_i : hd->sch_d.types, 
+							values,
+							&hd->sch_d, 
+							result == SCHEMA_CT_NT ? result : SCHEMA_CT,
+							rec) == -1){
+					fprintf(stderr,"can't parse input to record,%s:%d",
+							__FILE__,__LINE__-2);
+					goto clean_on_error;
+				}
+
+				if(result == SCHEMA_CT_NT)
+					return result;
+				else 
+					return SCHEMA_CT;
+
+			}else if(count > hd->sch_d.fields_num){
+				if(!schema_nw_assyign_type(&hd->sch_d, names,types_i,count)){
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+
+				if(parse_input_with_no_type(file_path, count, names, types_i, values,
+							&hd->sch_d, SCHEMA_NW,rec) == -1){
+					fprintf(stderr,"can't parse input to record,%s:%d",
+							__FILE__,__LINE__-2);
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+				return SCHEMA_NW;
+			}
+
+
 		}
-
 	}
 
 	if (hd->sch_d.fields_num != 0) {
@@ -1295,6 +1358,10 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 	}
 
 	return 1;
+
+	clean_on_error:
+	free_strs(fields_count,1,values);
+	return 0;	
 }
 
 unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old, 
