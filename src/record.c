@@ -1450,7 +1450,7 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 				case TYPE_ARRAY_STRING:
 					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){	
 						buffer->recs[buffer->capacity].fields[i].data.v
-							.insert((void*)rec->fields[i].data.v.elements.i[a],
+							.insert((void*)rec->fields[i].data.v.elements.s[a],
 								&buffer->recs[buffer->capacity].fields[i].data.v,
 								rec->fields[i].type);
 					}

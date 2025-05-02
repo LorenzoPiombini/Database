@@ -576,9 +576,79 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 	return 1;
 }
 
+int check_array_input(char *value)
+{
+	size_t size = strlen(value) + 1;
+	char cbuff[size];
+	memset(cbuff,0,size);
+	strncpy(cbuff,value,size);
 
+	char *p = NULL;
+	int elements = 0;
+	int d = 0;
+	int i = 0;
+	int pos = 0;
+	while((p = strstr(cbuff,","))){
+		if(p[1] == '\0') break;
+
+		elements++;
+		int start = p - cbuff;
+		while((*p != cbuff[0] && *p != '@')) p--;
+
+		int l = start - (p - cbuff) + 1;
+		pos = start ;
+		char cpy[l + 1];
+		memset(cpy, 0, l + 1);
+
+		if(*p != cbuff[0] ){
+			strncpy(cpy,++p,l);
+		}else{
+			strncpy(cpy,p,l-1);
+		}
+
+		if(is_floaintg_point(cpy)){
+			if(is_number_in_limits(cpy)) d++;
+		}else if(is_integer(cpy)){
+			if(is_number_in_limits(cpy)) i++;
+		}
+		
+		cbuff[start] = '@';
+	}
+
+	if(cbuff[pos] != '\0' && p == NULL){
+		elements++;
+		char *last = &cbuff[pos];
+		size_t size = strlen(++last) + 1;
+		char n[size];
+		memset(n,0,size);
+		
+		strncpy(n,last,size-1);
+		if(is_floaintg_point(n)){
+			if(is_number_in_limits(n)) d++;
+		}else if(is_integer(n)){
+			if(is_number_in_limits(n)) i++;
+		}
+
+	}
+		
+	if(i == elements) return TYPE_ARRAY_LONG;
+	if(d == elements) return TYPE_ARRAY_DOUBLE;
+
+	return -1;
+
+
+}
 int assign_type(char *value)
 {
+
+	if(strstr(value,",")){
+		/*ARRAY case*/
+		int result = 0;
+		if((result = check_array_input(value) == - 1)) return TYPE_ARRAY_STRING;
+			
+		return result;	
+	}
+
 	if(is_floaintg_point(value)) {
 		if(is_number_in_limits(value)) return TYPE_DOUBLE;
 
