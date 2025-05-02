@@ -1,6 +1,10 @@
 # Database 
 
-This database utility enables dynamic creation of file definitions at runtime, without the need to hardcode each file, every time you need to add one. the software will allow you to browse the file databse that it creates, will also install shared libraries on your machine that will be needed to develop a working system on this databes concept, you can develop pretty much anything on this file db.
+This database utility is an ambitious attempt to rewrite a legacy but highly efficient ERP system. The project is developed in C, as the original software was also written in this language.
+
+The goal of this software is to serve as the foundation for an integrated system that can be fully customized to meet the specific needs of any business.
+
+you can enables dynamic creation of file definitions at runtime, without the need to hardcode each file, every time you need to add one. the software will allow you to browse the file databse that it creates, will also install shared libraries on your machine that will be needed to develop a working system on this databes concept, you can develop pretty much anything on this file db.
 
 as for now, this software is ment to be for **Linux/Unix** systems, and it has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
 
