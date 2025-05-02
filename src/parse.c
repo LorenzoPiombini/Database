@@ -1360,8 +1360,9 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 	return 1;
 
 	clean_on_error:
-	free_strs(fields_count,1,values);
-	return 0;	
+	fprintf(stderr,"schema different then file definition.\n");
+	free_strs(count,1,values);
+	return err;	
 }
 
 unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old, 

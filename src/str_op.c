@@ -593,12 +593,12 @@ int check_array_input(char *value)
 
 		elements++;
 		int start = p - cbuff;
-		while((*p != cbuff[0] && *p != '@')) p--;
+		while((p != &cbuff[0] && *p != '@')) p--;
 
-		int l = start - (p - cbuff) + 1;
+		int l = (&p[start] - p)+1;
 		pos = start ;
-		char cpy[l + 1];
-		memset(cpy, 0, l + 1);
+		char cpy[l];
+		memset(cpy, 0, l);
 
 		if(*p != cbuff[0] ){
 			strncpy(cpy,++p,l);
@@ -644,7 +644,7 @@ int assign_type(char *value)
 	if(strstr(value,",")){
 		/*ARRAY case*/
 		int result = 0;
-		if((result = check_array_input(value) == - 1)) return TYPE_ARRAY_STRING;
+		if((result = check_array_input(value)) == - 1) return TYPE_ARRAY_STRING;
 			
 		return result;	
 	}

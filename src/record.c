@@ -340,24 +340,21 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				int range = 0;
-				if ((range = is_number_in_limits(t)) == 0)
-				{
+				if ((range = is_number_in_limits(t)) == 0) {
 					printf("float value not allowed in this system.\n");
 					return 0;
 				}
 
-				if (range == IN_DOUBLE)
-				{
+				if (range == IN_DOUBLE || range == IN_FLOAT) {
 					double d = strtod(t, NULL);
-					if (d == ERANGE || d == EINVAL)
-					{
+					if (d == ERANGE || d == EINVAL) {
 						printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 						return 0;
 					}
 
 					rec->fields[index].data.v.insert((void *)&d,
-													 &rec->fields[index].data.v,
-													 type);
+								&rec->fields[index].data.v,
+								type);
 				}
 
 				t = strtok(NULL, ",");
@@ -579,7 +576,7 @@ void print_record(int count, struct Record_f *recs)
 					}
 					else
 					{
-						printf("%ld.\n", *rec.fields[i].data.v.elements.l[k]);
+						printf("%.2f.\n", *rec.fields[i].data.v.elements.d[k]);
 					}
 				}
 				break;
