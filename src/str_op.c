@@ -595,16 +595,14 @@ int check_array_input(char *value)
 		int start = p - cbuff;
 		while((p != &cbuff[0] && *p != '@')) p--;
 
-		int l = (&p[start] - p)+1;
+		if(*p == '@') ++p;
+
+		int l = (&cbuff[start] - p)+1;
 		pos = start ;
 		char cpy[l];
 		memset(cpy, 0, l);
 
-		if(*p != cbuff[0] ){
-			strncpy(cpy,++p,l);
-		}else{
-			strncpy(cpy,p,l-1);
-		}
+		strncpy(cpy,p,l-1);
 
 		if(is_floaintg_point(cpy)){
 			if(is_number_in_limits(cpy)) d++;
@@ -856,7 +854,7 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 		int size = (last - buff) - start;
 		char cpy[size+1];
 		memset(cpy,0,size+1);
-		strncpy(cpy,&p2[start],size);
+		strncpy(cpy,&buff[start],size);
 		values[i] = strdup(cpy);
 		if(!values[i]){
 			fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);

@@ -253,7 +253,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					case SCHEMA_CT_NT:
 						if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
 							printf("set_field failed %s:%d.\n", F, L - 2);
-							free_strs(fields_num, 1, values);
 							free_record(rec, sch->fields_num);
 							return -1;
 						}
@@ -262,7 +261,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					case SCHEMA_CT:
 						if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
 							printf("set_field failed %s:%d.\n", F, L - 2);
-							free_strs(fields_num, 1, values);
 							free_record(rec, sch->fields_num);
 							return -1;
 						}
@@ -282,7 +280,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 				case -1:
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield)) {
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
 						free_record(rec, sch->fields_num);
 						return -1;
 					}
@@ -294,7 +291,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
 						free_record(rec, sch->fields_num);
 						return -1;
 					}
@@ -303,7 +299,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
 						free_record(rec, sch->fields_num);
 						return -1;
 					}
@@ -313,7 +308,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
 						free_record(rec, sch->fields_num);
 						return -1;
 					}
@@ -324,7 +318,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
 						free_record(rec, sch->fields_num);
 						return -1;
 					}
@@ -334,7 +327,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
 						free_record(rec, sch->fields_num);
 						return -1;
 					}
@@ -343,21 +335,18 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_strs(fields_num, 1, values);
 						free_record(rec, sch->fields_num);
 						return -1;
 					}
 					break;
 				default:
 					printf("type no supported! %d.\n", sch->types[i]);
-					free_strs(fields_num, 1, values);
 					free_record(rec, sch->fields_num);
 					return -1;
 				}
 			}
 		}
 
-		free_strs(fields_num, 1, values);
 		return 0;
 	}else {
 
@@ -365,14 +354,12 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 		for (int i = 0; i < fields_num; i++) {
 			if (!set_field(rec, i, names[i], types_i[i], values[i],1)) {
 				printf("set_field failed %s:%d.\n", F, L - 2);
-				free_strs(fields_num, 1, values);
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
 		}
 	}
 
-	free_strs(fields_num, 1, values);
 	return 0;
 }
 
@@ -778,7 +765,8 @@ int sort_input_like_header_schema(int schema_tp,
 
 	char temp_name[MAX_FIELD_NR][MAX_FIELD_LT] = {0}; 
 
-	int temp_types[MAX_FIELD_NR] = {-1};
+	int temp_types[MAX_FIELD_NR] = {0};
+	memset(temp_types,-1,sizeof(int)*MAX_FIELD_NR);
 
 	for (i = 0; i < f_n; i++) {
 		temp_val[value_pos[i]] = values[i];
@@ -786,6 +774,8 @@ int sort_input_like_header_schema(int schema_tp,
 		temp_types[value_pos[i]] = types_i[i];
 	}
 
+	/*this memset is crucial to maintain the data integrety*/
+	memset(names,0,MAX_FIELD_NR*MAX_FIELD_LT);
 	for (i = 0; i < f_n; i++) {
 		values[i] = temp_val[i];
 		strncpy(names[i],temp_name[i],strlen(temp_name[i]));
@@ -1117,6 +1107,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 							__FILE__,__LINE__-2);
 					goto clean_on_error;
 				}
+				free_strs(count,1,values);
 				return SCHEMA_EQ_NT;
 
 			}else if(count < hd->sch_d.fields_num){
@@ -1137,6 +1128,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 				
+				free_strs(count,1,values);
 				return result;
 			}else if(count > hd->sch_d.fields_num){
 				/*schema new */
@@ -1152,6 +1144,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
+				free_strs(count,1,values);
 				return SCHEMA_NW_NT;
 			}
 		}else{
@@ -1179,6 +1172,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 							__FILE__,__LINE__-2);
 					goto clean_on_error;
 				}
+				free_strs(count,1,values);
 				return SCHEMA_EQ;
 
 			}else if(count < hd->sch_d.fields_num){
@@ -1199,6 +1193,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
+				free_strs(count,1,values);
 				if(result == SCHEMA_CT_NT)
 					return result;
 				else 
@@ -1217,6 +1212,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
+				free_strs(count,1,values);
 				return SCHEMA_NW;
 			}
 		}
@@ -1253,7 +1249,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				goto clean_on_error;
 			}
 			
-			free_strs(fields_count,1,values);
+			free_strs(count,1,values);
 			if(fields_count == hd->sch_d.fields_num) return SCHEMA_EQ;
 			if(fields_count < hd->sch_d.fields_num)return SCHEMA_CT;
 			if(fields_count > hd->sch_d.fields_num)return SCHEMA_NW;
