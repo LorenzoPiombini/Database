@@ -959,8 +959,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 				 strstr(names[i], "t_ab") ||
 				 strstr(names[i], "t_as") || 
 				 strstr(names[i], "t_fl")) { 
-			printf("invalid input.\ninput syntax: \
-					fieldName:TYPE:value\n");
+			printf("invalid input.\ninput syntax: fieldName:TYPE:value\n");
 			return 0;
 		}
 
@@ -2897,6 +2896,9 @@ void print_schema(struct Schema sch)
 				break;
 			case TYPE_ARRAY_DOUBLE:
 				printf("double[].\n");
+				break;
+			case TYPE_FILE:
+				printf("File.\n");
 				break;
 			default:
 				printf("\n");

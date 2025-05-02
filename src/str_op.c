@@ -77,7 +77,7 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 					strncpy(names[i],++p, sz -2);
 				else
 					strncpy(names[i],p, sz -1);
-
+				i++;
 				break;
 			}
 
@@ -130,6 +130,7 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 				else
 					strncpy(names[i],p, sz -1);
 
+				i++;
 				break;
 			}
 
@@ -147,10 +148,11 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			l = pos_t - p;
 			if(l-2 > MAX_FIELD_LT) return -1;
 
-			if(p != &cbuf[0])
+			if(p != &cbuf[0]){
 				strncpy(names[i],++p, l -2);
-			else
+			}else{
 				strncpy(names[i],p, l -1);
+			}
 			i++;
 		}
 	}
