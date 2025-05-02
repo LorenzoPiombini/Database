@@ -8,6 +8,7 @@
 #include "record.h"
 #include "debug.h"
 #include "str_op.h"
+#include "file.h"
 
 void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
@@ -32,6 +33,28 @@ unsigned char set_field(struct Record_f *rec,
 
 	int t = (int)type;
 	switch (t) {
+	case TYPE_FILE:
+	{	
+		/*
+		 * if schema file exist => read schema file-> check input match with schema
+		 * 	else :
+		 * 	create the schema file -> create_file_with_no_value (src/parse)
+		 * 	
+		 *
+		 *
+		 * */
+		char *sfx = ".sch"; 
+		size_t sfxl = strlen(sfx);
+		size_t fl = strlen(rec->file_name); 
+		size_t l = fl + + 1;
+		char file_name[l];
+		memset(file_name,0,l);
+		strcpy(file_name,rec->file_name,fl);
+		strcat(file_name,"")
+		int fd = -1;
+		if(open_file(file_name))
+		break;
+	}
 	case TYPE_INT:
 	case TYPE_ARRAY_INT:
 	{
