@@ -46,11 +46,11 @@ unsigned char set_field(struct Record_f *rec,
 		char *sfx = ".sch"; 
 		size_t sfxl = strlen(sfx);
 		size_t fl = strlen(rec->file_name); 
-		size_t l = fl + + 1;
+		size_t l = fl + sfxl + 1;
 		char file_name[l];
 		memset(file_name,0,l);
 		strcpy(file_name,rec->file_name,fl);
-		strcat(file_name,"")
+		strncat(file_name,sfx,sfxl)
 		int fd = -1;
 		if(open_file(file_name))
 		break;
