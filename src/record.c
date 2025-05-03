@@ -49,10 +49,15 @@ unsigned char set_field(struct Record_f *rec,
 		size_t l = fl + sfxl + 1;
 		char file_name[l];
 		memset(file_name,0,l);
-		strcpy(file_name,rec->file_name,fl);
-		strncat(file_name,sfx,sfxl)
+		strcpy(file_name,rec->file_ame,fl);
+		strncat(file_name,sfx,sfxl);
 		int fd = -1;
-		if(open_file(file_name))
+		if((fd = open_file(file_name,0)) == -1){
+			if((fd = create_file(file_name)) == -1){
+				fprintf(stderr,"csnnot create file %s:%d.\n",__FILE__,__LINE__-1);
+				return 0; 
+			}
+		}
 		break;
 	}
 	case TYPE_INT:
