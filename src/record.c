@@ -49,13 +49,55 @@ unsigned char set_field(struct Record_f *rec,
 		size_t l = fl + sfxl + 1;
 		char file_name[l];
 		memset(file_name,0,l);
-		strcpy(file_name,rec->file_ame,fl);
+		strcpy(file_name,rec->file_ame,l);
 		strncat(file_name,sfx,sfxl);
 		int fd = -1;
+		int cr = 0;
 		if((fd = open_file(file_name,0)) == -1){
 			if((fd = create_file(file_name)) == -1){
-				fprintf(stderr,"csnnot create file %s:%d.\n",__FILE__,__LINE__-1);
+				fprintf(stderr,"cannot create file %s:%d.\n",__FILE__,__LINE__-1);
 				return 0; 
+			}
+		}
+
+		if(cr){
+			/*here the file is new*/	
+			int mode = check_handle_input_mode(value);
+			switch(mode){
+			case HYB:
+				if(create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
+					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
+					return 0;
+				}	
+				break;
+			case NO_TYPE:
+				if(create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
+					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
+					return 0;
+				}	
+				break;
+			case TYPE:
+				char *buff = strdup(value);
+				char *buff_t = strdup(value);
+				int f_count = count_fields(value,NULL);
+				if (fields_count == 0) {
+					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
+					return 0;
+				}
+
+
+				if (fields_count > MAX_FIELD_NR) {
+					fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
+							,prog, MAX_FIELD_NR);
+					return 0;
+				}
+
+				if(create_file_definition_with_no_value(mode,f_count,value,buff_t,&sch)){
+					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
+					return 0;
+				}	
+				free();
+				break;
 			}
 		}
 		break;
