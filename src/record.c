@@ -10,6 +10,9 @@
 #include "str_op.h"
 #include "file.h"
 
+static char *prog[] = "db";
+#define ERR_MSG_PAR prog,__FILE__,__LINE__
+
 void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
 	strncpy(rec->file_name,file_name,strlen(file_name));
@@ -39,23 +42,25 @@ unsigned char set_field(struct Record_f *rec,
 		 * if schema file exist => read schema file-> check input match with schema
 		 * 	else :
 		 * 	create the schema file -> create_file_with_no_value (src/parse)
-		 * 	
-		 *
-		 *
 		 * */
+		
+		struct Schema sch = {0};
+		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
+		
 		char *sfx = ".sch"; 
 		size_t sfxl = strlen(sfx);
-		size_t fl = strlen(rec->file_name); 
+		size_t fl = strlen(rec->fields[index].field_name); 
 		size_t l = fl + sfxl + 1;
 		char file_name[l];
 		memset(file_name,0,l);
-		strcpy(file_name,rec->file_ame,l);
+		strcpy(file_name,rec->fields[index].field_name,l);
 		strncat(file_name,sfx,sfxl);
+	
 		int fd = -1;
 		int cr = 0;
 		if((fd = open_file(file_name,0)) == -1){
 			if((fd = create_file(file_name)) == -1){
-				fprintf(stderr,"cannot create file %s:%d.\n",__FILE__,__LINE__-1);
+				fprintf(stderr,"(%s): cannot create file %s:%d.\n",ERR_MSG_PAR-1);
 				return 0; 
 			}
 		}
@@ -72,19 +77,25 @@ unsigned char set_field(struct Record_f *rec,
 				break;
 			case NO_TYPE:
 				if(create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
-					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
+					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
+							__FILE__,__LINE__-2);
 					return 0;
 				}	
 				break;
 			case TYPE:
+			{
 				char *buff = strdup(value);
 				char *buff_t = strdup(value);
+				if(buff || buff_t){
+					fprintf(stderr,"(%s): strdup() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+					return 0;
+				}
+					
 				int f_count = count_fields(value,NULL);
 				if (fields_count == 0) {
 					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
 					return 0;
 				}
-
 
 				if (fields_count > MAX_FIELD_NR) {
 					fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
@@ -96,9 +107,105 @@ unsigned char set_field(struct Record_f *rec,
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
 					return 0;
 				}	
-				free();
+
+				free(buff);
+				free(buff_t);
 				break;
 			}
+			default:
+				fprintf(stderr,"mode not supported, %s:%d.\n",ERR_MSG_PAR);
+				return 0;
+			}
+		}else {
+			/*file exist*/
+			/* ensure the file is a db file */
+			/* init the Schema structure*/
+			struct Schema sch = {0};
+			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
+			struct Header_d hd = {0, 0, sch};
+
+			if (!read_header(fd_schema, &hd)) {
+				close_file(3,fd_schema,fd_data,fd_index);
+				return STATUS_ERROR;
+			}
+
+			int fields_count = 0;
+			unsigned char check = 0;
+			struct Record_f rec = {0};
+			int mode = check_handle_input_mode(value, FWRT);
+			
+			/*check schema*/
+			if(mode == 1){
+				fields_count = count_fields(value,NULL);
+				if(fields_count == 0){
+					fprintf(stderr,"(%s):check input syntax.\n",prog);
+					return 0;
+				}
+
+				if (fields_count > MAX_FIELD_NR) {
+					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+					return 0;
+				}
+
+				char *buffer = strdup(value);
+				char *buf_t = strdup(value);
+				char *buf_v = strdup(value);
+
+				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
+										rec->fields[index].field_name,
+										&rec, &hd);
+				free(buffer);
+				free(buf_t);
+				free(buf_v);
+			
+			} else {
+				check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1,
+										rec->fields[index].field_name,
+										&rec, &hd);
+			}
+			
+			if (check == SCHEMA_ERR || check == 0) {
+				return 0;
+			}
+			int lock_f = 0;
+			int r = 0;
+			if (check == SCHEMA_NW ||
+				check == SCHEMA_NW_NT ||
+				check == SCHEMA_CT_NT ||
+				check == SCHEMA_EQ_NT){
+				/*
+				* if the schema is one between 
+				* SCHEMA_NW 
+			 	* SCHEMA_EQ_NT 
+			 	* SCHEMA_NW_NT 
+			 	* SCHEMA_CT_NT
+				* we update the header
+				* */
+				
+				/* aquire lock */
+				while(is_locked(1,fd_schema) == LOCKED);
+				while((r = lock(fd_schema,WLOCK)) == WTLK);
+				if(r == -1){
+					fprintf(stderr,"can't acquire or release proper lock.\n");
+					return 0;
+				}
+					
+				lock_f = 1;
+				close_file(1,fd_schema);
+				fd_schema = open_file(files[2],1); /*open with O_TRUNCATE*/
+
+				if(file_error_handler(1,fd_schema) != 0){
+					return 0;
+				}
+
+				if (!write_header(fd_schema, &hd)) {
+					__er_write_to_file(F, L - 1);
+					return 0;
+				}
+
+			} /* end of update schema branch*/
+
+	
 		}
 		break;
 	}
