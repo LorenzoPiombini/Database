@@ -503,9 +503,6 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 		}
 
-		/* acquire lock before opning the files (reading header)*/
-
-		
 		if (list_def) {
 			fd_schema = open_file(files[2], 0);
 			/* file_error_handler will close the file descriptors if there are issues */
@@ -539,7 +536,6 @@ int main(int argc, char *argv[])
 			close_file(3,fd_schema,fd_data,fd_index);
 			return STATUS_ERROR;
 		}
-
 
 		if (index_add) {
 			close_file(2, fd_schema, fd_data);

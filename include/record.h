@@ -47,6 +47,7 @@ enum ValueType
 	TYPE_FILE
 };
 
+struct Record_f;	
 struct array
 {
 	union {
@@ -56,13 +57,13 @@ struct array
 		char **s;
 		unsigned char **b;
 		double **d;
+		struct Record_f **r;
 	} elements;
 	int size;
 	int (*insert)(void *, struct array *, enum ValueType);
 	void (*destroy)(struct array *, enum ValueType);
 };
 
-struct Record_f;	
 
 struct File_field{
 	off_t offset;

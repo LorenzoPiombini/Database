@@ -9,6 +9,9 @@
 #include "debug.h"
 #include "str_op.h"
 #include "file.h"
+#include "parse.h"
+
+
 
 static char *prog[] = "db";
 #define ERR_MSG_PAR prog,__FILE__,__LINE__
@@ -43,7 +46,8 @@ unsigned char set_field(struct Record_f *rec,
 		 * 	else :
 		 * 	create the schema file -> create_file_with_no_value (src/parse)
 		 * */
-		
+		strip('[',value);
+		strip(']',value);
 		struct Schema sch = {0};
 		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 		
@@ -86,7 +90,7 @@ unsigned char set_field(struct Record_f *rec,
 			{
 				char *buff = strdup(value);
 				char *buff_t = strdup(value);
-				if(buff || buff_t){
+				if(!buff || !buff_t){
 					fprintf(stderr,"(%s): strdup() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 					return 0;
 				}
@@ -100,11 +104,13 @@ unsigned char set_field(struct Record_f *rec,
 				if (fields_count > MAX_FIELD_NR) {
 					fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
 							,prog, MAX_FIELD_NR);
+					close_file(1,fd_schema);	
 					return 0;
 				}
 
 				if(create_file_definition_with_no_value(mode,f_count,value,buff_t,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
+					close_file(1,fd_schema);	
 					return 0;
 				}	
 
@@ -114,7 +120,21 @@ unsigned char set_field(struct Record_f *rec,
 			}
 			default:
 				fprintf(stderr,"mode not supported, %s:%d.\n",ERR_MSG_PAR);
+				close_file(1,fd_schema);	
 				return 0;
+			}
+			//write the schema to the file
+
+			if (!write_header(fd_schema, &hd)) {
+					__er_write_to_file(F, L - 1);
+					close_file(1,fd_schema);	
+					return 0;
+			}
+			close_file(1,fd_schema);	
+			if (!rec->fields[index].data.v.elements.r)
+			{
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 		}else {
 			/*file exist*/
@@ -125,13 +145,14 @@ unsigned char set_field(struct Record_f *rec,
 			struct Header_d hd = {0, 0, sch};
 
 			if (!read_header(fd_schema, &hd)) {
-				close_file(3,fd_schema,fd_data,fd_index);
-				return STATUS_ERROR;
+				close_file(1,fd_schema);
+				return 0;
 			}
 
+			close_file(1,fd_schema);
 			int fields_count = 0;
 			unsigned char check = 0;
-			struct Record_f rec = {0};
+			struct Record_f file_rec = {0};
 			int mode = check_handle_input_mode(value, FWRT);
 			
 			/*check schema*/
@@ -153,15 +174,15 @@ unsigned char set_field(struct Record_f *rec,
 
 				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
 										rec->fields[index].field_name,
-										&rec, &hd);
+										file_rec, &hd);
 				free(buffer);
 				free(buf_t);
 				free(buf_v);
 			
 			} else {
-				check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1,
+				check = perform_checks_on_schema(mode,value, NULL, NULL, -1,
 										rec->fields[index].field_name,
-										&rec, &hd);
+										file_rec, &hd);
 			}
 			
 			if (check == SCHEMA_ERR || check == 0) {
@@ -190,7 +211,6 @@ unsigned char set_field(struct Record_f *rec,
 					return 0;
 				}
 					
-				lock_f = 1;
 				close_file(1,fd_schema);
 				fd_schema = open_file(files[2],1); /*open with O_TRUNCATE*/
 
@@ -200,12 +220,19 @@ unsigned char set_field(struct Record_f *rec,
 
 				if (!write_header(fd_schema, &hd)) {
 					__er_write_to_file(F, L - 1);
+					close_file(1,fd_schema);
 					return 0;
 				}
 
+				while(lock(fd_schema,UNLOCK) == WTLK);
+				close_file(1,fd_schema);
 			} /* end of update schema branch*/
 
-	
+			if (!rec->fields[index].data.v.elements.r)
+			{
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
+			}
 		}
 		break;
 	}
@@ -1068,8 +1095,7 @@ unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
 int init_array(struct array **v, enum ValueType type)
 {
 	(*(*v)).size = DEF_SIZE;
-	switch (type)
-	{
+	switch (type){
 	case TYPE_ARRAY_INT:
 	{
 		(*(*v)).elements.i = calloc(DEF_SIZE, sizeof(int *));
@@ -1126,6 +1152,15 @@ int init_array(struct array **v, enum ValueType type)
 		(*(*v)).elements.d = calloc(DEF_SIZE, sizeof(double *));
 		if (!(*(*v)).elements.d)
 		{
+			__er_calloc(F, L - 2);
+			return -1;
+		}
+		break;
+	}
+	case TYPE_FILE:
+	{
+		(*(*v)).elements.r = calloc(DEF_SIZE, sizeof(struct Record_f *));
+		if (!(*(*v)).elements.d){
 			__er_calloc(F, L - 2);
 			return -1;
 		}
@@ -1447,6 +1482,56 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		*((*v).elements.d[(*v).size - 1]) = *(double *)element;
 		return 0;
 	}
+	case TYPE_FILE: 
+	{ 
+		/*check if the array has been initialized */
+		if (!(*v).elements.r)
+		{
+			if (init_array(&v, type) == -1)
+			{
+				fprintf(stderr, "init array failed.\n");
+				return -1;
+			}
+		}
+
+		/*check if there is enough space for new item */
+		if (!(*v).elements.r[(*v).size - 1])
+		{
+			for (int i = 0; i < (*v).size; i++)
+			{
+				if ((*v).elements.r[i])
+					continue;
+
+				(*v).elements.r[i] = malloc(sizeof(struct Record_f));
+				if (!(*v).elements.r[i])
+				{
+					__er_malloc(F, L - 2);
+					return -1;
+				}
+				*((*v).elements.d[i]) = *(struct Record_f *)element;
+				return 0;
+			}
+		}
+
+		/*not enough space, increase the size */
+		struct Record_f **elements_new = realloc((*v).elements.r, ++(*v).size * sizeof(struct Record_f *));
+		if (!elements_new)
+		{
+			__er_realloc(F, L - 2);
+			return -1;
+		}
+
+		(*v).elements.r = elements_new;
+		(*v).elements.r[(*v).size - 1] = malloc(sizeof(struct Record_f));
+		if (!(*v).elements.r[(*v).size - 1])
+		{
+			__er_malloc(F, L - 2);
+			return -1;
+		}
+
+		*((*v).elements.r[(*v).size - 1]) = *(struct Record_f *)element;
+		return 0;
+	}
 	default:
 		fprintf(stderr, "type not supperted");
 		return -1;
@@ -1525,6 +1610,18 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		v->elements.d = NULL;
 		break;
 	}
+	case TYPE_FILE:
+	{
+		for (int i = 0; i < v->size; i++)
+		{
+			if (v->elements.r[i])
+				free(v->elements.r[i]);
+		}
+		free(v->elements.r);
+		v->elements.r = NULL;
+		break;
+	}
+
 	default:
 		fprintf(stderr, "array type not suported.\n");
 		return;
