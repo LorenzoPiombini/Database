@@ -10,10 +10,12 @@
 #include "str_op.h"
 #include "file.h"
 #include "parse.h"
+#include "lock.h"
+#include "common.h"
 
 
 
-static char *prog[] = "db";
+static char prog[] = "db";
 #define ERR_MSG_PAR prog,__FILE__,__LINE__
 
 void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
@@ -48,6 +50,20 @@ unsigned char set_field(struct Record_f *rec,
 		 * */
 		strip('[',value);
 		strip(']',value);
+		/*
+		 * this is to clean the string value from trailig 
+		 * white spaces
+		 * */
+		int i = 0;
+		while(value[i] != '\0'){
+			if(value[i+1] == '\0'){
+				value[i] = '\0';
+				break;
+			}
+			value[i] = value[i+1];	
+			i++;
+		}
+
 		struct Schema sch = {0};
 		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 		
@@ -57,13 +73,13 @@ unsigned char set_field(struct Record_f *rec,
 		size_t l = fl + sfxl + 1;
 		char file_name[l];
 		memset(file_name,0,l);
-		strcpy(file_name,rec->fields[index].field_name,l);
+		strncpy(file_name,rec->fields[index].field_name,l);
 		strncat(file_name,sfx,sfxl);
 	
-		int fd = -1;
+		int fd_schema = -1;
 		int cr = 0;
-		if((fd = open_file(file_name,0)) == -1){
-			if((fd = create_file(file_name)) == -1){
+		if((fd_schema = open_file(file_name,0)) == -1){
+			if((fd_schema = create_file(file_name)) == -1){
 				fprintf(stderr,"(%s): cannot create file %s:%d.\n",ERR_MSG_PAR-1);
 				return 0; 
 			}
@@ -71,11 +87,12 @@ unsigned char set_field(struct Record_f *rec,
 
 		if(cr){
 			/*here the file is new*/	
-			int mode = check_handle_input_mode(value);
+			int mode = check_handle_input_mode(value, FCRT);
 			switch(mode){
 			case HYB:
 				if(create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
-					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
+					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
+							__FILE__,__LINE__-2);
 					return 0;
 				}	
 				break;
@@ -83,6 +100,7 @@ unsigned char set_field(struct Record_f *rec,
 				if(create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
 							__FILE__,__LINE__-2);
+					close_file(1,fd_schema);	
 					return 0;
 				}	
 				break;
@@ -92,16 +110,18 @@ unsigned char set_field(struct Record_f *rec,
 				char *buff_t = strdup(value);
 				if(!buff || !buff_t){
 					fprintf(stderr,"(%s): strdup() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+					close_file(1,fd_schema);	
 					return 0;
 				}
 					
 				int f_count = count_fields(value,NULL);
-				if (fields_count == 0) {
+				if (f_count == 0) {
 					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
+					close_file(1,fd_schema);	
 					return 0;
 				}
 
-				if (fields_count > MAX_FIELD_NR) {
+				if (f_count > MAX_FIELD_NR) {
 					fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
 							,prog, MAX_FIELD_NR);
 					close_file(1,fd_schema);	
@@ -109,7 +129,8 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if(create_file_definition_with_no_value(mode,f_count,value,buff_t,&sch)){
-					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n");
+					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
+							__FILE__,__LINE__-2);
 					close_file(1,fd_schema);	
 					return 0;
 				}	
@@ -119,23 +140,21 @@ unsigned char set_field(struct Record_f *rec,
 				break;
 			}
 			default:
-				fprintf(stderr,"mode not supported, %s:%d.\n",ERR_MSG_PAR);
+				fprintf(stderr,"(%s): mode not supported, %s:%d.\n",ERR_MSG_PAR);
 				close_file(1,fd_schema);	
 				return 0;
 			}
-			//write the schema to the file
 
+			//write the schema to the file
+			struct Header_d hd = {0, 0, sch};
 			if (!write_header(fd_schema, &hd)) {
 					__er_write_to_file(F, L - 1);
-					close_file(1,fd_schema);	
+					close_file(1,fd_schema);
 					return 0;
 			}
+
 			close_file(1,fd_schema);	
-			if (!rec->fields[index].data.v.elements.r)
-			{
-				rec->fields[index].data.v.insert = insert_element;
-				rec->fields[index].data.v.destroy = free_dynamic_array;
-			}
+
 		}else {
 			/*file exist*/
 			/* ensure the file is a db file */
@@ -149,7 +168,6 @@ unsigned char set_field(struct Record_f *rec,
 				return 0;
 			}
 
-			close_file(1,fd_schema);
 			int fields_count = 0;
 			unsigned char check = 0;
 			struct Record_f file_rec = {0};
@@ -160,11 +178,13 @@ unsigned char set_field(struct Record_f *rec,
 				fields_count = count_fields(value,NULL);
 				if(fields_count == 0){
 					fprintf(stderr,"(%s):check input syntax.\n",prog);
+			close_file(1,fd_schema);
 					return 0;
 				}
 
 				if (fields_count > MAX_FIELD_NR) {
 					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+			close_file(1,fd_schema);
 					return 0;
 				}
 
@@ -174,7 +194,7 @@ unsigned char set_field(struct Record_f *rec,
 
 				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
 										rec->fields[index].field_name,
-										file_rec, &hd);
+										&file_rec, &hd);
 				free(buffer);
 				free(buf_t);
 				free(buf_v);
@@ -182,13 +202,14 @@ unsigned char set_field(struct Record_f *rec,
 			} else {
 				check = perform_checks_on_schema(mode,value, NULL, NULL, -1,
 										rec->fields[index].field_name,
-										file_rec, &hd);
+										&file_rec, &hd);
 			}
 			
 			if (check == SCHEMA_ERR || check == 0) {
+			close_file(1,fd_schema);
 				return 0;
 			}
-			int lock_f = 0;
+				
 			int r = 0;
 			if (check == SCHEMA_NW ||
 				check == SCHEMA_NW_NT ||
@@ -208,11 +229,12 @@ unsigned char set_field(struct Record_f *rec,
 				while((r = lock(fd_schema,WLOCK)) == WTLK);
 				if(r == -1){
 					fprintf(stderr,"can't acquire or release proper lock.\n");
+					close_file(1,fd_schema);
 					return 0;
 				}
 					
 				close_file(1,fd_schema);
-				fd_schema = open_file(files[2],1); /*open with O_TRUNCATE*/
+				fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
 
 				if(file_error_handler(1,fd_schema) != 0){
 					return 0;
@@ -225,14 +247,18 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				while(lock(fd_schema,UNLOCK) == WTLK);
-				close_file(1,fd_schema);
 			} /* end of update schema branch*/
 
+			close_file(1,fd_schema);
 			if (!rec->fields[index].data.v.elements.r)
 			{
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
+
+			rec->fields[index].data.v.insert((void *)&file_rec,
+					&rec->fields[index].data.v,
+					type);
 		}
 		break;
 	}
@@ -1508,7 +1534,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 					__er_malloc(F, L - 2);
 					return -1;
 				}
-				*((*v).elements.d[i]) = *(struct Record_f *)element;
+				*((*v).elements.r[i]) = *(struct Record_f *)element;
 				return 0;
 			}
 		}
