@@ -6024,6 +6024,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					free_record(rec, rec->fields_num);
 					return -1;
 				}
+				char *sfx = ".sfx";
+				int sfxl = (int)strlen(sfx);
+				int totl = sfxl + (int)len + 1;
+				char sch_file[totl];
+				memset(sch_file,0,totl);
+				strncpy(sch_file,file_name,len);
+				strncat(sch_file,sfx,sfxl);
+				//now you have to open the file
+					
 				uint32_t size_array = 0;
 				if (read(fd, &size_array, sizeof(size_array)) == -1){
 					perror("error readig array.");
