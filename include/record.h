@@ -95,6 +95,7 @@ struct Record_f {
 	int fields_num;
 	uint8_t field_set[MAX_FIELD_NR];
 	struct Field fields[MAX_FIELD_NR];
+	uint32_t count;
 };
 
 /*
@@ -102,7 +103,7 @@ struct Record_f {
  * this will optimize the process,
  * the effort here is to avoid unneccesary memory allocations
  * so here the memory will be allocated on the heap only if the Record
- * is in more than 500 different locations in the file.
+ * is in more than 100 different locations in the file.
  * */
 struct Recs_old	{
 	struct Record_f recs[MAX_RECS_OLD_CAP];

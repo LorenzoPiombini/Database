@@ -5160,13 +5160,6 @@ off_t get_update_offset(int fd)
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 {
 
-	/*
-	 * this you can avoid to read 
-	 * read the schema file instead 
-	 * so you will have the name of the fields 
-	 * and the name type and last, but not least 
-	 * you will have the order in which the fields are written to file. 	
-	 * */
 
 	create_record(file_name, sch,rec);
 	/*read the count of the field written*/
@@ -5179,7 +5172,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 	int count_valid_fields = (int)ntohl(cvf_ne);
 	for(int i = 0; i < count_valid_fields; i++){
-
 		/*position in the field_set array*/
 		uint32_t i_ne =  0;
 		if (read(fd, &i_ne, sizeof(i_ne)) < 0) {
@@ -5188,7 +5180,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 
 		int index = (int)ntohl(i_ne); 
-
 		rec->field_set[index] = 1;
 	}
 
@@ -6004,35 +5995,49 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
 			
+			/*read the schema file name*/
+			uint64_t l = 0;
+			if (read(fd, &l, sizeof(l)) == -1){
+				perror("error readig array.");
+				free_record(rec, rec->fields_num);
+				return -1;
+			}
+			size_t len = bswap_64(l);
+			char em_file_name[len+1];
+			memset(file_name,0,len+1);
+
+			if (read(fd, em_file_name,len) == -1){
+				perror("error readig array.");
+				free_record(rec, rec->fields_num);
+				return -1;
+			}
+
+			char *sfx = ".sfx";
+			int sfxl = (int)strlen(sfx);
+			int totl = sfxl + (int)len + 1;
+			char sch_file[totl];
+			memset(sch_file,0,totl);
+			strncpy(sch_file,em_file_name,len);
+			strncat(sch_file,sfx,sfxl);
+			//now you have to open the file
+			int fd_schema = open_file(em_file_name,0);
+			if(file_error_handler(fd_schema) != 0) return -1;			
+
+			struct Schema sch = {0};
+			struct Header hd = {0,0,sch};	
+					
+			if (!read_header(fd_schema, &hd)) {
+				close(fd_schema);
+				free_record(rec, rec->fields_num);
+				return -1;
+			}
+
+			close(fd_schema);
 
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
 			{
-				uint64_t l = 0;
-				if (read(fd, &l, sizeof(l)) == -1){
-					perror("error readig array.");
-					free_record(rec, rec->fields_num);
-					return -1;
-				}
-				size_t len = bswap_64(l);
-				char file_name[len+1];
-				memset(file_name,0,len+1);
-
-				if (read(fd, file_name,len) == -1){
-					perror("error readig array.");
-					free_record(rec, rec->fields_num);
-					return -1;
-				}
-				char *sfx = ".sfx";
-				int sfxl = (int)strlen(sfx);
-				int totl = sfxl + (int)len + 1;
-				char sch_file[totl];
-				memset(sch_file,0,totl);
-				strncpy(sch_file,file_name,len);
-				strncat(sch_file,sfx,sfxl);
-				//now you have to open the file
-					
 				uint32_t size_array = 0;
 				if (read(fd, &size_array, sizeof(size_array)) == -1){
 					perror("error readig array.");
@@ -6042,8 +6047,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				int sz = (int)ntohl(size_array);
 				uint32_t padding = 0;
-				if (read(fd, &padding, sizeof(padding)) == -1)
-				{
+				if (read(fd, &padding, sizeof(padding)) == -1){
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
 					return -1;
@@ -6051,20 +6055,103 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				int padd = (int)ntohl(padding);
 
-				for (int j = 0; j < sz; j++)
-				{
-					uint64_t num_ne = 0;
-int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
-					if (read(fd, &num_ne, sizeof(num_ne)) == -1)
-					{
-						perror("can't read int array from file.\n");
+				for (int j = 0; j < sz; j++) {
+						
+					struct Record_f *em_rec = calloc(1,sizeof(struct Record_f));
+					if(!em_rec){
+						__er_calloc(F,L-2);	
 						free_record(rec, rec->fields_num);
 						return -1;
 					}
-					long num = (long)bswap_64(num_ne);
-					rec->fields[i].data.v.insert((void *)&num,
-												 &rec->fields[i].data.v,
-												 rec->fields[i].type);
+
+					if(read_file(fd, em_file_name, em_rec, hd.sch_d) == -1){
+						fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1)
+						return -1;
+					}
+
+					//check if the record has updates 
+					em_rec->count = 1;
+					off_t rests_pos_here = get_file_offset(fd);
+					struct Record_f rec_n = {0};
+					
+					off_t update_rec_pos = 0; 
+					while ((update_rec_pos = get_update_offset(fd)) > 0) {
+						em_rec->count++;
+						struct Record_f *recs_new = realloc(recs, 
+								em_rec->count * sizeof(struct Record_f));
+
+						if (!recs_new) {
+							__er_realloc(F,L-4);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+
+						em_rec = recs_new;
+						if (find_record_position(fd, update_rec_pos) == -1) {
+							__er_file_pointer(F, L - 1);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+
+						memset(&rec_n,0,sizeof(struct Record_f));
+						if(read_file(fd_data, file_path,&rec_n,hd.sch_d) == -1) {
+							fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+							
+						if(!cpy_rec(rec_n,em_rec[em_rec->count - 1])){
+							fprintf(stderr,"cannot copy record, %s:%d.\n",F,L-1);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+					}
+
+					if(em_rec->count == 1) {
+						if(update_rec_pos == -1 || offt_rec_up_pos == -1){
+							__er_file_pointer(F, L - 1);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+						rec->fields[i].data.v.insert((void *)em_rec,
+										 &rec->fields[i].data.v,
+										 rec->fields[i].type);
+
+						free_records(em_rec->count, em_rec);
+						continue;
+					}else{
+						if(update_rec_pos == -1 || offt_rec_up_pos == -1){
+							__er_file_pointer(F, L - 1);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+						
+						if (find_record_position(fd, offt_rec_up_pos) == -1) {
+							__er_file_pointer(F, L - 1);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+							
+						if (move_in_file_bytes(fd, sizeof(off_t)) == -1) {
+							__er_file_pointer(F, L - 1);
+							free_record(rec, rec->fields_num);
+							free_records(em_rec->count, em_rec);
+							return -1;
+						}
+					
+						rec->fields[i].data.v.insert((void *)em_rec,
+										 &rec->fields[i].data.v,
+										 rec->fields[i].type);
+
+						free_records(em_rec->count, em_rec);
+					}
 				}
 
 				if (padd > 0)

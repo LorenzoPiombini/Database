@@ -1510,6 +1510,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 	}
 	case TYPE_FILE: 
 	{ 
+				
 		/*check if the array has been initialized */
 		if (!(*v).elements.r)
 		{
@@ -1520,21 +1521,45 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			}
 		}
 
+		struct Record_f *r_el = (struct Record_f *)element;	
+		//get the schema 	
+		char *sfx = ".sfx";
+		int sfxl = (int)strlen(sfx);
+		int len = strlen(r_el->file_name);
+		int totl = sfxl +len + 1;
+		char sch_file[totl];
+		memset(sch_file,0,totl);
+		strncpy(sch_file,r_el->file_name,len);
+		strncat(sch_file,sfx,sfxl);
+		//now you have to open the file
+		int fd_schema = open_file(em_file_name,0);
+		if(file_error_handler(fd_schema) != 0) return -1;			
+
+		struct Schema sch = {0};
+		struct Header hd = {0,0,sch};	
+
+		if (!read_header(fd_schema, &hd)) {
+			close_file(1,fd_schema);
+			return -1;
+		}
+
+		close_file(1,fd_schema);
 		/*check if there is enough space for new item */
-		if (!(*v).elements.r[(*v).size - 1])
-		{
-			for (int i = 0; i < (*v).size; i++)
-			{
+		if (!(*v).elements.r[(*v).size - 1]){
+			for (int i = 0; i < (*v).size; i++){
 				if ((*v).elements.r[i])
 					continue;
 
-				(*v).elements.r[i] = malloc(sizeof(struct Record_f));
-				if (!(*v).elements.r[i])
-				{
-					__er_malloc(F, L - 2);
+				(*v).elements.r[i] = calloc(1,sizeof(struct Record_f));
+				if (!(*v).elements.r[i]) {
+					__er_calloc(F, L - 2);
 					return -1;
 				}
-				*((*v).elements.r[i]) = *(struct Record_f *)element;
+
+				if(!copy_rec(r_el,(*v).elements.r[i],hd.sch_d)){
+					fprintf(stderr,"cannot deep copy record in type file array %s:%d.\n",F,L-1);
+					return -1;
+				}
 				return 0;
 			}
 		}
@@ -1548,14 +1573,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 
 		(*v).elements.r = elements_new;
-		(*v).elements.r[(*v).size - 1] = malloc(sizeof(struct Record_f));
+		(*v).elements.r[(*v).size - 1] = calloc(1,sizeof(struct Record_f));
 		if (!(*v).elements.r[(*v).size - 1])
 		{
-			__er_malloc(F, L - 2);
+			__er_calloc(F, L - 2);
 			return -1;
 		}
 
-		*((*v).elements.r[(*v).size - 1]) = *(struct Record_f *)element;
+		if(!copy_rec(r_el,(*v).elements.r[i],hd.sch_d)){
+			fprintf(stderr,"cannot deep copy record in type file array %s:%d.\n",F,L-1);
+			return -1;
+		}
 		return 0;
 	}
 	default:
@@ -1641,7 +1669,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.r[i])
-				free(v->elements.r[i]);
+				free_record(v->elements.r[i]);
 		}
 		free(v->elements.r);
 		v->elements.r = NULL;

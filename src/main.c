@@ -1654,7 +1654,7 @@ int main(int argc, char *argv[])
 
 			struct Record_f rec = {0};
 			if(read_file(fd_data, file_path, &rec, hd.sch_d) == -1) {
-				printf("read record failed, main.c l %d.\n", __LINE__ - 1);
+				printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 				close_file(3, fd_schema,fd_index, fd_data);
 				return STATUS_ERROR;
 			}
@@ -1669,8 +1669,8 @@ int main(int argc, char *argv[])
 
 			int counter = 1;
 			struct Record_f *recs = NULL;
-
 			struct Record_f rec_n = {0};
+
 			if (update_rec_pos > 0) {
 				recs = calloc(counter, sizeof(struct Record_f));
 				if (!recs) {
