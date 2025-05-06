@@ -1532,11 +1532,11 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		strncpy(sch_file,r_el->file_name,len);
 		strncat(sch_file,sfx,sfxl);
 		//now you have to open the file
-		int fd_schema = open_file(em_file_name,0);
+		int fd_schema = open_file(r_el->file_name,0);
 		if(file_error_handler(fd_schema) != 0) return -1;			
 
 		struct Schema sch = {0};
-		struct Header hd = {0,0,sch};	
+		struct Header_d hd = {0,0,sch};	
 
 		if (!read_header(fd_schema, &hd)) {
 			close_file(1,fd_schema);
@@ -1580,7 +1580,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			return -1;
 		}
 
-		if(!copy_rec(r_el,(*v).elements.r[i],hd.sch_d)){
+		if(!copy_rec(r_el,(*v).elements.r[(*v).size -1],hd.sch_d)){
 			fprintf(stderr,"cannot deep copy record in type file array %s:%d.\n",F,L-1);
 			return -1;
 		}
@@ -1669,7 +1669,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.r[i])
-				free_record(v->elements.r[i]);
+				free_record(v->elements.r[i],v->elements.r[i]->fields_num);
 		}
 		free(v->elements.r);
 		v->elements.r = NULL;

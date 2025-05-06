@@ -4670,7 +4670,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (!rec->fields[i].data.v.elements.r[k])
 						continue;
 
-					if(write_file(fd,rec->fields[i].data.v.element.r[k],0,0) == 0){
+					if(write_file(fd,rec->fields[i].data.v.elements.r[k],0,0) == 0){
 						perror("failed write record array to file");
 						return 0;
 					}
@@ -4766,7 +4766,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (step < rec->fields[i].data.v.size)
 							{
-								if(write_file(fd,rec->fields[i].data.v.element.r[step],0,0) == 0){
+								if(write_file(fd,rec->fields[i].data.v.elements.r[step],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;
 								}
@@ -4832,7 +4832,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.r[step])
 									continue;
 
-								if(write_file(fd,rec->fields[i].data.v.element.r[step],0,0) == 0){
+								if(write_file(fd,rec->fields[i].data.v.elements.r[step],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;
 								}
@@ -4915,7 +4915,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.r[step])
 									continue;
 
-								if(write_file(fd,rec->fields[i].data.v.element.r[k],0,0) == 0){
+								if(write_file(fd,rec->fields[i].data.v.elements.r[k],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;
 								}
@@ -5003,7 +5003,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (!rec->fields[i].data.v.elements.r[k])
 							continue;
 
-						if(write_file(fd,rec->fields[i].data.v.element.r[k],0,0) == 0){
+						if(write_file(fd,rec->fields[i].data.v.elements.r[k],0,0) == 0){
 							perror("failed write record array to file");
 							return 0;
 						}
@@ -5065,7 +5065,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if (!rec->fields[i].data.v.elements.r[step])
 								continue;
 
-							if(write_file(fd,rec->fields[i].data.v.element.r[k],0,0) == 0){
+							if(write_file(fd,rec->fields[i].data.v.elements.r[k],0,0) == 0){
 								perror("failed write record array to file");
 								return 0;
 							}
@@ -6024,7 +6024,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			if(file_error_handler(fd_schema) != 0) return -1;			
 
 			struct Schema sch = {0};
-			struct Header hd = {0,0,sch};	
+			struct Header_d hd = {0,0,sch};	
 					
 			if (!read_header(fd_schema, &hd)) {
 				close(fd_schema);
@@ -6065,7 +6065,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					}
 
 					if(read_file(fd, em_file_name, em_rec, hd.sch_d) == -1){
-						fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1)
+						fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 						return -1;
 					}
 
@@ -6077,7 +6077,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					off_t update_rec_pos = 0; 
 					while ((update_rec_pos = get_update_offset(fd)) > 0) {
 						em_rec->count++;
-						struct Record_f *recs_new = realloc(recs, 
+						struct Record_f *recs_new = realloc(em_rec, 
 								em_rec->count * sizeof(struct Record_f));
 
 						if (!recs_new) {
@@ -6096,14 +6096,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						}
 
 						memset(&rec_n,0,sizeof(struct Record_f));
-						if(read_file(fd_data, file_path,&rec_n,hd.sch_d) == -1) {
+						if(read_file(fd, em_rec->file_name,&rec_n,hd.sch_d) == -1) {
 							fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
 							free_records(em_rec->count, em_rec);
 							return -1;
 						}
 							
-						if(!cpy_rec(rec_n,em_rec[em_rec->count - 1])){
+						if(!copy_rec(&rec_n,&em_rec[em_rec->count - 1],hd.sch_d)){
 							fprintf(stderr,"cannot copy record, %s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
 							free_records(em_rec->count, em_rec);
@@ -6112,7 +6112,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					}
 
 					if(em_rec->count == 1) {
-						if(update_rec_pos == -1 || offt_rec_up_pos == -1){
+						if(update_rec_pos == -1 || rests_pos_here== -1){
 							__er_file_pointer(F, L - 1);
 							free_record(rec, rec->fields_num);
 							free_records(em_rec->count, em_rec);
@@ -6123,16 +6123,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 										 rec->fields[i].type);
 
 						free_records(em_rec->count, em_rec);
-						continue;
 					}else{
-						if(update_rec_pos == -1 || offt_rec_up_pos == -1){
+						if(update_rec_pos == -1 || rests_pos_here== -1){
 							__er_file_pointer(F, L - 1);
 							free_record(rec, rec->fields_num);
 							free_records(em_rec->count, em_rec);
 							return -1;
 						}
 						
-						if (find_record_position(fd, offt_rec_up_pos) == -1) {
+						if (find_record_position(fd, rests_pos_here) == -1) {
 							__er_file_pointer(F, L - 1);
 							free_record(rec, rec->fields_num);
 							free_records(em_rec->count, em_rec);
@@ -6153,6 +6152,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						free_records(em_rec->count, em_rec);
 					}
 				}
+
 
 				if (padd > 0)
 				{
@@ -6195,7 +6195,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 			break;
-
+		}
 		default:
 			break;
 		}
