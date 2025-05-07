@@ -280,7 +280,20 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	char *last = NULL;
 	
 	int i = 0;
+	char *file_block = NULL;
+
 	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - buffer],delim)) != NULL)){
+		if(first[1] == '[' && ((file_block = strstr(&first[1],"]")))){
+			int size = first - p2;
+			int next_start = file_block - buffer;
+			char cpy[size+1];
+			memset(cpy,0,size+1);
+			strncpy(names[i],p2,size);
+
+			p2 += next_start+1;
+			i++;
+			continue;
+		}	
 		int size = first - p2;
 		int next_start = last - p2;
 		char cpy[size+1];
@@ -302,6 +315,13 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			strncpy(names[i],buffer,strlen(buffer));
 			i++;
 		}
+	}else if ((first = strstr(buffer,delim))){
+		if(first[1] == '['){
+			if((last = strstr(&first[1],delim))){
+				if(last[strlen(last)-1] == ']') return i;
+			}
+		}
+
 	}else {
 		return -1;
 	}
@@ -649,6 +669,8 @@ int assign_type(char *value)
 		return result;	
 	}
 
+	if(value[0] == '[' && value[strlen(value) - 1] == ']') return TYPE_FILE;
+
 	if(is_floaintg_point(value)) {
 		if(is_number_in_limits(value)) return TYPE_DOUBLE;
 
@@ -851,7 +873,23 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 	}
 
 	int i = 0;
+	char *file_block = NULL;
 	while((first = strstr(p2,delim)) != NULL && (last=strstr(&p[(first+1) - buff],delim)) != NULL){
+		if(first[1] == '[' && ((file_block = strstr(&first[1],"]")))){
+			int start = (first + 1) - buff;
+			int size = (file_block - buff) - start +1;
+			char cpy[size+1];
+			memset(cpy,0,size+1);
+			strncpy(cpy,&buff[start],size);
+			values[i] = strdup(cpy);
+			if(!values[i]){
+				fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
+				return NULL;
+			}
+			p2 = (first + 1) + size+1;
+			i++;
+			continue;
+		}
 		int start = (first + 1) - buff;
 		int size = (last - buff) - start;
 		char cpy[size+1];

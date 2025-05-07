@@ -1329,12 +1329,22 @@ int main(int argc, char *argv[])
 					}
 
 					/*writing the new part of the schema to the file*/
-					if (!write_file(fd_data, &rec, 0, 0)) {
+					int write_op = 0;
+					if ((write_op = write_file(fd_data, &rec, 0, 0)) == 0) {
 						printf("write to file failed, %s:%d.\n", F, L - 1);
 						free_recs_old(&recs_old);
 						goto clean_on_error;
 					}
-						
+
+					if(write_op == NTG_WR){
+						printf("record %s updated!\n", key);
+						while(lock(fd_index,UNLOCK) == WTLK);
+						close_file(3,fd_schema, fd_index, fd_data);
+						free_record(&rec, rec.fields_num);
+						free_recs_old(&recs_old);
+						return 0;
+					}	
+
 					if(size_pos <= MAX_RECS_OLD_CAP){
 						if(find_record_position(fd_data,recs_old.pos_u[size_pos-1]) == -1){
 							__er_file_pointer(F, L - 1);

@@ -642,6 +642,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		if (rec->field_set[i] == 1) count++;
 
 
+	if(count == 0) return NTG_WR;
 	uint32_t count_ne = htonl((uint32_t)count);
 	if (write(fd, &count_ne, sizeof(count_ne)) < 0) {
 		perror("could not write fields number");
@@ -4642,10 +4643,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		{
 			if (!update)
 			{
-				size_t len = strlen(rec->file_name);
+				size_t len = strlen(rec->fields[i].data.v.elements.r[0]->file_name);
 				uint64_t l = bswap_64(len);
 				if (write(fd, &l, sizeof(l)) == -1 || 
-					write(fd, &rec->file_name, len) == -1){ 
+					write(fd, rec->fields[i].data.v.elements.r[0]->file_name, len) == -1){ 
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
@@ -6002,9 +6003,10 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
+
 			size_t len = bswap_64(l);
 			char em_file_name[len+1];
-			memset(file_name,0,len+1);
+			memset(em_file_name,0,len+1);
 
 			if (read(fd, em_file_name,len) == -1){
 				perror("error readig array.");
@@ -6012,7 +6014,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 
-			char *sfx = ".sfx";
+			char *sfx = ".sch";
 			int sfxl = (int)strlen(sfx);
 			int totl = sfxl + (int)len + 1;
 			char sch_file[totl];
@@ -6020,7 +6022,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			strncpy(sch_file,em_file_name,len);
 			strncat(sch_file,sfx,sfxl);
 			//now you have to open the file
-			int fd_schema = open_file(em_file_name,0);
+			int fd_schema = open_file(sch_file,0);
 			if(file_error_handler(fd_schema) != 0) return -1;			
 
 			struct Schema sch = {0};

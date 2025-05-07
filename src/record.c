@@ -41,6 +41,8 @@ unsigned char set_field(struct Record_f *rec,
 
 	int t = (int)type;
 	switch (t) {
+	case -1:
+		break;
 	case TYPE_FILE:
 	{	
 		/*
@@ -83,6 +85,7 @@ unsigned char set_field(struct Record_f *rec,
 				fprintf(stderr,"(%s): cannot create file %s:%d.\n",ERR_MSG_PAR-1);
 				return 0; 
 			}
+			cr = 1;
 		}
 
 		if(cr){
@@ -90,14 +93,14 @@ unsigned char set_field(struct Record_f *rec,
 			int mode = check_handle_input_mode(value, FCRT);
 			switch(mode){
 			case HYB:
-				if(create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
+				if(!create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
 							__FILE__,__LINE__-2);
 					return 0;
 				}	
 				break;
 			case NO_TYPE:
-				if(create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
+				if(!create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
 							__FILE__,__LINE__-2);
 					close_file(1,fd_schema);	
@@ -147,6 +150,9 @@ unsigned char set_field(struct Record_f *rec,
 
 			//write the schema to the file
 			struct Header_d hd = {0, 0, sch};
+
+			hd.id_n = HEADER_ID_SYS;
+			hd.version = VS;
 			if (!write_header(fd_schema, &hd)) {
 					__er_write_to_file(F, L - 1);
 					close_file(1,fd_schema);
@@ -154,6 +160,17 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			close_file(1,fd_schema);	
+			if (!rec->fields[index].data.v.elements.r) {
+				rec->fields[index].data.v.insert = insert_element;
+				rec->fields[index].data.v.destroy = free_dynamic_array;
+			}
+
+			struct Record_f file_rec = {0};
+
+			create_record(rec->fields[index].field_name, hd.sch_d, &file_rec);
+			rec->fields[index].data.v.insert((void *)&file_rec,
+					&rec->fields[index].data.v,
+					type);
 
 		}else {
 			/*file exist*/
@@ -178,13 +195,13 @@ unsigned char set_field(struct Record_f *rec,
 				fields_count = count_fields(value,NULL);
 				if(fields_count == 0){
 					fprintf(stderr,"(%s):check input syntax.\n",prog);
-			close_file(1,fd_schema);
+					close_file(1,fd_schema);
 					return 0;
 				}
 
 				if (fields_count > MAX_FIELD_NR) {
 					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-			close_file(1,fd_schema);
+					close_file(1,fd_schema);
 					return 0;
 				}
 
@@ -619,8 +636,6 @@ unsigned char set_field(struct Record_f *rec,
 		}
 		break;
 	}
-	case -1:
-		break;
 	default:
 		printf("invalid type! type -> %d.", type);
 		return 0;
@@ -652,6 +667,7 @@ void free_record(struct Record_f *rec, int fields_num)
 		case TYPE_ARRAY_STRING:
 		case TYPE_ARRAY_BYTE:
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_FILE:
 			if(rec->fields[i].data.v.destroy)
 				rec->fields[i].data.v.destroy(&rec->fields[i].data.v, 
 							rec->fields[i].type);
@@ -881,6 +897,14 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 	{
 		switch (src->fields[i].type)
 		{
+		case -1:
+			if (!set_field(dest, i, src->fields[i].field_name,
+						   src->fields[i].type, NULL,src->field_set[i])) {
+				printf("set_fields() failed %s:%d.\n", F, L - 2);
+				free_record(dest, dest->fields_num);
+				return 0;
+			}
+			break;
 		case TYPE_INT:
 			memset(data, 0, 30);
 			if (snprintf(data, 30, "%d", src->fields[i].data.i) < 0) {
@@ -1089,6 +1113,14 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 												 src->fields[i].type);
 			}
 			break;
+		case TYPE_FILE:
+			for (int j = 0; j < src->fields[i].data.v.size; j++) {
+				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.r[j],
+									 &dest->fields[i].data.v,
+									 src->fields[i].type);
+			}
+			break;
+
 		default:
 			printf("type not supported, %s:%d.\n", F, L - 27);
 			return 0;
@@ -1186,7 +1218,7 @@ int init_array(struct array **v, enum ValueType type)
 	case TYPE_FILE:
 	{
 		(*(*v)).elements.r = calloc(DEF_SIZE, sizeof(struct Record_f *));
-		if (!(*(*v)).elements.d){
+		if (!(*(*v)).elements.r){
 			__er_calloc(F, L - 2);
 			return -1;
 		}
@@ -1522,8 +1554,11 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 
 		struct Record_f *r_el = (struct Record_f *)element;	
-		//get the schema 	
-		char *sfx = ".sfx";
+		/*
+		 * get the schema in order to 
+		 * deep copy the record 
+		 * */	
+		char *sfx = ".sch";
 		int sfxl = (int)strlen(sfx);
 		int len = strlen(r_el->file_name);
 		int totl = sfxl +len + 1;
@@ -1531,8 +1566,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		memset(sch_file,0,totl);
 		strncpy(sch_file,r_el->file_name,len);
 		strncat(sch_file,sfx,sfxl);
-		//now you have to open the file
-		int fd_schema = open_file(r_el->file_name,0);
+		int fd_schema = open_file(sch_file,0);
 		if(file_error_handler(fd_schema) != 0) return -1;			
 
 		struct Schema sch = {0};
@@ -1670,6 +1704,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		{
 			if (v->elements.r[i])
 				free_record(v->elements.r[i],v->elements.r[i]->fields_num);
+			free(v->elements.r[i]);				
 		}
 		free(v->elements.r);
 		v->elements.r = NULL;
@@ -1729,6 +1764,7 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 			case TYPE_ARRAY_FLOAT:
 			case TYPE_ARRAY_DOUBLE:
 			case TYPE_ARRAY_STRING:
+			case TYPE_FILE:
 				buffer->recs[buffer->capacity].fields[i].data.v.insert = insert_element;
 				buffer->recs[buffer->capacity].fields[i].data.v.destroy = free_dynamic_array;
 				switch(rec->fields[i].type){
@@ -1776,6 +1812,14 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){	
 						buffer->recs[buffer->capacity].fields[i].data.v
 							.insert((void*)rec->fields[i].data.v.elements.s[a],
+								&buffer->recs[buffer->capacity].fields[i].data.v,
+								rec->fields[i].type);
+					}
+					break;
+				case TYPE_FILE:
+					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){	
+						buffer->recs[buffer->capacity].fields[i].data.v
+							.insert((void*)rec->fields[i].data.v.elements.r[a],
 								&buffer->recs[buffer->capacity].fields[i].data.v,
 								rec->fields[i].type);
 					}

@@ -253,7 +253,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					case SCHEMA_CT_NT:
 						if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
 							printf("set_field failed %s:%d.\n", F, L - 2);
-							free_record(rec, sch->fields_num);
 							return -1;
 						}
 						found++;
@@ -261,7 +260,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					case SCHEMA_CT:
 						if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
 							printf("set_field failed %s:%d.\n", F, L - 2);
-							free_record(rec, sch->fields_num);
 							return -1;
 						}
 						found++;
@@ -280,7 +278,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 				case -1:
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield)) {
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_record(rec, sch->fields_num);
 						return -1;
 					}
 	
@@ -291,7 +288,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_record(rec, sch->fields_num);
 						return -1;
 					}
 					break;
@@ -299,7 +295,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_record(rec, sch->fields_num);
 						return -1;
 					}
 					break;
@@ -308,7 +303,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_record(rec, sch->fields_num);
 						return -1;
 					}
 					break;
@@ -318,7 +312,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_record(rec, sch->fields_num);
 						return -1;
 					}
 					break;
@@ -327,7 +320,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_record(rec, sch->fields_num);
 						return -1;
 					}
 					break;
@@ -335,13 +327,11 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
-						free_record(rec, sch->fields_num);
 						return -1;
 					}
 					break;
 				default:
 					printf("type no supported! %d.\n", sch->types[i]);
-					free_record(rec, sch->fields_num);
 					return -1;
 				}
 			}

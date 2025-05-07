@@ -76,7 +76,7 @@ struct File_field{
 
 struct Field {
 	char field_name[MAX_FIELD_LT];
-	enum ValueType type;
+	int type;
 
 	union {
 		int i;
@@ -86,7 +86,6 @@ struct Field {
 		unsigned char b;
 		double d;
 		struct array v;
-		struct File_field *file;
 	}data;
 };
 
