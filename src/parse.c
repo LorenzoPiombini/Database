@@ -2608,25 +2608,29 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 
 							positions[i] = 'e';
 							break;
-						case TYPE_ARRAY_INT:
-							if (rec->fields[j].data.v.elements.r)
-							{
+						case TYPE_FILE:
+							if (rec->fields[j].data.v.elements.r){
 								if (rec->fields[j].data.v.size == 1 ){
-									for(int b = 0; b < *rec->
+									int counter = 0;
+									for(int b = 0; b < rec->
 											fields[j].data.v.elements.
 											r[0].fields_num;b++){
-												
+										if(rec->fields[j].data.v.elements.r[0]
+												.field_set[b] == 0)counter++;
+											
 									}	
+									if(counter == rec->fields[j].data.v.elements.
+										r[0].fields_num)break;
 
-								}
-									break;
+								}	
+							}
 
 								/*check the values*/
 								if (rec->fields[j].data.v.size == recs_old->recs[i].fields[j].data.v.size)
 								{
 									for (int a = 0; a < rec->fields[j].data.v.size; a++)
 									{
-										if (*recs_old->recs[i].fields[j].data.v.elements.i[a] == *rec->fields[j].data.v.elements.i[a])
+										if (*recs_old->recs[i].fields[j].data.v.elements.r[a] == *rec->fields[j].data.v.elements.i[a])
 											continue;
 										*recs_old->recs[i].fields[j].data.v.elements.i[a] = *rec->fields[j].data.v.elements.i[a];
 									}

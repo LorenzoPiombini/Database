@@ -1911,3 +1911,16 @@ int schema_has_type(struct Header_d *hd)
 	return 1;
 
 }
+
+
+int compare_rec(struct Record_f *src, struct Record_f *dest)
+{
+	if (src->fields_num > dest->fields_num) return 1;
+	if (src->fields_num < dest->fields_num) return -1;
+	if (src->fields_num == dest->fields_num){
+		for(int i = 0; i < src->fields_num; i++){
+			if
+		}
+	
+
+}
