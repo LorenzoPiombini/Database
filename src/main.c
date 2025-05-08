@@ -326,7 +326,7 @@ int main(int argc, char *argv[])
 		if (data_to_add) { 
 			/* creates a file with full definitons (fields and value)*/
 
-			int mode = check_handle_input_mode(schema_def, FCRT) | RF;
+			int mode = check_handle_input_mode(schema_def, FCRT) | WR;
 			int fields_count = 0; 
 			char *buffer = NULL; 
 			char *buf_t = NULL;
@@ -366,9 +366,9 @@ int main(int argc, char *argv[])
 					goto clean_on_error;
 				}
 
-				char *buffer = strdup(data_to_add);
-				char *buf_t = strdup(data_to_add);
-				char *buf_v = strdup(data_to_add);
+				buffer = strdup(data_to_add);
+				buf_t = strdup(data_to_add);
+				buf_v = strdup(data_to_add);
 
 				if(parse_d_flag_input(file_path, fields_count,
 							buffer, buf_t, buf_v, &sch, 0,&rec) == -1) {
