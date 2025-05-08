@@ -88,6 +88,7 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			strncpy(type,++pos_T,l-1);
 			types_i[i] = get_type(type);
 
+
 			char *p = &cbuf[start] - 1;
 			while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
 			
@@ -99,6 +100,18 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			else
 				strncpy(names[i],p, l -1);
 
+			if(types_i[i] == TYPE_FILE){
+				char *file_block = NULL;
+				if((file_block = strstr(p,"["))){
+					char *d = NULL;
+					char *end = strstr(file_block,"]");
+					while((d = strstr(&file_block[1],TYPE_)) && 
+							(((d = strstr(&file_block[1],TYPE_)) - cbuf) < (end - cbuf))){ 
+						*d = '@';	
+					}
+				}
+
+			}
 			i++;
 		}
 	} 
@@ -153,6 +166,18 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			}else{
 				strncpy(names[i],p, l -1);
 			}
+			if(types_i[i] == TYPE_FILE){
+				char *file_block = NULL;
+				if((file_block = strstr(p,"["))){
+					char *d = NULL;
+					char *end = strstr(file_block,"]");
+					while((d = strstr(&file_block[1],T_)) && 
+							(((d = strstr(&file_block[1],T_)) - cbuf) < (end - cbuf))){ 
+						*d = '@';	
+					}
+				}
+			}
+
 			i++;
 		}
 	}
@@ -183,6 +208,7 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 	}
 	return i;
 }
+
 int get_array_values(char *src, char ***values)
 {
 	int items = count_fields(src, ",");

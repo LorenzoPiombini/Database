@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 		if (schema_def) { 
 			/* case when user creates a file with only file definition*/
 
-			int mode = check_handle_input_mode(schema_def, FCRT);
+			int mode = check_handle_input_mode(schema_def, FCRT) | DF;
 			int fields_count = 0; 
 			char *buf_sdf = NULL; 
 			char *buf_t = NULL;
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
 			switch(mode){
-			case TYPE:
+			case TYPE_DF:
 			{
 				fields_count = count_fields(schema_def,NULL);
 
@@ -251,7 +251,7 @@ int main(int argc, char *argv[])
 				free(buf_t);
 				break;
 			}
-			case HYB:
+			case HYB_DF:
 			{
 				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
 					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
 				}
 				break;
 			}
-			case NO_TYPE:	
+			case NO_TYPE_DF	:	
 			{
 				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
 					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
@@ -326,32 +326,66 @@ int main(int argc, char *argv[])
 		if (data_to_add) { 
 			/* creates a file with full definitons (fields and value)*/
 
-			int fields_count = count_fields(data_to_add,NULL); 
-
-			if (fields_count > MAX_FIELD_NR) {
-				fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
-				goto clean_on_error;
-			}
-
-			char *buffer = strdup(data_to_add);
-			char *buf_t = strdup(data_to_add);
-			char *buf_v = strdup(data_to_add);
-
-			/* init the Schema structure*/
+			int mode = check_handle_input_mode(schema_def, FCRT) | RF;
+			int fields_count = 0; 
+			char *buffer = NULL; 
+			char *buf_t = NULL;
+			char *buf_v = NULL;
+			/* init he Schema structure*/
 			struct Schema sch = {0};
+			struct Record_f rec = {0};
 			sch.fields_num = fields_count;
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
+			
+			switch(mode){
+			case NO_TYPE_WR:			
+			{
+				char names[MAX_FIELD_NR][MAX_FILED_LT] ={0};
+				int types_i[MAX_FIELD_NR];
+				memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 
-			struct Record_f rec = {0};
-			if(parse_d_flag_input(file_path, fields_count,
-						buffer, buf_t, buf_v, &sch, 0,&rec) == -1) {
-				fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
-				goto clean_on_error_2;
+				char **values = extract_fields_value_types_from_input(data_to_add,names, types_i, &fields_count);
+			
+			
+				if(parse_input_with_no_type(file_path,fields_count, names, 
+							types_i, values,&sch,0,&rec) == -1){
+
+					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+					free_strs(fields_count,1,values);
+					goto clean_on_error_2;
+
+				}
+				free_strs(fields_count,1,values);
+				break;
 			}
+			case TYPE_WR:			
+			{ 
+				fields_count = count_fields(schema_def,NULL);
+				if (fields_count > MAX_FIELD_NR) {
+					fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
+					goto clean_on_error;
+				}
 
-			free(buffer); 
-			free(buf_t);
-			free(buf_v);
+				char *buffer = strdup(data_to_add);
+				char *buf_t = strdup(data_to_add);
+				char *buf_v = strdup(data_to_add);
+
+				if(parse_d_flag_input(file_path, fields_count,
+							buffer, buf_t, buf_v, &sch, 0,&rec) == -1) {
+					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+					goto clean_on_error_2;
+				}
+
+				free(buffer); 
+				free(buf_t);
+				free(buf_v);
+				break;
+
+			}
+			case HYB_WR:			
+			default:
+				return STATUS_ERROR;
+			}
 
 			struct Header_d hd = {0, 0, sch};
 			if (!create_header(&hd)) {
@@ -1267,7 +1301,7 @@ int main(int argc, char *argv[])
 
 				find_fields_to_update(&recs_old, positions, &rec);
 
-				if (positions[0] != 'n' && positions[0] != 'y') {
+				if (positions[0] != 'n' && positions[0] != 'y' && positions[0] != 'e') {
 					printf("check on fields failed, %s:%d.\n", F, L - 1);
 					free_recs_old(&recs_old);
 					goto clean_on_error;

@@ -63,6 +63,7 @@ unsigned char set_field(struct Record_f *rec,
 				break;
 			}
 			value[i] = value[i+1];	
+			if(value[i] == ' ') value[i] = '\0';
 			i++;
 		}
 
@@ -623,8 +624,7 @@ unsigned char set_field(struct Record_f *rec,
 				return 0;
 			}
 
-			if (range == IN_DOUBLE)
-			{
+			if (range == IN_DOUBLE || range == IN_FLOAT) {
 				double d = strtod(value, NULL);
 				if (d == ERANGE || d == EINVAL)
 				{
@@ -1915,12 +1915,217 @@ int schema_has_type(struct Header_d *hd)
 
 int compare_rec(struct Record_f *src, struct Record_f *dest)
 {
-	if (src->fields_num > dest->fields_num) return 1;
-	if (src->fields_num < dest->fields_num) return -1;
+	if (src->fields_num > dest->fields_num) return -1;
+	if (src->fields_num < dest->fields_num) return 1;
 	if (src->fields_num == dest->fields_num){
+		int c = 0;
+		int active = 0;	
+		int ai = 0;
+		int al = 0;
+		int ab = 0;
+		int af = 0;
+		int ad = 0;
+		int as = 0;
+		
 		for(int i = 0; i < src->fields_num; i++){
-			if
-		}
-	
+			if(src->field_set[i] == 1 && dest->field_set[i] == 1){
+				active++;
+				switch(src->fields[i].type){
+				case TYPE_INT:
+					if(src->fields[i].data.i == dest->fields[i].data.i) c++;
+					 
+					if(c == active) break;
+					return i;
+				case TYPE_LONG:
+					if(src->fields[i].data.l == dest->fields[i].data.l) c++;
+					if(c == active) break;
+					return i;
+				case TYPE_BYTE:
+					if(src->fields[i].data.b == dest->fields[i].data.b) c++;
+					if(c == active) break;
+					return i;
+				case TYPE_FLOAT:
+					if(src->fields[i].data.f == dest->fields[i].data.f) c++;
+					if(c == active) break;
+					return i;
+				case TYPE_DOUBLE:
+					if(src->fields[i].data.d == dest->fields[i].data.d) c++;
+					if(c == active) break;
+					return i;
+				case TYPE_STRING:
+				{
+					size_t l = strlen(dest->fields[i].data.s);
+					if(strncmp(src->fields[i].data.s,dest->fields[i].data.s,l) == 0) c++;
+					if(c == active) break;
+					return i;
+				}
+				case TYPE_ARRAY_INT:
+				if (dest->fields[i].data.v.elements.i){
+					if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.i[0] == 0){
+						if(src->fields[i].data.v.size == 1 && 
+								*src->fields[i].data.v.elements.i[0] == 0) c++;
+						
+						if(c == active) break;
+						return i;
+					}
 
+					/*check the values*/
+					if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
+						for (int a = 0; a < dest->fields[i].data.v.size; a++){
+							if (*src->fields[i].data.v.elements.i[a] == 
+									*dest->fields[i].data.v.elements.i[a]) ai++;
+
+						}
+					}
+					if(dest->fields[i].data.v.size == ai) c++;
+
+					if(c == active) break;
+					return i;
+				}
+				break;
+				case TYPE_ARRAY_LONG:
+				if (dest->fields[i].data.v.elements.l){
+					if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.l[0] == 0){
+						if(src->fields[i].data.v.size == 1 && 
+								*src->fields[i].data.v.elements.l[0] == 0) c++;
+						
+						if(c == active) break;
+						return i;
+					}
+
+					/*check the values*/
+					if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
+						for (int a = 0; a < dest->fields[i].data.v.size; a++){
+							if (*src->fields[i].data.v.elements.l[a] == 
+									*dest->fields[i].data.v.elements.l[a]) al++;
+						}
+					}
+					if(dest->fields[i].data.v.size == al) c++;
+
+					if(c == active) break;
+					return i;
+				}
+				break;
+				case TYPE_ARRAY_BYTE:
+				if (dest->fields[i].data.v.elements.b){
+					if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.b[0] == 0){
+						if(src->fields[i].data.v.size == 1 && 
+								*src->fields[i].data.v.elements.b[0] == 0) c++;
+						
+						if(c == active) break;
+						return i;
+					}
+
+					/*check the values*/
+					if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
+						for (int a = 0; a < dest->fields[i].data.v.size; a++){
+							if (*src->fields[i].data.v.elements.b[a] == 
+									*dest->fields[i].data.v.elements.b[a]) ab++;
+
+						}
+					}
+					if(dest->fields[i].data.v.size == ab) c++;
+
+					if(c == active) break;
+					return i;
+				}
+				break;
+				case TYPE_ARRAY_FLOAT:
+				if (dest->fields[i].data.v.elements.f){
+					if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.f[0] == 0){
+						if(src->fields[i].data.v.size == 1 && 
+								*src->fields[i].data.v.elements.f[0] == 0) c++;
+						
+						if(c == active) break;
+						return i;
+					}
+
+					/*check the values*/
+					if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
+						for (int a = 0; a < dest->fields[i].data.v.size; a++){
+							if (*src->fields[i].data.v.elements.f[a] == 
+									*dest->fields[i].data.v.elements.f[a]) af++;
+						}
+					}
+					if(dest->fields[i].data.v.size == af) c++;
+
+					if(c == active) break;
+					return i;
+				}
+				break;
+				case TYPE_ARRAY_DOUBLE:
+				if (dest->fields[i].data.v.elements.d){
+					if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.d[0] == 0){
+						if(src->fields[i].data.v.size == 1 && 
+								*src->fields[i].data.v.elements.d[0] == 0) c++;
+						
+						if(c == active) break;
+						return i;
+					}
+
+					/*check the values*/
+					if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
+						for (int a = 0; a < dest->fields[i].data.v.size; a++){
+							if (*src->fields[i].data.v.elements.d[a] == 
+									*dest->fields[i].data.v.elements.d[a]) ad++;
+
+						}
+					}
+					if(dest->fields[i].data.v.size == ad) c++;
+
+					if(c == active) break;
+					return i;
+				}
+				break;
+				case TYPE_ARRAY_STRING:
+				if (dest->fields[i].data.v.elements.s){
+					if (dest->fields[i].data.v.size == 1 && 
+							strncmp(dest->fields[i].data.v.elements.s[0],
+								"null",strlen("null"))== 0){
+						if(src->fields[i].data.v.size == 1 && 
+							strncmp(dest->fields[i].data.v.elements.s[0],
+								"null",strlen("null"))== 0) c++;
+						
+						if(c == active) break;
+						return i;
+					}
+
+					/*check the values*/
+					if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
+						for (int a = 0; a < dest->fields[i].data.v.size; a++){
+							if (strncmp(src->fields[i].data.v.elements.s[a], 
+									dest->fields[i].data.v.elements.s[a],
+									strlen(dest->fields[i].data.v.elements.s[a]))) as++;
+						}
+					}
+					if(dest->fields[i].data.v.size == as) c++;
+
+					if(c == active) break;
+					return i;
+				}
+				break;
+				case TYPE_FILE:
+				{
+					if(src->fields[i].data.v.elements.r){
+						int comp = 0;
+						for(int a = 0;a < src->fields[i].data.v.size; a++){
+							if((comp = compare_rec(src->fields[i].data.v.elements.r[a],
+								dest->fields[i].data.v.elements.r[a])) == 0) continue; 
+							
+							return i;
+						}
+						break;
+					}
+					break;
+				}
+				default:
+					fprintf(stderr,"type not supported %s:%d.\n",__FILE__,__LINE__);
+					return E_RCMP;
+				}
+
+			} 
+		}
+		if(c == active) return 0;
+	}
+	return E_RCMP;	
 }

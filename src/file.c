@@ -4643,6 +4643,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		{
 			if (!update)
 			{
+				for(int f = 0; f < rec->fields[i].data.v.elements.r[0]->fields_num; f++){
+					int n = 0;	
+					if(rec->fields[i].data.v.elements.r[0]->fields[f].type == -1) n++;
+
+					if(n == rec->fields[i].data.v.elements.r[0]->fields_num) return NTG_WR;  
+				} 		
+					
 				size_t len = strlen(rec->fields[i].data.v.elements.r[0]->file_name);
 				uint64_t l = bswap_64(len);
 				if (write(fd, &l, sizeof(l)) == -1 || 
