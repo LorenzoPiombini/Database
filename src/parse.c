@@ -824,7 +824,7 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char 
 		memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 		break;
 	case HYB:
-		if((fields_num = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
+		if((fields_num = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) return 0;
 		break;
 	default:
 		return 0;
@@ -907,7 +907,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 		}
 		break;
 	case HYB_DF:
-		if((fields_num = get_name_types_hybrid(buffer,names,types_i)) == -1) return 0;
+		if((fields_num = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) return 0;
 		break;
 	default:
 		return 0;
@@ -1215,7 +1215,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			 * missing types if it is correct 
 			 * against the schema types 
 			 * */
-			if((fields_count = get_name_types_hybrid(buffer,names,types_i)) == -1) goto clean_on_error;
+			if((fields_count = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) goto clean_on_error;
 			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
 				
 			for(int i = 0; i < fields_count; i++){
@@ -1243,7 +1243,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(fields_count > hd->sch_d.fields_num)return SCHEMA_NW;
 		}else{
 
-			if((fields_count = get_name_types_hybrid(buffer,names,types_i)) == -1) goto clean_on_error;
+			if((fields_count = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) goto clean_on_error;
 			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
 			if(fields_count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, values, types_i)){

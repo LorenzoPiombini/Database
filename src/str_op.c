@@ -43,7 +43,7 @@ int check_handle_input_mode(char *buffer, int op)
 	return -1;
 }
 
-int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
+int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int *types_i)
 {
 	size_t size = strlen(buffer) + 1;
 	char cbuf[size];
@@ -166,6 +166,7 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 			}else{
 				strncpy(names[i],p, l -1);
 			}
+				
 			if(types_i[i] == TYPE_FILE){
 				char *file_block = NULL;
 				if((file_block = strstr(p,"["))){
@@ -185,8 +186,20 @@ int get_name_types_hybrid(char *buffer, char names[][MAX_FILED_LT],int *types_i)
 	
 	char names_s[MAX_FIELD_NR - i][MAX_FILED_LT];
 	memset(names_s,0,(MAX_FIELD_NR - i)*MAX_FILED_LT);
+	
 
-	int s = get_fields_name_with_no_type(cbuf, names_s);
+	int s = 0;
+	switch(mode){
+	case HYB_DF:
+		s = get_fields_name_with_no_type(cbuf, names_s);
+		break;
+	case HYB_WR:	
+		s = get_fields_name_with_no_type(cbuf, names_s);
+		break;
+	default:
+		fprintf(stderr,"mode not supported, %s:%d.\n",__FILE__,__LINE__);
+		return -1;
+	}
 	
 	int skip = -1;
 	for(int j = 0; j < s; j++){
@@ -556,8 +569,8 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 			j++;
 			return j;
 		}
-		
 	}
+		
 	while((delim = strstr(p,":"))){
 		int size = delim - p;
 		pos = delim - fields_name;
