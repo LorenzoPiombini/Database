@@ -194,8 +194,32 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		s = get_fields_name_with_no_type(cbuf, names_s);
 		break;
 	case HYB_WR:	
-		s = get_fields_name_with_no_type(cbuf, names_s);
+	{ 		
+		char *t = NULL;
+		int f = 0;
+		while((t = strstr(cbuf,"@t_"))) {
+			char *d = strstr(t,":");	
+			if(d) *d = '@';
+			f++;
+			d = strstr(d,":");
+			if(d) *d = '@';
+			t[1] = '@';
+		}
+		
+		if(!f){
+			char *T = NULL;
+			while((T = strstr(cbuf,"@TYPE_"))) {
+				char *d = strstr(T,":");	
+				if(d) *d = '@';
+				d = strstr(d,":");
+				if(d) *d = '@';
+				T[1] = '@';
+			}
+		}
+		s = get_names_with_no_type_skip_value(cbuf,names_s);
+			
 		break;
+	}
 	default:
 		fprintf(stderr,"mode not supported, %s:%d.\n",__FILE__,__LINE__);
 		return -1;
@@ -345,8 +369,15 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 
 	if(first){
 		if(*(first + 1) != '\0') {
-			int size = first - p2;
-			strncpy(names[i],p2,size);
+			char *cf = (first - 1);		
+			while(*cf != ':' && cf != &buffer[0] && *cf != '@') cf--;
+			int size = 0; 
+			if(cf != &buffer[0])	 
+				size = first - (++cf) +1;
+			else 
+				size = first - cf +1;	
+			
+			strncpy(names[i],cf,size-1);
 			i++;
 		}
 	}else if(strstr(buffer,delim) == NULL){
@@ -808,14 +839,17 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 					free_strs(i,1,values);
 					return -1;
 				}
+				--end_t;
+				*end_t = '@';
+				i++;
 				break;
 			}
 
-			size_t len = end_t - next + 1;
+			size_t len = next - end_t + 1;
 			char cpy[len];
 			memset(cpy,0,len);
 			*end_t = '@';
-			strncpy(cpy,++end_t,len);
+			strncpy(cpy,++end_t,len-1);
 
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
@@ -844,6 +878,9 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 					free_strs(i,1,values);
 					return -1;
 				}
+				--end_T;
+				*end_T = '@';
+				i++;
 				break;
 			}
 
@@ -879,11 +916,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				break;
 			}
 
-			size_t len = (++pos_d) - end_d + 1;
+			size_t len = end_d - (++pos_d) + 1;
 			char cpy[len];
 			memset(cpy,0,len);
 			*end_d = '@';
-			strncpy(cpy,pos_d,len);
+			strncpy(cpy,pos_d,len-1);
 
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){

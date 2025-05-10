@@ -20,12 +20,12 @@
 #define NO_TYPE 0
 #define TYPE 1
 #define HYB 3
-#define HYB_WR HYB | WR	
-#define TYPE_WR TYPE | WR	
-#define NO_TYPE_WR NO_TYPE | WR	
-#define HYB_DF HYB | DF 
-#define TYPE_DF TYPE | DF 
-#define NO_TYPE_DF NO_TYPE | DF		
+#define HYB_WR (HYB | WR)	
+#define TYPE_WR (TYPE | WR)	
+#define NO_TYPE_WR (NO_TYPE | WR)	
+#define HYB_DF (HYB | DF) 
+#define TYPE_DF (TYPE | DF) 
+#define NO_TYPE_DF (NO_TYPE | DF)		
 
 #define ASCII_INT_MAX 526            /*the sum of ASCII values for every char in INT_MAX*/
 #define ASCII_INT_MIN 572            /*the sum of ASCII values for every char in INT_MIN*/

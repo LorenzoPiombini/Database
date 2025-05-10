@@ -934,10 +934,10 @@ int main(int argc, char *argv[])
 			int fields_count = 0;
 			unsigned char check = 0;
 			struct Record_f rec = {0};
-			int mode = check_handle_input_mode(data_to_add, FWRT);
+			int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 			
 			/*check schema*/
-			if(mode == 1){
+			if(mode == TYPE_WR){
 				fields_count = count_fields(data_to_add,NULL);
 				if(fields_count == 0){
 					fprintf(stderr,"(%s):check input syntax.\n",prog);
@@ -1116,10 +1116,10 @@ int main(int argc, char *argv[])
 			struct Record_f rec = {0};
 			struct Record_f rec_old = {0};
 			struct Record_f new_rec = {0};
-			int mode = check_handle_input_mode(data_to_add,FWRT);
+			int mode = check_handle_input_mode(data_to_add,FWRT) | WR;
 			int fields_count = 0;
 			unsigned char check = 0;
-			if(mode == 1){
+			if(mode == TYPE_WR){
 				fields_count = count_fields(data_to_add,NULL);
 
 				if (fields_count > MAX_FIELD_NR) {

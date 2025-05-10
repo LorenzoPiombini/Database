@@ -1057,7 +1057,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 	int count = 0;
 	int err = 0;
 
-	if(mode == NO_TYPE){
+	if(mode == NO_TYPE_WR){
 		values = extract_fields_value_types_from_input(buffer,names,types_i, &count);
 		if(!values){
 			fprintf(stderr,"extracting values, names and types failed %s:%d",__FILE__,__LINE__ -2);
@@ -1204,7 +1204,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				return SCHEMA_NW;
 			}
 		}
-	} else if(mode == HYB){
+	} else if(mode == HYB_WR){
 		
 
 		/*check if schema has all types */
@@ -1246,33 +1246,39 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if((fields_count = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) goto clean_on_error;
 			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
 			if(fields_count == hd->sch_d.fields_num){
-				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, values, types_i)){
+				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
 					goto clean_on_error;
 				}
 
+				for(int i = 0; i < fields_count; i++) {
+					if(types_i[i] == -1){
+						types_i[i] = assign_type(values[i]);	
+					}
+				}
+					
 				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
 
 
-				if(parse_input_with_no_type(file_path, count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 							&hd->sch_d, SCHEMA_EQ,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
 					goto clean_on_error;
 				}
-				return SCHEMA_EQ;
+				return SCHEMA_EQ_NT;
 
 			}else if(fields_count < hd->sch_d.fields_num){
 				int result = 0;
-				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,count)) == 0){
+				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,fields_count)) == 0){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
 
-				if(parse_input_with_no_type(file_path, count, names, 
+				if(parse_input_with_no_type(file_path, fields_count, names, 
 							result == SCHEMA_CT_NT ? types_i : hd->sch_d.types, 
 							values,
 							&hd->sch_d, 
@@ -1294,7 +1300,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				if(parse_input_with_no_type(file_path, count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 							&hd->sch_d, SCHEMA_NW,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
