@@ -252,13 +252,6 @@ int main(int argc, char *argv[])
 				break;
 			}
 			case HYB_DF:
-			{
-				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
-					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
-					goto clean_on_error_1;
-				}
-				break;
-			}
 			case NO_TYPE_DF	:	
 			{
 				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
@@ -326,7 +319,7 @@ int main(int argc, char *argv[])
 		if (data_to_add) { 
 			/* creates a file with full definitons (fields and value)*/
 
-			int mode = check_handle_input_mode(schema_def, FCRT) | WR;
+			int mode = check_handle_input_mode(data_to_add, FCRT) | WR;
 			int fields_count = 0; 
 			char *buffer = NULL; 
 			char *buf_t = NULL;
@@ -346,7 +339,7 @@ int main(int argc, char *argv[])
 
 				char **values = extract_fields_value_types_from_input(data_to_add,names, types_i, &fields_count);
 			
-			
+				set_schema(names,types_i,&sch,fields_count);	
 				if(parse_input_with_no_type(file_path,fields_count, names, 
 							types_i, values,&sch,0,&rec) == -1){
 

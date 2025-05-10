@@ -28,6 +28,13 @@ void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	}
 }
 
+void set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c){
+	for(int i = 0; i < fields_c; i++){
+		strncpy(sch->fields_name[i],names[i],strlen(names[i]));
+		sch->types[i] = types_i[i];
+	}
+	sch->fields_num = fields_c;
+}
 unsigned char set_field(struct Record_f *rec, 
 				int index, 
 				char *field_name, 

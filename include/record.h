@@ -129,5 +129,6 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 unsigned char get_index_rec_field(char *field_name, struct Record_f **recs, int recs_len,int *field_i_r, int *rec_index);
 int schema_has_type(struct Header_d *hd);
 int compare_rec(struct Record_f *src, struct Record_f *dest);
+void set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);
 
 #endif /*record.h*/
