@@ -60,8 +60,7 @@ int main(int argc, char *argv[])
 
 	while ((c = getopt(argc, argv, "nItAf:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
 	{
-		switch (c)
-		{
+		switch (c){
 		case 'a':
 			data_to_add = optarg;
 			break;
@@ -240,7 +239,12 @@ int main(int argc, char *argv[])
 
 				buf_sdf = strdup(schema_def);
 				buf_t = strdup(schema_def);
-
+				if(!buf_t || !buf_sdf){
+					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__);
+					if(buf_sdf) free(buf_sdf);	
+					if(buf_t) free(buf_t);	
+					goto clean_on_error_1;
+				}
 				if (!create_file_definition_with_no_value(mode,fields_count, buf_sdf, buf_t, &sch)) {
 					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 					free(buf_sdf);
@@ -318,7 +322,6 @@ int main(int argc, char *argv[])
 
 		if (data_to_add) { 
 			/* creates a file with full definitons (fields and value)*/
-
 			int mode = check_handle_input_mode(data_to_add, FCRT) | WR;
 			int fields_count = 0; 
 			char *buffer = NULL; 
@@ -332,28 +335,57 @@ int main(int argc, char *argv[])
 			
 			switch(mode){
 			case NO_TYPE_WR:			
+			case HYB_WR:			
 			{
 				char names[MAX_FIELD_NR][MAX_FILED_LT] ={0};
 				int types_i[MAX_FIELD_NR];
 				memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
+				char **values = NULL;
 
-				char **values = extract_fields_value_types_from_input(data_to_add,names, types_i, &fields_count);
-			
+				switch (mode){
+				case NO_TYPE_WR:			
+				{	
+					values = extract_fields_value_types_from_input(data_to_add,names,
+							types_i,
+							&fields_count);
+					if(!values){
+						fprintf(stderr,"(%s): cannot extract value from input,%s:%d.\n",prog,
+								__FILE__,__LINE__-1);
+						return STATUS_ERROR;
+					}
+					break;
+				}
+				case HYB_WR:			
+				{
+					if((fields_count = get_name_types_hybrid(mode,data_to_add
+								,names,
+								types_i)) == -1) goto clean_on_error_2;
+					if(get_values_hyb(data_to_add,
+							&values,
+							fields_count) == -1) goto clean_on_error_2;
+
+					for(int i = 0; i < fields_count; i++){
+						if(types_i[i] == -1) types_i[i] = assign_type(values[i]);		
+					}
+					break;
+				}	
+				default:
+					return STATUS_ERROR;
+				}
 				set_schema(names,types_i,&sch,fields_count);	
+
 				if(parse_input_with_no_type(file_path,fields_count, names, 
 							types_i, values,&sch,0,&rec) == -1){
-
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					free_strs(fields_count,1,values);
 					goto clean_on_error_2;
-
 				}
 				free_strs(fields_count,1,values);
 				break;
 			}
 			case TYPE_WR:			
 			{ 
-				fields_count = count_fields(schema_def,NULL);
+				fields_count = count_fields(data_to_add,NULL);
 				if (fields_count > MAX_FIELD_NR) {
 					fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
 					goto clean_on_error;
@@ -362,6 +394,14 @@ int main(int argc, char *argv[])
 				buffer = strdup(data_to_add);
 				buf_t = strdup(data_to_add);
 				buf_v = strdup(data_to_add);
+					
+				if(!buf_t || !buf_v || !buffer){
+					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
+					if(buf_v) free(buf_v);	
+					if(buf_t) free(buf_t);	
+					if(buffer) free(buffer);
+					goto clean_on_error;
+				}
 
 				if(parse_d_flag_input(file_path, fields_count,
 							buffer, buf_t, buf_v, &sch, 0,&rec) == -1) {
@@ -373,9 +413,8 @@ int main(int argc, char *argv[])
 				free(buf_t);
 				free(buf_v);
 				break;
-
 			}
-			case HYB_WR:			
+
 			default:
 				return STATUS_ERROR;
 			}
@@ -390,7 +429,6 @@ int main(int argc, char *argv[])
 				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				goto clean_on_error_2;
 			}
-
 
 			if (only_dat) {
 				printf("File created successfully!\n");

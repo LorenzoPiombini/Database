@@ -54,7 +54,7 @@ LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBbst = lib$(LIBNAMEbst).so
 
-SCRIPTS = GET FILE LIST WRITE UPDATE DEL DELa KEYS 
+SCRIPTS = SHOW FILE LIST WRITE UPDATE DEL DELa KEYS 
 
 default: $(TARGET)
 
@@ -92,20 +92,6 @@ libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJliblPR)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBbst) $(OBJlibbstPR)
 
-test:	
-	$(TARGET) -nf test -a name:TYPE_STRING:ls:age:TYPE_BYTE:37:addr:TYPE_STRING:"Vattella a Pesca 122":city:TYPE_STRING:"Somerville":zip_code:TYPE_STRING:07921 -k pi90 
-	$(TARGET) -a  code:t_s:"man78-g-hus":price:t_f:33.56:discount:TYPE_FLOAT:0.0 -nf item -k ui7
-	$(TARGET) -nf test7789 -a  name:TYPE_STRING:Lorenzo:age:TYPE_BYTE:23:addr:TYPE_STRING:somerville_rd_122:city:TYPE_STRING:Bedminster:zip_code:TYPE_STRING:07921 -k jj6
-	$(TARGET) -f test -k pi90 -D 0
-	$(TARGET) -nf prova -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k45rt
-	
-	$(TARGET) -f item -a price:TYPE_FLOAT:33.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"par45-Y-us" -k ui8
-	$(TARGET) -f item -a price:TYPE_FLOAT:67.56:discount:TYPE_FLOAT:0.0:code:TYPE_STRING:"met90-x-us":unit:TYPE_STRING:"each":weight:TYPE_DOUBLE:45.43 -k ui9
-	$(TARGET) -nf cmc 
-	$(TARGET) -f item -a code:TYPE_STRING:nhy-X-it -k ui10
-	$(TARGET) -f item -a code:TYPE_STRING:pio-u-ES:weight:TYPE_DOUBLE:10.9 -k ui11
-	$(TARGET) -f item -a code:TYPE_STRING:"par45-Y-us":price:TYPE_FLOAT:33.56:discount:TYPE_INT:0.0 -k ui10
-
 clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	sudo rm -f $(INCLUDEDIR)/file.h $(INCLUDEDIR)/str_op.h $(INCLUDEDIR)/record.h $(INCLUDEDIR)/parse.h $(INCLUDEDIR)/bst.h $(INCLUDEDIR)/hash_tbl.h $(INCLUDEDIR)/lock.h 
@@ -135,13 +121,13 @@ obj/%_prod.o : src/%.c
 
 
 
-$(BINDIR)/GET:
+$(BINDIR)/SHOW:
 	@if [ !  -f $@ ]; then \
 		echo "Creating $@ . . ."; \
 		echo "#!/bin/bash" > $@; \
 		echo "#Check if both arguments are provided" >> $@; \
 		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ]; then" >> $@; \
-		echo "echo \"Usage: GET [file name] [record_id]\"" >> $@; \
+		echo "echo \"Usage: SHOW [file name] [record_id]\"" >> $@; \
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
@@ -250,7 +236,7 @@ $(BINDIR)/DELa:
 		chmod +x $@; \
 	fi
 
-install: $(TARGET) $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
+install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
 	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)

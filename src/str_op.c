@@ -26,8 +26,8 @@ int check_handle_input_mode(char *buffer, int op)
 	switch(op){ 
 	case FCRT:
 	{
-		if(c_delim > v || c_delim == v) return HYB;
-		if(c_delim < v ) return TYPE;
+		if((c_delim - v) > 1 || c_delim == v) return HYB;
+		if(c_delim < v || (c_delim - v) == 1) return TYPE;
 		break;
 	}
 	case FWRT:
@@ -831,7 +831,8 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			char *end_t = (strstr(pos_t,":"));
 			assert(end_t != NULL); 
 
-			char *next = strstr(end_t+1,":");
+			*end_t = '@';
+			char *next = strstr(end_t,":");
 			if(!next){
 				(*values)[i] = strdup(++end_t);
 				if(!(*values)[i]){
@@ -839,17 +840,14 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 					free_strs(i,1,values);
 					return -1;
 				}
-				--end_t;
-				*end_t = '@';
 				i++;
 				break;
 			}
-
-			size_t len = next - end_t + 1;
+			*next = '@';
+			size_t len = (next - cbuff) - (++end_t - cbuff) + 1;
 			char cpy[len];
 			memset(cpy,0,len);
-			*end_t = '@';
-			strncpy(cpy,++end_t,len-1);
+			strncpy(cpy,end_t,len-1);
 
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
