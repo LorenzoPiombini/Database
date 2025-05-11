@@ -868,6 +868,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			char *end_T = (strstr(pos_T,":"));
 			assert(end_T != NULL); 
 
+			*end_T = '@';
 			char *next = strstr(end_T+1,":");
 			if(!next){
 				(*values)[i] = strdup(++end_T);
@@ -876,17 +877,15 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 					free_strs(i,1,values);
 					return -1;
 				}
-				--end_T;
-				*end_T = '@';
 				i++;
 				break;
 			}
 
-			size_t len = end_T - next + 1;
+			*next = '@';
+			size_t len = (next - cbuf) - (++end_T- cbuf) + 1;
 			char cpy[len];
 			memset(cpy,0,len);
-			*end_T = '@';
-			strncpy(cpy,++end_T,len);
+			strncpy(cpy,end_T,len-1);
 
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){

@@ -351,7 +351,7 @@ int main(int argc, char *argv[])
 					if(!values){
 						fprintf(stderr,"(%s): cannot extract value from input,%s:%d.\n",prog,
 								__FILE__,__LINE__-1);
-						return STATUS_ERROR;
+						goto clean_on_error_2;
 					}
 					break;
 				}
@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
 					break;
 				}	
 				default:
-					return STATUS_ERROR;
+					goto clean_on_error_2;
 				}
 				set_schema(names,types_i,&sch,fields_count);	
 
@@ -388,7 +388,7 @@ int main(int argc, char *argv[])
 				fields_count = count_fields(data_to_add,NULL);
 				if (fields_count > MAX_FIELD_NR) {
 					fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
-					goto clean_on_error;
+					goto clean_on_error_2;
 				}
 
 				buffer = strdup(data_to_add);
@@ -400,7 +400,7 @@ int main(int argc, char *argv[])
 					if(buf_v) free(buf_v);	
 					if(buf_t) free(buf_t);	
 					if(buffer) free(buffer);
-					goto clean_on_error;
+					goto clean_on_error_2;
 				}
 
 				if(parse_d_flag_input(file_path, fields_count,
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 			}
 
 			default:
-				return STATUS_ERROR;
+				goto clean_on_error_2;
 			}
 
 			struct Header_d hd = {0, 0, sch};
@@ -724,12 +724,12 @@ int main(int argc, char *argv[])
 				}
 				break;
 			default:
-
+				goto clean_on_error_5;
 
 			}
 
 
-			/* acquire lock WR_HEADER */
+			/* acquire lock */
 			int lock_f = 0;
 			int r = 0;
 			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
@@ -754,7 +754,7 @@ int main(int argc, char *argv[])
 			}
 
 
-			/*release WR_HEADER lock */
+			/*release lock */
 			while((r = lock(fd_schema,UNLOCK)) == WTLK);
 			if(r == -1){
 				fprintf(stderr,"can't acquire or release proper lock.\n");
@@ -900,7 +900,7 @@ int main(int argc, char *argv[])
 				goto clean_on_error_6;
 			}
 			
-			/*this will saved the record that we deleted,
+			/*this will save the record that we deleted,
 			 * so we can undo this operations */
 			if(record_del->key_type == STR){
  				if(journal(fd_index, 
@@ -990,10 +990,8 @@ int main(int argc, char *argv[])
 				free(buf_v);
 			
 			} else {
-		
 				check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1,
 										file_path, &rec, &hd);
-
 			}
 			
 			if (check == SCHEMA_ERR || check == 0) {

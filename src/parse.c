@@ -1219,6 +1219,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
 				
 			for(int i = 0; i < fields_count; i++){
+				if(types_i[i] == -1) types_i[i] = assign_type(values[i]);
 				for(int j = 0; j < hd->sch_d.fields_num; j++){
 					if(strncmp(names[i],hd->sch_d.fields_name[j],strlen(names[i])) != 0) continue;
 
@@ -1237,7 +1238,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				goto clean_on_error;
 			}
 			
-			free_strs(count,1,values);
+			free_strs(fields_count,1,values);
 			if(fields_count == hd->sch_d.fields_num) return SCHEMA_EQ;
 			if(fields_count < hd->sch_d.fields_num)return SCHEMA_CT;
 			if(fields_count > hd->sch_d.fields_num)return SCHEMA_NW;
@@ -1269,6 +1270,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 							__FILE__,__LINE__-2);
 					goto clean_on_error;
 				}
+				free_strs(fields_count,1,values);
 				return SCHEMA_EQ_NT;
 
 			}else if(fields_count < hd->sch_d.fields_num){
@@ -1289,6 +1291,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
+				free_strs(fields_count,1,values);
 				if(result == SCHEMA_CT_NT)
 					return result;
 				else 
@@ -1307,6 +1310,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
+				free_strs(count,1,values);
 				return SCHEMA_NW;
 			}
 
@@ -1354,7 +1358,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 	clean_on_error:
 	fprintf(stderr,"schema different then file definition.\n");
-	free_strs(count,1,values);
+	free_strs(count == 0 ? fields_count : count,1,values);
 	return err;	
 }
 
