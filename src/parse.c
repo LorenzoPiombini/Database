@@ -1289,7 +1289,6 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 		
 
 		/*check if schema has all types */
-		char **values = NULL;
 		if(schema_has_type(hd)){
 			/*
 			 * check input with 
@@ -1344,14 +1343,12 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					types_i[i] = assign_type(values[i]);	
 				}
 			}
+			if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
+				fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+				goto clean_on_error;
+			}
 
 			if(fields_count == hd->sch_d.fields_num){
-				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
-					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
-					goto clean_on_error;
-				}
-
-					
 				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
 					err = SCHEMA_ERR;
 					goto clean_on_error;

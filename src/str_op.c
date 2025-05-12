@@ -30,19 +30,22 @@ int check_handle_input_mode(char *buffer, int op)
 	if(c_T == 0 && c_t == 0 && c_delim > 0) return NO_TYPE;
 	
 	/*for each t_ or TYPE_ delim we need to account for one ':' */
-	int v = (c_T * 2) + (c_t * 2);
-
+	int v = c_T  + c_t ;
 	switch(op){ 
 	case FCRT:
 	{
-		if((c_delim - v) > 1 || c_delim == v) return HYB;
-		if(c_delim < v || (c_delim - v) == 1) return TYPE;
+		int additional_c_delim_count = v > 1 ? v-1:0;
+		if((c_delim - v -additional_c_delim_count) > 0) return HYB;
+		if((c_delim - v -additional_c_delim_count) == 0) return TYPE;
+		if(c_delim == v) return TYPE;
 		break;
 	}
 	case FWRT:
 	{
-		if(c_delim > v ) return HYB;
-		if(c_delim < v || c_delim == v) return TYPE;
+		int additional_c_delim_count = v == 1 ? 2 : v *2;
+		if((c_delim - v -additional_c_delim_count) > 0) return HYB;
+		if((c_delim - v -additional_c_delim_count) == 0) return TYPE;
+		if((c_delim - v -additional_c_delim_count) < 0) return TYPE;
 		break;
 	}
 	default:
@@ -61,69 +64,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 
 	replace('@','^',cbuf);
 	int i = 0;
-	if (strstr(cbuf,TYPE_)){
-		char *pos_T = NULL;
-		while((pos_T = strstr(cbuf,TYPE_))){
-			int start = pos_T - cbuf;
-			/*this change the delimeter so it won't
-			 * be found in the next iteration*/
-			*pos_T= '@';
-			char *end_T = (strstr(pos_T,":"));
-			if(!end_T){
-				size_t sz = strlen(++pos_T) + 1;
-				char type[sz];
-				memset(type,0,sz);
-				strncpy(type,pos_T,sz);
-				types_i[i] = get_type(type);
 
-				char *p = &cbuf[start] - 1;
-				while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
-
-				sz = pos_T - p;
-				if(sz-2 > MAX_FIELD_LT) return -1;
-
-				if(p != &cbuf[0])
-					strncpy(names[i],++p, sz -2);
-				else
-					strncpy(names[i],p, sz -1);
-				i++;
-				break;
-			}
-
-			/*get the type*/
-			int l = end_T - pos_T;
-			char type[l];
-			memset(type,0,l);
-			strncpy(type,++pos_T,l-1);
-			types_i[i] = get_type(type);
-
-
-			char *p = &cbuf[start] - 1;
-			while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
-			
-			l = pos_T - p;
-			if(l-2 > MAX_FIELD_LT) return -1;
-
-			if(p != &cbuf[0])
-				strncpy(names[i],++p, l -2);
-			else
-				strncpy(names[i],p, l -1);
-
-			if(types_i[i] == TYPE_FILE){
-				char *file_block = NULL;
-				if((file_block = strstr(p,"["))){
-					char *d = NULL;
-					char *end = strstr(file_block,"]");
-					while((d = strstr(&file_block[1],TYPE_)) && 
-							(((d = strstr(&file_block[1],TYPE_)) - cbuf) < (end - cbuf))){ 
-						*d = '@';	
-					}
-				}
-
-			}
-			i++;
-		}
-	} 
 
 	if(strstr(cbuf,T_)){
 		char *pos_t = NULL;
@@ -192,7 +133,69 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		}
 	}
 
-	
+	if (strstr(cbuf,TYPE_)){
+		char *pos_T = NULL;
+		while((pos_T = strstr(cbuf,TYPE_))){
+			int start = pos_T - cbuf;
+			/*this change the delimeter so it won't
+			 * be found in the next iteration*/
+			*pos_T= '@';
+			char *end_T = (strstr(pos_T,":"));
+			if(!end_T){
+				size_t sz = strlen(++pos_T) + 1;
+				char type[sz];
+				memset(type,0,sz);
+				strncpy(type,pos_T,sz);
+				types_i[i] = get_type(type);
+
+				char *p = &cbuf[start] - 1;
+				while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
+
+				sz = pos_T - p;
+				if(sz-2 > MAX_FIELD_LT) return -1;
+
+				if(p != &cbuf[0])
+					strncpy(names[i],++p, sz -2);
+				else
+					strncpy(names[i],p, sz -1);
+				i++;
+				break;
+			}
+
+			/*get the type*/
+			int l = end_T - pos_T;
+			char type[l];
+			memset(type,0,l);
+			strncpy(type,++pos_T,l-1);
+			types_i[i] = get_type(type);
+
+
+			char *p = &cbuf[start] - 1;
+			while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
+			
+			l = pos_T - p;
+			if(l-2 > MAX_FIELD_LT) return -1;
+
+			if(p != &cbuf[0])
+				strncpy(names[i],++p, l -2);
+			else
+				strncpy(names[i],p, l -1);
+
+			if(types_i[i] == TYPE_FILE){
+				char *file_block = NULL;
+				if((file_block = strstr(p,"["))){
+					char *d = NULL;
+					char *end = strstr(file_block,"]");
+					while((d = strstr(&file_block[1],TYPE_)) && 
+							(((d = strstr(&file_block[1],TYPE_)) - cbuf) < (end - cbuf))){ 
+						*d = '@';	
+					}
+				}
+
+			}
+			i++;
+		}
+	} 
 	char names_s[MAX_FIELD_NR - i][MAX_FILED_LT];
 	memset(names_s,0,(MAX_FIELD_NR - i)*MAX_FILED_LT);
 	
@@ -200,30 +203,44 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	int s = 0;
 	switch(mode){
 	case HYB_DF:
-		s = get_fields_name_with_no_type(cbuf, names_s);
-		break;
-	case HYB_WR:	
-	{ 		
 		char *t = NULL;
-		int f = 0;
 		while((t = strstr(cbuf,"@t_"))) {
 			char *d = strstr(t,":");	
 			if(d) *d = '@';
-			f++;
 			if(d) d = strstr(d,":");
 			if(d) *d = '@';
 			t[1] = '@';
 		}
 		
-		if(!f){
-			char *T = NULL;
-			while((T = strstr(cbuf,"@TYPE_"))) {
-				char *d = strstr(T,":");	
-				if(d) *d = '@';
-				d = strstr(d,":");
-				if(d) *d = '@';
-				T[1] = '@';
-			}
+		char *T = NULL;
+		while((T = strstr(cbuf,"@TYPE_"))) {
+			char *d = strstr(T,":");	
+			if(d) *d = '@';
+			if(d) d = strstr(d,":");
+			if(d) *d = '@';
+			T[1] = '@';
+		}
+
+		s = get_fields_name_with_no_type(cbuf, names_s);
+		break;
+	case HYB_WR:	
+	{ 		
+		char *t = NULL;
+		while((t = strstr(cbuf,"@t_"))) {
+			char *d = strstr(t,":");	
+			if(d) *d = '@';
+			if(d) d = strstr(d,":");
+			if(d) *d = '@';
+			t[1] = '@';
+		}
+		
+		char *T = NULL;
+		while((T = strstr(cbuf,"@TYPE_"))) {
+			char *d = strstr(T,":");	
+			if(d) *d = '@';
+			d = strstr(d,":");
+			if(d) *d = '@';
+			T[1] = '@';
 		}
 		s = get_names_with_no_type_skip_value(cbuf,names_s);
 			
