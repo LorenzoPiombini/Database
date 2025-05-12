@@ -12,6 +12,15 @@
 #include "debug.h"
 
 
+static char *strstr_last(char *src, char delim);
+
+int is_number_type(int type)
+{
+	return type == TYPE_LONG || type == TYPE_FLOAT 
+		|| type == TYPE_DOUBLE || type == TYPE_INT 
+		|| type == TYPE_BYTE;
+
+}
 int check_handle_input_mode(char *buffer, int op)
 {
 	int c_t = count_fields(buffer,T_); 
@@ -135,7 +144,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 				char *p = &cbuf[start] - 1;
 				while(*p !=':' && p != &cbuf[0] && *p != '@') p--;
 
-				sz = pos_t - p;
+				sz = (--pos_t - cbuf) - (p - cbuf) + 1;
 				if(sz-2 > MAX_FIELD_LT) return -1;
 
 				if(p != &cbuf[0])
@@ -201,7 +210,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			char *d = strstr(t,":");	
 			if(d) *d = '@';
 			f++;
-			d = strstr(d,":");
+			if(d) d = strstr(d,":");
 			if(d) *d = '@';
 			t[1] = '@';
 		}
@@ -334,6 +343,17 @@ void *key_converter(char *key, int *key_type)
 	return converted;
 }
 
+static char *strstr_last(char *src, char delim)
+{
+
+	int last = 0 ;
+	for(char *p = src; *p != '\0'; p++){
+		if(*p == delim) last = p - src;		
+	}
+	
+	if(last == 0) return NULL;
+	return &src[last];
+}
 int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 {
 	char *delim = ":";
@@ -357,11 +377,23 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			i++;
 			continue;
 		}	
-		int size = first - p2;
+
+		char *move_back = (first - 1); 
+		while(move_back != &buffer[0] && *move_back != '@' && *move_back != ':') --move_back;   
+			
+		int size = 0;
+		if(move_back == &buffer[0])
+			size = (first - buffer) - ( move_back - buffer) +1;
+		else
+			size = (first - buffer) - ( move_back - buffer);
+		
 		int next_start = last - p2;
-		char cpy[size+1];
-		memset(cpy,0,size+1);
-		strncpy(names[i],p2,size);
+		char cpy[size];
+		memset(cpy,0,size);
+		if(move_back == &buffer[0])
+			strncpy(names[i],move_back,size-1);
+		else
+			strncpy(names[i],++move_back,size-1);
 
 		p2 += next_start+1;
 		i++;
@@ -380,7 +412,7 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			strncpy(names[i],cf,size-1);
 			i++;
 		}
-	}else if(strstr(buffer,delim) == NULL){
+	}else if(strstr(buffer,delim) == NULL && !strstr(buffer,"@")){
 		if(buffer){
 			strncpy(names[i],buffer,strlen(buffer));
 			i++;
@@ -392,6 +424,9 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			}
 		}
 
+	}else if((last = strstr_last(buffer,'@'))){
+		++last;
+		strncpy(names[i],last,strlen(last));
 	}else {
 		return -1;
 	}
@@ -882,7 +917,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			}
 
 			*next = '@';
-			size_t len = (next - cbuf) - (++end_T- cbuf) + 1;
+			size_t len = (next - cbuff) - (++end_T- cbuff) + 1;
 			char cpy[len];
 			memset(cpy,0,len);
 			strncpy(cpy,end_T,len-1);

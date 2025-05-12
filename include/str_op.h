@@ -49,6 +49,7 @@ the number in e.i (int or long)*/
 
 
 
+int is_number_type(int type);
 int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);

@@ -496,7 +496,7 @@ int main(int argc, char *argv[])
 				destroy_hasht(&ht);
 			}
 
-			printf("File created successfully.\n");
+			fprintf(stdout,"(%s): File created successfully.\n",prog);
 			free_record(&rec, fields_count); // this free the memory allocated for the record
 			close_file(3, fd_index, fd_data,fd_schema);
 			return 0;
@@ -619,7 +619,7 @@ int main(int argc, char *argv[])
 			while((r = lock(fd_index,WLOCK)) == WTLK);
 			if(r == -1){
 				fprintf(stderr,"can't acquire or release proper lock.\n");
-				return STATUS_ERROR;
+				goto clean_on_error_4;
 			}
 
 			lock_f = 1;
@@ -691,15 +691,16 @@ int main(int argc, char *argv[])
 			/* add field to schema */
 			/* locks here are released that is why we do not have to release them if an error occurs*/
 			/*check if the fields are in limit*/
-			int mode = check_handle_input_mode(schema_def,FCRT);
+			int mode = check_handle_input_mode(schema_def,FCRT) | WR;
 			int fields_count = 0; 
 			switch(mode){
-			case NO_TYPE:
+			case NO_TYPE_WR:
 				if (!add_fields_to_schema(mode, fields_count, schema_def, NULL, &hd.sch_d)) {
+					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
 				break;
-			case TYPE:
+			case TYPE_WR:
 				fields_count = count_fields(schema_def,NULL);
 				if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > MAX_FIELD_NR) {
 					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
@@ -711,6 +712,7 @@ int main(int argc, char *argv[])
 				char *buff_t = strdup(schema_def);
 			
 				if (!add_fields_to_schema(mode, fields_count, buffer, buff_t, &hd.sch_d)) {
+					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					free(buffer), free(buff_t);
 					goto clean_on_error_5;
 				}
@@ -718,8 +720,9 @@ int main(int argc, char *argv[])
 				free(buffer);
 				free(buff_t);
 				break;
-			case HYB:
+			case HYB_WR:
 				if (!add_fields_to_schema(mode, fields_count, schema_def, NULL, &hd.sch_d)) {
+					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
 				break;
@@ -982,6 +985,14 @@ int main(int argc, char *argv[])
 				char *buffer = strdup(data_to_add);
 				char *buf_t = strdup(data_to_add);
 				char *buf_v = strdup(data_to_add);
+
+				if(!buffer || !buf_t || !buf_v){
+					fprintf(stderr,"(%s): strdup() failed, %s:%d.\n",prog,F,L-5);
+					if(buffer) free(buffer);
+					if(buf_t) free(buf_t);
+					if(buf_v) free(buf_v);
+					goto clean_on_error_7;
+				}
 
 				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
 										file_path, &rec, &hd);

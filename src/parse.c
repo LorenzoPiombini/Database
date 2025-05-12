@@ -10,6 +10,11 @@
 #include "sort.h"
 #include "debug.h"
 
+static int schema_check_type(int count,int mode,struct Schema *sch,
+			char names[][MAX_FILED_LT],
+			int *types_i,
+			char ***values);
+
 int parse_d_flag_input(char *file_path, int fields_num, 
 							char *buffer, 
 							char *buf_t, 
@@ -815,15 +820,15 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char 
 	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 
 	switch(mode){
-	case TYPE:
+	case TYPE_WR:
 		get_fileds_name(buffer, fields_num, 2, names);
 		get_value_types(buf_t, fields_num, 2,types_i);
 		break;
-	case NO_TYPE:
+	case NO_TYPE_WR:
 		if((fields_num=get_fields_name_with_no_type(buffer, names)) == 0 ) return 0;
 		memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 		break;
-	case HYB:
+	case HYB_WR:
 		if((fields_num = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) return 0;
 		break;
 	default:
@@ -976,6 +981,82 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 	return 1; // schema creation succssed
 }
 
+static int schema_check_type(int count,int mode,struct Schema *sch,
+			char names[][MAX_FILED_LT],
+			int *types_i,
+			char ***values)
+{
+	int name_check = 0;
+	char *decimal = ".00";
+	switch(mode){
+	case SCHEMA_EQ:
+		for(int i = 0; i < sch->fields_num; i++){
+			if(strncmp(sch->fields_name[i],names[i],strlen(names[i])) == 0) name_check++;
+
+			if(sch->types[i] != types_i[i])	{
+				if(is_number_type(sch->types[i])){
+					if(sch->types[i] == TYPE_DOUBLE) {
+						types_i[i] = TYPE_DOUBLE;
+						size_t vs = strlen((*values)[i]);
+						size_t ds = strlen(decimal);
+						size_t s = vs + ds + 1; 
+						char cpy[s];
+						memset(cpy,0,s);
+						strncpy(cpy,(*values)[i],vs);
+						strncat(cpy,decimal,ds);
+						free((*values)[i]);
+						(*values)[i] = strdup(cpy);
+						if(!(*values)[i]){
+							fprintf(stderr,"strdup() failed, %s:%d.\n",F,L-2);
+							return -1;
+						}
+						continue;
+					}
+					continue;
+				}
+				return -1;
+			}
+		}
+		if(name_check != sch->fields_num) return -1;
+		break;
+	case SCHEMA_CT:
+		for(int i = 0; i < count; i++){
+			for(int j = 0; j <sch->fields_num;j++){
+				if(strncmp(sch->fields_name[j],names[i],strlen(names[i])) == 0){
+					name_check++;
+					if(sch->types[j] != types_i[i])	{
+						if(is_number_type(sch->types[i])){
+							if(sch->types[i] == TYPE_DOUBLE) {
+								types_i[i] = TYPE_DOUBLE;
+								size_t vs = strlen((*values)[i]);
+								size_t ds = strlen(decimal);
+								size_t s = vs + ds + 1; 
+								char cpy[s];
+								memset(cpy,0,s);
+								strncpy(cpy,(*values)[i],vs);
+								strncat(cpy,decimal,ds);
+								free((*values)[i]);
+								(*values)[i] = strdup(cpy);
+								if(!(*values)[i]){
+									fprintf(stderr,"strdup() failed, %s:%d.\n",F,L-2);
+									return -1;
+								}
+							}
+
+						}
+						return -1;
+					}
+				}
+			}
+		}
+		if(name_check != count) return -1;
+		break;
+	default:
+		fprintf(stderr,"schema not supported %s:%d.\n",F,L);
+		return -1;
+	}
+	return 0;
+}
 int schema_eq_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *types_i)
 {
 	int count = 0;
@@ -1148,7 +1229,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
+				if(schema_check_type(fields_count, SCHEMA_EQ,&hd->sch_d,names,types_i,&values) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -1165,7 +1246,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 			}else if(count < hd->sch_d.fields_num){
 				int result = 0;
-				if((result = schema_ct_assign_type(&hd->sch_d, names,types_i,count)) == 0){
+				if(schema_check_type(fields_count, SCHEMA_CT,&hd->sch_d,names,types_i,&values) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -1218,20 +1299,31 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if((fields_count = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) goto clean_on_error;
 			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
 				
-			for(int i = 0; i < fields_count; i++){
-				if(types_i[i] == -1) types_i[i] = assign_type(values[i]);
-				for(int j = 0; j < hd->sch_d.fields_num; j++){
-					if(strncmp(names[i],hd->sch_d.fields_name[j],strlen(names[i])) != 0) continue;
-
-					if(hd->sch_d.types[j] != types_i[i]) {
-						err = SCHEMA_ERR;
-						goto clean_on_error;
-					}
-
+			for(int i = 0; i < fields_count; i++) {
+				if(types_i[i] == -1){
+					types_i[i] = assign_type(values[i]);	
 				}
 			}
+			if(fields_count == hd->sch_d.fields_num){
+				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
+					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					goto clean_on_error;
+				}
 
-			if(parse_input_with_no_type(file_path, count, names, types_i, values,
+				if(schema_check_type(fields_count, SCHEMA_EQ,&hd->sch_d,names,types_i,&values) == -1 ){
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+
+			}else if(fields_count < hd->sch_d.fields_num){
+				if(schema_check_type(fields_count, SCHEMA_CT,&hd->sch_d,names,types_i,&values) == -1 ){
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+
+			}
+
+			if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 						&hd->sch_d, SCHEMA_NW,rec) == -1){
 				fprintf(stderr,"can't parse input to record,%s:%d",
 					__FILE__,__LINE__-2);
@@ -1246,17 +1338,19 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 			if((fields_count = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) goto clean_on_error;
 			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
+				
+			for(int i = 0; i < fields_count; i++) {
+				if(types_i[i] == -1){
+					types_i[i] = assign_type(values[i]);	
+				}
+			}
+
 			if(fields_count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
 					goto clean_on_error;
 				}
 
-				for(int i = 0; i < fields_count; i++) {
-					if(types_i[i] == -1){
-						types_i[i] = assign_type(values[i]);	
-					}
-				}
 					
 				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
 					err = SCHEMA_ERR;
