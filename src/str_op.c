@@ -238,7 +238,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		while((T = strstr(cbuf,"@TYPE_"))) {
 			char *d = strstr(T,":");	
 			if(d) *d = '@';
-			d = strstr(d,":");
+			if(d) d = strstr(d,":");
 			if(d) *d = '@';
 			T[1] = '@';
 		}

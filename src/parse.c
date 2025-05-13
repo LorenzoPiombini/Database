@@ -15,6 +15,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 			int *types_i,
 			char ***values);
 
+static int check_double_compatibility(struct Schema *sch, char ***values);
+
 int parse_d_flag_input(char *file_path, int fields_num, 
 							char *buffer, 
 							char *buf_t, 
@@ -991,7 +993,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 	switch(mode){
 	case SCHEMA_EQ:
 		for(int i = 0; i < sch->fields_num; i++){
-			if(strncmp(sch->fields_name[i],names[i],strlen(names[i])) == 0) name_check++;
+			if(strncmp(sch->fields_name[i],names[i],strlen(sch->fields_name[i])) == 0) name_check++;
 
 			if(sch->types[i] != types_i[i])	{
 				if(is_number_type(sch->types[i])){
@@ -1022,7 +1024,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 	case SCHEMA_CT:
 		for(int i = 0; i < count; i++){
 			for(int j = 0; j <sch->fields_num;j++){
-				if(strncmp(sch->fields_name[j],names[i],strlen(names[i])) == 0){
+				if(strncmp(sch->fields_name[j],names[i],strlen(sch->fields_name[j])) == 0){
 					name_check++;
 					if(sch->types[j] != types_i[i])	{
 						if(is_number_type(sch->types[i])){
@@ -1063,15 +1065,41 @@ int schema_eq_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 	for(int i = 0; i < sch->fields_num; i++){
 		for(int j = 0; j < sch->fields_num; j++){
 			if(strncmp(names[j],sch->fields_name[i],strlen(names[j])) != 0) continue;
-			
-			sch->types[i] = types_i[j];
-			count++;
+				
+			if(sch->types[i] == -1){	
+				sch->types[i] = types_i[j];
+				count++;
+			}
 		}
 	}
 
-	return count == sch->fields_num;
+	return count >0;
 }
+static int check_double_compatibility(struct Schema *sch, char ***values)
+{
+	char *decimal = ".00";
+	for(int i = 0; i < sch->fields_num; i++){ 
+		if(sch->types[i] == TYPE_DOUBLE){
+			if(is_floaintg_point((*values)[i])) continue;		
 
+			size_t vs = strlen((*values)[i]);
+			size_t ds = strlen(decimal);
+			size_t s = vs + ds + 1; 
+			char cpy[s];
+			memset(cpy,0,s);
+			strncpy(cpy,(*values)[i],vs);
+			strncat(cpy,decimal,ds);
+			free((*values)[i]);
+			(*values)[i] = strdup(cpy);
+			if(!(*values)[i]){
+				fprintf(stderr,"strdup() failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
+
+		}
+	}	
+	return 0;
+}
 int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *types_i,int count)
 {
 	int counter = 0;
@@ -1229,7 +1257,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				if(schema_check_type(fields_count, SCHEMA_EQ,&hd->sch_d,names,types_i,&values) == -1 ){
+				if(schema_check_type(count, SCHEMA_EQ,&hd->sch_d,names,types_i,&values) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -1246,7 +1274,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 			}else if(count < hd->sch_d.fields_num){
 				int result = 0;
-				if(schema_check_type(fields_count, SCHEMA_CT,&hd->sch_d,names,types_i,&values) == -1 ){
+				if(schema_check_type(count, SCHEMA_CT,&hd->sch_d,names,types_i,&values) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -1322,6 +1350,10 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 			}
 
+			if(check_double_compatibility(&hd->sch_d,&values) == -1){
+				err = SCHEMA_ERR;
+				goto clean_on_error;
+			}
 			if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 						&hd->sch_d, SCHEMA_NW,rec) == -1){
 				fprintf(stderr,"can't parse input to record,%s:%d",
@@ -1343,17 +1375,22 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					types_i[i] = assign_type(values[i]);	
 				}
 			}
-			if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
-				fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
-				goto clean_on_error;
-			}
 
 			if(fields_count == hd->sch_d.fields_num){
+				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
+					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					goto clean_on_error;
+				}
+
 				if(!schema_eq_assign_type(&hd->sch_d,names,types_i)){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
 
+				if(check_double_compatibility(&hd->sch_d,&values) == -1){
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
 
 				if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 							&hd->sch_d, SCHEMA_EQ,rec) == -1){
