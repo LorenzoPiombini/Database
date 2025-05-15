@@ -901,6 +901,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					types_i[i] != TYPE_DOUBLE &&
 					types_i[i] != TYPE_BYTE &&
 					types_i[i] != TYPE_STRING &&
+					types_i[i] != TYPE_FILE &&
 					types_i[i] != TYPE_ARRAY_INT &&
 					types_i[i] != TYPE_ARRAY_LONG &&
 					types_i[i] != TYPE_ARRAY_FLOAT &&
