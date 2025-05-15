@@ -22,6 +22,7 @@ void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
 	strncpy(rec->file_name,file_name,strlen(file_name));
 	rec->fields_num = sch.fields_num;
+	rec->count++;
 	for(int i = 0; i < sch.fields_num;i++){
 		strncpy(rec->fields[i].field_name,sch.fields_name[i],strlen(sch.fields_name[i]));
 		rec->fields[i].type = sch.types[i];
@@ -88,7 +89,7 @@ unsigned char set_field(struct Record_f *rec,
 	
 		int fd_schema = -1;
 		int cr = 0;
-		if((fd_schema = open_file(file_name,0)) == -1){
+		if((fd_schema = open_file(file_name,0)) == -1 || fd_schema == ENOENT){
 			if((fd_schema = create_file(file_name)) == -1){
 				fprintf(stderr,"(%s): cannot create file %s:%d.\n",ERR_MSG_PAR-1);
 				return 0; 
@@ -98,24 +99,17 @@ unsigned char set_field(struct Record_f *rec,
 
 		if(cr){
 			/*here the file is new*/	
-			int mode = check_handle_input_mode(value, FCRT);
+			int mode = check_handle_input_mode(value, FCRT) | DF;
 			switch(mode){
-			case HYB:
+			case NO_TYPE_DF:
+			case HYB_DF:
 				if(!create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
 							__FILE__,__LINE__-2);
 					return 0;
 				}	
 				break;
-			case NO_TYPE:
-				if(!create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
-					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
-							__FILE__,__LINE__-2);
-					close_file(1,fd_schema);	
-					return 0;
-				}	
-				break;
-			case TYPE:
+			case TYPE_DF:
 			{
 				char *buff = strdup(value);
 				char *buff_t = strdup(value);
@@ -168,17 +162,14 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			close_file(1,fd_schema);	
-			if (!rec->fields[index].data.v.elements.r) {
-				rec->fields[index].data.v.insert = insert_element;
-				rec->fields[index].data.v.destroy = free_dynamic_array;
+
+			rec->fields[index].data.recs = calloc(1,sizeof(struct Record_f));
+			if(!rec->fields[index].data.recs){
+				__er_calloc(F,L-2);
+				return 0;
 			}
-
-			struct Record_f file_rec = {0};
-
-			create_record(rec->fields[index].field_name, hd.sch_d, &file_rec);
-			rec->fields[index].data.v.insert((void *)&file_rec,
-					&rec->fields[index].data.v,
-					type);
+			
+			create_record(rec->fields[index].field_name, hd.sch_d, rec->fields[index].data.recs);
 
 		}else {
 			/*file exist*/
@@ -195,11 +186,15 @@ unsigned char set_field(struct Record_f *rec,
 
 			int fields_count = 0;
 			unsigned char check = 0;
-			struct Record_f file_rec = {0};
-			int mode = check_handle_input_mode(value, FWRT);
+			rec->fields[index].data.recs = calloc(1,sizeof(struct Record_f));
+			if(!rec->fields[index].data.recs){
+				__er_calloc(F,L-2);
+				return 0;
+			}
+			int mode = check_handle_input_mode(value, FWRT) | WR;
 			
 			/*check schema*/
-			if(mode == 1){
+			if(mode == TYPE_WR){
 				fields_count = count_fields(value,NULL);
 				if(fields_count == 0){
 					fprintf(stderr,"(%s):check input syntax.\n",prog);
@@ -219,7 +214,8 @@ unsigned char set_field(struct Record_f *rec,
 
 				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
 										rec->fields[index].field_name,
-										&file_rec, &hd);
+										rec->fields[index].data.recs,
+										&hd);
 				free(buffer);
 				free(buf_t);
 				free(buf_v);
@@ -227,11 +223,12 @@ unsigned char set_field(struct Record_f *rec,
 			} else {
 				check = perform_checks_on_schema(mode,value, NULL, NULL, -1,
 										rec->fields[index].field_name,
-										&file_rec, &hd);
+										rec->fields[index].data.recs,
+										&hd);
 			}
 			
 			if (check == SCHEMA_ERR || check == 0) {
-			close_file(1,fd_schema);
+				close_file(1,fd_schema);
 				return 0;
 			}
 				
@@ -275,15 +272,7 @@ unsigned char set_field(struct Record_f *rec,
 			} /* end of update schema branch*/
 
 			close_file(1,fd_schema);
-			if (!rec->fields[index].data.v.elements.r)
-			{
-				rec->fields[index].data.v.insert = insert_element;
-				rec->fields[index].data.v.destroy = free_dynamic_array;
-			}
 
-			rec->fields[index].data.v.insert((void *)&file_rec,
-					&rec->fields[index].data.v,
-					type);
 		}
 		break;
 	}
@@ -668,13 +657,26 @@ void free_record(struct Record_f *rec, int fields_num)
 			if(rec->fields[i].data.s)
 				free(rec->fields[i].data.s);
 			break;
+		case TYPE_FILE:
+			for(uint32_t j = 0; j < rec->fields[i].data.recs->count; j++){
+				if(rec->fields[i].data.recs[j].count > 1){
+					while(rec->fields[i].data.recs[j].count > 1){
+						struct Record_f *temp = rec->fields[i].data.recs[j].next;
+						rec->fields[i].data.recs[j].next = temp->next;
+						temp->next = NULL;
+						free_record(temp,temp->fields_num);
+						free(temp);
+						rec->fields[i].data.recs[j].count--;
+					}
+				}		
+			}
+			break;
 		case TYPE_ARRAY_INT:
 		case TYPE_ARRAY_LONG:
 		case TYPE_ARRAY_FLOAT:
 		case TYPE_ARRAY_STRING:
 		case TYPE_ARRAY_BYTE:
 		case TYPE_ARRAY_DOUBLE:
-		case TYPE_FILE:
 			if(rec->fields[i].data.v.destroy)
 				rec->fields[i].data.v.destroy(&rec->fields[i].data.v, 
 							rec->fields[i].type);
@@ -2116,6 +2118,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 					if(src->fields[i].data.v.elements.r){
 						int comp = 0;
 						for(int a = 0;a < src->fields[i].data.v.size; a++){
+							if(!src->fields[i].data.v.elements.r[a]) continue;
 							if((comp = compare_rec(src->fields[i].data.v.elements.r[a],
 								dest->fields[i].data.v.elements.r[a])) == 0) continue; 
 							

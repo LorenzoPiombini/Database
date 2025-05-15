@@ -86,6 +86,7 @@ struct Field {
 		unsigned char b;
 		double d;
 		struct array v;
+		struct Record_f *recs;
 	}data;
 };
 
@@ -95,6 +96,7 @@ struct Record_f {
 	uint8_t field_set[MAX_FIELD_NR];
 	struct Field fields[MAX_FIELD_NR];
 	uint32_t count;
+	struct Record_f *next;
 };
 
 /*

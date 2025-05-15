@@ -65,7 +65,22 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	replace('@','^',cbuf);
 	int i = 0;
 
-
+	/* detect files types*/	
+	char *file_start = NULL;
+	while((file_start = strstr(cbuf,"["))){
+		char *end_file = strstr(file_start,"]");
+		if(end_file){ 
+			int end = end_file - cbuf;
+			char *delim = NULL;
+			while((delim = strstr(file_start,":"))){
+				if((delim - cbuf) < end) 
+					*delim = '@';
+				else
+					break;
+			}
+		}
+		*file_start = '@';
+	}
 	if(strstr(cbuf,T_)){
 		char *pos_t = NULL;
 		while((pos_t = strstr(cbuf,T_))){
@@ -831,10 +846,12 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 		if (result == -1) return -1;
 		types[j] = result;
 		i++;
-	}	else
-	{
-		printf("type token not found in get_value_types().\n");
-		return -1;
+	}else {
+		if(fields_count > 1){
+			printf("type token not found in get_value_types().\n");
+			return -1;
+		}
+		return 0;
 	}
 
 	while ((s = strtok_r(NULL, ":", &copy_fv)) != NULL) {
@@ -873,6 +890,39 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 	}
 
 	replace('@','^',cbuff);
+	/* detect files types*/	
+	char *file_start = NULL;
+	int count = 0;
+	char indexes[178] = {0}; 
+	while((file_start = strstr(cbuff,"["))){
+		char *end_file = strstr(file_start,"]");
+		if(end_file){ 
+			int end = end_file - cbuff;
+			char *delim = NULL;
+			while((delim = strstr(file_start,":"))){
+				if((delim - cbuff) < end) 
+					*delim = '@';
+				else
+					break;
+			}
+		}
+
+		*file_start = '@';
+		int start = file_start - cbuff;
+		if (start < 178){
+			indexes[count] = (char) start;		
+			count++;
+		}else{
+			fprintf(stderr,"number of fields filed to big, %s:%d.\n",F,L);
+			free(*values);
+			return -1;
+		}
+	}
+
+	for(int j  = 0; j < count; j++){
+		cbuff[(int)indexes[j]] = '[';
+	}
+
 	int i = 0;
 	if(strstr(cbuff,T_)){
 		char *pos_t = NULL;
@@ -886,10 +936,19 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			*end_t = '@';
 			char *next = strstr(end_t,":");
 			if(!next){
-				(*values)[i] = strdup(++end_t);
+				++end_t;
+				if(count > 0){
+					/*clean the value*/
+					replace('@',':',end_t);
+				}
+				(*values)[i] = strdup(end_t);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
-					free_strs(i,1,values);
+					if(i == 0)
+						free(*values);
+					else
+						free_strs(i,1,values);
+
 					return -1;
 				}
 				i++;
@@ -901,10 +960,17 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			memset(cpy,0,len);
 			strncpy(cpy,end_t,len-1);
 
+			if(count > 0){
+				/*clean the value*/
+				replace('@',':',cpy);
+			}
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
-				free_strs(i,1,values);
+				if(i == 0)
+					free(*values);
+				else
+					free_strs(i,1,values);
 				return -1;
 			}
 			i++;
@@ -923,10 +989,19 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			*end_T = '@';
 			char *next = strstr(end_T+1,":");
 			if(!next){
-				(*values)[i] = strdup(++end_T);
+				++end_T;
+				if(count > 0){
+					/*clean the value*/
+					replace('@',':',end_T);
+				}
+				(*values)[i] = strdup(end_T);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
-					free_strs(i,1,values);
+					if(i == 0)
+						free(*values);
+					else
+						free_strs(i,1,values);
+
 					return -1;
 				}
 				i++;
@@ -939,10 +1014,18 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			memset(cpy,0,len);
 			strncpy(cpy,end_T,len-1);
 
+			if(count > 0){
+				/*clean the value*/
+				replace('@',':',cpy);
+			}
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
-				free_strs(i,1,values);
+				if(i == 0)
+					free(*values);
+				else
+					free_strs(i,1,values);
+
 				return -1;
 			}
 			i++;
@@ -957,9 +1040,19 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			*pos_d= '@';
 			char *end_d = strstr(pos_d,":");
 			if(!end_d){
-				(*values)[i] = strdup(++pos_d);
+				++pos_d;		
+				if(count > 0){
+					/*clean the value*/
+					replace('@',':',pos_d);
+				}
+				(*values)[i] = strdup(pos_d);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+					if(i == 0)
+						free(*values);
+					else
+						free_strs(i,1,values);
+
 					return -1;
 				}
 				break;
@@ -971,6 +1064,10 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			*end_d = '@';
 			strncpy(cpy,pos_d,len-1);
 
+			if(count > 0){
+				/*clean the value*/
+				replace('@',':',cpy);
+			}
 			(*values)[i] = strdup(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
@@ -981,6 +1078,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 		}		
 	}
 
+			
 	return 0;
 }
 char ** get_values_with_no_types(char *buff,int fields_count)

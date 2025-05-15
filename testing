@@ -1,0 +1,9 @@
+!#/bin/bash
+
+
+FILE test name:address:phone:t_s:salary:TYPE_DOUBLE
+WRITE test name:"Juan Carlos":address:"via dei matti 0":salary:45.78 11 
+FILE test orders
+UPDATE test orders:[date:ammount:shipped] 11
+gdb isam.db -q
+

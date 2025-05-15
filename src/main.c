@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "journal.h"
 #include "common.h"
 #include "file.h"
@@ -569,19 +570,31 @@ int main(int argc, char *argv[])
 		}
 
 		if (list_def) {
+			int err = 0;
 			fd_schema = open_file(files[2], 0);
 			/* file_error_handler will close the file descriptors if there are issues */
-			if (file_error_handler(1, fd_schema) != 0){
-				printf("Error in creating or opening files,%s:%d.\n", F, L - 2);
+			if (( err = file_error_handler(1, fd_schema) != 0)){
+				if(err == ENOENT)
+					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_path);
+				else
+					printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+				
 				return STATUS_ERROR;
 			}
 		} else {
+			int err = 0;
 			fd_index = open_file(files[0], 0);
 			fd_data = open_file(files[1], 0);
 			fd_schema = open_file(files[2], 0);
+			
 			/* file_error_handler will close the file descriptors if there are issues */
 			if (file_error_handler(2, fd_index, fd_data) != 0) {
-				printf("Error in creating or opening files,%s:%d.\n", F, L - 2);
+				if(err == ENOENT)
+					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_path);
+				else
+					printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+
+
 				return STATUS_ERROR;
 			}
 		}

@@ -823,8 +823,8 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char 
 
 	switch(mode){
 	case TYPE_WR:
-		get_fileds_name(buffer, fields_num, 2, names);
-		get_value_types(buf_t, fields_num, 2,types_i);
+		if(get_fileds_name(buffer, fields_num, 2, names) == -1) return 0;
+		if(get_value_types(buf_t, fields_num, 2,types_i) == -1) return 0;
 		break;
 	case NO_TYPE_WR:
 		if((fields_num=get_fields_name_with_no_type(buffer, names)) == 0 ) return 0;
@@ -1103,10 +1103,12 @@ static int check_double_compatibility(struct Schema *sch, char ***values)
 int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *types_i,int count)
 {
 	int counter = 0;
+	int name_check = 0;
 	for(int i = 0; i < count; i++){
 		for(int j = 0; j < sch->fields_num; j++){
-			if(strncmp(names[i],sch->fields_name[j],strlen(names[i])) != 0) continue;
+			if(strncmp(names[i],sch->fields_name[j],strlen(sch->fields_name[j])) != 0) continue;
 			
+			name_check++;
 			if(sch->types[j] == -1){ 
 				counter = SCHEMA_CT_NT;
 				sch->types[j] = types_i[i];	
@@ -1117,7 +1119,7 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 
 	}
 
-
+	if(name_check != count ) return 0; 
 	return counter ;
 }
 
@@ -1323,6 +1325,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			 * missing types if it is correct 
 			 * against the schema types 
 			 * */
+			int check =0;
 			if((fields_count = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) goto clean_on_error;
 			if(get_values_hyb(buffer,&values,fields_count) == -1) goto clean_on_error;
 				
@@ -1342,20 +1345,45 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
+				check = SCHEMA_EQ;
 			}else if(fields_count < hd->sch_d.fields_num){
 				if(schema_check_type(fields_count, SCHEMA_CT,&hd->sch_d,names,types_i,&values) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
-
+				check = SCHEMA_CT;
 			}
 
-			if(check_double_compatibility(&hd->sch_d,&values) == -1){
-				err = SCHEMA_ERR;
-				goto clean_on_error;
+			if(fields_count == 1 && is_number_type(types_i[0])){
+				if(check_double_compatibility(&hd->sch_d,&values) == -1){
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+			}else{
+
+				for(int i =0; i < fields_count; i++){
+					for(int j = 0; j < hd->sch_d.fields_num; j++){
+						if(strncmp(names[i],hd->sch_d.fields_name[j],
+									strlen(hd->sch_d.fields_name[j])) != 0)
+							continue;
+
+						if(!is_number_type(types_i[i])) continue;
+								
+						if(hd->sch_d.types[j] != TYPE_DOUBLE) continue;	
+
+
+						if(check_double_compatibility(&hd->sch_d,&values) == -1){
+							err = SCHEMA_ERR;
+							goto clean_on_error;
+						}
+						
+					}
+
+				}
 			}
+
 			if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
-						&hd->sch_d, SCHEMA_NW,rec) == -1){
+						&hd->sch_d, check,rec) == -1){
 				fprintf(stderr,"can't parse input to record,%s:%d",
 					__FILE__,__LINE__-2);
 				goto clean_on_error;
