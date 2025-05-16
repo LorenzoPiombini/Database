@@ -798,6 +798,8 @@ int check_array_input(char *value)
 int assign_type(char *value)
 {
 
+	if(value[0] == '[' && value[strlen(value) - 1] == ']') return TYPE_FILE;
+
 	if(strstr(value,",")){
 		/*ARRAY case*/
 		int result = 0;
@@ -806,7 +808,6 @@ int assign_type(char *value)
 		return result;	
 	}
 
-	if(value[0] == '[' && value[strlen(value) - 1] == ']') return TYPE_FILE;
 
 	if(is_floaintg_point(value)) {
 		if(is_number_in_limits(value)) return TYPE_DOUBLE;
