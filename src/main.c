@@ -44,6 +44,7 @@ int main(int argc, char *argv[])
 	unsigned char create = 0;
 	unsigned char options = 0;
 	unsigned char index_add = 0;
+	unsigned char file_field = 0;
 	/*------------------------------------------*/
 
 	/* parameters populated with the flag from getopt()*/
@@ -59,7 +60,7 @@ int main(int argc, char *argv[])
 	int index_nr = 0;
 	int only_dat = 0;
 
-	while ((c = getopt(argc, argv, "nItAf:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
+	while ((c = getopt(argc, argv, "nItAf:F:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
 	{
 		switch (c){
 		case 'a':
@@ -70,6 +71,10 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 			file_path = optarg;
+			break;
+		case 'F':
+			file_path = optarg;
+			file_field = 1;
 			break;
 		case 'k':
 			key = optarg;
@@ -161,7 +166,7 @@ int main(int argc, char *argv[])
 
 	if (!check_input_and_values(file_path, data_to_add, key,
 			argv, del, list_def, new_file, update, del_file,	
-			build, create, options, index_add)) {
+			build, create, options, index_add, file_field)) {
 		return 1;
 	}
 
@@ -199,7 +204,14 @@ int main(int argc, char *argv[])
 			 *  */
 			if (file_error_handler(2, fd_data, fd_schema) != 0) return STATUS_ERROR;
 		
-		}else {
+		}else if(file_field){
+			fd_schema = create_file(files[2]);
+			/*
+			 * file_error_handler will close the file descriptors if there are issues
+			 *  and print error messages to the console
+			 *  */
+			if (file_error_handler(1, fd_schema) != 0) return STATUS_ERROR;
+		}else{
 			fd_index = create_file(files[0]);
 			fd_data = create_file(files[1]);
 			fd_schema = create_file(files[2]);
@@ -286,6 +298,12 @@ int main(int argc, char *argv[])
 				return 0;
 			}
 
+			if(file_field){
+				fprintf(stdout,"(%s): File created successfully!\n",prog);
+				close_file(1, fd_schema);
+				return 0;
+			}
+
 			/*  write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
 			int index_num = indexes > 0 ? indexes : 5;
@@ -328,6 +346,7 @@ int main(int argc, char *argv[])
 			char *buffer = NULL; 
 			char *buf_t = NULL;
 			char *buf_v = NULL;
+
 			/* init he Schema structure*/
 			struct Schema sch = {0};
 			struct Record_f rec = {0};

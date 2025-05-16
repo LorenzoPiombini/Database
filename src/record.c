@@ -13,8 +13,8 @@
 #include "lock.h"
 #include "common.h"
 
-
-
+  
+ 
 static char prog[] = "db";
 #define ERR_MSG_PAR prog,__FILE__,__LINE__
 
@@ -22,7 +22,7 @@ void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
 	strncpy(rec->file_name,file_name,strlen(file_name));
 	rec->fields_num = sch.fields_num;
-	rec->count++;
+	rec->count = 1;
 	for(int i = 0; i < sch.fields_num;i++){
 		strncpy(rec->fields[i].field_name,sch.fields_name[i],strlen(sch.fields_name[i]));
 		rec->fields[i].type = sch.types[i];
@@ -668,8 +668,13 @@ void free_record(struct Record_f *rec, int fields_num)
 						free(temp);
 						rec->fields[i].data.recs[j].count--;
 					}
-				}		
+					free_record(&rec->fields[i].data.recs[j],rec->fields[i].data.recs[0].fields_num);
+					free(rec->fields[i].data.recs);
+					break;
+				}
+				free_record(&rec->fields[i].data.recs[j],rec->fields[i].data.recs[0].fields_num);
 			}
+			free(rec->fields[i].data.recs);
 			break;
 		case TYPE_ARRAY_INT:
 		case TYPE_ARRAY_LONG:
@@ -836,6 +841,9 @@ void print_record(int count, struct Record_f *recs)
 				}
 				break;
 			}
+			case TYPE_FILE:
+				print_record(rec.fields[i].data.recs->count,rec.fields[i].data.recs);
+				break;
 			default:
 				break;
 			}

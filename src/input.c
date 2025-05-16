@@ -11,6 +11,7 @@ void print_usage(char *argv[])
         printf("\t -a - add record to a file.\n");
         printf("\t -n - create a new database file\n");
         printf("\t -f - [required] path to file (file name)\n");
+        printf("\t -F - create a file to be use as a field\n");
         printf("\t -c - creates the files specified in the txt file.\n");
         printf("\t -D - specify the index where you want to delete the record.\n");
         printf("\t -R - define a file definition witout values.\n");
@@ -47,7 +48,8 @@ void print_types(void)
 int check_input_and_values(char *file_path, char *data_to_add, char *key, char *argv[],
                            unsigned char del, unsigned char list_def, unsigned char new_file,
                            unsigned char update, unsigned char del_file, unsigned char build,
-                           unsigned char create, unsigned char options, unsigned char index_add)
+                           unsigned char create, unsigned char options, unsigned char index_add,
+			   unsigned char file_field)
 {
 
         if (create && (file_path || del || update || del_file || list_def ||
@@ -80,7 +82,7 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                 return 0;
         }
 
-        if (file_path)
+        if (file_path || file_field)
         {
                 if (!is_file_name_valid(file_path))
                 {
@@ -88,6 +90,7 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                         return 0;
                 }
         }
+
 
         if ((data_to_add || update) && !key)
         {

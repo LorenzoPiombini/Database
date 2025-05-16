@@ -6118,7 +6118,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							
 					}
 
-					if(!rec->fields[i].data.recs[i].next) {
+					if(!rec->fields[i].data.recs[0].next) {
 						if(update_rec_pos == -1 || rests_pos_here== -1){
 							__er_file_pointer(F, L - 1);
 							free_record(rec, rec->fields_num);
