@@ -74,6 +74,11 @@ struct File_field{
 	struct Record_f *rec;
 };
 
+struct File {
+	struct Record_f *recs;
+	uint32_t count;	
+};
+	
 struct Field {
 	char field_name[MAX_FIELD_LT];
 	int type;
@@ -86,7 +91,7 @@ struct Field {
 		unsigned char b;
 		double d;
 		struct array v;
-		struct Record_f *recs;
+		struct File file;
 	}data;
 };
 

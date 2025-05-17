@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
+#include <assert.h>
 #include "record.h"
 #include "debug.h"
 #include "str_op.h"
@@ -19,6 +20,7 @@ static char prog[] = "db";
 #define ERR_MSG_PAR prog,__FILE__,__LINE__
 
 static void display_data(struct Record_f rec,int max);
+static void clean_input(char *value);
 
 void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
@@ -70,42 +72,65 @@ unsigned char set_field(struct Record_f *rec,
 			count++;	
 		}
 		
-		char *fragment = NULL; 
+
+		/*count should never be 0*/
+		assert(count > 0);
 		char values[count][500];
+		memset(values,0,count*500);
 		if(count > 1){
+			int i = 0;
+			int stop = 0;
 			while((close_c = strstr(value,"]"))){
-				if(*(++close_c) == ',') {
-					int stop = close_c - value;
-					char buf[stop];
-					memset(buf,0,stop);	
-					srncpy(buf,value,stop-1);
+				close_c++;
+				if(*close_c == ',' || *close_c == '\0') {
+					if(stop != 0){
+						int start = stop;
+						stop = close_c - value;
+						if(stop > 500){
+							/* handle this hedge case*/
 
-				}		
+						}
+						if(i < count)
+							strncpy(values[i],&value[++start],stop-1);
+
+						i++;
+						*(--close_c) = '@';
+						continue;
+
+					}
+					stop = close_c - value;
+					if(stop > 500){
+						/* handle this hedge case*/
+						
+					}
+					if(i < count)
+						strncpy(values[i],value,stop-1);
+
+					i++;
+					*(--close_c) = '@';
+					continue;
+				} 
+				/* should be unreachable BUT is a safety feature
+				 * if we reach here we sub ']' with '@' 
+				 * to avoid an infinite loop
+				 * */
+				*(--close_c) = '@';
+				
 			}
-
-
 		}
 		/*
 		 * if schema file exist => read schema file-> check input match with schema
 		 * 	else :
 		 * 	create the schema file -> create_file_with_no_value (src/parse)
 		 * */
-		strip('[',value);
-		strip(']',value);
-		/*
-		 * this is to clean the string value from trailig 
-		 * white spaces
-		 * */
-		int i = 0;
-		while(value[i] != '\0'){
-			if(value[i+1] == '\0'){
-				value[i] = '\0';
-				break;
-			}
-			value[i] = value[i+1];	
-			if(value[i] == ' ') value[i] = '\0';
-			i++;
+		for(int i = 0; i < count; i++){
+			if(count > 1 )
+				clean_input(values[i]);
+			else
+				clean_input(value);		
+			
 		}
+
 
 		struct Schema sch = {0};
 		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
@@ -131,11 +156,17 @@ unsigned char set_field(struct Record_f *rec,
 
 		if(cr){
 			/*here the file is new*/	
-			int mode = check_handle_input_mode(value, FCRT) | DF;
+			int mode = 0;
+			if(count == 1)
+				mode = check_handle_input_mode(value, FCRT) | DF;
+			else
+				mode = check_handle_input_mode(values[0], FCRT) | DF;
+
 			switch(mode){
 			case NO_TYPE_DF:
 			case HYB_DF:
-				if(!create_file_definition_with_no_value(mode,-1,value,NULL,&sch)){
+				if(!create_file_definition_with_no_value(mode,-1,
+							count == 1 ? value : values[0],NULL,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
 							__FILE__,__LINE__-2);
 					return 0;
@@ -143,15 +174,25 @@ unsigned char set_field(struct Record_f *rec,
 				break;
 			case TYPE_DF:
 			{
-				char *buff = strdup(value);
-				char *buff_t = strdup(value);
+				char *buff = NULL;
+				char *buff_t = NULL;
+				int f_count = 0; 
+				if(count == 1){		
+					buff = strdup(value);
+					buff_t = strdup(value);
+					f_count = count_fields(value,NULL);
+				}else{
+					buff = strdup(values[0]);
+					buff_t = strdup(values[0]);
+					f_count = count_fields(values[0],NULL);
+				}
+
 				if(!buff || !buff_t){
 					fprintf(stderr,"(%s): strdup() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 					close_file(1,fd_schema);	
 					return 0;
 				}
 					
-				int f_count = count_fields(value,NULL);
 				if (f_count == 0) {
 					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
 					close_file(1,fd_schema);	
@@ -165,7 +206,8 @@ unsigned char set_field(struct Record_f *rec,
 					return 0;
 				}
 
-				if(create_file_definition_with_no_value(mode,f_count,value,buff_t,&sch)){
+				if(create_file_definition_with_no_value(mode,f_count,
+							count == 1 ? value : values[0],buff_t,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
 							__FILE__,__LINE__-2);
 					close_file(1,fd_schema);	
@@ -195,22 +237,24 @@ unsigned char set_field(struct Record_f *rec,
 
 			close_file(1,fd_schema);	
 
-			rec->fields[index].data.recs = calloc(1,sizeof(struct Record_f));
-			if(!rec->fields[index].data.recs){
+			rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+			rec->fields[index].data.file.count = 1;
+			if(!rec->fields[index].data.file.recs){
 				__er_calloc(F,L-2);
 				return 0;
 			}
 			
-			create_record(rec->fields[index].field_name, hd.sch_d, rec->fields[index].data.recs);
+			
+			create_record(rec->fields[index].field_name, hd.sch_d, rec->fields[index].data.file.recs);
 
 		}else {
 			/*file exist*/
-			/* ensure the file is a db file */
 			/* init the Schema structure*/
 			struct Schema sch = {0};
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 			struct Header_d hd = {0, 0, sch};
 
+			/* ensure the file is a db file */
 			if (!read_header(fd_schema, &hd)) {
 				close_file(1,fd_schema);
 				return 0;
@@ -218,93 +262,180 @@ unsigned char set_field(struct Record_f *rec,
 
 			int fields_count = 0;
 			unsigned char check = 0;
-			rec->fields[index].data.recs = calloc(1,sizeof(struct Record_f));
-			if(!rec->fields[index].data.recs){
+			rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+			rec->fields[index].data.file.count = count;
+			if(!rec->fields[index].data.file.recs){
 				__er_calloc(F,L-2);
 				return 0;
 			}
-			int mode = check_handle_input_mode(value, FWRT) | WR;
-			
+
+			int mode = 0; 
+			if(count == 1){
+				mode = check_handle_input_mode(value, FWRT) | WR;
+			}else{
+				for(int i = 0; i < count; i++){
+					mode = check_handle_input_mode(values[i], FWRT) | WR;
+
+					if(mode == TYPE_WR){
+						fields_count = count_fields(values[i],NULL);
+
+						if(fields_count == 0){
+							fprintf(stderr,"(%s):check input syntax.\n",prog);
+							close_file(1,fd_schema);
+							return 0;
+						}
+
+						if (fields_count > MAX_FIELD_NR) {
+							printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+							close_file(1,fd_schema);
+							return 0;
+						}
+
+						char *buffer = strdup(values[i]);
+						char *buf_t = strdup(values[i]);
+						char *buf_v = strdup(values[i]);
+
+						check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
+								rec->fields[index].field_name,
+								&rec->fields[index].data.file.recs[i],
+								&hd);
+						free(buffer);
+						free(buf_t);
+						free(buf_v);
+					}else{
+						check = perform_checks_on_schema(mode,values[i], NULL, NULL, -1,
+								rec->fields[index].field_name,
+								&rec->fields[index].data.file.recs[i],
+								&hd);
+
+					}
+
+					if (check == SCHEMA_ERR || check == 0) {
+						close_file(1,fd_schema);
+						return 0;
+					}
+
+					int r = 0;
+					if (check == SCHEMA_NW ||
+							check == SCHEMA_NW_NT ||
+							check == SCHEMA_CT_NT ||
+							check == SCHEMA_EQ_NT){
+						/*
+						 * if the schema is one between 
+						 * SCHEMA_NW 
+						 * SCHEMA_EQ_NT 
+						 * SCHEMA_NW_NT 
+						 * SCHEMA_CT_NT
+						 * we update the header
+						 * */
+
+						/* aquire lock */
+						while(is_locked(1,fd_schema) == LOCKED);
+						while((r = lock(fd_schema,WLOCK)) == WTLK);
+						if(r == -1){
+							fprintf(stderr,"can't acquire or release proper lock.\n");
+							close_file(1,fd_schema);
+							return 0;
+						}
+
+						close_file(1,fd_schema);
+						fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
+
+						if(file_error_handler(1,fd_schema) != 0){
+							return 0;
+						}
+
+						if (!write_header(fd_schema, &hd)) {
+							__er_write_to_file(F, L - 1);
+							close_file(1,fd_schema);
+							return 0;
+						}
+
+						while(lock(fd_schema,UNLOCK) == WTLK);
+					}
+				}
+			}
+
 			/*check schema*/
-			if(mode == TYPE_WR){
-				fields_count = count_fields(value,NULL);
-				if(fields_count == 0){
-					fprintf(stderr,"(%s):check input syntax.\n",prog);
+			if(count == 1){
+				if(mode == TYPE_WR){
+					fields_count = count_fields(value,NULL);
+
+					if(fields_count == 0){
+						fprintf(stderr,"(%s):check input syntax.\n",prog);
+						close_file(1,fd_schema);
+						return 0;
+					}
+
+					if (fields_count > MAX_FIELD_NR) {
+						printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+						close_file(1,fd_schema);
+						return 0;
+					}
+
+					char *buffer = strdup(value);
+					char *buf_t = strdup(value);
+					char *buf_v = strdup(value);
+
+					check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
+							rec->fields[index].field_name,
+							rec->fields[index].data.file.recs,
+							&hd);
+					free(buffer);
+					free(buf_t);
+					free(buf_v);
+				} else {
+					check = perform_checks_on_schema(mode,value, NULL, NULL, -1,
+							rec->fields[index].field_name,
+							rec->fields[index].data.file.recs,
+							&hd);
+				}			
+
+				if (check == SCHEMA_ERR || check == 0) {
 					close_file(1,fd_schema);
 					return 0;
 				}
 
-				if (fields_count > MAX_FIELD_NR) {
-					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+				int r = 0;
+				if (check == SCHEMA_NW ||
+						check == SCHEMA_NW_NT ||
+						check == SCHEMA_CT_NT ||
+						check == SCHEMA_EQ_NT){
+					/*
+					 * if the schema is one between 
+					 * SCHEMA_NW 
+					 * SCHEMA_EQ_NT 
+					 * SCHEMA_NW_NT 
+					 * SCHEMA_CT_NT
+					 * we update the header
+					 * */
+
+					/* aquire lock */
+					while(is_locked(1,fd_schema) == LOCKED);
+					while((r = lock(fd_schema,WLOCK)) == WTLK);
+					if(r == -1){
+						fprintf(stderr,"can't acquire or release proper lock.\n");
+						close_file(1,fd_schema);
+						return 0;
+					}
+
 					close_file(1,fd_schema);
-					return 0;
-				}
+					fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
 
-				char *buffer = strdup(value);
-				char *buf_t = strdup(value);
-				char *buf_v = strdup(value);
+					if(file_error_handler(1,fd_schema) != 0){
+						return 0;
+					}
 
-				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
-										rec->fields[index].field_name,
-										rec->fields[index].data.recs,
-										&hd);
-				free(buffer);
-				free(buf_t);
-				free(buf_v);
-			
-			} else {
-				check = perform_checks_on_schema(mode,value, NULL, NULL, -1,
-										rec->fields[index].field_name,
-										rec->fields[index].data.recs,
-										&hd);
+					if (!write_header(fd_schema, &hd)) {
+						__er_write_to_file(F, L - 1);
+						close_file(1,fd_schema);
+						return 0;
+					}
+
+					while(lock(fd_schema,UNLOCK) == WTLK);
+				} /* end of update schema branch*/
 			}
-			
-			if (check == SCHEMA_ERR || check == 0) {
-				close_file(1,fd_schema);
-				return 0;
-			}
-				
-			int r = 0;
-			if (check == SCHEMA_NW ||
-				check == SCHEMA_NW_NT ||
-				check == SCHEMA_CT_NT ||
-				check == SCHEMA_EQ_NT){
-				/*
-				* if the schema is one between 
-				* SCHEMA_NW 
-			 	* SCHEMA_EQ_NT 
-			 	* SCHEMA_NW_NT 
-			 	* SCHEMA_CT_NT
-				* we update the header
-				* */
-				
-				/* aquire lock */
-				while(is_locked(1,fd_schema) == LOCKED);
-				while((r = lock(fd_schema,WLOCK)) == WTLK);
-				if(r == -1){
-					fprintf(stderr,"can't acquire or release proper lock.\n");
-					close_file(1,fd_schema);
-					return 0;
-				}
-					
-				close_file(1,fd_schema);
-				fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
-
-				if(file_error_handler(1,fd_schema) != 0){
-					return 0;
-				}
-
-				if (!write_header(fd_schema, &hd)) {
-					__er_write_to_file(F, L - 1);
-					close_file(1,fd_schema);
-					return 0;
-				}
-
-				while(lock(fd_schema,UNLOCK) == WTLK);
-			} /* end of update schema branch*/
-
 			close_file(1,fd_schema);
-
 		}
 		break;
 	}
@@ -690,23 +821,22 @@ void free_record(struct Record_f *rec, int fields_num)
 				free(rec->fields[i].data.s);
 			break;
 		case TYPE_FILE:
-			for(uint32_t j = 0; j < rec->fields[i].data.recs->count; j++){
-				if(rec->fields[i].data.recs[j].count > 1){
-					while(rec->fields[i].data.recs[j].count > 1){
-						struct Record_f *temp = rec->fields[i].data.recs[j].next;
-						rec->fields[i].data.recs[j].next = temp->next;
+			for(uint32_t j = 0; j < rec->fields[i].data.file.count; j++){
+				struct Record_f *temp = rec->fields[i].data.file.recs[j].next;
+				if(temp){
+					while(rec->fields[i].data.file.recs[j].count > 1){
+						rec->fields[i].data.file.recs[j].next = temp->next;
 						temp->next = NULL;
 						free_record(temp,temp->fields_num);
 						free(temp);
-						rec->fields[i].data.recs[j].count--;
+						rec->fields[i].data.file.recs[j].count--;
 					}
-					free_record(&rec->fields[i].data.recs[j],rec->fields[i].data.recs[0].fields_num);
-					free(rec->fields[i].data.recs);
-					break;
 				}
-				free_record(&rec->fields[i].data.recs[j],rec->fields[i].data.recs[0].fields_num);
+				free_record(&rec->fields[i].data.file.recs[j],
+						rec->fields[i].data.file.recs[j].fields_num);
+				rec->fields[i].data.file.count--;
 			}
-			free(rec->fields[i].data.recs);
+			free(rec->fields[i].data.file.recs);
 			break;
 		case TYPE_ARRAY_INT:
 		case TYPE_ARRAY_LONG:
@@ -876,8 +1006,8 @@ static void display_data(struct Record_f rec, int max)
 		case TYPE_FILE:
 
 		printf("\n");
-				for(uint32_t x =0; x < rec.fields[i].data.recs->count; x++)
-					display_data(rec.fields[i].data.recs[x],max);
+				for(uint32_t x =0; x < rec.fields[i].data.file.count; x++)
+					display_data(rec.fields[i].data.file.recs[x],max);
 			break;
 		default:
 			break;
@@ -2179,4 +2309,24 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 		if(c == active) return 0;
 	}
 	return E_RCMP;	
+}
+
+static void clean_input(char *value)
+{
+	strip('[',value);
+	strip(']',value);
+	/*
+	 * this is to clean the string value from trailig 
+	 * white spaces
+	 * */
+	int i = 0;
+	while(value[i] != '\0'){
+		if(value[i+1] == '\0'){
+			value[i] = '\0';
+			break;
+		}
+		value[i] = value[i+1];	
+		if(value[i] == ' ') value[i] = '\0';
+		i++;
+	}
 }

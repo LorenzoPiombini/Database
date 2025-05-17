@@ -4643,7 +4643,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			{
 		
 				int n = 0;	
-				if(!rec->fields[i].data.recs){
+				if(!rec->fields[i].data.file.recs){
 					uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
 					if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
 						perror("error in writing size array to file.\n");
@@ -4652,13 +4652,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					break;
 				}
 
-				for(uint32_t v = 0 ; v < rec->fields[i].data.recs->count; v++){
-					for(int f = 0; f < rec->fields[i].data.recs[v].fields_num; f++)
-						if(rec->fields[i].data.recs[v].field_set[f] == 0) n++;
+				for(uint32_t v = 0 ; v < rec->fields[i].data.file.count; v++){
+					for(int f = 0; f < rec->fields[i].data.file.recs[v].fields_num; f++)
+						if(rec->fields[i].data.file.recs[v].field_set[f] == 0) n++;
 
 				}	
 
-				if(n == rec->fields[i].data.recs[0].fields_num){ 
+				if(n == rec->fields[i].data.file.recs[0].fields_num){ 
 					/* write NTG_WR so 
 					 * when we read we know there is no data*/
 					uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
@@ -4686,7 +4686,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				}
 
 				/*write the size of the array */
-				uint32_t size_ne = htonl(rec->fields[i].data.recs->count);
+				uint32_t size_ne = htonl(rec->fields[i].data.file.count);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)	{
 					perror("error in writing size array to file.\n");
 					return 0;
@@ -4699,10 +4699,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				for (uint32_t k = 0; k < rec->fields[i].data.recs->count; k++)
+				for (uint32_t k = 0; k < rec->fields[i].data.file.count; k++)
 				{
 
-					if(write_file(fd,&rec->fields[i].data.recs[k],0,0) == 0){
+					if(write_file(fd,&rec->fields[i].data.file.recs[k],0,0) == 0){
 						perror("failed write record array to file");
 						return 0;
 					}
@@ -4735,8 +4735,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					sz = ntohl(sz_ne);
-					if (rec->fields[i].data.recs->count < sz ||
-						rec->fields[i].data.recs->count == sz)
+					if (rec->fields[i].data.file.count < sz ||
+						rec->fields[i].data.file.count == sz)
 						break;
 
 					/*read the padding data*/
@@ -4759,9 +4759,9 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						if (rec->fields[i].data.recs->count < (sz + step) && array_last)
+						if (rec->fields[i].data.file.count < (sz + step) && array_last)
 						{
-							int pad_value = sz - (rec->fields[i].data.recs->count - step);
+							int pad_value = sz - (rec->fields[i].data.file.count - step);
 							padding_value += pad_value;
 
 							sz = rec->fields[i].data.v.size - step;
@@ -4789,15 +4789,15 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 						}
-						else if (rec->fields[i].data.recs->count == (sz + step) && array_last)
+						else if (rec->fields[i].data.file.count == (sz + step) && array_last)
 						{
 							exit = 1;
 						}
 
 						while (sz)
 						{
-							if (step < rec->fields[i].data.recs->count){
-								if(write_file(fd,&rec->fields[i].data.recs[step],0,0) == 0){
+							if (step < rec->fields[i].data.file.recs->count){
+								if(write_file(fd,&rec->fields[i].data.file.recs[step],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;
 								}
@@ -4826,12 +4826,12 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (step > 0 && k == 0)
 							{
-								if ((step + sz) > rec->fields[i].data.recs->count)
+								if ((step + sz) > rec->fields[i].data.file.count)
 								{
-									int pad = sz - (rec->fields[i].data.recs->count - step);
+									int pad = sz - (rec->fields[i].data.file.count - step);
 									padding_value += pad;
 
-									sz = rec->fields[i].data.recs->count - step;
+									sz = rec->fields[i].data.file.count - step;
 									exit = 1;
 
 									if (move_in_file_bytes(fd, 2 * (-sizeof(uint32_t))) == -1)
@@ -4858,8 +4858,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 
-							if (step < rec->fields[i].data.recs->count){
-								if(write_file(fd,&rec->fields[i].data.recs[step],0,0) == 0){
+							if (step < rec->fields[i].data.file.count){
+								if(write_file(fd,&rec->fields[i].data.file.recs[step],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;
 								}
@@ -4920,7 +4920,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 						/* write the size of the array */
-						int size_left = rec->fields[i].data.recs->count - step;
+						int size_left = rec->fields[i].data.file.count - step;
 						uint32_t size_left_ne = htonl((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1) {
 							perror("error in writing remaining size int array.\n");
@@ -4935,8 +4935,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						for (int j = 0; j < size_left; j++) {
-							if (step < rec->fields[i].data.recs->count){
-								if(write_file(fd,&rec->fields[i].data.recs[k],0,0) == 0){
+							if (step < rec->fields[i].data.file.count){
+								if(write_file(fd,&rec->fields[i].data.file.recs[k],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;
 								}
@@ -4977,7 +4977,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				} while (update_pos > 0);
 
-				if (rec->fields[i].data.recs->count < sz)
+				if (rec->fields[i].data.file.count < sz)
 				{
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -4987,7 +4987,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl(rec->fields[i].data.recs->count);
+					uint32_t size_ne = htonl(rec->fields[i].data.file.count);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1){
 						perror("error in writing size array to file.\n");
 						return 0;
@@ -5001,7 +5001,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					int pd_he = (int)ntohl(pad_ne);
-					pd_he += (sz - rec->fields[i].data.v.size);
+					pd_he += (sz - rec->fields[i].data.file.count);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
 					{
@@ -5017,10 +5017,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					for (uint32_t k = step; k < rec->fields[i].data.recs->count; k++)
+					for (uint32_t k = step; k < rec->fields[i].data.file.count; k++)
 					{
 
-						if(write_file(fd,&rec->fields[i].data.recs[k],0,0) == 0){
+						if(write_file(fd,&rec->fields[i].data.file.recs[k],0,0) == 0){
 							perror("failed write record array to file");
 							return 0;
 						}
@@ -5043,7 +5043,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 				}
-				else if (rec->fields[i].data.recs->count == sz)
+				else if (rec->fields[i].data.file.count == sz)
 				{
 					/*
 					 * the sizes are the same
@@ -5057,7 +5057,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						int size_left = rec->fields[i].data.recs->count - step;
+						int size_left = rec->fields[i].data.file.count - step;
 						uint32_t sz_ne = htonl((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
@@ -5075,11 +5075,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					int pd_he = (int)ntohl(pad_ne);
-					for (uint32_t k = 0; k < rec->fields[i].data.recs->count; k++)
+					for (uint32_t k = 0; k < rec->fields[i].data.file.count; k++)
 					{
-						if (step < rec->fields[i].data.recs->count){
+						if (step < rec->fields[i].data.file.count){
 
-							if(write_file(fd,&rec->fields[i].data.recs[k],0,0) == 0){
+							if(write_file(fd,&rec->fields[i].data.file.recs[k],0,0) == 0){
 								perror("failed write record array to file");
 								return 0;
 							}
@@ -5164,7 +5164,6 @@ off_t get_update_offset(int fd)
 
 	return (off_t)bswap_64(urec_ne);
 }
-
 
 /*
  * read_file:
@@ -6003,8 +6002,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_FILE:
 		{
-			rec->fields[i].data.recs = calloc(1,sizeof(struct Record_f));
-			if(!rec->fields[i].data.recs){
+			rec->fields[i].data.file.recs = calloc(1,sizeof(struct Record_f));
+			rec->fields[i].data.file.count = 1;
+			if(!rec->fields[i].data.file.recs){
 				__er_calloc(F,L-2);
 				free_record(rec, rec->fields_num);
 				return -1;
@@ -6084,7 +6084,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				for (uint32_t j = 0; j < sz; j++) {
 						
-					if(read_file(fd, rec->fields[i].field_name, &rec->fields[i].data.recs[j], hd.sch_d) == -1){
+					if(read_file(fd, rec->fields[i].field_name, 
+								&rec->fields[i].data.file.recs[j], hd.sch_d) == -1){
 						fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 						return -1;
 					}
@@ -6094,9 +6095,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					
 					off_t update_rec_pos = 0; 
 					while ((update_rec_pos = get_update_offset(fd)) > 0) {
-						rec->fields[i].data.recs[j].count++;
-						rec->fields[i].data.recs[j].next = calloc(1,sizeof(struct Record_f));
-						if (!rec->fields[i].data.recs[j].next) {
+						rec->fields[i].data.file.recs[j].count++;
+						rec->fields[i].data.file.recs[j].next = calloc(1,sizeof(struct Record_f));
+						if (!rec->fields[i].data.file.recs[j].next) {
 							__er_realloc(F,L-4);
 							free_record(rec, rec->fields_num);
 							return -1;
@@ -6109,7 +6110,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						}
 							
 						if(read_file(fd, rec->fields[i].field_name,
-								rec->fields[i].data.recs[j].next,
+								rec->fields[i].data.file.recs[j].next,
 								hd.sch_d) == -1) {
 							fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
@@ -6118,7 +6119,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							
 					}
 
-					if(!rec->fields[i].data.recs[0].next) {
+					if(!rec->fields[i].data.file.recs[0].next) {
 						if(update_rec_pos == -1 || rests_pos_here== -1){
 							__er_file_pointer(F, L - 1);
 							free_record(rec, rec->fields_num);
