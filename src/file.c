@@ -6002,13 +6002,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_FILE:
 		{
-			rec->fields[i].data.file.recs = calloc(1,sizeof(struct Record_f));
-			rec->fields[i].data.file.count = 1;
-			if(!rec->fields[i].data.file.recs){
-				__er_calloc(F,L-2);
-				free_record(rec, rec->fields_num);
-				return -1;
-			}
 					
 			uint32_t ntg_ne = 0; 
 			if (read(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
@@ -6082,6 +6075,13 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				int padd = (int)ntohl(padding);
 
+				rec->fields[i].data.file.recs = calloc(sz,sizeof(struct Record_f));
+				rec->fields[i].data.file.count = sz;
+				if(!rec->fields[i].data.file.recs){
+					__er_calloc(F,L-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
 				for (uint32_t j = 0; j < sz; j++) {
 						
 					if(read_file(fd, rec->fields[i].field_name, 

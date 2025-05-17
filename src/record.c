@@ -834,7 +834,6 @@ void free_record(struct Record_f *rec, int fields_num)
 				}
 				free_record(&rec->fields[i].data.file.recs[j],
 						rec->fields[i].data.file.recs[j].fields_num);
-				rec->fields[i].data.file.count--;
 			}
 			free(rec->fields[i].data.file.recs);
 			break;
