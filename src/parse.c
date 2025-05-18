@@ -1046,6 +1046,66 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 								}
 							}
 
+						}else if(is_number_array(sch->types[i])){
+							switch(sch->types[i]){
+							case TYPE_ARRAY_INT:
+							case TYPE_ARRAY_LONG:
+							{
+								char *p = NULL;
+								int index = 0;
+								while((p = strstr((*values)[i],","))){
+									*p ='@';
+									if(index == 0){
+										index = p - (*values)[i];
+										size_t sz = index == 1 ? ++index : index;	
+										char num[sz];
+										memset(num,0,sz);
+										strncpy(num,(*values)[i],sz-1);
+										if(!is_integer(num)) return -1;
+										int result = 0;
+										if((result = is_number_in_limits(num)) == 0)
+											return -1;
+										if(sch->types[i] == TYPE_ARRAY_INT){
+											if(result == IN_INT) continue;
+											return -1;
+										}else if(sch->types[i] == TYPE_ARRAY_LONG){
+											if(result == IN_INT || result == IN_LONG)
+												continue;
+
+											return -1;
+										}
+										continue;
+									}
+									int start = index;
+									index = p - (*values)[i];
+									size_t sz = index-start;
+									if(sz == 1) sz++;
+									char num[sz];
+									memset(num,0,sz);
+									strncpy(num,&(*values)[i][start+1],sz-1);
+									if(!is_integer(num)) return -1;
+									int result = 0;
+									if((result = is_number_in_limits(num)) == 0)
+										return -1;
+									if(sch->types[i] == TYPE_ARRAY_INT){
+										if(result == IN_INT) continue;
+										return -1;
+									}else if(sch->types[i] == TYPE_ARRAY_LONG){
+										if(result == IN_INT || result == IN_LONG)
+											continue;
+
+										return -1;
+									}
+								}
+								replace('@',',',(*values)[i]);
+								break;
+							}
+							case TYPE_ARRAY_BYTE:
+
+							default:
+								break;
+							}
+							continue;
 						}
 						return -1;
 					}

@@ -2286,15 +2286,21 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				break;
 				case TYPE_FILE:
 				{
-					if(src->fields[i].data.v.elements.r){
+					if(src->fields[i].data.file.recs){
 						int comp = 0;
-						for(int a = 0;a < src->fields[i].data.v.size; a++){
-							if(!src->fields[i].data.v.elements.r[a]) continue;
-							if((comp = compare_rec(src->fields[i].data.v.elements.r[a],
-								dest->fields[i].data.v.elements.r[a])) == 0) continue; 
-							
-							return i;
+						/*if the files have the same count*/
+						if(src->fields[i].data.file.count == dest->fields[i].data.file.count){
+							for(uint32_t a = 0;a < src->fields[i].data.file.count; a++){
+								if((comp = compare_rec(&src->fields[i].data.file.recs[a],
+									&dest->fields[i].data.file.recs[a])) == -1) continue; 
+
+								return i;
+							}
 						}
+						
+						if(src->fields[i].data.file.count > dest->fields[i].data.file.count) return i;
+						if(src->fields[i].data.file.count < dest->fields[i].data.file.count) return i;
+						/*files have a different count*/
 						break;
 					}
 					break;

@@ -21,6 +21,13 @@ int is_number_type(int type)
 		|| type == TYPE_BYTE;
 
 }
+
+int is_number_array(int type)
+{
+	return type == TYPE_ARRAY_DOUBLE || type == TYPE_ARRAY_LONG 
+		|| type == TYPE_ARRAY_BYTE || type == TYPE_ARRAY_FLOAT
+		|| type == TYPE_ARRAY_INT;
+}
 int check_handle_input_mode(char *buffer, int op)
 {
 	int c_t = count_fields(buffer,T_); 
