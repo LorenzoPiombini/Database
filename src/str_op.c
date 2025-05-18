@@ -34,6 +34,8 @@ int check_handle_input_mode(char *buffer, int op)
 	switch(op){ 
 	case FCRT:
 	{
+
+		if(c_T == 0 && c_t == 0 && c_delim == 0 && (buffer && *buffer != '\0')) return NO_TYPE;
 		int additional_c_delim_count = v > 1 ? v-1:0;
 		if((c_delim - v -additional_c_delim_count) > 0) return HYB;
 		if((c_delim - v -additional_c_delim_count) == 0) return TYPE;

@@ -881,6 +881,7 @@ static void display_data(struct Record_f rec, int max)
 		if(rec.field_set[i] == 0) continue;
 
 		strip('"', rec.fields[i].field_name);
+		strip('_', rec.fields[i].field_name);
 		printf("%-*s\t", max++, rec.fields[i].field_name);
 		int t = (int)rec.fields[i].type;
 		switch (t){
@@ -2305,7 +2306,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 
 			} 
 		}
-		if(c == active) return 0;
+		if(c == active) return -1;
 	}
 	return E_RCMP;	
 }

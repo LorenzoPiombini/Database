@@ -2472,7 +2472,7 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 
 			int index = compare_rec(&recs_old->recs[i],rec);
 			if(index == E_RCMP) return;
-			if(index == 0) continue;
+			if(index == -1) continue;
 			switch (rec->fields[index].type) {
 			case TYPE_INT:
 				recs_old->recs[i].fields[index].data.i = rec->fields[index].data.i;
