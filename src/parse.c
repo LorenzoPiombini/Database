@@ -1019,6 +1019,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					continue;
 				}else if(is_number_array(sch->types[i])){
 					switch(sch->types[i]){
+					case TYPE_ARRAY_BYTE:
 					case TYPE_ARRAY_INT:
 					case TYPE_ARRAY_LONG:
 					{
@@ -1080,10 +1081,10 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 								}
 							}
 						}
+						types_i[i] = sch->types[i];
 						replace('@',',',(*values)[i]);
 						break;
 					}
-					case TYPE_ARRAY_BYTE:
 					default:
 						break;
 					}
