@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <math.h>
 #include "record.h"
 #include "str_op.h"
 #include "parse.h"
@@ -1016,7 +1017,79 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						continue;
 					}
 					continue;
+				}else if(is_number_array(sch->types[i])){
+					switch(sch->types[i]){
+					case TYPE_ARRAY_INT:
+					case TYPE_ARRAY_LONG:
+					{
+						char *p = NULL;
+						int index = 0;
+						while((p = strstr((*values)[i],","))){
+							*p ='@';
+							if(index == 0){
+								index = p - (*values)[i];
+								size_t sz = index == 1 ? (index + 1) : index;	
+								char num[sz];
+								memset(num,0,sz);
+								strncpy(num,(*values)[i],sz-1);
+								if(!is_integer(num)) return -1;
+								int result = 0;
+								if((result = is_number_in_limits(num)) == 0)
+									return -1;
+								if(sch->types[i] == TYPE_ARRAY_INT){
+									if(result == IN_INT) continue;
+									return -1;
+								}else if(sch->types[i] == TYPE_ARRAY_LONG){
+									if(result == IN_INT || result == IN_LONG)
+										continue;
+									return -1;
+								}
+								continue;
+							}
+							int start = index;
+							index = p - (*values)[i];
+							size_t sz = index-start;
+							if(sz == 1) sz++;
+							char num[sz];
+							memset(num,0,sz);
+							strncpy(num,&(*values)[i][start+1],sz-1);
+							if(!is_integer(num)) return -1;
+							int result = 0;
+							if((result = is_number_in_limits(num)) == 0)
+								return -1;
+							if(sch->types[i] == TYPE_ARRAY_INT){
+								if(result == IN_INT) continue;
+								return -1;
+							}else if(sch->types[i] == TYPE_ARRAY_LONG){
+								if(result == IN_INT || result == IN_LONG)
+									continue;
+
+								return -1;
+							}else if(sch->types[i] == TYPE_ARRAY_BYTE){
+								/*
+								 * type byte is a number stored in 
+								 * exactly 1 byte so it can't be bigger 
+								 * than 2^7 or it can't be negative 
+								 * either 
+								 * */
+								char *endp;
+								long l = strtol(num,&endp,10);
+								if(*endp == '\0'){ 
+									if(l > (long)pow(2,7))return -1;
+									if(l < 0)return -1;
+								}
+							}
+						}
+						replace('@',',',(*values)[i]);
+						break;
+					}
+					case TYPE_ARRAY_BYTE:
+					default:
+						break;
+					}
+					continue;
 				}
+
 				return -1;
 			}
 		}
@@ -1045,10 +1118,10 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 									return -1;
 								}
 							}
-
 						}else if(is_number_array(sch->types[i])){
 							switch(sch->types[i]){
 							case TYPE_ARRAY_INT:
+							case TYPE_ARRAY_BYTE:
 							case TYPE_ARRAY_LONG:
 							{
 								char *p = NULL;
@@ -1057,7 +1130,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 									*p ='@';
 									if(index == 0){
 										index = p - (*values)[i];
-										size_t sz = index == 1 ? ++index : index;	
+										size_t sz = index == 1 ? (index + 1) : index;	
 										char num[sz];
 										memset(num,0,sz);
 										strncpy(num,(*values)[i],sz-1);
@@ -1095,12 +1168,16 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 											continue;
 
 										return -1;
+									}else if(sch->types[i] == TYPE_ARRAY_BYTE){
+										char *endp;
+										long l = strtol(num,&endp,10);
+										if(*endp == '\0') 
+											if(l > (long)pow(2,7))return -1;
 									}
 								}
 								replace('@',',',(*values)[i]);
 								break;
 							}
-							case TYPE_ARRAY_BYTE:
 
 							default:
 								break;
