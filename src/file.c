@@ -4243,7 +4243,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, sizeof(double))) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -4288,7 +4288,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (step < rec->fields[i].data.v.size)
 							{
-								uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[k]);
+								uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -4440,7 +4440,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.d[step])
 									continue;
 
-								uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[k]);
+								uint64_t num_ne = htond(*rec->fields[i].data.v.elements.d[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
