@@ -633,6 +633,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 	/*--------------------------------------------------*/
 
+	/*count the active fields in the record*/
 	int count = 0;
 	for(int i = 0; i < rec->fields_num; i++){
 		if (rec->field_set[i] == 1)  count++;
@@ -640,7 +641,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 	if(count == 0) return NTG_WR;
 
-
+	/*
+	 * writes the number of fields active 
+	 * that are going to be written to the file
+	 * */
 	uint32_t count_ne = htonl((uint32_t)count);
 	if (write(fd, &count_ne, sizeof(count_ne)) < 0) {
 		perror("could not write fields number");
@@ -3073,7 +3077,9 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.s[step])
 									continue;
 
-								/*string update process*/
+								/*new string writing process*/
+
+								str_loc = 0;
 								lt = strlen(rec->fields[i].data.v.elements.s[step]);
 								buff_update = lt * 2;
 
