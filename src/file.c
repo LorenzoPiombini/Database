@@ -4389,7 +4389,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					if (padding_value > 0)
 					{
-						if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, padding_value * sizeof(double)) == -1)
 						{
 							__er_file_pointer(F, L - 1);
 							return 0;
@@ -4611,7 +4611,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * */
 					if (pd_he > 0)
 					{
-						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, pd_he * sizeof(double)) == -1)
 						{
 							__er_file_pointer(F, L - 2);
 							return 0;
@@ -5518,7 +5518,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				if (padd > 0)
 				{
-					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, padd * sizeof(long)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
@@ -5782,7 +5782,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				if (padd > 0)
 				{
-					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, padd * sizeof(float)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
@@ -5871,7 +5871,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				if (padd > 0)
 				{
-					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, padd * sizeof(double)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
@@ -5960,7 +5960,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				if (padd > 0)
 				{
-					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, padd * sizeof(unsigned char)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);

@@ -607,7 +607,7 @@ int main(int argc, char *argv[])
 			fd_schema = open_file(files[2], 0);
 			
 			/* file_error_handler will close the file descriptors if there are issues */
-			if (file_error_handler(2, fd_index, fd_data) != 0) {
+			if ((err = file_error_handler(2, fd_index, fd_data)) != 0) {
 				if(err == ENOENT)
 					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_path);
 				else
