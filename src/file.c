@@ -17,7 +17,8 @@
 #include "debug.h"
 
 
-static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element);
+static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element, int type);
+static size_t get_string_size(int fd);
 
 int open_file(char *fileName, int use_trunc)
 {
@@ -1038,7 +1039,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, sizeof(int),0)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -1511,7 +1512,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, sizeof(long),0)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -1982,7 +1983,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, sizeof(float),0)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -2479,7 +2480,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, 0,TYPE_ARRAY_STRING)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -3026,10 +3027,12 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					if (padding_value > 0)
 					{
-						if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
-						{
-							__er_file_pointer(F, L - 1);
-							return 0;
+						for(int i = 0; i < padding_value; i++){
+							if(get_string_size(fd) == (size_t) -1){
+								__er_file_pointer(F, L - 1);
+								return 0;
+							}
+
 						}
 					}
 
@@ -3674,10 +3677,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * */
 					if (pd_he > 0)
 					{
-						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
-						{
-							__er_file_pointer(F, L - 2);
-							return 0;
+						for(int i = 0; i < pd_he; i++){
+							if(get_string_size(fd) == (size_t) -1){
+								__er_file_pointer(F, L - 2);
+								return 0;
+							}
 						}
 					}
 
@@ -3778,7 +3782,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, sizeof(unsigned char),0)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -3905,7 +3909,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (padding_value > 0)
 							{
-								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+								if (move_in_file_bytes(fd, padding_value * sizeof(unsigned char)) == -1)
 								{
 									__er_file_pointer(F, L - 1);
 									return 0;
@@ -3924,7 +3928,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					if (padding_value > 0)
 					{
-						if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, padding_value * sizeof(unsigned char)) == -1)
 						{
 							__er_file_pointer(F, L - 1);
 							return 0;
@@ -4077,7 +4081,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * move the file pointer after the array
 					 * as much as the pad
 					 * */
-					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, pd_he * sizeof(unsigned char)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						return 0;
@@ -4249,7 +4253,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(double))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, sizeof(double),0)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -4759,7 +4763,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int))) == -1)
+						if ((array_last = is_array_last_block(fd, sz, sizeof(int),0)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -6384,7 +6388,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 	return 0;
 }
 
-static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element)
+static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element, int type)
 {
 	off_t go_back_to = 0;
 	if ((go_back_to = get_file_offset(fd)) == -1)
@@ -6392,13 +6396,22 @@ static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element
 		__er_file_pointer(F, L - 1);
 		return -1;
 	}
+	
+	if(type == TYPE_ARRAY_STRING){
+		for(int i = 0; i < element_nr; i++){
+			if(get_string_size(fd) == (size_t)-1){
+				__er_file_pointer(F, L - 1);
+				return -1;
+			} 
+		}
 
-	if (move_in_file_bytes(fd, element_nr * bytes_each_element) == -1)
-	{
-		__er_file_pointer(F, L - 1);
-		return -1;
-	}
-
+	}else{
+		if (move_in_file_bytes(fd, element_nr * bytes_each_element) == -1)
+		{
+			__er_file_pointer(F, L - 1);
+			return -1;
+		}
+	}	
 	uint64_t update_off_ne = 0;
 
 	if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
@@ -6416,4 +6429,18 @@ static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element
 	off_t update_pos = (off_t)bswap_64(update_off_ne);
 
 	return update_pos == 0;
+}
+static size_t get_string_size(int fd)
+{
+
+	if(move_in_file_bytes(fd,16) == -1) return -1;
+	
+	uint64_t bu_ne = 0;
+	if(read(fd,&bu_ne,sizeof(bu_ne)) == -1) return -1;
+   	 
+	size_t buffer_update = (size_t)bswap_64(bu_ne);
+
+	if(move_in_file_bytes(fd,buffer_update) == -1) return -1;
+
+	return 0;
 }
