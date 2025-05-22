@@ -4727,6 +4727,30 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			}
 			else
 			{
+				size_t len = strlen(rec->fields[i].field_name);
+				char *sfx = ".sch";
+				int sfxl = (int)strlen(sfx);
+				int totl = sfxl + (int)len + 1;
+				char sch_file[totl];
+				memset(sch_file,0,totl);
+				strncpy(sch_file,rec->fields[i].field_name,len);
+				strncat(sch_file,sfx,sfxl);
+				//now you have to open the file
+				int fd_schema = open_file(sch_file,0);
+				if(file_error_handler(fd_schema) != 0) return 0;			
+
+				struct Schema sch = {0};
+				struct Header_d hd = {0,0,sch};	
+
+				if (!read_header(fd_schema, &hd)) {
+					close(fd_schema);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+
+				close(fd_schema);
+
+
 				/* update branch*/
 				off_t update_pos = 0;
 				off_t go_back_to_first_rec = 0;
@@ -4763,11 +4787,42 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd, sz, sizeof(int),0)) == -1)
-						{
-							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
+						
+						/*check if the array of type file is in the last block*/
+						off_t reset_pointer_here = 0;
+						if((reset_pointer_here = get_file_offset(fd)) == -1){
+							__er_file_pointer(F, L - 1);
 							return 0;
 						}
+						for(uint32_t y = 0; y < sz;y++){
+							struct Record_f dummy ={0};
+							if(read_file(fd, rec->fields[i].field_name, &dummy, hd.sch_d) == -1){
+								fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
+								return -1;
+							}
+
+							free_record(&dummy,dummy.fields_num);
+
+							if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+								__er_file_pointer(F, L - 1);
+								return 0;
+							}
+
+						}
+
+						uint64_t update_arr = 0;
+						if (read(fd, &update_arr, sizeof(update_arr)) == -1){
+							perror("failed read update off_t int array.\n");
+							return 0;
+						}
+
+						if(find_record_position(fd,reset_pointer_here) == -1){
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
+
+						off_t up_he = (off_t) bswap_64(update_arr);
+						if(up_he == 0) array_last = 1;
 
 						if (rec->fields[i].data.file.count < (sz + step) && array_last)
 						{
@@ -4882,10 +4937,21 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 							if (padding_value > 0)
 							{
-								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
-								{
-									__er_file_pointer(F, L - 1);
-									return 0;
+								for(int y = 0; y < padding_value;y++){
+									struct Record_f dummy ={0};
+									if(read_file(fd, rec->fields[i].field_name,
+												&dummy, hd.sch_d) == -1){
+										fprintf(stderr,"cannot read type file %s:%d.\n"
+												,F,L-1);
+										return -1;
+									}
+
+									free_record(&dummy,dummy.fields_num);
+
+									if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+										__er_file_pointer(F, L - 1);
+										return 0;
+									}
 								}
 							}
 							/*write the epty update offset*/
@@ -4901,11 +4967,23 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					if (padding_value > 0)
 					{
-						if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
-						{
-							__er_file_pointer(F, L - 1);
-							return 0;
+						for(int y = 0; y < padding_value;y++){
+							struct Record_f dummy ={0};
+							if(read_file(fd, rec->fields[i].field_name,
+										&dummy, hd.sch_d) == -1){
+								fprintf(stderr,"cannot read type file %s:%d.\n"
+										,F,L-1);
+								return -1;
+							}
+
+							free_record(&dummy,dummy.fields_num);
+
+							if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+								__er_file_pointer(F, L - 1);
+								return 0;
+							}
 						}
+
 					}
 
 					uint64_t update_off_ne = 0;
@@ -5040,10 +5118,21 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * move the file pointer after the array
 					 * as much as the pad
 					 * */
-					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
-					{
-						__er_file_pointer(F, L - 1);
-						return 0;
+					for(int y = 0; y < pd_he;y++){
+						struct Record_f dummy ={0};
+						if(read_file(fd, rec->fields[i].field_name,
+									&dummy, hd.sch_d) == -1){
+							fprintf(stderr,"cannot read type file %s:%d.\n"
+									,F,L-1);
+							return -1;
+						}
+
+						free_record(&dummy,dummy.fields_num);
+
+						if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
 					}
 
 					uint64_t update_arr_ne = bswap_64(0);
@@ -5104,11 +5193,23 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * */
 					if (pd_he > 0)
 					{
-						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
-						{
-							__er_file_pointer(F, L - 2);
-							return 0;
+						for(int y = 0; y < padding_value;y++){
+							struct Record_f dummy ={0};
+							if(read_file(fd, rec->fields[i].field_name,
+										&dummy, hd.sch_d) == -1){
+								fprintf(stderr,"cannot read type file %s:%d.\n"
+										,F,L-1);
+								return -1;
+							}
+
+							free_record(&dummy,dummy.fields_num);
+
+							if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+								__er_file_pointer(F, L - 1);
+								return 0;
+							}
 						}
+
 					}
 
 					uint64_t update_arr_ne = bswap_64(0);
@@ -5150,18 +5251,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	return 1; // write to file succssed!
 }
 
-ssize_t get_record_size(int fd)
-{
-	ssize_t size = 0L;
-
-	if (read(fd, &size, sizeof(size)) < 0)
-	{
-		perror("could not read record size.\n");
-		return -1;
-	}
-
-	return size;
-}
 
 off_t get_update_offset(int fd)
 {
@@ -5703,11 +5792,13 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				if (padd > 0)
 				{
-					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
-					{
-						__er_file_pointer(F, L - 1);
-						free_record(rec, rec->fields_num);
-						return -1;
+					for(int x = 0; x < padd; x++){
+						if(get_string_size(fd) == (size_t)-1){
+							__er_file_pointer(F, L - 1);
+							free_record(rec, rec->fields_num);
+							return -1;
+						}
+
 					}
 				}
 
@@ -6012,7 +6103,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_FILE:
 		{
-					
 			uint32_t ntg_ne = 0; 
 			if (read(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
 				perror("error in reading ntg value firmn the file.\n");
@@ -6404,16 +6494,14 @@ static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element
 				return -1;
 			} 
 		}
-
-	}else{
-		if (move_in_file_bytes(fd, element_nr * bytes_each_element) == -1)
+	}else {
+		if(move_in_file_bytes(fd, element_nr * bytes_each_element) == -1)
 		{
 			__er_file_pointer(F, L - 1);
 			return -1;
 		}
 	}	
 	uint64_t update_off_ne = 0;
-
 	if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 	{
 		perror("failed read update off_t int array.\n");
