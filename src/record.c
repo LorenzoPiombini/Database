@@ -51,6 +51,7 @@ unsigned char set_field(struct Record_f *rec,
 	rec->fields[index].type = type;
 	rec->field_set[index] = field_bit;
 
+	if(!value && (field_bit == 0)) return 1;
 	int t = (int)type;
 	switch (t) {
 	case -1:
@@ -803,6 +804,31 @@ unsigned char set_field(struct Record_f *rec,
 	return 1;
 }
 
+void free_type_file(struct Record_f *rec)
+{
+	int index = -1;
+	for(int i = 0; i < rec->fields_num; i++){
+		if(rec->field_set[i] == 1 && rec->fields[i].type == TYPE_FILE) index = i;	
+	}
+
+	if(index == -1) return;
+
+	for(uint32_t j = 0; j < rec->fields[index].data.file.count; j++){
+		struct Record_f *temp = rec->fields[index].data.file.recs[j].next;
+		if(temp){
+			while(rec->fields[index].data.file.recs[j].count > 1){
+				rec->fields[index].data.file.recs[j].next = temp->next;
+				temp->next = NULL;
+				free_record(temp,temp->fields_num);
+				free(temp);
+				rec->fields[index].data.file.recs[j].count--;
+			}
+		}
+		free_record(&rec->fields[index].data.file.recs[j],
+				rec->fields[index].data.file.recs[j].fields_num);
+	}
+	free(rec->fields[index].data.file.recs);
+}
 void free_record(struct Record_f *rec, int fields_num)
 {
 	for (int i = 0; i < fields_num; i++){
@@ -821,21 +847,7 @@ void free_record(struct Record_f *rec, int fields_num)
 				free(rec->fields[i].data.s);
 			break;
 		case TYPE_FILE:
-			for(uint32_t j = 0; j < rec->fields[i].data.file.count; j++){
-				struct Record_f *temp = rec->fields[i].data.file.recs[j].next;
-				if(temp){
-					while(rec->fields[i].data.file.recs[j].count > 1){
-						rec->fields[i].data.file.recs[j].next = temp->next;
-						temp->next = NULL;
-						free_record(temp,temp->fields_num);
-						free(temp);
-						rec->fields[i].data.file.recs[j].count--;
-					}
-				}
-				free_record(&rec->fields[i].data.file.recs[j],
-						rec->fields[i].data.file.recs[j].fields_num);
-			}
-			free(rec->fields[i].data.file.recs);
+			free_type_file(rec);
 			break;
 		case TYPE_ARRAY_INT:
 		case TYPE_ARRAY_LONG:
@@ -1410,15 +1422,6 @@ int init_array(struct array **v, enum ValueType type)
 		}
 		break;
 	}
-	case TYPE_FILE:
-	{
-		(*(*v)).elements.r = calloc(DEF_SIZE, sizeof(struct Record_f *));
-		if (!(*(*v)).elements.r){
-			__er_calloc(F, L - 2);
-			return -1;
-		}
-		break;
-	}
 	default:
 		fprintf(stderr, "type not supported.\n");
 		return -1;
@@ -1735,86 +1738,6 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		*((*v).elements.d[(*v).size - 1]) = *(double *)element;
 		return 0;
 	}
-	case TYPE_FILE: 
-	{ 
-				
-		/*check if the array has been initialized */
-		if (!(*v).elements.r)
-		{
-			if (init_array(&v, type) == -1)
-			{
-				fprintf(stderr, "init array failed.\n");
-				return -1;
-			}
-		}
-
-		struct Record_f *r_el = (struct Record_f *)element;	
-		/*
-		 * get the schema in order to 
-		 * deep copy the record 
-		 * */	
-		char *sfx = ".sch";
-		int sfxl = (int)strlen(sfx);
-		int len = strlen(r_el->file_name);
-		int totl = sfxl +len + 1;
-		char sch_file[totl];
-		memset(sch_file,0,totl);
-		strncpy(sch_file,r_el->file_name,len);
-		strncat(sch_file,sfx,sfxl);
-		int fd_schema = open_file(sch_file,0);
-		if(file_error_handler(fd_schema) != 0) return -1;			
-
-		struct Schema sch = {0};
-		struct Header_d hd = {0,0,sch};	
-
-		if (!read_header(fd_schema, &hd)) {
-			close_file(1,fd_schema);
-			return -1;
-		}
-
-		close_file(1,fd_schema);
-		/*check if there is enough space for new item */
-		if (!(*v).elements.r[(*v).size - 1]){
-			for (int i = 0; i < (*v).size; i++){
-				if ((*v).elements.r[i])
-					continue;
-
-				(*v).elements.r[i] = calloc(1,sizeof(struct Record_f));
-				if (!(*v).elements.r[i]) {
-					__er_calloc(F, L - 2);
-					return -1;
-				}
-
-				if(!copy_rec(r_el,(*v).elements.r[i],hd.sch_d)){
-					fprintf(stderr,"cannot deep copy record in type file array %s:%d.\n",F,L-1);
-					return -1;
-				}
-				return 0;
-			}
-		}
-
-		/*not enough space, increase the size */
-		struct Record_f **elements_new = realloc((*v).elements.r, ++(*v).size * sizeof(struct Record_f *));
-		if (!elements_new)
-		{
-			__er_realloc(F, L - 2);
-			return -1;
-		}
-
-		(*v).elements.r = elements_new;
-		(*v).elements.r[(*v).size - 1] = calloc(1,sizeof(struct Record_f));
-		if (!(*v).elements.r[(*v).size - 1])
-		{
-			__er_calloc(F, L - 2);
-			return -1;
-		}
-
-		if(!copy_rec(r_el,(*v).elements.r[(*v).size -1],hd.sch_d)){
-			fprintf(stderr,"cannot deep copy record in type file array %s:%d.\n",F,L-1);
-			return -1;
-		}
-		return 0;
-	}
 	default:
 		fprintf(stderr, "type not supperted");
 		return -1;
@@ -1893,19 +1816,6 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		v->elements.d = NULL;
 		break;
 	}
-	case TYPE_FILE:
-	{
-		for (int i = 0; i < v->size; i++)
-		{
-			if (v->elements.r[i])
-				free_record(v->elements.r[i],v->elements.r[i]->fields_num);
-			free(v->elements.r[i]);				
-		}
-		free(v->elements.r);
-		v->elements.r = NULL;
-		break;
-	}
-
 	default:
 		fprintf(stderr, "array type not suported.\n");
 		return;
@@ -2015,22 +1925,43 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 				}
 				break;
 			case TYPE_FILE:
+			{
+				int rlen =(int)strlen(rec->fields[i].field_name);
+				int sfxl =strlen(".sch");
+				int len = sfxl + rlen + 1;
+				char fn[len];
+				memset(fn,0,len);
+				strncpy(fn,rec->fields[i].field_name,rlen);
+				strncat(fn,".sch",sfxl);
+				int fd_sch = open_file(fn,0);
+				if(file_error_handler(1,fd_sch) != 0) return -1;
+				struct Schema sch = {0};
+				memset(sch.types,-1,MAX_FIELD_NR*sizeof(int));
+
+				struct Header_d hd = {0,0,sch};
+
+				if(!read_header(fd_sch,&hd)){
+					fprintf(stderr,"(%s): read_header() failed, %s:%d.\n",ERR_MSG_PAR-1);
+					close_file(1,fd_sch);
+					return -1;
+				}
+				close_file(1,fd_sch);
 				buffer->recs[buffer->capacity].fields[i].data.file.count = rec->fields[i].data.file.count;
 				buffer->recs[buffer->capacity].fields[i].data.file.recs = calloc(rec->fields[i].data.file.count,sizeof(struct Record_f));
 				if(!buffer->recs[buffer->capacity].fields[i].data.file.recs){
 					__er_calloc(F,L-2);
 					return -1;
 				} 
-				for(uint32_t j = 0; j < rec->fields[i].data; j++){
-					if(!copy_rec(rec->fields[i].data.file.recs[j],
+				for(uint32_t j = 0; j < rec->fields[i].data.file.count; j++){
+					if(!copy_rec(&rec->fields[i].data.file.recs[j],
 								&buffer->recs[buffer->capacity].fields[i].data.file.recs[j],
-								NULL)){
-						fprint(stderr,"(%s): copy_rec() failed, %s:%d.\n",p,ERR_MSG_PAR-3);
+								&hd.sch_d)){
+						fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n",ERR_MSG_PAR-3);
 						return -1;
 				        }
-
 				}
 				break;
+			}	
 			default:
 				break;
 

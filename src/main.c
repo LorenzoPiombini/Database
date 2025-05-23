@@ -1318,7 +1318,6 @@ int main(int argc, char *argv[])
 			/*first record position*/
 			if(insert_rec(&recs_old,&rec_old,offset) == -1){
 				fprintf(stderr,"(%s): cannot insert rec t Rec_old struct.\n",prog);
-				free_record(&rec_old,rec_old.fields_num);
 				goto clean_on_error;
 			}
 
@@ -1345,6 +1344,7 @@ int main(int argc, char *argv[])
 				if(insert_rec(&recs_old,&rec_old_s,updated_rec_pos) == -1){
 					fprintf(stderr,"(%s): cannot insert rec t Rec_old struct.\n",prog);
 					free_record(&rec_old_s,rec_old_s.fields_num);
+					free_recs_old(&recs_old);
 					goto clean_on_error;
 				}
 				free_record(&rec_old_s,rec_old_s.fields_num);
@@ -1663,6 +1663,7 @@ int main(int argc, char *argv[])
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
+			free_record(&rec_old, rec_old.fields_num);
 			free_record(&new_rec, new_rec.fields_num);
 			return STATUS_ERROR;
 		} /*end of update path*/

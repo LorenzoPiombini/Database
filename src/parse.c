@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <math.h>
 #include "record.h"
+#include "file.h"
 #include "str_op.h"
 #include "parse.h"
 #include "common.h"
@@ -333,6 +334,13 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					break;
 				case TYPE_ARRAY_STRING:
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
+					{
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				case TYPE_FILE:
+					if(!set_field(rec,i,sch->fields_name[i], sch->types[i],NULL,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
@@ -2820,8 +2828,50 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 				}
 			case TYPE_FILE:
 			{
-					positions[i] = 'y';
-					break;
+				int rlen =(int)strlen(rec->fields[index].field_name);
+				int sfxl =strlen(".sch");
+				int len = sfxl + rlen + 1;
+				char fn[len];
+				memset(fn,0,len);
+				strncpy(fn,rec->fields[index].field_name,rlen);
+				strncat(fn,".sch",sfxl);
+				int fd_sch = open_file(fn,0);
+				if(file_error_handler(1,fd_sch) != 0){
+					positions[i] = '0';
+					return;
+				}
+				struct Schema sch = {0};
+				memset(sch.types,-1,MAX_FIELD_NR*sizeof(int));
+
+				struct Header_d hd = {0,0,sch};
+
+				if(!read_header(fd_sch,&hd)){
+					fprintf(stderr,"(%s): read_header() failed, %s:%d.\n","db",F,L-1);
+					close_file(1,fd_sch);
+					positions[i] = '0';
+					return;
+				}
+				close_file(1,fd_sch);
+
+			        free_type_file(&recs_old->recs[i]); 
+				recs_old->recs[i].fields[j].data.file.count = rec->fields[index].data.file.count;
+				recs_old->recs[i].fields[j].data.file.recs = calloc(rec->fields[index].data.file.count,sizeof(struct Record_f));
+				if(!recs_old->recs[i].fields[j].data.file.recs){
+					__er_calloc(F,L-2);
+					positions[i] = '0';
+					return;
+				} 
+				for(uint32_t x = 0; x < rec->fields[index].data.file.count; x++){
+					if(!copy_rec(&rec->fields[index].data.file.recs[x],
+								&recs_old->recs[i].fields[j].data.file.recs[x],
+								&hd.sch_d)){
+						fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
+						positions[i] = '0';
+						return;
+				        }
+				}
+				positions[i] = 'y';
+				break;
 			}
 			default:
 				printf("no matching type\n");
