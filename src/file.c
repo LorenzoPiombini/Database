@@ -6141,7 +6141,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			strncat(sch_file,sfx,sfxl);
 			//now you have to open the file
 			int fd_schema = open_file(sch_file,0);
-			if(file_error_handler(fd_schema) != 0) return -1;			
+			if(file_error_handler(1,fd_schema) != 0) return -1;			
 
 			struct Schema sch = {0};
 			struct Header_d hd = {0,0,sch};	
