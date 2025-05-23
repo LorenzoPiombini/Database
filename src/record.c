@@ -1068,10 +1068,16 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 	free(*array);
 }
 
-unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schema sch)
+unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schema *sch)
 {
-	create_record(src->file_name, sch, dest);
+	if(sch)
+		create_record(src->file_name, *sch, dest);
 
+	if(!sch){
+		if(dest->fields_num == 0) return 0;
+		if(dest->fields[0].field_name[0] == '\0') return 0;
+	}
+	
 	char data[30];
 	for (int i = 0; i < src->fields_num; i++)
 	{
@@ -1294,10 +1300,19 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			}
 			break;
 		case TYPE_FILE:
-			for (int j = 0; j < src->fields[i].data.v.size; j++) {
-				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.r[j],
-									 &dest->fields[i].data.v,
-									 src->fields[i].type);
+			dest->fields[i].data.file.count = src->fields[i].data.file.count;
+			dest->fields[i].data.file.recs = calloc(dest->fields[i].data.file.count,sizeof(struct Record_f));
+			if(dest->fields[i].data.file.recs){
+				__er_calloc(F,L-2);
+				free_record(dest, dest->fields_num);
+				return 0;
+			}	
+			for (uint32_t j = 0; j < src->fields[i].data.file.count; j++) {
+				if(!copy_rec(&src->fields[i].data.file.recs[j],&dest->fields[i].data.file.recs[j],sch)){
+					fprintf(stderr,"copy_rec() failed, %s:%d.\n",F,L-1);
+					free_record(dest, dest->fields_num);
+					return 0;
+				}	
 			}
 			break;
 
@@ -1944,7 +1959,6 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 			case TYPE_ARRAY_FLOAT:
 			case TYPE_ARRAY_DOUBLE:
 			case TYPE_ARRAY_STRING:
-			case TYPE_FILE:
 				buffer->recs[buffer->capacity].fields[i].data.v.insert = insert_element;
 				buffer->recs[buffer->capacity].fields[i].data.v.destroy = free_dynamic_array;
 				switch(rec->fields[i].type){
@@ -1996,16 +2010,25 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 								rec->fields[i].type);
 					}
 					break;
-				case TYPE_FILE:
-					for(int a = 0 ; a < rec->fields[i].data.v.size; a++){	
-						buffer->recs[buffer->capacity].fields[i].data.v
-							.insert((void*)rec->fields[i].data.v.elements.r[a],
-								&buffer->recs[buffer->capacity].fields[i].data.v,
-								rec->fields[i].type);
-					}
-					break;
 				default:
 					return -1;
+				}
+				break;
+			case TYPE_FILE:
+				buffer->recs[buffer->capacity].fields[i].data.file.count = rec->fields[i].data.file.count;
+				buffer->recs[buffer->capacity].fields[i].data.file.recs = calloc(rec->fields[i].data.file.count,sizeof(struct Record_f));
+				if(!buffer->recs[buffer->capacity].fields[i].data.file.recs){
+					__er_calloc(F,L-2);
+					return -1;
+				} 
+				for(uint32_t j = 0; j < rec->fields[i].data; j++){
+					if(!copy_rec(rec->fields[i].data.file.recs[j],
+								&buffer->recs[buffer->capacity].fields[i].data.file.recs[j],
+								NULL)){
+						fprint(stderr,"(%s): copy_rec() failed, %s:%d.\n",p,ERR_MSG_PAR-3);
+						return -1;
+				        }
+
 				}
 				break;
 			default:

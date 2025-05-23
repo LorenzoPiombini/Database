@@ -65,15 +65,6 @@ struct array
 };
 
 
-struct File_field{
-	off_t offset;
-	union{
-		uint32_t n;
-		char *s;
-	}key;
-	struct Record_f *rec;
-};
-
 struct File {
 	struct Record_f *recs;
 	uint32_t count;	

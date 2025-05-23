@@ -266,7 +266,7 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 						found++;
 						break;
 					case SCHEMA_CT:
-						if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
+						if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
 							printf("set_field failed %s:%d.\n", F, L - 2);
 							return -1;
 						}
@@ -2820,20 +2820,6 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 				}
 			case TYPE_FILE:
 			{
-				if(!recs_old->recs[i].fields[index].data.v.elements.r){
-					recs_old->recs[i].fields[index].data.v.insert = insert_element;
-					recs_old->recs[i].fields[index].data.v.destroy = free_dynamic_array;
-				}else{
-					recs_old->recs[i].fields[index].data.v.
-						destroy(&recs_old->recs[i].fields[index].data.v, 
-								rec->fields[index].type);
-				}
-					for (int a = 0; a < rec->fields[index].data.v.size; a++) {
-						recs_old->recs[i].fields[index].data.v.
-							insert((void *)rec->fields[index].data.v.elements.r[a],
-									&recs_old->recs[i].fields[index].data.v, 
-									rec->fields[index].type);
-					}
 					positions[i] = 'y';
 					break;
 			}
