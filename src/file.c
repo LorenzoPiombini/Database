@@ -2731,6 +2731,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 								__n_buff_update = 0;
 								eof = 0;
+								str_loc = 0;
 								step++;
 							}
 							sz--;
@@ -3000,6 +3001,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 							__n_buff_update = 0;
 							eof = 0;
+							str_loc = 0;
 							step++;
 						}
 
@@ -3008,10 +3010,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 							if (padding_value > 0)
 							{
-								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
-								{
-									__er_file_pointer(F, L - 1);
-									return 0;
+								for(int i = 0; i < padding_value; i++){
+									if(get_string_size(fd) == (size_t) -1){
+										__er_file_pointer(F, L - 1);
+										return 0;
+									}
 								}
 							}
 							/*write the epty update offset*/
@@ -3032,7 +3035,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								__er_file_pointer(F, L - 1);
 								return 0;
 							}
-
 						}
 					}
 
@@ -3089,8 +3091,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								/* adding 1 for '\0'*/
 								lt++, buff_update++;
 								buff_w = calloc(buff_update, sizeof(char));
-								if (!buff_w)
-								{
+								if (!buff_w){
 									__er_calloc(F, L - 2);
 									return 0;
 								}
@@ -3407,10 +3408,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * move the file pointer after the array
 					 * as much as the pad
 					 * */
-					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
-					{
-						__er_file_pointer(F, L - 1);
-						return 0;
+					for(int i = 0; i < pd_he; i++){
+						if(get_string_size(fd) == (size_t) -1){
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
 					}
 
 					uint64_t update_arr_ne = bswap_64(0);
