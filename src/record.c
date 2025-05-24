@@ -1946,12 +1946,9 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 					return -1;
 				}
 				close_file(1,fd_sch);
-				buffer->recs[buffer->capacity].fields[i].data.file.count = rec->fields[i].data.file.count;
-				buffer->recs[buffer->capacity].fields[i].data.file.recs = calloc(rec->fields[i].data.file.count,sizeof(struct Record_f));
-				if(!buffer->recs[buffer->capacity].fields[i].data.file.recs){
-					__er_calloc(F,L-2);
-					return -1;
-				} 
+				memset(buffer->recs[buffer->capacity].fields[i].data.file.recs,
+						0,buffer->recs[buffer->capacity].fields[i].data.file.count*sizeof(struct Record_f)); 
+
 				for(uint32_t j = 0; j < rec->fields[i].data.file.count; j++){
 					if(!copy_rec(&rec->fields[i].data.file.recs[j],
 								&buffer->recs[buffer->capacity].fields[i].data.file.recs[j],
