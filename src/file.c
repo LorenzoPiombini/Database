@@ -2998,6 +2998,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 										return 0;
 									}
 								}
+							}else{
+								exit = 1;
 							}
 							__n_buff_update = 0;
 							eof = 0;
