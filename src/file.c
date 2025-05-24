@@ -1632,6 +1632,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 								step++;
+								if(!(step < rec->fields[i].data.v.size)) exit = 1;
 							}
 						}
 
@@ -1639,7 +1640,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (padding_value > 0)
 							{
-								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+								if (move_in_file_bytes(fd, padding_value * sizeof(long)) == -1)
 								{
 									__er_file_pointer(F, L - 1);
 									return 0;
@@ -1658,7 +1659,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					if (padding_value > 0)
 					{
-						if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, padding_value * sizeof(long)) == -1)
 						{
 							__er_file_pointer(F, L - 1);
 							return 0;
@@ -1668,8 +1669,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					uint64_t update_off_ne = 0;
 					off_t go_back_to = get_file_offset(fd);
 
-					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
-					{
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1){
 						perror("failed read update off_t int array.\n");
 						return 0;
 					}
@@ -1689,8 +1689,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
 						uint32_t size_left_ne = htonl((uint32_t)size_left);
-						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
-						{
+						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1){
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
