@@ -1159,6 +1159,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 								step++;
+								if(!(step < rec->fields[i].data.v.size)) exit = 0;
 							}
 						}
 
@@ -1810,7 +1811,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * move the file pointer after the array
 					 * as much as the pad
 					 * */
-					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, pd_he * sizeof(long)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						return 0;
@@ -1879,7 +1880,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * */
 					if (pd_he > 0)
 					{
-						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, pd_he * sizeof(long)) == -1)
 						{
 							__er_file_pointer(F, L - 2);
 							return 0;
@@ -2102,6 +2103,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 								step++;
+								if(!(step < rec->fields[i].data.v.size)) exit = 1;
 							}
 						}
 
@@ -2110,7 +2112,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 							if (padding_value > 0)
 							{
-								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+								if (move_in_file_bytes(fd, padding_value * sizeof(float)) == -1)
 								{
 									__er_file_pointer(F, L - 1);
 									return 0;
@@ -2129,7 +2131,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					if (padding_value > 0)
 					{
-						if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, padding_value * sizeof(float)) == -1)
 						{
 							__er_file_pointer(F, L - 1);
 							return 0;
@@ -2282,7 +2284,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * move the file pointer after the array
 					 * as much as the pad
 					 * */
-					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, pd_he * sizeof(float)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						return 0;
@@ -2351,7 +2353,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * */
 					if (pd_he > 0)
 					{
-						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, pd_he * sizeof(float)) == -1)
 						{
 							__er_file_pointer(F, L - 2);
 							return 0;
@@ -3904,6 +3906,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 								step++;
+								if(!(step < rec->fields[i].data.v.size)) exit = 1;
 							}
 						}
 
@@ -4152,7 +4155,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * */
 					if (pd_he > 0)
 					{
-						if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+						if (move_in_file_bytes(fd, pd_he * sizeof(unsigned char)) == -1)
 						{
 							__er_file_pointer(F, L - 2);
 							return 0;
@@ -4375,6 +4378,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 								step++;
+								if(!(step < rec->fields[i].data.v.size)) exit = 1;
 							}
 						}
 
@@ -4382,7 +4386,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (padding_value > 0)
 							{
-								if (move_in_file_bytes(fd, padding_value * sizeof(int)) == -1)
+								if (move_in_file_bytes(fd, padding_value * sizeof(double)) == -1)
 								{
 									__er_file_pointer(F, L - 1);
 									return 0;
@@ -4554,7 +4558,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * move the file pointer after the array
 					 * as much as the pad
 					 * */
-					if (move_in_file_bytes(fd, pd_he * sizeof(int)) == -1)
+					if (move_in_file_bytes(fd, pd_he * sizeof(double)) == -1)
 					{
 						__er_file_pointer(F, L - 1);
 						return 0;
