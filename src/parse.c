@@ -2853,14 +2853,24 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 				}
 				close_file(1,fd_sch);
 
-			        free_type_file(&recs_old->recs[i]); 
-				recs_old->recs[i].fields[j].data.file.count = rec->fields[index].data.file.count;
-				recs_old->recs[i].fields[j].data.file.recs = calloc(rec->fields[index].data.file.count,sizeof(struct Record_f));
-				if(!recs_old->recs[i].fields[j].data.file.recs){
-					__er_calloc(F,L-2);
-					positions[i] = '0';
-					return;
-				} 
+				/*zeroed out the memory for reuse*/
+				memset(recs_old->recs[i].fields[j].data.file.recs,
+						0,recs_old->recs[i].fields[j].data.file.count * sizeof(struct Record_f)); 
+
+				/*resize the memory accordingly*/
+				if(recs_old->recs[i].fields[j].data.file.count != rec->fields[index].data.file.count){
+					struct Record_f *n_recs = realloc(recs_old->recs[i].fields[j].data.file.recs,
+							rec->fields[index].data.file.count * sizeof(struct Record_f));
+					if(!n_recs){
+						__er_realloc(F,L-3);
+						positions[i] = '0';
+						return ;
+					}
+
+					recs_old->recs[i].fields[j].data.file.recs = n_recs;
+					recs_old->recs[i].fields[j].data.file.count = rec->fields[index].data.file.count;
+				}
+
 				for(uint32_t x = 0; x < rec->fields[index].data.file.count; x++){
 					if(!copy_rec(&rec->fields[index].data.file.recs[x],
 								&recs_old->recs[i].fields[j].data.file.recs[x],
