@@ -6162,21 +6162,46 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				int padd = (int)ntohl(padding);
 
-				rec->fields[i].data.file.recs = calloc(sz,sizeof(struct Record_f));
-				rec->fields[i].data.file.count = sz;
-				if(!rec->fields[i].data.file.recs){
-					__er_calloc(F,L-2);
-					free_record(rec, rec->fields_num);
-					return -1;
-				}
-				for (uint32_t j = 0; j < sz; j++) {
-						
-					if(read_file(fd, rec->fields[i].field_name, 
-								&rec->fields[i].data.file.recs[j], hd.sch_d) == -1){
-						fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
+				if (rec->fields[i].data.file.count > 0){
+					struct Record_f *n_recs = realloc(rec->fields[i].data.file.recs,
+							(rec->fields[i].data.file.count + sz) * sizeof(struct Record_f));
+					
+					if(!n_recs){
+						__er_realloc(F,L-4);
+						free_record(rec, rec->fields_num);
+						return -1;
+
+					}
+					rec->fields[i].data.file.recs = n_recs; 
+					rec->fields[i].data.file.count += sz;
+
+
+				}else{
+					rec->fields[i].data.file.recs = calloc(sz,sizeof(struct Record_f));
+					rec->fields[i].data.file.count = sz;
+					if(!rec->fields[i].data.file.recs){
+						__er_calloc(F,L-2);
+						free_record(rec, rec->fields_num);
 						return -1;
 					}
+				}
 
+				for (uint32_t j = 0; j < sz; j++) {
+					if(array_upd > 0){		
+						if(read_file(fd, rec->fields[i].field_name, 
+									&rec->fields[i].data.file.recs[rec->fields[i].data.file.count - sz + j], hd.sch_d) == -1){
+							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
+							return -1;
+						}
+
+					}else{
+						if(read_file(fd, rec->fields[i].field_name, 
+									&rec->fields[i].data.file.recs[j], hd.sch_d) == -1){
+							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
+							return -1;
+						}
+
+					}
 					//check if the record has updates 
 					off_t rests_pos_here = get_file_offset(fd);
 					

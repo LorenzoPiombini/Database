@@ -1833,6 +1833,7 @@ int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 				strncpy(buffer->recs[buffer->capacity].fields[i].field_name,
 						rec->fields[i].field_name,
 						strlen(rec->fields[i].field_name));
+				buffer->recs[buffer->capacity].fields[i].type = rec->fields[i].type;
 				continue;
 			}
 
