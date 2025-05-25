@@ -1119,9 +1119,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			}
 			break;
 		case TYPE_STRING:
-			memset(data, 0, 30);
 			if (!set_field(dest, i, src->fields[i].field_name,
-						   src->fields[i].type, data,src->field_set[i])){
+						   src->fields[i].type, src->fields[i].data.s,src->field_set[i])){
 				printf("set_field() failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
@@ -1826,6 +1825,8 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos)
 {
 	if(buffer->capacity < MAX_RECS_OLD_CAP) {
+		strncpy(buffer->recs[buffer->capacity].file_name,rec->file_name,strlen(rec->file_name));
+
 		for(int i = 0; i < rec->fields_num; i++){
 			if(rec->field_set[i] == 0){
 				buffer->recs[buffer->capacity].field_set[i] = 0;

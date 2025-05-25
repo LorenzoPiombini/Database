@@ -1381,14 +1381,12 @@ int main(int argc, char *argv[])
 				int no_updates = 0;
 				unsigned short updates = 0; /* bool value if 0 no updates*/
 				for (i = 0; i < size_pos; i++) {
-					if (positions[i] == 'n')
-						continue;
-
-					if(positions[i] == 'e') {
+					if (positions[i] == 'n' || positions[i] == 'e'){
 						no_updates = 1;
 						continue;
 					}
 
+					no_updates = 0;
 					++updates;
 					changed = 1;
 					if (find_record_position(fd_data, recs_old.pos_u[i]) == -1) {

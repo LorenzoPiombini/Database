@@ -4693,14 +4693,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				size_t len = strlen(rec->fields[i].field_name);
-				uint64_t l = bswap_64(len);
-				if (write(fd, &l, sizeof(l)) == -1 || 
-					write(fd, rec->fields[i].field_name, len) == -1){ 
-					perror("error in writing size array to file.\n");
-					return 0;
-				}
-
 				/*write the size of the array */
 				uint32_t size_ne = htonl(rec->fields[i].data.file.count);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)	{
@@ -4766,10 +4758,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				int padding_value = 0;
 				do
 				{
+					/*skip the NTG_WR value*/
+					if(move_in_file_bytes(fd,sizeof(uint32_t)) == -1){
+						__er_file_pointer(F,L-1);
+						return 0;
+					}	
 					/* check the size */
 					uint32_t sz_ne = 0;
-					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
-					{
+					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1){
 						fprintf(stderr, "can't read int array size.\n");
 						return 0;
 					}
@@ -4781,8 +4777,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					/*read the padding data*/
 					uint32_t pd_ne = 0;
-					if (read(fd, &pd_ne, sizeof(pd_ne)) == -1)
-					{
+					if (read(fd, &pd_ne, sizeof(pd_ne)) == -1){
 						fprintf(stderr, "can't read padding array.\n");
 						return 0;
 					}
@@ -6120,38 +6115,22 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->field_set[i] = 0;
 				break; 
 			}
-			/*read the schema file name*/
-			uint64_t l = 0;
-			if (read(fd, &l, sizeof(l)) == -1){
-				perror("error readig array.");
-				free_record(rec, rec->fields_num);
-				return -1;
-			}
 
-			size_t len = bswap_64(l);
-			char em_file_name[len+1];
-			memset(em_file_name,0,len+1);
-
-			if (read(fd, em_file_name,len) == -1){
-				perror("error readig array.");
-				free_record(rec, rec->fields_num);
-				return -1;
-			}
-
+			size_t len = strlen(rec->fields[i].field_name);
 			char *sfx = ".sch";
 			int sfxl = (int)strlen(sfx);
 			int totl = sfxl + (int)len + 1;
 			char sch_file[totl];
 			memset(sch_file,0,totl);
-			strncpy(sch_file,em_file_name,len);
+			strncpy(sch_file,rec->fields[i].field_name,len);
 			strncat(sch_file,sfx,sfxl);
 			//now you have to open the file
 			int fd_schema = open_file(sch_file,0);
-			if(file_error_handler(1,fd_schema) != 0) return -1;			
+			if(file_error_handler(1,fd_schema) != 0) return 0;			
 
 			struct Schema sch = {0};
 			struct Header_d hd = {0,0,sch};	
-					
+
 			if (!read_header(fd_schema, &hd)) {
 				close(fd_schema);
 				free_record(rec, rec->fields_num);
@@ -6159,6 +6138,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			}
 
 			close(fd_schema);
+
+
 
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
