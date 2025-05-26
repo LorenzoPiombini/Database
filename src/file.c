@@ -4749,6 +4749,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				close(fd_schema);
 
 
+				/*skip the NTG_WR value*/
+				if(move_in_file_bytes(fd,sizeof(uint32_t)) == -1){
+					__er_file_pointer(F,L-1);
+					return 0;
+				}	
 				/* update branch*/
 				off_t update_pos = 0;
 				off_t go_back_to_first_rec = 0;
@@ -4758,11 +4763,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				int padding_value = 0;
 				do
 				{
-					/*skip the NTG_WR value*/
-					if(move_in_file_bytes(fd,sizeof(uint32_t)) == -1){
-						__er_file_pointer(F,L-1);
-						return 0;
-					}	
 					/* check the size */
 					uint32_t sz_ne = 0;
 					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1){
@@ -4930,9 +4930,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 								step++;
+								if(!(step < rec->fields[i].data.file.count)) exit = 1;
 							}
 						}
-
+						
 						if (exit)
 						{
 
@@ -5025,7 +5026,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						for (int j = 0; j < size_left; j++) {
 							if (step < rec->fields[i].data.file.count){
-								if(write_file(fd,&rec->fields[i].data.file.recs[k],0,0) == 0){
+								if(write_file(fd,&rec->fields[i].data.file.recs[step],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;
 								}
