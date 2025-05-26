@@ -2853,10 +2853,15 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 				}
 				close_file(1,fd_sch);
 
-				/*zeroed out the memory for reuse*/
-				memset(recs_old->recs[i].fields[index].data.file.recs,
-						0,recs_old->recs[i].fields[index].data.file.count * sizeof(struct Record_f)); 
 
+				/*
+				 * ensure that previously allcoated memory
+				 * in the rec is freed
+				 * */
+				for(uint32_t m = 0; m < recs_old->recs[i].fields[index].data.file.count;m++){
+					free_record(&recs_old->recs[i].fields[index].data.file.recs[m],
+							recs_old->recs[i].fields[index].data.file.recs[m].fields_num);
+				}
 				/*resize the memory accordingly*/
 				if(recs_old->recs[i].fields[index].data.file.count != rec->fields[index].data.file.count){
 					struct Record_f *n_recs = realloc(recs_old->recs[i].fields[index].data.file.recs,
@@ -2871,6 +2876,9 @@ void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Re
 					recs_old->recs[i].fields[index].data.file.count = rec->fields[index].data.file.count;
 				}
 
+				/*zeroed out the memory for reuse*/
+				memset(recs_old->recs[i].fields[index].data.file.recs,
+						0,recs_old->recs[i].fields[index].data.file.count * sizeof(struct Record_f)); 
 
 				for(uint32_t x = 0; x < rec->fields[index].data.file.count; x++){
 					if(!copy_rec(&rec->fields[index].data.file.recs[x],

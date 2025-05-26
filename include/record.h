@@ -57,7 +57,6 @@ struct array
 		char **s;
 		unsigned char **b;
 		double **d;
-		struct Record_f **r;
 	} elements;
 	int size;
 	int (*insert)(void *, struct array *, enum ValueType);
