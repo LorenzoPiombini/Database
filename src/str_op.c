@@ -911,27 +911,18 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			char *delim = NULL;
 			while((delim = strstr(file_start,":"))){
 				if((delim - cbuff) < end) 
-					*delim = '@';
+					*delim = '&';
 				else
 					break;
 			}
 		}
 
 		*file_start = '@';
-		int start = file_start - cbuff;
-		if (start < 178){
-			indexes[count] = (char) start;		
-			count++;
-		}else{
-			fprintf(stderr,"number of fields filed to big, %s:%d.\n",F,L);
-			free(*values);
-			return -1;
-		}
+		count++;
 	}
 
-	for(int j  = 0; j < count; j++){
-		cbuff[(int)indexes[j]] = '[';
-	}
+	replace('@','[',cbuff);
+	replace('&','@',cbuff);
 
 	int i = 0;
 	if(strstr(cbuff,T_)){

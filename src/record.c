@@ -87,12 +87,13 @@ unsigned char set_field(struct Record_f *rec,
 					if(stop != 0){
 						int start = stop;
 						stop = close_c - value;
+
 						if(stop > 500){
 							/* handle this hedge case*/
 
 						}
 						if(i < count)
-							strncpy(values[i],&value[++start],stop-1);
+							strncpy(values[i],&value[start+1],stop-start-1);
 
 						i++;
 						*(--close_c) = '@';
@@ -2233,7 +2234,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 						for (int a = 0; a < dest->fields[i].data.v.size; a++){
 							if (strncmp(src->fields[i].data.v.elements.s[a], 
 									dest->fields[i].data.v.elements.s[a],
-									strlen(dest->fields[i].data.v.elements.s[a]))) as++;
+									strlen(src->fields[i].data.v.elements.s[a])) == 0) as++;
 						}
 					}
 					if(dest->fields[i].data.v.size == as) c++;
