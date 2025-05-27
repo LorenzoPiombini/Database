@@ -238,7 +238,6 @@ int main(int argc, char *argv[])
 			case TYPE_DF:
 			{
 				fields_count = count_fields(schema_def,NULL);
-
 				if (fields_count == 0) {
 					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
 					goto clean_on_error_1;

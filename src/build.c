@@ -176,11 +176,23 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	int lines = 0, i = 0;
 	int size = return_bigger_buffer(fp, &lines);
 	char buffer[size];
+	char *save = NULL;
 	char **files_n = calloc(lines, sizeof(char *));
 	char **schemas = calloc(lines, sizeof(char *));
+	if(!files_n || !schemas){
+		__er_calloc(F,L-3);
+		if(files_n) free(files_n);
+		if(schemas) free(schemas);
+		return 0;
+	}
+
 	int buckets[lines];
 	int indexes[lines];
-	char *save = NULL;
+	int file_field[lines];
+	memset(buckets,0,lines);
+	memset(indexes,0,lines);
+	memset(file_field,0,lines);
+
 
 	while (fgets(buffer, sizeof(buffer), fp))
 	{
@@ -190,8 +202,26 @@ unsigned char create_system_from_txt_file(char *txt_f)
 
 		files_n[i] = strdup(strtok_r(buffer, "|", &save));
 		schemas[i] = strdup(strtok_r(NULL, "|", &save));
-		buckets[i] = atoi(strtok_r(NULL, "|", &save));
-		indexes[i] = atoi(strtok_r(NULL, "|", &save));
+		char *endp;
+		long l = strtol(strtok_r(NULL, "|", &save),&endp,10);
+		if(*endp == '\0')
+			buckets[i] = (int) l; 
+		else 
+			buckets[i] = 0;
+
+
+		l = strtol(strtok_r(NULL, "|", &save), &endp,10);
+		if(*endp == '\0')
+			indexes[i] = (int) l; 
+		else 
+			indexes[i] = 0; 
+
+		l = strtol(strtok_r(NULL, "|", &save), &endp,10);
+		if(*endp == '\0')
+			file_field[i] = (int) l; 
+		else 
+			file_field[i] = 0; 
+
 		i++;
 		save = NULL;
 	}
@@ -204,24 +234,46 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	{
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};
 		three_file_path(files_n[j],files);
-		int fd_index = create_file(files[0]);
-		int fd_data = create_file(files[1]);
-		int fd_schema = create_file(files[2]);
-		if (fd_index == -1 || fd_data == -1)
-		{
-			fprintf(stderr, "system already exist!\n");
+		int fd_schema = -1;
+		int fd_index = -1;
+		int fd_data = -1;
+
+		if(file_field[j]){
+			fd_schema = create_file(files[2]);
+
+			if (file_error_handler(1,fd_schema) !=0){
+				fprintf(stderr, "system already exist!\n");
+				free_strs(lines, 2, files_n, schemas);
+				return 0;
+			}
+		}else{
+			fd_index = create_file(files[0]);
+			fd_data = create_file(files[1]);
+			fd_schema = create_file(files[2]);
+			if (file_error_handler(3,fd_schema,fd_data,fd_index) !=0){
+				fprintf(stderr, "system already exist!\n");
+				free_strs(lines, 2, files_n, schemas);
+				return 0;
+			}
+		}
+
+
+		if (!create_file_with_schema(fd_schema, fd_index, schemas[j], buckets[j], indexes[j],file_field[j])){
+			if(file_field[j]){
+				delete_file(1,files[2]);
+				close_file(1,fd_schema);
+			}else{
+				delete_file(3, files[0], files[1],files[2]);
+				close_file(3, fd_data, fd_index,fd_schema);
+			}
 			free_strs(lines, 2, files_n, schemas);
 			return 0;
 		}
 
-		if (!create_file_with_schema(fd_schema, fd_index, schemas[j], buckets[j], indexes[j]))
-		{
-			delete_file(2, files[0], files[1]);
-			close_file(2, fd_data, fd_index);
-			return 0;
-		}
-
-		close_file(2, fd_index, fd_data);
+		if(file_field[j])
+			close_file(1,fd_schema);
+		else
+			close_file(3, fd_data, fd_index,fd_schema);
 	}
 
 	free_strs(lines, 2, files_n, schemas);
