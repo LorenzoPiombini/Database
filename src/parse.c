@@ -899,6 +899,23 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 	switch(mode){
 	case NO_TYPE_DF:
 		if((fields_num = get_fields_name_with_no_type(buffer,names)) == -1) return 0;
+		/*check if the fields name are correct- if not - input is incorrect */
+		for (int i = 0; i < fields_num; i++) {
+
+			if (names[i][0] == '\0') {
+				printf("invalid input.\n");
+				printf("input syntax: fieldName:TYPE:value\n");
+				return 0;
+			} 
+
+			if (strlen(names[i]) > MAX_FIELD_LT) {
+				printf("invalid input.\n");
+				printf("one or more filed names are too long.\n");
+				return 0;
+			}
+		}
+
+
 		break;
 	case TYPE_DF:
 		get_fileds_name(buffer, fields_num, 2,names);
@@ -921,60 +938,100 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 				printf("input syntax: fieldName:TYPE:value\n");
 				return 0;
 			}
+
+			if (names[i][0] == '\0') {
+				printf("invalid input.\n");
+				printf("input syntax: fieldName:TYPE:value\n");
+				return 0;
+			} else if (strstr(names[i], "TYPE STRING") ||
+					strstr(names[i], "TYPE LONG") ||
+					strstr(names[i], "TYPE INT") ||
+					strstr(names[i], "TYPE BYTE") ||
+					strstr(names[i], "TYPE FLOAT") ||
+					strstr(names[i], "TYPE DOUBLE") ||
+					strstr(names[i], "TYPE FILE") ||
+					strstr(names[i], "TYPE ARRAY DOUBLE") ||
+					strstr(names[i], "TYPE ARRAY INT") ||
+					strstr(names[i], "TYPE ARRAY LONG") ||
+					strstr(names[i], "TYPE ARRAY FLOAT") ||
+					strstr(names[i], "TYPE ARRAY BYTE") ||
+					strstr(names[i], "TYPE ARRAY STRING") ||
+					strstr(names[i], "t_s") ||
+					strstr(names[i], "t_l") ||
+					strstr(names[i], "t_i") ||
+					strstr(names[i], "t_b") ||
+					strstr(names[i], "t_f") ||
+					strstr(names[i], "t_d") ||
+					strstr(names[i], "t_ad") ||
+					strstr(names[i], "t_ai") ||
+					strstr(names[i], "t_al") ||
+					strstr(names[i], "t_af") ||
+					strstr(names[i], "t_ab") ||
+					strstr(names[i], "t_as") || 
+					strstr(names[i], "t_fl")) { 
+						printf("invalid input.\ninput syntax: fieldName:TYPE:value\n");
+						return 0;
+					}
+
+			if (strlen(names[i]) > MAX_FIELD_LT) {
+				printf("invalid input.\n");
+				printf("one or more filed names are too long.\n");
+				return 0;
+			}
 		}
+
 		break;
 	case HYB_DF:
 		if((fields_num = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) return 0;
+		for (int i = 0; i < fields_num; i++) {
+			if (names[i][0] == '\0') {
+				printf("invalid input.\n");
+				printf("input syntax: fieldName:TYPE:value\n");
+				return 0;
+			} else if (strstr(names[i], "TYPE STRING") ||
+					strstr(names[i], "TYPE LONG") ||
+					strstr(names[i], "TYPE INT") ||
+					strstr(names[i], "TYPE BYTE") ||
+					strstr(names[i], "TYPE FLOAT") ||
+					strstr(names[i], "TYPE DOUBLE") ||
+					strstr(names[i], "TYPE FILE") ||
+					strstr(names[i], "TYPE ARRAY DOUBLE") ||
+					strstr(names[i], "TYPE ARRAY INT") ||
+					strstr(names[i], "TYPE ARRAY LONG") ||
+					strstr(names[i], "TYPE ARRAY FLOAT") ||
+					strstr(names[i], "TYPE ARRAY BYTE") ||
+					strstr(names[i], "TYPE ARRAY STRING") ||
+					strstr(names[i], "t_s") ||
+					strstr(names[i], "t_l") ||
+					strstr(names[i], "t_i") ||
+					strstr(names[i], "t_b") ||
+					strstr(names[i], "t_f") ||
+					strstr(names[i], "t_d") ||
+					strstr(names[i], "t_ad") ||
+					strstr(names[i], "t_ai") ||
+					strstr(names[i], "t_al") ||
+					strstr(names[i], "t_af") ||
+					strstr(names[i], "t_ab") ||
+					strstr(names[i], "t_as") || 
+					strstr(names[i], "t_fl")) { 
+						printf("invalid input.\ninput syntax: fieldName:TYPE:value\n");
+						return 0;
+					}
+
+			if (strlen(names[i]) > MAX_FIELD_LT) {
+				printf("invalid input.\n");
+				printf("one or more filed names are too long.\n");
+				return 0;
+			}
+		}
+
+
 		break;
 	default:
 		return 0;
 	}
 
 
-
-	/*check if the fields name are correct- if not - input is incorrect */
-	for (int i = 0; i < fields_num; i++) {
-
-		if (names[i][0] == '\0') {
-			printf("invalid input.\n");
-			printf("input syntax: fieldName:TYPE:value\n");
-			return 0;
-		} else if (strstr(names[i], "TYPE STRING") ||
-				 strstr(names[i], "TYPE LONG") ||
-				 strstr(names[i], "TYPE INT") ||
-				 strstr(names[i], "TYPE BYTE") ||
-				 strstr(names[i], "TYPE FLOAT") ||
-				 strstr(names[i], "TYPE DOUBLE") ||
-				 strstr(names[i], "TYPE FILE") ||
-				 strstr(names[i], "TYPE ARRAY DOUBLE") ||
-				 strstr(names[i], "TYPE ARRAY INT") ||
-				 strstr(names[i], "TYPE ARRAY LONG") ||
-				 strstr(names[i], "TYPE ARRAY FLOAT") ||
-				 strstr(names[i], "TYPE ARRAY BYTE") ||
-				 strstr(names[i], "TYPE ARRAY STRING") ||
-				 strstr(names[i], "t_s") ||
-				 strstr(names[i], "t_l") ||
-				 strstr(names[i], "t_i") ||
-				 strstr(names[i], "t_b") ||
-				 strstr(names[i], "t_f") ||
-				 strstr(names[i], "t_d") ||
-				 strstr(names[i], "t_ad") ||
-				 strstr(names[i], "t_ai") ||
-				 strstr(names[i], "t_al") ||
-				 strstr(names[i], "t_af") ||
-				 strstr(names[i], "t_ab") ||
-				 strstr(names[i], "t_as") || 
-				 strstr(names[i], "t_fl")) { 
-			printf("invalid input.\ninput syntax: fieldName:TYPE:value\n");
-			return 0;
-		}
-
-		if (strlen(names[i]) > MAX_FIELD_LT) {
-			printf("invalid input.\n");
-			printf("one or more filed names are too long.\n");
-			return 0;
-		}
-	}
 
 	if (!check_fields_integrity(names, fields_num)) {
 		printf("invalid input, one or more fields have the same name.\n");
@@ -3127,6 +3184,7 @@ void print_schema(struct Schema sch)
 	int i = 0;
 
 	char c = ' ';
+	char keyb = '0';
 	printf("Field Name%-*cType\n", 11, c);
 	printf("__________________________\n");
 	for (i = 0; i < sch.fields_num; i++) {
@@ -3176,6 +3234,12 @@ void print_schema(struct Schema sch)
 				printf("\n");
 				break;
 		}
+		if (i > 0 && (i % 20 == 0)){
+			printf("press return key. . .\nenter q to quit . . .\n");
+			keyb = (char)getc(stdin);
+		}
+		if (keyb == 'q')
+			break;
 	}
 
 	printf("\n");

@@ -903,7 +903,6 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 	/* detect files types*/	
 	char *file_start = NULL;
 	int count = 0;
-	char indexes[178] = {0}; 
 	while((file_start = strstr(cbuff,"["))){
 		char *end_file = strstr(file_start,"]");
 		if(end_file){ 

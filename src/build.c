@@ -203,20 +203,23 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		files_n[i] = strdup(strtok_r(buffer, "|", &save));
 		schemas[i] = strdup(strtok_r(NULL, "|", &save));
 		char *endp;
-		long l = strtol(strtok_r(NULL, "|", &save),&endp,10);
+		char *t = strtok_r(NULL, "|",&save);
+		long l = strtol(t,&endp,10);
 		if(*endp == '\0')
 			buckets[i] = (int) l; 
 		else 
 			buckets[i] = 0;
 
 
-		l = strtol(strtok_r(NULL, "|", &save), &endp,10);
+		t = strtok_r(NULL, "|",&save);
+		l = strtol(t,&endp,10);
 		if(*endp == '\0')
 			indexes[i] = (int) l; 
 		else 
 			indexes[i] = 0; 
 
-		l = strtol(strtok_r(NULL, "|", &save), &endp,10);
+		t = strtok_r(NULL, "|",&save);
+		l = strtol(t,&endp,10);
 		if(*endp == '\0')
 			file_field[i] = (int) l; 
 		else 
@@ -258,7 +261,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		}
 
 
-		if (!create_file_with_schema(fd_schema, fd_index, schemas[j], buckets[j], indexes[j],file_field[j])){
+		if (create_file_with_schema(fd_schema, fd_index, schemas[j], buckets[j], indexes[j],file_field[j]) == -1){
 			if(file_field[j]){
 				delete_file(1,files[2]);
 				close_file(1,fd_schema);

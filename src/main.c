@@ -1700,11 +1700,10 @@ int main(int argc, char *argv[])
 				default:
 					break;
 				}
-				if (i > 0 && (i % 20 == 0))
-					printf("press return key. . .\n"
-						   "enter q to quit . . .\n"),
-						keyboard = (char)getc(stdin);
-
+				if (i > 0 && (i % 20 == 0)){
+					printf("press return key. . .\nenter q to quit . . .\n");
+					keyboard = (char)getc(stdin);
+				}
 				if (keyboard == 'q')
 					break;
 			}

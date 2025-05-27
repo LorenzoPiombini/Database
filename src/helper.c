@@ -9,6 +9,7 @@
 #include "str_op.h"
 #include "debug.h"
 
+static char prog[] = "db";
 unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 {
 
