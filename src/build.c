@@ -7,6 +7,7 @@
 #include "helper.h"
 #include "str_op.h"
 #include "debug.h"
+#include "crud.h"
 
 
 /*this functionality is not implemented yet*/
@@ -296,4 +297,63 @@ int return_bigger_buffer(FILE *fp, int *lines)
 	}
 	rewind(fp);
 	return max + 10;
+}
+
+int import_data_to_system(char *data_file)
+{
+	FILE *fp = fopen(data_file,"r"); 
+	if(!fp){
+		fprintf(stderr,"cannot open %s.\n",data_file);
+		return -1;
+	}
+	
+	if(fseek(fp,0,SEEK_END) == -1) return -1;
+	
+	off_t size = ftell(fp);
+	rewind(fp);	
+
+	char content[size + 1];
+	memset(content,0,size+1);
+	if(fread(content,size,1,fp) != 1){
+		fprintf(stderr,"fread() failed, %s:%d.\n",F,L-1);
+		fclose(fp);
+		return -1;
+	}
+
+	fclose(fp);
+
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};  
+	/* init the Schema structure*/
+	struct Schema sch = {0};
+	memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
+	struct Header_d hd = {0, 0, sch};
+
+
+	char *delim = 0;
+	off_t start = 0;
+	while((delim = strstr(content,"\n"))){
+		size_t l = 0;
+		off_t end = delim - content;		
+		if(start != 0) 
+			l = end - start + 1; 
+		else
+			l = end + 1;
+
+		char buf[l];				
+		memset(buf,0,l);
+		strncpy(buf,&content[start],l-1);
+		/* set the new start */
+		start = (delim +1) - content;
+	        *delim = '\0';	
+		if(buf[0] == '@'){
+			if(open_files(buf,fds,files,0) == -1) return STATUS_ERROR;
+		}
+
+		if(buf[0] == '=') close_file(3,fds[0],fds[1],fds[2]);
+
+		/*write to file*/
+	}
+
 }

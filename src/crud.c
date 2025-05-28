@@ -12,7 +12,6 @@
 #include "crud.h"
 
 static char prog[] = "db";
-int is_db_file(struct Header_d *hd, int *fds);
 static off_t get_rec_position(struct HashTable *ht, char *key);
 
 int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
@@ -80,6 +79,28 @@ int is_db_file(struct Header_d *hd, int *fds)
 	if (!read_header(fds[2], hd)) return STATUS_ERROR;
 
 	return 0;
+}
+	
+int write_record(int *fds)
+{
+	off_t eof = go_to_EOF(fds[1]);
+	if (eof == -1) {
+		__er_file_pointer(F, L - 1);
+		return -1;
+	}
+
+	HashTable *ht = NULL;
+	int index = 0;
+	int *p_index = &index;
+	/* load al indexes in memory */
+	if (!read_all_index_file(fds[0], &ht, p_index)) {
+		fprintf(stderr,"read index file failed. %s:%d.\n", F, L - 2);
+		return 1;
+	}
+
+
+
+
 }
 int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], int option)
 {
