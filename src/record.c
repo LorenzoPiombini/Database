@@ -2078,6 +2078,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 		int af = 0;
 		int ad = 0;
 		int as = 0;
+		int dif = 0;
 		
 		for(int i = 0; i < src->fields_num; i++){
 			if(src->field_set[i] == 1 && dest->field_set[i] == 1){
@@ -2282,8 +2283,14 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 					return E_RCMP;
 				}
 
+			}else{
+				dif++;
 			} 
 		}
+
+		if(dif > 0)
+			if(dif == src->fields_num) return DIF;
+
 		if(c == active) return -1;
 	}
 	return E_RCMP;	

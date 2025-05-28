@@ -18,6 +18,7 @@
 #include "parse.h"
 #include "debug.h"
 #include "build.h"
+#include "crud.h"
 
 char prog[] = "db";
 int main(int argc, char *argv[])
@@ -579,58 +580,39 @@ int main(int argc, char *argv[])
 
 	} else { /*file already exist. we can perform CRUD operation*/
 
-		/*creates three name from the file_path => from "str_op.h" */
 
+		/*open the file*/
+		int fds[3];
+		memset(fds,-1,sizeof(int)*3);
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
-		if(three_file_path(file_path, files) == EFLENGTH){
-			fprintf(stderr,"(%s): file name or path '%s' too long",prog,file_path);
-			return STATUS_ERROR;
-		}
-
-		if (list_def) {
-			int err = 0;
-			fd_schema = open_file(files[2], 0);
-			/* file_error_handler will close the file descriptors if there are issues */
-			if (( err = file_error_handler(1, fd_schema) != 0)){
-				if(err == ENOENT)
-					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_path);
-				else
-					printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
-				
-				return STATUS_ERROR;
-			}
-		} else {
-			int err = 0;
-			fd_index = open_file(files[0], 0);
-			fd_data = open_file(files[1], 0);
-			fd_schema = open_file(files[2], 0);
-			
-			/* file_error_handler will close the file descriptors if there are issues */
-			if ((err = file_error_handler(2, fd_index, fd_data)) != 0) {
-				if(err == ENOENT)
-					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_path);
-				else
-					printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
-
-
-				return STATUS_ERROR;
-			}
-		}
-
-		/* there is no real lock when flag RLOCK is passed to lock funtion
-		 * so if an error occured we do not have to release the lock */
-		while((is_locked(3,fd_schema,fd_data,fd_index)) == LOCKED);
-
-		/* ensure the file is a db file */
 		/* init the Schema structure*/
 		struct Schema sch = {0};
 		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-
 		struct Header_d hd = {0, 0, sch};
 
-		if (!read_header(fd_schema, &hd)) {
-			close_file(3,fd_schema,fd_data,fd_index);
-			return STATUS_ERROR;
+		if (list_def) {
+			if(open_files(file_path,fds,files,ONLY_SCHEMA) == -1) return STATUS_ERROR;
+
+			fd_schema = fds[2];
+			while((is_locked(1,fd_schema)) == LOCKED);
+			/* ensure the file is a db file */
+			if (is_db_file(&hd, fds) == -1) {
+				close_file(1,fd_schema);
+				return STATUS_ERROR;
+			}
+		} else {
+			if(open_files(file_path,fds,files,0) == -1) return STATUS_ERROR;
+			fd_index = fds[0];
+			fd_data = fds[1];
+			fd_schema = fds[2]; 
+			
+
+			while((is_locked(3,fd_schema,fd_data,fd_index)) == LOCKED);
+			/* ensure the file is a db file */
+			if (is_db_file(&hd, fds) == -1) {
+				close_file(3,fd_schema,fd_data,fd_index);
+				return STATUS_ERROR;
+			}
 		}
 
 		if (index_add) {
@@ -643,6 +625,7 @@ int main(int argc, char *argv[])
 			 *  */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
 			int index_num = indexes > 0 ? indexes : 1;
+
 			/* acquire write lock */
 			int lock_f = 0;
 			int r = 0;
@@ -1380,7 +1363,9 @@ int main(int argc, char *argv[])
 				int no_updates = 0;
 				unsigned short updates = 0; /* bool value if 0 no updates*/
 				for (i = 0; i < size_pos; i++) {
-					if (positions[i] == 'n' || positions[i] == 'e'){
+					if (positions[i] == 'n') continue;
+
+					if (positions[i] == 'e'){
 						no_updates = 1;
 						continue;
 					}
@@ -1718,92 +1703,11 @@ int main(int argc, char *argv[])
 			/*display record*/
 			while(is_locked(3,fd_index,fd_data) == LOCKED);
 
-			HashTable ht = {0};
-			HashTable *p_ht = &ht;
-			if (!read_index_nr(0, fd_index, &p_ht)) {
-				printf("reading index file failed, %s:%d.\n", F, L - 1);
-				close_file(3, fd_index, fd_data);
-				return STATUS_ERROR;
-			}
-
-			off_t offset = 0;
-			int key_type = 0;
-			void *key_conv = key_converter(key, &key_type);
-			if (key_type == UINT && !key_conv) {
-				fprintf(stderr, "error to convert key");
-				destroy_hasht(p_ht);
-				close_file(3, fd_schema,fd_index, fd_data);
-				return STATUS_ERROR;
-			} else if (key_type == UINT) {
-				if (key_conv) {
-					offset = get(key_conv, p_ht, key_type); /*look for the key in the ht */
-					free(key_conv);
-				}
-			} else if (key_type == STR) {
-				offset = get((void *)key, p_ht, key_type); /*look for the key in the ht */
-			}
-
-			if (offset == -1) {
-				printf("record not found.\n");
-				destroy_hasht(p_ht);
-				close_file(3, fd_schema,fd_index, fd_data);
-				return STATUS_ERROR;
-			}
-
-			destroy_hasht(p_ht);
-			if (find_record_position(fd_data, offset) == -1) {
-				__er_file_pointer(F, L - 1);
-				close_file(3, fd_index, fd_data);
-				return STATUS_ERROR;
-			}
-
 			struct Record_f rec = {0};
-			if(read_file(fd_data, file_path, &rec, hd.sch_d) == -1) {
-				printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+			if(get_record(file_path,&rec,(void *)key, hd,fds) == -1){
 				close_file(3, fd_schema,fd_index, fd_data);
 				return STATUS_ERROR;
 			}
-
-			off_t update_rec_pos = 0; 
-			struct Record_f *temp = NULL;
-			struct Record_f *head = NULL;
-			head = &rec;
-			temp = &rec;
-			while ((update_rec_pos = get_update_offset(fd_data)) > 0) {
-				struct Record_f *n = calloc(1, sizeof(struct Record_f));
-				if(!n){		
-					free_record(&rec, rec.fields_num);
-					close_file(3, fd_schema,fd_index, fd_data);
-					return STATUS_ERROR;
-				}
-
-				if (find_record_position(fd_data, update_rec_pos) == -1) {
-					__er_file_pointer(F, L - 1);
-					close_file(3, fd_schema,fd_index, fd_data);
-					free_record(&rec, rec.fields_num);
-					return STATUS_ERROR;
-				}
-
-				if(read_file(fd_data, file_path,n,hd.sch_d) == -1) {
-					printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
-					free_record(&rec, rec.fields_num);
-					close_file(3, fd_schema,fd_index, fd_data);
-					return STATUS_ERROR;
-				}
-
-
-				temp->next = n;
-				while(temp->next) temp = temp->next; 
-				rec.count++;
-			}
-
-			rec.next = head->next;
-			if (update_rec_pos == -1) {
-				close_file(3, fd_schema,fd_index, fd_data);
-				free_record(&rec, rec.fields_num);
-				return STATUS_ERROR;
-			}
-
 
 			if (rec.count == 1) {
 				print_record(1, rec);

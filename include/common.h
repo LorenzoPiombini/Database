@@ -15,4 +15,5 @@
 #define SCHEMA_NW_NT 13 /*intput is part of the schema but also new part no part of the schema*/
 #define NTG_WR 14 /* nothing to write to the file*/
 #define E_RCMP 201 /* record comparison failed*/	
+#define DIF 202 /* new record is different*/	
 #endif

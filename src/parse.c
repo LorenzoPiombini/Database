@@ -267,7 +267,7 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 						found++;
 						break;
 					case SCHEMA_CT:
-						if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
+						if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
 							printf("set_field failed %s:%d.\n", F, L - 2);
 							return -1;
 						}
@@ -1060,6 +1060,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 	switch(mode){
 	case SCHEMA_EQ:
 		for(int i = 0; i < sch->fields_num; i++){
+			if(strlen(sch->fields_name[i]) != strlen(names[i])) continue;
 			if(strncmp(sch->fields_name[i],names[i],strlen(sch->fields_name[i])) == 0) name_check++;
 
 			if(sch->types[i] != types_i[i])	{
@@ -1164,10 +1165,12 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 	case SCHEMA_CT:
 		for(int i = 0; i < count; i++){
 			for(int j = 0; j <sch->fields_num;j++){
+				if(strlen(sch->fields_name[j]) != strlen(names[i])) continue;
+
 				if(strncmp(sch->fields_name[j],names[i],strlen(sch->fields_name[j])) == 0){
 					name_check++;
 					if(sch->types[j] != types_i[i])	{
-						if(is_number_type(sch->types[i])){
+						if(is_number_type(sch->types[j])){
 							if(sch->types[i] == TYPE_DOUBLE) {
 								types_i[i] = TYPE_DOUBLE;
 								size_t vs = strlen((*values)[i]);
@@ -1184,8 +1187,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 									return -1;
 								}
 							}
-						}else if(is_number_array(sch->types[i])){
-							switch(sch->types[i]){
+						}else if(is_number_array(sch->types[j])){
+							switch(sch->types[j]){
 							case TYPE_ARRAY_INT:
 							case TYPE_ARRAY_BYTE:
 							case TYPE_ARRAY_LONG:
@@ -1204,10 +1207,10 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 										int result = 0;
 										if((result = is_number_in_limits(num)) == 0)
 											return -1;
-										if(sch->types[i] == TYPE_ARRAY_INT){
+										if(sch->types[j] == TYPE_ARRAY_INT){
 											if(result == IN_INT) continue;
 											return -1;
-										}else if(sch->types[i] == TYPE_ARRAY_LONG){
+										}else if(sch->types[j] == TYPE_ARRAY_LONG){
 											if(result == IN_INT || result == IN_LONG)
 												continue;
 
@@ -1226,21 +1229,22 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 									int result = 0;
 									if((result = is_number_in_limits(num)) == 0)
 										return -1;
-									if(sch->types[i] == TYPE_ARRAY_INT){
+									if(sch->types[j] == TYPE_ARRAY_INT){
 										if(result == IN_INT) continue;
 										return -1;
-									}else if(sch->types[i] == TYPE_ARRAY_LONG){
+									}else if(sch->types[j] == TYPE_ARRAY_LONG){
 										if(result == IN_INT || result == IN_LONG)
 											continue;
 
 										return -1;
-									}else if(sch->types[i] == TYPE_ARRAY_BYTE){
+									}else if(sch->types[j] == TYPE_ARRAY_BYTE){
 										char *endp;
 										long l = strtol(num,&endp,10);
 										if(*endp == '\0') 
 											if(l > (long)pow(2,7))return -1;
 									}
 								}
+								types_i[i] = sch->types[j];
 								replace('@',',',(*values)[i]);
 								break;
 							}
@@ -2669,13 +2673,21 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Record_f *rec)
 {
 	int i = 0, j = 0;
+	int dif = 0;
 	if(recs_old->dynamic_capacity == 0){
 		for (i = 0; i < recs_old->capacity; i++) {
 			if (positions[i] != 'y' || positions[i] != 'e')	positions[i] = 'n';
 
 			int index = compare_rec(&recs_old->recs[i],rec);
 			if(index == E_RCMP) return;
-			if(index == -1) continue;
+			if(index == -1){
+				positions[i] = 'e';
+				continue;
+			}
+			if(index == DIF) {
+				dif++; 
+				continue;
+			}
 			switch (rec->fields[index].type) {
 			case TYPE_INT:
 				recs_old->recs[i].fields[index].data.i = rec->fields[index].data.i;
