@@ -13,6 +13,7 @@
 
 static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, char *key);
+static int set_rec(struct HashTable *ht, char *key);
 
 int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
 {
@@ -81,7 +82,7 @@ int is_db_file(struct Header_d *hd, int *fds)
 	return 0;
 }
 	
-int write_record(int *fds)
+int write_record(int *fds,void *key, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH])
 {
 	off_t eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
@@ -98,10 +99,40 @@ int write_record(int *fds)
 		return 1;
 	}
 
+	off_t offset = 0;
+	if(set_rec(ht,(char *)key) == -1) return STATUS_ERROR;
 
+	if(!write_file(fds[1], rec, 0, update)) {
+		printf("write to file failed, main.c l %d.\n", __line__ - 1);
+		return -1;
+	}
 
+	close_file(1, fds[0]);
+	fds[0] = open_file(files[0], 1); // opening with o_trunc
 
+	/* write the new indexes to file */
+	if (!write_index_file_head(fds[0], index)) {
+		printf("write to file failed, %s:%d", f, l - 2);
+		return -1;	
+	}
+
+	for (int i = 0; i < index; i++) {
+
+		if (!write_index_body(fd_index, i, &ht[i])) {
+			printf("write to file failed. %s:%d.\n", F, L - 2);
+			free_ht_array(ht, index);
+			return -1;
+		}
+		destroy_hasht(&ht[i]);
+	}
+
+	free(ht);
+
+	close_file(1, fds[0]);
+	fds[0] = open_file(files[0], 0); // opening in regular mode
+	return 0;
 }
+
 int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], int option)
 {
 	if(three_file_path(file_name, files) == EFLENGTH){
@@ -149,7 +180,29 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	return 0;
 }
 
-
+static int set_rec(struct HashTable *ht, char *key)
+{
+	int key_type = 0;
+	void *key_conv = key_converter(key, &key_type);
+	if (key_type == UINT && !key_conv) {
+		fprintf(stderr, "error to convert key");
+		goto clean_on_error;
+	} else if (key_type == UINT) {
+		if (key_conv) {
+			if (!set(key_conv, key_type, eof, &ht[0])){
+				free(key_conv);
+				return -1;
+			}
+			free(key_conv);
+		}
+	} else if (key_type == STR) {
+		/*create a new key value pair in the hash table*/
+		if (!set((void *)key, key_type, eof, &ht[0])) {
+			return -1;
+		}
+	}
+	return 0;
+}
 static off_t get_rec_position(struct HashTable *ht, char *key)
 {
 	off_t offset = 0;
