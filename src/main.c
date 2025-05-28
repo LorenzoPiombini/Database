@@ -1764,72 +1764,53 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			off_t offt_rec_up_pos = get_file_offset(fd_data);
-			off_t update_rec_pos = get_update_offset(fd_data);
+			off_t update_rec_pos = 0; 
+			struct Record_f *temp = NULL;
+			struct Record_f *head = NULL;
+			head = &rec;
+			temp = &rec;
+			while ((update_rec_pos = get_update_offset(fd_data)) > 0) {
+				struct Record_f *n = calloc(1, sizeof(struct Record_f));
+				if(!n){		
+					free_record(&rec, rec.fields_num);
+					close_file(3, fd_schema,fd_index, fd_data);
+					return STATUS_ERROR;
+				}
+
+				if (find_record_position(fd_data, update_rec_pos) == -1) {
+					__er_file_pointer(F, L - 1);
+					close_file(3, fd_schema,fd_index, fd_data);
+					free_record(&rec, rec.fields_num);
+					return STATUS_ERROR;
+				}
+
+				if(read_file(fd_data, file_path,n,hd.sch_d) == -1) {
+					printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
+					free_record(&rec, rec.fields_num);
+					close_file(3, fd_schema,fd_index, fd_data);
+					return STATUS_ERROR;
+				}
+
+
+				temp->next = n;
+				while(temp->next) temp = temp->next; 
+				rec.count++;
+			}
+
+			rec.next = head->next;
 			if (update_rec_pos == -1) {
 				close_file(3, fd_schema,fd_index, fd_data);
 				free_record(&rec, rec.fields_num);
 				return STATUS_ERROR;
 			}
 
-			int counter = 1;
-			struct Record_f *recs = NULL;
-			struct Record_f rec_n = {0};
 
-			if (update_rec_pos > 0) {
-				recs = calloc(counter, sizeof(struct Record_f));
-				if (!recs) {
-					printf("calloc failed, main.c l %d.\n", __LINE__ - 2);
-					free_record(&rec, rec.fields_num);
-					close_file(3, fd_schema,fd_index, fd_data);
-					return STATUS_ERROR;
-				}
-
-				recs[0] = rec;
-
-				// set the file pointer back to update_rec_pos (we need to read it)
-				//  again for the reading process to be successful
-				if (find_record_position(fd_data, offt_rec_up_pos) == -1) {
-					__er_file_pointer(F, L - 1);
-					free_records(counter, recs);
-					close_file(3, fd_schema,fd_index, fd_data);
-					return STATUS_ERROR;
-				}
-
-				while ((update_rec_pos = get_update_offset(fd_data)) > 0) {
-					counter++;
-					struct Record_f *recs_new = realloc(recs, counter * sizeof(struct Record_f));
-					if (!recs_new) {
-						printf("realloc failed, main.c l %d.\n", __LINE__ - 2);
-						free_records(counter, recs);
-						close_file(3, fd_schema,fd_index, fd_data);
-						return STATUS_ERROR;
-					}
-					recs = recs_new;
-					if (find_record_position(fd_data, update_rec_pos) == -1) {
-						__er_file_pointer(F, L - 1);
-						close_file(3, fd_schema,fd_index, fd_data);
-						free_records(counter, recs);
-						return STATUS_ERROR;
-					}
-
-					memset(&rec_n,0,sizeof(struct Record_f));
-					if(read_file(fd_data, file_path,&rec_n,hd.sch_d) == -1) {
-						printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
-						free_records(counter, recs);
-						close_file(3, fd_schema,fd_index, fd_data);
-						return STATUS_ERROR;
-					}
-					recs[counter - 1] = rec_n;
-				}
-			}
-
-			if (counter == 1) {
-				print_record(1, &rec);
+			if (rec.count == 1) {
+				print_record(1, rec);
 				free_record(&rec, rec.fields_num);
 			}else {
-				print_record(counter, recs);
-				free_records(counter, recs);
+				print_record(rec.count, rec);
+				free_record(&rec, rec.fields_num);
 			}
 
 			close_file(3, fd_schema,fd_index, fd_data);

@@ -865,17 +865,37 @@ void free_record(struct Record_f *rec, int fields_num)
 			return;
 		}
 	}
+
+	if(rec->count > 1){
+		struct Record_f *temp = rec->next;
+		if(temp){
+			while(rec->count > 1){
+				rec->next = temp->next;
+				temp->next = NULL;
+				free_record(temp,temp->fields_num);
+				free(temp);
+				temp = rec->next;  
+				rec->count--;
+				if(!temp)break; 
+			}
+		}
+	}
 }
 
-void print_record(int count, struct Record_f *recs)
+void print_record(int count, struct Record_f recs)
 {
 
 	printf("#################################################################\n\n");
 	printf("the Record data are: \n");
 
-	for (int j = 0; j < count; j++){
-		struct Record_f rec = recs[j];
-		display_data(rec,0);
+
+	display_data(recs,0);
+	if(count > 1){
+		while(recs.next){
+			struct Record_f rec = *recs.next;
+			display_data(rec,0);
+			recs.next =recs.next->next;
+		}
 	}
 	printf("\n#################################################################\n\n");
 }
@@ -1036,13 +1056,6 @@ void free_record_array(int len, struct Record_f **recs)
 	free(*recs);
 }
 
-void free_records(int len,struct Record_f *recs)
-{
-	for (int i = 0; i < len; i++) {
-			free_record(&recs[i],  recs[i].fields_num);
-	}
-	free(recs);
-}
 /* this parameters are:
 	- int len => the length of the array() Record_f***
 	- Record_f*** array => the arrays of record arrays
