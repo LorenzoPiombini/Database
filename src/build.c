@@ -366,11 +366,10 @@ int import_data_to_system(char *data_file)
 
 		/*write to file*/
 		struct Record_f rec = {0};
-		int lock = 0;
-		if(check_schema(file_name,buf,fds,files,&rec,&hd,&lock) == -1) return STATUS_ERROR;
-		if(write_record(fds,(void*)&key,&rec, 0,files,&lock) == -1) return STATUS_ERROR;
+		int lock_f = 0;
+		if(check_data(file_name,buf,fds,files,&rec,&hd,&lock_f) == -1) return STATUS_ERROR;
+		if(write_record(fds,(void*)&key,UINT,&rec, 0,files,&lock_f) == -1) return STATUS_ERROR;
 		/*place indexing function here*/
 		key++;
 	}
-
 }

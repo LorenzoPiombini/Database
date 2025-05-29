@@ -81,12 +81,12 @@ int is_db_file(struct Header_d *hd, int *fds)
 	return 0;
 }
 
-int check_schema(char *file_path,char *data_to_add,
+int check_data(char *file_path,char *data_to_add,
 		int *fds, 
 		char files[][MAX_FILE_PATH_LENGTH], 
 		struct Record_f *rec,
 		struct Header_d *hd,
-		int *lock)
+		int *lock_f)
 {
 	int fields_count = 0;
 	unsigned char check = 0;
@@ -149,13 +149,13 @@ int check_schema(char *file_path,char *data_to_add,
 		 * */
 
 		/* aquire lock */
-		while(is_locked(3,fd[0],fds[1],fds[2]) == LOCKED);
+		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
 		while((r = lock(fds[0],WLOCK)) == WTLK);
 		if(r == -1){
 			fprintf(stderr,"can't acquire or release proper lock.\n");
 			return STATUS_ERROR;
 		}
-		*lock = 1;
+		*lock_f = 1;
 		close_file(1,fds[2]);
 		fds[2] = open_file(files[2],1); /*open with O_TRUNCATE*/
 
@@ -172,14 +172,14 @@ int check_schema(char *file_path,char *data_to_add,
 
 	return 0;
 }
-int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH], int *lock)
+int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH], int *lock_f)
 {
 
-	if(!lock){
-		*lock = 1;
+	if(!(*lock_f)){
+		*lock_f = 1;
 		int r = 0;
 		/* aquire lock */
-		while(is_locked(3,fd[0],fds[1],fds[2]) == LOCKED);
+		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
 		while((r = lock(fds[0],WLOCK)) == WTLK);
 		if(r == -1){
 			fprintf(stderr,"can't acquire or release proper lock.\n");
