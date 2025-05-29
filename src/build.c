@@ -334,6 +334,8 @@ int import_data_to_system(char *data_file)
 
 	char *delim = 0;
 	off_t start = 0;
+	char file_name[MAX_FILE_PATH_LENGTH] = {0};
+	uint32_t key = 0;
 	while((delim = strstr(content,"\n"))){
 		size_t l = 0;
 		off_t end = delim - content;		
@@ -348,14 +350,27 @@ int import_data_to_system(char *data_file)
 		/* set the new start */
 		start = (delim +1) - content;
 	        *delim = '\0';	
+		
+
 		if(buf[0] == '@'){
-			if(open_files(buf,fds,files,0) == -1) return STATUS_ERROR;
+			if(open_files(&buf[1],fds,files,0) == -1) return STATUS_ERROR;
 			if(is_db_file(&hd,fds) == -1) return STATUS_ERROR;
+			continue;
 		}
 
-		if(buf[0] == '=') close_file(3,fds[0],fds[1],fds[2]);
+		if(buf[0] == '='){
+			close_file(3,fds[0],fds[1],fds[2]);
+			key = 0;
+			continue;
+		}
 
 		/*write to file*/
+		struct Record_f rec = {0};
+		int lock = 0;
+		if(check_schema(file_name,buf,fds,files,&rec,&hd,&lock) == -1) return STATUS_ERROR;
+		if(write_record(fds,(void*)&key,&rec, 0,files,&lock) == -1) return STATUS_ERROR;
+		/*place indexing function here*/
+		key++;
 	}
 
 }
