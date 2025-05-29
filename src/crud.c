@@ -13,11 +13,10 @@
 
 static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, char *key);
-static int set_rec(struct HashTable *ht, char *key);
+static int set_rec(struct HashTable *ht, char *key, off_t offset);
 
 int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
 {
-
 	HashTable ht = {0};
 	HashTable *p_ht = &ht;
 	if (!read_index_nr(0, fds[0], &p_ht)) {
@@ -81,7 +80,98 @@ int is_db_file(struct Header_d *hd, int *fds)
 
 	return 0;
 }
-	
+
+int check_schema(char *file_path,char *data_to_add,
+		int *fds, 
+		char files[][MAX_FILE_PATH_LENGTH], 
+		struct Record_f *rec,
+		struct Header_d *hd,
+		int *lock)
+{
+	int fields_count = 0;
+	unsigned char check = 0;
+	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
+
+	/*check schema*/
+	if(mode == TYPE_WR){
+		fields_count = count_fields(data_to_add,NULL);
+		if(fields_count == 0){
+			fprintf(stderr,"(%s):check input syntax.\n",prog);
+			return STATUS_ERROR;
+		}
+		if (fields_count > MAX_FIELD_NR) {
+			printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+			return STATUS_ERROR;
+		}
+
+		char *buffer = strdup(data_to_add);
+		char *buf_t = strdup(data_to_add);
+		char *buf_v = strdup(data_to_add);
+
+		if(!buffer || !buf_t || !buf_v){
+			fprintf(stderr,"(%s): strdup() failed, %s:%d.\n",prog,F,L-5);
+			if(buffer) free(buffer);
+			if(buf_t) free(buf_t);
+			if(buf_v) free(buf_v);
+			return STATUS_ERROR;
+		}
+
+		check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,file_path, rec, hd);
+		free(buffer);
+		free(buf_t);
+		free(buf_v);
+
+	} else {
+		check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1,file_path, rec, hd);
+	}
+
+	if (check == SCHEMA_ERR || check == 0) return STATUS_ERROR;
+
+	/*
+	 * save the schema file for 
+	 * SCHEMA_NW 
+	 * SCHEMA_EQ_NT 
+	 * SCHEMA_NW_NT 
+	 * SCHEMA_CT_NT
+	 * */	
+	int r = 0;
+	if (check == SCHEMA_NW ||
+			check == SCHEMA_NW_NT ||
+			check == SCHEMA_CT_NT ||
+			check == SCHEMA_EQ_NT){
+		/*
+		 * if the schema is one between 
+		 * SCHEMA_NW 
+		 * SCHEMA_EQ_NT 
+		 * SCHEMA_NW_NT 
+		 * SCHEMA_CT_NT
+		 * we update the header
+		 * */
+
+		/* aquire lock */
+		while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
+		while((r = lock(fd_index,WLOCK)) == WTLK);
+		if(r == -1){
+			fprintf(stderr,"can't acquire or release proper lock.\n");
+			return STATUS_ERROR;
+		}
+		*lock = 1;
+		close_file(1,fds[2]);
+		fds[2] = open_file(files[2],1); /*open with O_TRUNCATE*/
+
+		if(file_error_handler(1,fds[2]) != 0) return STATUS_ERROR;
+
+		if (!write_header(fds[2], hd)) {
+			__er_write_to_file(F, L - 1);
+			return STATUS_ERROR;
+		}
+
+		close_file(1,fds[2]);
+		fds[2] = open_file(files[2],0); /*open in regular mode*/
+	} 
+
+	return 0;
+}
 int write_record(int *fds,void *key, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH])
 {
 	off_t eof = go_to_EOF(fds[1]);
@@ -99,11 +189,10 @@ int write_record(int *fds,void *key, struct Record_f *rec, int update, char file
 		return 1;
 	}
 
-	off_t offset = 0;
-	if(set_rec(ht,(char *)key) == -1) return STATUS_ERROR;
+	if(set_rec(ht,(char *)key,eof) == -1) return STATUS_ERROR;
 
 	if(!write_file(fds[1], rec, 0, update)) {
-		printf("write to file failed, main.c l %d.\n", __line__ - 1);
+		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
 		return -1;
 	}
 
@@ -112,13 +201,13 @@ int write_record(int *fds,void *key, struct Record_f *rec, int update, char file
 
 	/* write the new indexes to file */
 	if (!write_index_file_head(fds[0], index)) {
-		printf("write to file failed, %s:%d", f, l - 2);
+		fprintf(stderr,"write index head to file failed, %s:%d.\n", F,L - 1);
 		return -1;	
 	}
 
 	for (int i = 0; i < index; i++) {
 
-		if (!write_index_body(fd_index, i, &ht[i])) {
+		if (!write_index_body(fds[0], i, &ht[i])) {
 			printf("write to file failed. %s:%d.\n", F, L - 2);
 			free_ht_array(ht, index);
 			return -1;
@@ -180,16 +269,16 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	return 0;
 }
 
-static int set_rec(struct HashTable *ht, char *key)
+static int set_rec(struct HashTable *ht, char *key, off_t offset)
 {
 	int key_type = 0;
 	void *key_conv = key_converter(key, &key_type);
 	if (key_type == UINT && !key_conv) {
 		fprintf(stderr, "error to convert key");
-		goto clean_on_error;
+		return -1;
 	} else if (key_type == UINT) {
 		if (key_conv) {
-			if (!set(key_conv, key_type, eof, &ht[0])){
+			if (!set(key_conv, key_type, offset, &ht[0])){
 				free(key_conv);
 				return -1;
 			}
@@ -197,7 +286,7 @@ static int set_rec(struct HashTable *ht, char *key)
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
-		if (!set((void *)key, key_type, eof, &ht[0])) {
+		if (!set((void *)key, key_type, offset, &ht[0])) {
 			return -1;
 		}
 	}

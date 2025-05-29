@@ -8,6 +8,7 @@
 #include "str_op.h"
 #include "debug.h"
 #include "crud.h"
+#include "common.h"
 
 
 /*this functionality is not implemented yet*/
@@ -349,6 +350,7 @@ int import_data_to_system(char *data_file)
 	        *delim = '\0';	
 		if(buf[0] == '@'){
 			if(open_files(buf,fds,files,0) == -1) return STATUS_ERROR;
+			if(is_db_file(&hd,fds) == -1) return STATUS_ERROR;
 		}
 
 		if(buf[0] == '=') close_file(3,fds[0],fds[1],fds[2]);

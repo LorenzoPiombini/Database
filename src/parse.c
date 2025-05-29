@@ -748,7 +748,7 @@ int sort_input_like_header_schema(int schema_tp,
 {
 	int f_n = schema_tp == SCHEMA_NW ? sch->fields_num : fields_num;
 	int value_pos[f_n];
-	memset(value_pos,0,f_n);
+	memset(value_pos,-1,sizeof(int) * f_n);
 
 	register unsigned char i, j;
 
@@ -760,7 +760,10 @@ int sort_input_like_header_schema(int schema_tp,
 				break;
 			}
 		}
+		/*if the names in the input are worng we return*/
+		if(value_pos[i] == -1) return 0;
 	}
+
 
 	char **temp_val = calloc(fields_num, sizeof(char *));
 	if (!temp_val) {
@@ -1399,6 +1402,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
 
@@ -1464,6 +1468,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
 
@@ -1545,6 +1550,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(fields_count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
 
@@ -1615,6 +1621,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(fields_count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
 
