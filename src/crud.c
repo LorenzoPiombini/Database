@@ -13,7 +13,7 @@
 
 static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, char *key);
-static int set_rec(struct HashTable *ht, char *key, off_t offset);
+static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type);
 
 int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
 {
@@ -149,8 +149,8 @@ int check_schema(char *file_path,char *data_to_add,
 		 * */
 
 		/* aquire lock */
-		while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
-		while((r = lock(fd_index,WLOCK)) == WTLK);
+		while(is_locked(3,fd[0],fds[1],fds[2]) == LOCKED);
+		while((r = lock(fds[0],WLOCK)) == WTLK);
 		if(r == -1){
 			fprintf(stderr,"can't acquire or release proper lock.\n");
 			return STATUS_ERROR;
@@ -172,8 +172,21 @@ int check_schema(char *file_path,char *data_to_add,
 
 	return 0;
 }
-int write_record(int *fds,void *key, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH])
+int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH], int *lock)
 {
+
+	if(!lock){
+		*lock = 1;
+		int r = 0;
+		/* aquire lock */
+		while(is_locked(3,fd[0],fds[1],fds[2]) == LOCKED);
+		while((r = lock(fds[0],WLOCK)) == WTLK);
+		if(r == -1){
+			fprintf(stderr,"can't acquire or release proper lock.\n");
+			return STATUS_ERROR;
+		}
+	}
+	
 	off_t eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
 		__er_file_pointer(F, L - 1);
@@ -189,7 +202,7 @@ int write_record(int *fds,void *key, struct Record_f *rec, int update, char file
 		return 1;
 	}
 
-	if(set_rec(ht,(char *)key,eof) == -1) return STATUS_ERROR;
+	if(set_rec(ht,key,eof,key_type) == -1) return STATUS_ERROR;
 
 	if(!write_file(fds[1], rec, 0, update)) {
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
@@ -269,9 +282,18 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	return 0;
 }
 
-static int set_rec(struct HashTable *ht, char *key, off_t offset)
+static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 {
-	int key_type = 0;
+	if(key_type == UINT){
+		if(!set(key, key_type, offset, &ht[0])) return -1;
+
+		return 0;
+	} else if (key_type == STR) {
+		if(!set((void *)key, key_type, offset, &ht[0])) return -1;
+
+		return 0;
+	}
+
 	void *key_conv = key_converter(key, &key_type);
 	if (key_type == UINT && !key_conv) {
 		fprintf(stderr, "error to convert key");
@@ -286,9 +308,7 @@ static int set_rec(struct HashTable *ht, char *key, off_t offset)
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
-		if (!set((void *)key, key_type, offset, &ht[0])) {
-			return -1;
-		}
+		if (!set((void *)key, key_type, offset, &ht[0])) return -1;
 	}
 	return 0;
 }

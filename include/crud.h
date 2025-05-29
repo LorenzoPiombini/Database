@@ -11,7 +11,7 @@ int check_schema(char *file_path,char *data_to_add,
 		struct Record_f *rec,
 		struct Header_d *hd,
 		int *lock);
-int write_record(int *fds,void *key, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH], int *lock);
+int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH], int *lock);
 int is_db_file(struct Header_d *hd, int *fds);
 
 #endif
