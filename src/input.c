@@ -22,6 +22,7 @@ void print_usage(char *argv[])
         printf("\t -e - delete the file specified by -f .\n");
         printf("\t -x - list the keys value for the file specified by -f .\n");
         printf("\t -b - specify the file name (txt,csv,tab delimited file) to build from .\n");
+        printf("\t -B - specify the file name (txt,csv,tab delimited file) to import the data from .\n");
         printf("\t -o - add options to a CRUD operation .\n");
         printf("\t -s - specify how many buckets the HashTable (index) will have.\n");
         printf("\t -i - specify how many indexes the file will have.\n");
@@ -49,11 +50,11 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                            unsigned char del, unsigned char list_def, unsigned char new_file,
                            unsigned char update, unsigned char del_file, unsigned char build,
                            unsigned char create, unsigned char options, unsigned char index_add,
-			   unsigned char file_field)
+			   unsigned char file_field, unsigned char import_from_data)
 {
 
         if (create && (file_path || del || update || del_file || list_def ||
-                       new_file || key || data_to_add || build || index_add))
+                       new_file || key || data_to_add || build || index_add || import_from_data))
         {
                 printf("option -c must be used by itself.\n");
                 printf(" -c <txt-with-files-definitions>.\n");
@@ -77,13 +78,20 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
         if (build && file_path &&
             (del || update || del_file || list_def || new_file || key || data_to_add))
         {
-                printf("you must use option -b only with option -f:\n\t-f <filename> -b <filename[txt,csv,tab delimited]> \n");
+                printf("you must use options -b only with option -f:\n\t-f <filename> -b <filename[txt,csv,tab delimited]> \n");
                 print_usage(argv);
                 return 0;
         }
 
-        if (file_path || file_field)
-        {
+	if(import_from_data && (file_path || del || update || del_file || list_def ||
+                       new_file || key || data_to_add || build || index_add || create)){
+                printf("option -B must be used by itself.\n");
+                printf(" -B <txt with files data to import>.\n");
+		fprintf(stderr,"!! the file system MUST exist already !!\n");
+                return 0;
+	}
+
+        if (file_path || file_field){
                 if (!is_file_name_valid(file_path))
                 {
                         printf("file name or path not valid.\n");

@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 	unsigned char build = 0;
 	unsigned char list_keys = 0;
 	unsigned char create = 0;
+	unsigned char import_from_data = 0;
 	unsigned char options = 0;
 	unsigned char index_add = 0;
 	unsigned char file_field = 0;
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
 	int index_nr = 0;
 	int only_dat = 0;
 
-	while ((c = getopt(argc, argv, "nItAf:F:a:k:D:R:uleb:s:x:c:i:o:")) != -1)
+	while ((c = getopt(argc, argv, "nItAf:F:a:k:D:R:uleB:b:s:x:c:i:o:")) != -1)
 	{
 		switch (c){
 		case 'a':
@@ -110,6 +111,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'b':
 			build = 1, txt_f = optarg;
+			break;
+		case 'B':
+			import_from_data = 1, txt_f = optarg;
 			break;
 		case 's':
 		{
@@ -167,7 +171,7 @@ int main(int argc, char *argv[])
 
 	if (!check_input_and_values(file_path, data_to_add, key,
 			argv, del, list_def, new_file, update, del_file,	
-			build, create, options, index_add, file_field)) {
+			build, create, options, index_add, file_field,import_from_data)) {
 		return 1;
 	}
 
