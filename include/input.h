@@ -9,7 +9,7 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                            unsigned char del, unsigned char list_def, unsigned char new_file,
                            unsigned char update, unsigned char del_file, unsigned char build,
                            unsigned char create, unsigned char options, unsigned char index_add,
-			   unsigned char file_field);
+			   unsigned char file_field, unsigned char import_from_data);
 
 void print_types(void);
 int convert_options(char *options);

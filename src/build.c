@@ -335,7 +335,6 @@ int import_data_to_system(char *data_file)
 	char *delim = 0;
 	off_t start = 0;
 	char file_name[MAX_FILE_PATH_LENGTH] = {0};
-	uint32_t key = 0;
 	while((delim = strstr(content,"\n"))){
 		size_t l = 0;
 		off_t end = delim - content;		
@@ -360,16 +359,38 @@ int import_data_to_system(char *data_file)
 
 		if(buf[0] == '='){
 			close_file(3,fds[0],fds[1],fds[2]);
-			key = 0;
 			continue;
 		}
 
 		/*write to file*/
 		struct Record_f rec = {0};
 		int lock_f = 0;
-		if(check_data(file_name,buf,fds,files,&rec,&hd,&lock_f) == -1) return STATUS_ERROR;
-		if(write_record(fds,(void*)&key,UINT,&rec, 0,files,&lock_f) == -1) return STATUS_ERROR;
-		/*place indexing function here*/
-		key++;
+		char *d = strstr(buf,"_@");
+		if(!d){
+			close_file(3,fds[0],fds[1],fds[2]);
+			return -1;
+		}
+		/* separating the data from the key*/		
+		char *dd = d - 1;
+		d += 2;
+		*dd = '\0';
+		size_t sz = strlen(buf);
+		char cpy[sz+1];
+		memset(cpy,0,sz+1);
+		strncpy(cpy,buf,sz);
+
+		
+		size_t key_sz = strlen(d) + 1;
+		char key[key_sz];
+		memset(key,0,key_sz);
+		strncpy(key,d,key_sz -1);
+
+		/*check data (schema) and writing to file*/
+		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) return STATUS_ERROR;
+		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f) == -1) return STATUS_ERROR;
+	
+		free_record(&rec,rec.fields_num);
+
 	}
+	return 0;
 }
