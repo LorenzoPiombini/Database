@@ -28,6 +28,7 @@ int is_number_array(int type)
 		|| type == TYPE_ARRAY_BYTE || type == TYPE_ARRAY_FLOAT
 		|| type == TYPE_ARRAY_INT;
 }
+
 int check_handle_input_mode(char *buffer, int op)
 {
 	int c_t = count_fields(buffer,T_); 
@@ -71,6 +72,8 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	memset(cbuf,0,size);
 	strncpy(cbuf,buffer,size);
 
+
+	find_double_delim("::",cbuf,NULL);
 	replace('@','^',cbuf);
 	int i = 0;
 
@@ -702,6 +705,7 @@ int get_fileds_name(char *fields_name, int fields_count, int steps, char names[]
 	int j = 0;
 	char *s = NULL;
 
+	find_double_delim("::",fields_name,NULL);
 	char *cp_fv = fields_name;
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count) {
 		strip('_', s);
@@ -1078,7 +1082,6 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 		}		
 	}
 
-			
 	return 0;
 }
 char ** get_values_with_no_types(char *buff,int fields_count)
@@ -1479,17 +1482,89 @@ int find_last_char(const char c, char *src)
 	return last;
 }
 
-static int find_double_delim(char *delim, char *str)
+int count_delim(char *delim, char *str)
+{
+	size_t l = strlen(str) + 1;
+	char buf[l];
+	memset(buf,0,l);
+	strncpy(buf,str,l-1);
+
+	int c = 0;
+	char *d = NULL;
+	while((d = strstr(buf,delim))){
+		c++;
+		*d = '@';	
+	}
+
+	return c;
+}
+int find_double_delim(char *delim, char *str, int *pos)
 {
 
 	char *c = NULL;
-	while(c =strstr(str,delim)){
-	
+	while((c = strstr(str,delim))){
+		if(*(c + 2) == '\0'){
+			c++;
+			*c = '\0';
+			break;	
+		}
 		c++;
 		*c = '{';
+		if(pos){
+			*pos = c - str;
+			pos++;
+		}
 	}
-	if(!c) return -1;
 	
-	
+	return 0;
+}
 
+int find_delim_in_fields(char *delim, char *str, int *pos)
+{
+	size_t l = strlen(str) + 1;
+	char buf[l];
+	memset(buf,0,l);
+	strncpy(buf,str,l-1);
+	
+	int c_T = count_delim(TYPE_,str);
+	int c_t = count_delim(T_,str);
+
+	if(c_t == 0 && c_T == 0	) return -1;
+	if(c_T > 0 && c_t > 0); /* you gotta swap */	
+	
+	char *start = NULL;
+	char *end = NULL;
+	/*this is to avoid repeating code 
+	 * but this is HORRIBLE
+	 * i used the thirnary expretion to choose wich string costat i need to use
+	 * */
+	static char t[10] = {0};
+	strncpy(t,(c_t >0 && c_T == 0) ? T_ : TYPE_,(c_t >0 && c_T == 0) ? strlen(T_) : strlen(TYPE_)); 
+	/**/
+	while((start = strstr(buf,t)) && ((end = strstr(++start,t)))){
+		*start = '@';
+		end--;
+		while(*start != ':') start++;
+		while(*end != ':') end--;
+
+		start++;
+		int begin = start - buf;
+		int size = (end - buf) - (start - buf)+1;	
+		char frag[size]; 
+		memset(frag,0,size);
+
+		strncpy(frag,&buf[begin],size - 1);
+
+		char *d = strstr(frag,delim);
+		if(d){
+			char *fr = strstr(str,d);
+			int i = fr-str;
+			str[i] = '{';
+			if(pos){
+				*pos = d - str;
+				pos++;
+			}
+		} 
+	}
+	return 0;
 }

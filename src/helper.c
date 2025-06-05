@@ -54,19 +54,15 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 			printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 			return 0;
 		}
-	
 
 		char *buffer = strdup(data_to_add);
-		char *buf_t = strdup(data_to_add);
-		char *buf_v = strdup(data_to_add);
-		check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count, file_path, &rec, &hd);
+		if(!buffer) return 0;
+		check = perform_checks_on_schema(mode,buffer, fields_count, file_path, &rec, &hd);
 
 		free(buffer);
-		free(buf_t);
-		free(buf_v);
 	
 	}else{
-		check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1, file_path, &rec, &hd);
+		check = perform_checks_on_schema(mode,data_to_add, -1, file_path, &rec, &hd);
 	}
 
 	begin_in_file(fd_data);

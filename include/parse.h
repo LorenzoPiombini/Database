@@ -10,15 +10,11 @@
 int parse_d_flag_input(char *file_path, 
 			int fields_num, 
 			char *buffer, 
-			char *buf_t, 
-			char *buf_v,
 			struct Schema *sch, 
 			int check_sch,
 			struct Record_f *rec);
 
 unsigned char perform_checks_on_schema(int mode, char *buffer, 
-					char *buf_t, 
-					char *buf_v, 
 					int fields_count,
 					char *file_path, 
 					struct Record_f *rec, 
@@ -36,7 +32,7 @@ int write_empty_header(int fd, struct Header_d *hd);
 int write_header(int fd, struct Header_d *hd);
 int read_header(int fd, struct Header_d *hd);
 unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd);
-unsigned char check_schema(int fields_n, char *buffer, char *buf_t, struct Header_d hd);
+unsigned char check_schema(int fields_n, char *buffer,struct Header_d hd);
 int check_schema_with_no_types(char names[][MAX_FIELD_LT], struct Header_d hd,char **sorted_names);
 int sort_input_like_header_schema(int schema_tp, 
 					int fields_num, 

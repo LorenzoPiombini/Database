@@ -386,8 +386,14 @@ int import_data_to_system(char *data_file)
 		strncpy(key,d,key_sz -1);
 
 		/*check data (schema) and writing to file*/
-		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) return STATUS_ERROR;
-		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f) == -1) return STATUS_ERROR;
+		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
+			printf("key value: %s",key);
+			return STATUS_ERROR;
+		}
+		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f) == -1) {
+			free_record(&rec,rec.fields_num);
+			return STATUS_ERROR;
+		}
 	
 		free_record(&rec,rec.fields_num);
 

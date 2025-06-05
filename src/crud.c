@@ -25,7 +25,11 @@ int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d 
 	}
 
 	off_t offset = 0;
-	if((offset = get_rec_position(p_ht,(char *)key)) == -1) return STATUS_ERROR;
+	if((offset = get_rec_position(p_ht,(char *)key)) == -1) {
+		fprintf(stderr,"(%s): record not found.\n",prog);
+		destroy_hasht(p_ht);
+		return STATUS_ERROR;
+	}
 
 	destroy_hasht(p_ht);
 	if (find_record_position(fds[1], offset) == -1) {
@@ -105,24 +109,16 @@ int check_data(char *file_path,char *data_to_add,
 		}
 
 		char *buffer = strdup(data_to_add);
-		char *buf_t = strdup(data_to_add);
-		char *buf_v = strdup(data_to_add);
-
-		if(!buffer || !buf_t || !buf_v){
+		if(!buffer){
 			fprintf(stderr,"(%s): strdup() failed, %s:%d.\n",prog,F,L-5);
-			if(buffer) free(buffer);
-			if(buf_t) free(buf_t);
-			if(buf_v) free(buf_v);
 			return STATUS_ERROR;
 		}
 
-		check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,file_path, rec, hd);
+		check = perform_checks_on_schema(mode,buffer, fields_count,file_path, rec, hd);
 		free(buffer);
-		free(buf_t);
-		free(buf_v);
 
 	} else {
-		check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1,file_path, rec, hd);
+		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd);
 	}
 
 	if (check == SCHEMA_ERR || check == 0) return STATUS_ERROR;
@@ -170,7 +166,7 @@ int check_data(char *file_path,char *data_to_add,
 		fds[2] = open_file(files[2],0); /*open in regular mode*/
 	} 
 
-	return 0;
+	return check;
 }
 int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH], int *lock_f)
 {
@@ -202,7 +198,10 @@ int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int upda
 		return 1;
 	}
 
-	if(set_rec(ht,key,eof,key_type) == -1) return STATUS_ERROR;
+	if(set_rec(ht,key,eof,key_type) == -1){
+		free_ht_array(ht, index);
+		return STATUS_ERROR;
+	}
 
 	if(!write_file(fds[1], rec, 0, update)) {
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);

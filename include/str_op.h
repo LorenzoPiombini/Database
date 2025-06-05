@@ -83,5 +83,8 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT]);
 int check_handle_input_mode(char *buffer, int op);
 int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int *types_i);
 int check_array_input(char *value);
+int count_delim(char *delim, char *str);
+int find_double_delim(char *delim, char *str, int *pos);
+int find_delim_in_fields(char *delim, char *str, int *pos);
 
 #endif /* STR_OP_H */

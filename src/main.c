@@ -356,8 +356,6 @@ int main(int argc, char *argv[])
 			int mode = check_handle_input_mode(data_to_add, FCRT) | WR;
 			int fields_count = 0; 
 			char *buffer = NULL; 
-			char *buf_t = NULL;
-			char *buf_v = NULL;
 
 			/* init he Schema structure*/
 			struct Schema sch = {0};
@@ -424,26 +422,18 @@ int main(int argc, char *argv[])
 				}
 
 				buffer = strdup(data_to_add);
-				buf_t = strdup(data_to_add);
-				buf_v = strdup(data_to_add);
 					
-				if(!buf_t || !buf_v || !buffer){
+				if(!buffer){
 					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
-					if(buf_v) free(buf_v);	
-					if(buf_t) free(buf_t);	
-					if(buffer) free(buffer);
 					goto clean_on_error_2;
 				}
 
-				if(parse_d_flag_input(file_path, fields_count,
-							buffer, buf_t, buf_v, &sch, 0,&rec) == -1) {
+				if(parse_d_flag_input(file_path, fields_count,buffer, &sch, 0,&rec) == -1) {
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					goto clean_on_error_2;
 				}
 
 				free(buffer); 
-				free(buf_t);
-				free(buf_v);
 				break;
 			}
 
@@ -992,100 +982,22 @@ int main(int argc, char *argv[])
 		if (!update && data_to_add) { 
 			/* append data to the specified file*/
 		
-			int fields_count = 0;
-			unsigned char check = 0;
 			struct Record_f rec = {0};
-			int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
-			
-			/*check schema*/
-			if(mode == TYPE_WR){
-				fields_count = count_fields(data_to_add,NULL);
-				if(fields_count == 0){
-					fprintf(stderr,"(%s):check input syntax.\n",prog);
-					return STATUS_ERROR;
-				}
-				if (fields_count > MAX_FIELD_NR) {
-					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-					goto clean_on_error_7;
-				}
 
-				char *buffer = strdup(data_to_add);
-				char *buf_t = strdup(data_to_add);
-				char *buf_v = strdup(data_to_add);
-
-				if(!buffer || !buf_t || !buf_v){
-					fprintf(stderr,"(%s): strdup() failed, %s:%d.\n",prog,F,L-5);
-					if(buffer) free(buffer);
-					if(buf_t) free(buf_t);
-					if(buf_v) free(buf_v);
-					goto clean_on_error_7;
-				}
-
-				check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
-										file_path, &rec, &hd);
-				free(buffer);
-				free(buf_t);
-				free(buf_v);
-			
-			} else {
-				check = perform_checks_on_schema(mode,data_to_add, NULL, NULL, -1,
-										file_path, &rec, &hd);
-			}
-			
-			if (check == SCHEMA_ERR || check == 0) {
-				goto clean_on_error_7;
-			}
-			/*
-			 * here you have to save the schema file for 
-			 * SCHEMA_NW 
-			 * SCHEMA_EQ_NT 
-			 * SCHEMA_NW_NT 
-			 * SCHEMA_CT_NT
-			 * */	
 			int lock_f = 0;
-			int r = 0;
-			if (check == SCHEMA_NW ||
-				check == SCHEMA_NW_NT ||
-				check == SCHEMA_CT_NT ||
-				check == SCHEMA_EQ_NT){
-				/*
-				* if the schema is one between 
-				* SCHEMA_NW 
-			 	* SCHEMA_EQ_NT 
-			 	* SCHEMA_NW_NT 
-			 	* SCHEMA_CT_NT
-				* we update the header
-				* */
-				
-				/* aquire lock */
+			int check = 0;
+			int r =0;
+			if(( check = check_data(file_path,data_to_add,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error_7;
+
+		if(!lock_f){
 				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 				while((r = lock(fd_index,WLOCK)) == WTLK);
 				if(r == -1){
 					fprintf(stderr,"can't acquire or release proper lock.\n");
 					goto clean_on_error_7;
 				}
-							lock_f = 1;close_file(1,fd_schema);
-				fd_schema = open_file(files[2],1); /*open with O_TRUNCATE*/
-
-				if(file_error_handler(1,fd_schema) != 0){
-					goto clean_on_error_7;
-				}
-
-				if (!write_header(fd_schema, &hd)) {
-					__er_write_to_file(F, L - 1);
-					goto clean_on_error_7;
-				}
-
-			} /* end of update schema branch*/
-
-			if(!lock_f){
-				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
-				while((r = lock(fd_index,WLOCK)) == WTLK);
-				if(r == -1){
-					fprintf(stderr,"can't acquire or release proper lock.\n");
-					goto clean_on_error_7;
-				}
-						lock_f = 1;}
+				lock_f = 1;
+			}
 
 			off_t eof = go_to_EOF(fd_data);
 			if (eof == -1) {
@@ -1182,66 +1094,13 @@ int main(int argc, char *argv[])
 			struct Record_f rec = {0};
 			struct Record_f rec_old = {0};
 			struct Record_f new_rec = {0};
-			int mode = check_handle_input_mode(data_to_add,FWRT) | WR;
-			int fields_count = 0;
-			unsigned char check = 0;
 
-			// 1 - check the schema with the one on file
-			if(mode == TYPE_WR){
-				fields_count = count_fields(data_to_add,NULL);
 
-				if (fields_count > MAX_FIELD_NR) {
-					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-					goto clean_on_error;
-				}
 
-				char *buffer = strdup(data_to_add);
-				char *buf_t = strdup(data_to_add);
-				char *buf_v = strdup(data_to_add);
-
-				check = perform_checks_on_schema(mode, buffer, buf_t, buf_v, fields_count,
-						file_path, &rec, &hd);
-				free(buffer);
-				free(buf_t);
-				free(buf_v);
-			} else{
-				check = perform_checks_on_schema(mode, data_to_add, NULL, NULL, -1,
-						file_path, &rec, &hd);
-			}
-
-			if (check == SCHEMA_ERR || check == 0) {
-				goto clean_on_error;
-			}
-
-			/* updating the schema if it is new */
-			int r = 0;
 			int lock_f = 0;
-			if (check == SCHEMA_NW 		||
-				check == SCHEMA_NW_NT 	||
-				check == SCHEMA_EQ_NT 	||
-				check == SCHEMA_CT_NT ){
-				/*acquire lock */
-
-				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
-				while((r = lock(fd_index,WLOCK)) == WTLK);
-				if(r == -1){
-					fprintf(stderr,"can't acquire or release proper lock.\n");
-					goto clean_on_error;
-				}
-				lock_f = 1;
-				close_file(1,fd_schema);
-				fd_schema = open_file(files[2],1); /*open with O_TRUNCATE*/
-
-				if(file_error_handler(1,fd_schema) != 0){
-					goto clean_on_error;
-				}
-
-				if (!write_header(fd_schema, &hd)) {
-					printf("can`t write header, main.c l %d.\n", __LINE__ - 1);
-					goto clean_on_error;
-				}
-
-			} /*end of the update schema path in case the schema is new*/
+			int check = 0;
+			int r = 0;
+			if((check = check_data(file_path,data_to_add,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error;
 
 			/* 2 - schema is good, thus load the old record into memory and update the fields if any
 			 -- at this point you already checked the header, and you have an updated header,
@@ -1717,6 +1576,7 @@ int main(int argc, char *argv[])
 
 			struct Record_f rec = {0};
 			if(get_record(file_path,&rec,(void *)key, hd,fds) == -1){
+				free_record(&rec,rec.fields_num);
 				close_file(3, fd_schema,fd_index, fd_data);
 				return STATUS_ERROR;
 			}
