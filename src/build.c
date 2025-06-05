@@ -332,7 +332,7 @@ int import_data_to_system(char *data_file)
 	struct Header_d hd = {0, 0, sch};
 
 
-	char *delim = 0;
+	char *delim = NULL;
 	off_t start = 0;
 	char file_name[MAX_FILE_PATH_LENGTH] = {0};
 	while((delim = strstr(content,"\n"))){
@@ -348,7 +348,7 @@ int import_data_to_system(char *data_file)
 		strncpy(buf,&content[start],l-1);
 		/* set the new start */
 		start = (delim +1) - content;
-	        *delim = '\0';	
+	        *delim = ' ';	
 		
 
 		if(buf[0] == '@'){

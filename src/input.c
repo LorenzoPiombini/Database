@@ -69,7 +69,7 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                 return 0;
         }
 
-        if (!file_path && !create)
+        if (!file_path && (!create && !import_from_data))
         {
                 print_usage(argv);
                 return 0;

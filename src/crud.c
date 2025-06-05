@@ -232,6 +232,7 @@ int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int upda
 
 	close_file(1, fds[0]);
 	fds[0] = open_file(files[0], 0); // opening in regular mode
+	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	return 0;
 }
 

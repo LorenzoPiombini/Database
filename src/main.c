@@ -191,6 +191,14 @@ int main(int argc, char *argv[])
 		return STATUS_ERROR;
 	}
 
+	if(import_from_data){
+		if(import_data_to_system(txt_f) == -1) {
+			fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f);
+			return -1;
+		}
+		return 0;
+	}
+
 	if (new_file) {
 		/*creates three name from the file_path  "str_op.h" */
 

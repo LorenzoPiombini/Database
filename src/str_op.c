@@ -1478,3 +1478,18 @@ int find_last_char(const char c, char *src)
 
 	return last;
 }
+
+static int find_double_delim(char *delim, char *str)
+{
+
+	char *c = NULL;
+	while(c =strstr(str,delim)){
+	
+		c++;
+		*c = '{';
+	}
+	if(!c) return -1;
+	
+	
+
+}
