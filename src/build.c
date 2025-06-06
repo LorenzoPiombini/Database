@@ -365,14 +365,14 @@ int import_data_to_system(char *data_file)
 		/*write to file*/
 		struct Record_f rec = {0};
 		int lock_f = 0;
-		char *d = strstr(buf,"_@");
+		char *d = strstr(buf,":_@");
 		if(!d){
 			close_file(3,fds[0],fds[1],fds[2]);
 			return -1;
 		}
 		/* separating the data from the key*/		
-		char *dd = d - 1;
-		d += 2;
+		char *dd = d;
+		d += 3;
 		*dd = '\0';
 		size_t sz = strlen(buf);
 		char cpy[sz+1];
@@ -385,18 +385,20 @@ int import_data_to_system(char *data_file)
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
 
+		printf("key: %s\n",key);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s",key);
+			free_record(&rec,rec.fields_num);
 			return STATUS_ERROR;
 		}
+
 		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f) == -1) {
 			free_record(&rec,rec.fields_num);
 			return STATUS_ERROR;
 		}
 	
 		free_record(&rec,rec.fields_num);
-
 	}
 	return 0;
 }

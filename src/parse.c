@@ -33,7 +33,13 @@ int parse_d_flag_input(char *file_path, int fields_num,
 		return 0;
 	}
 
-	
+	int c = count_delim("::", buffer);
+	int pos_double[c];
+	if(c){
+		memset(pos,0,sizeof(int) * c);
+		find_double_delim("::", buffer, pos);
+	}
+
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
 	int types_i[MAX_FIELD_NR] = {-1};
 
@@ -112,7 +118,17 @@ int parse_d_flag_input(char *file_path, int fields_num,
 			if(b) break;
 		}
 	}
-	
+
+	/*reset the double delim*/
+	if(c){
+		for(int i = 0; i < fields_num; i++){
+			int x = (char *)strstr(buffer,values[i]) - buffer;
+			for(int k = 0;k < c; k++){
+				if(pos_double[k] == x) *values[i] = ':';
+			}
+		}
+	}	
+
 	int reorder_rtl = -1;
 	if (check_sch == SCHEMA_EQ){
 		reorder_rtl = sort_input_like_header_schema(check_sch, fields_num, sch, names, values, types_i);

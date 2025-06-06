@@ -293,19 +293,20 @@ unsigned char set_field(struct Record_f *rec,
 							return 0;
 						}
 
-						char *buffer = strdup(values[i]);
-						char *buf_t = strdup(values[i]);
-						char *buf_v = strdup(values[i]);
+						char *buffer = strdup(value);
+						if(!buffer){
+							fprintf(stderr,"(%s): strdup faild, %s:%d.\n",prog, __FILE__,__LINE__-1);
+							close_file(1,fd_schema);
+							return 0;
+						}
 
-						check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
+						check = perform_checks_on_schema(mode,buffer, fields_count,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[i],
 								&hd);
 						free(buffer);
-						free(buf_t);
-						free(buf_v);
 					}else{
-						check = perform_checks_on_schema(mode,values[i], NULL, NULL, -1,
+						check = perform_checks_on_schema(mode,values[i],-1,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[i],
 								&hd);
@@ -376,21 +377,20 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					char *buffer = strdup(value);
-					char *buf_t = strdup(value);
-					char *buf_v = strdup(value);
+					if(!buffer){
+						fprintf(stderr,"(%s): strdup faild, %s:%d.\n",prog, __FILE__,__LINE__-1);
+						close_file(1,fd_schema);
+						return 0;
+					}
 
-					check = perform_checks_on_schema(mode,buffer, buf_t, buf_v, fields_count,
-							rec->fields[index].field_name,
+					check = perform_checks_on_schema(mode,buffer, fields_count,rec->fields[index].field_name,
 							rec->fields[index].data.file.recs,
 							&hd);
 					free(buffer);
-					free(buf_t);
-					free(buf_v);
 				} else {
-					check = perform_checks_on_schema(mode,value, NULL, NULL, -1,
-							rec->fields[index].field_name,
-							rec->fields[index].data.file.recs,
-							&hd);
+					check = perform_checks_on_schema(mode,value, -1,rec->fields[index].field_name,
+								rec->fields[index].data.file.recs,
+								&hd);
 				}			
 
 				if (check == SCHEMA_ERR || check == 0) {
