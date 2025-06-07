@@ -515,7 +515,6 @@ int count_fields(char *fields, const char *user_target)
 	char *target = TYPE_;
 
 
-	if(strstr(p,"::") != NULL) return 0;
 
 	if(strstr(p,target) == NULL){
 		char *new_target = T_;
@@ -1530,17 +1529,20 @@ int find_delim_in_fields(char *delim, char *str, int *pos)
 	int c_t = count_delim(T_,str);
 
 	if(c_t == 0 && c_T == 0	) return -1;
-	if(c_T > 0 && c_t > 0); /* you gotta swap */	
+	if(c_T > 0 && c_t > 0){
+		/* you gotta swap types you have to map 'TYPE_STRING' to 't_s'*/	
+
+	}
 	
 	char *start = NULL;
 	char *end = NULL;
+
 	/*this is to avoid repeating code 
 	 * but this is HORRIBLE
 	 * i used the thirnary expretion to choose wich string costat i need to use
 	 * */
 	static char t[10] = {0};
-	strncpy(t,(c_t >0 && c_T == 0) ? T_ : TYPE_,(c_t >0 && c_T == 0) ? strlen(T_) : strlen(TYPE_)); 
-	/**/
+	strncpy(t,(c_t > 0 && c_T == 0) ? T_ : TYPE_,(c_t > 0 && c_T == 0) ? strlen(T_) : strlen(TYPE_)); 
 	while((start = strstr(buf,t)) && ((end = strstr(++start,t)))){
 		*start = '@';
 		end--;

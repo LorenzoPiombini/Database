@@ -47,18 +47,21 @@ int parse_d_flag_input(char *file_path, int fields_num,
 	char *buf_v = strdup(buffer);
 	if(!buf_v || !buf_t){
 		fprintf(stderr,"(%s): strdup() failed, %s:%d.\n",prog,F,L);
+		if(buf_t) free(buf_t);
+		if(buf_v) free(buf_v);
 		return -1;
 	}
 
 	get_fileds_name(buffer, fields_num, 3, names);
 	get_value_types(buf_t, fields_num, 3, types_i);
 	
-	/*check if the fields name are correct- if not - input is incorrect */
-	for (int i = 0; i < fields_num; i++)
-	{
+	/* check if the fields name are correct- if not - input is incorrect */
+	for (int i = 0; i < fields_num; i++){
 		if (names[i][0] == '\0') {
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
+			free(buf_v);
+			free(buf_t);
 			return -1;
 		
 		}else if (strstr(names[i], "TYPE STRING") ||
@@ -75,6 +78,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 				 strstr(names[i], "TYPE ARRAY DOUBLE")) {
 			printf("invalid input.\n");
 			printf("input syntax: fieldName:TYPE:value\n");
+			free(buf_v);
+			free(buf_t);
 			return -1;
 		}
 	}
@@ -82,6 +87,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 	if (!check_fields_integrity(names, fields_num)) {
 		printf("invalid input, one or more fields have the same name.\n");
 		printf("input syntax: fieldname:type:value\n");
+		free(buf_v);
+		free(buf_t);
 		return -1;
 	}
 
@@ -99,6 +106,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 	char **values = NULL;
 	values = get_values(buf_v,fields_num);
 	if (!values) {
+		free(buf_v);
+		free(buf_t);
 		printf("get_values failed, %s:%d.\n",__FILE__, __LINE__-1);
 		return -1;
 	}
@@ -135,6 +144,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 
 		if (!reorder_rtl) {
 			printf("sort_input_like_header_schema failed, parse.c l %d.\n", __LINE__ - 4);
+			free(buf_v);
+			free(buf_t);
 			free_strs(fields_num, 1, values);
 			return -1;
 		}
@@ -145,6 +156,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 
 		if (!reorder_rtl) {
 			printf("sort_input_like_header_schema failed, %s:%d.\n", F, L - 4);
+			free(buf_v);
+			free(buf_t);
 			free_strs(fields_num, 1, values);
 			return -1;
 		}
@@ -172,6 +185,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 				if (strcmp(sch->fields_name[i], names[j]) == 0) {
 					if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
 						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(buf_v);
+						free(buf_t);
 						free_strs(fields_num, 1, values);
 						return -1;
 					}
@@ -191,6 +206,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(buf_v);
+						free(buf_t);
 						free_strs(fields_num, 1, values);
 						return -1;
 					}
@@ -199,6 +216,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(buf_v);
+						free(buf_t);
 						free_strs(fields_num, 1, values);
 						return -1;
 					}
@@ -208,6 +227,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(buf_v);
+						free(buf_t);
 						free_strs(fields_num, 1, values);
 						return -1;
 					}
@@ -217,6 +238,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 				case TYPE_ARRAY_LONG:
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield)) {
 						printf("set_field failed %s:%d.\n", F, L - 2);
+						free(buf_v);
+						free(buf_t);
 						free_strs(fields_num, 1, values);
 						return -1;
 					}
@@ -227,7 +250,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						free_strs(fields_num, 1, values);
-						free_record(rec, sch->fields_num);
+						free(buf_v);
+						free(buf_t);
 						return -1;
 					}
 					break;
@@ -236,19 +260,23 @@ int parse_d_flag_input(char *file_path, int fields_num,
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						free_strs(fields_num, 1, values);
-						free_record(rec, sch->fields_num);
+						free(buf_v);
+						free(buf_t);
 						return -1;
 					}
 					break;
 				default:
 					printf("type no supported! %d.\n", sch->types[i]);
+					free(buf_v);
+					free(buf_t);
 					free_strs(fields_num, 1, values);
-					free_record(rec, sch->fields_num);
 					return -1;
 				}
 			}
 		}
 
+		free(buf_v);
+		free(buf_t);
 		free_strs(fields_num, 1, values);
 		return 0;
 	}else {
@@ -258,13 +286,16 @@ int parse_d_flag_input(char *file_path, int fields_num,
 			if (!set_field(rec, i, names[i], types_i[i], values[i],1)) {
 				printf("set_field failed %s:%d.\n", F, L - 2);
 				free_strs(fields_num, 1, values);
-				free_record(rec, rec->fields_num);
+				free(buf_v);
+				free(buf_t);
 				return -1;
 			}
 		}
 	}
 
 	free_strs(fields_num, 1, values);
+	free(buf_v);
+	free(buf_t);
 	return 0;
 }
 

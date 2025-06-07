@@ -1,4 +1,6 @@
 #include <stdio.h>
+
+#if defined(__linux__)
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -15,7 +17,6 @@
 #include "common.h"
 #include "float_endian.h"
 #include "debug.h"
-
 
 static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element, int type);
 static size_t get_string_size(int fd);
@@ -6545,3 +6546,35 @@ static size_t get_string_size(int fd)
 
 	return 0;
 }
+#elif defined(_WIN32) 
+#include <windows.h>
+#include <stdint.h>
+#include "file.h"
+#include "str_op.h"
+#include "common.h"
+#include "float_endian.h"
+#include "debug.h"
+
+HANDLE open_file(char *fileName, uint32_t use_trunc)
+{
+	DWORD creation = 0;	
+	DWORD access = 0;
+	HANDLE h_file;
+
+	if(!use_trunc){
+		access = GENERIC_WRITE | GENERIC_READ;
+		creation = OPEN_EXISTING;
+
+	}else{
+		access = GENERIC_WRITE | GENERIC_READ;
+		creation = TRUNCATE_EXISTING;
+	}
+
+	h_file = createFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
+	if(h_file == INVALID_HANDLE_VALUE) return NULL;
+
+	return h_file;
+}
+
+
+#endif

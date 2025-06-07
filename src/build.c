@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "build.h"
 #include "file.h"
+#include "lock.h"
 #include "helper.h"
 #include "str_op.h"
 #include "debug.h"
@@ -385,17 +386,19 @@ int import_data_to_system(char *data_file)
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
 
-		printf("key: %s\n",key);
+		printf("key:%s\ndata:%s\noriginal:%s\n",key,cpy,buf);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
-			printf("key value: %s",key);
+			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);
+			close_file(3,fds[0],fds[1],fds[2]);
 			return STATUS_ERROR;
 		}
 
 		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f) == -1) {
 			free_record(&rec,rec.fields_num);
-			return STATUS_ERROR;
+			if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+			continue;
 		}
 	
 		free_record(&rec,rec.fields_num);
