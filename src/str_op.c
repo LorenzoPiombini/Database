@@ -13,6 +13,7 @@
 
 
 static char *strstr_last(char *src, char delim);
+static int is_target_db_type(char *target);
 
 int is_number_type(int type)
 {
@@ -513,9 +514,6 @@ int count_fields(char *fields, const char *user_target)
 	
 
 	char *target = TYPE_;
-
-
-
 	if(strstr(p,target) == NULL){
 		char *new_target = T_;
 		if(strstr(p,new_target) != NULL){
@@ -527,7 +525,12 @@ int count_fields(char *fields, const char *user_target)
 	} else {
 		char *second_target = T_;
 		if(strstr(p,second_target) != NULL){
+
 			while ((p = strstr(p, second_target)) != NULL) {
+				if(is_target_db_type((char *)p) == -1){
+					p += strlen(second_target);
+					continue;
+				}
 				c++;
 				p += strlen(second_target);
 			}
@@ -1569,4 +1572,24 @@ int find_delim_in_fields(char *delim, char *str, int *pos)
 		} 
 	}
 	return 0;
+}
+
+static int is_target_db_type(char *target)
+{
+	if(strstr(target,":t_s")) return 0;
+	if(strstr(target,":t_l")) return 0;
+	if(strstr(target,":t_b")) return 0;
+	if(strstr(target,":t_d")) return 0;
+	if(strstr(target,":t_i")) return 0;
+	if(strstr(target,":t_f")) return 0;
+	if(strstr(target,":t_ai")) return 0;
+	if(strstr(target,":t_al")) return 0;
+	if(strstr(target,":t_as")) return 0;
+	if(strstr(target,":t_ad")) return 0;
+	if(strstr(target,":t_af")) return 0;
+	if(strstr(target,":t_ab")) return 0;
+	if(strstr(target,":t_fl")) return 0;
+
+	return -1;
+
 }

@@ -39,3 +39,4 @@ int add_index(int index_nr, char *file_name, int bucket);
 HANDLE open_file(char *fileName, uint32_t use_trunc)
 
 #endif
+#endif

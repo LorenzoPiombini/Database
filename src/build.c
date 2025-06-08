@@ -366,7 +366,7 @@ int import_data_to_system(char *data_file)
 		/*write to file*/
 		struct Record_f rec = {0};
 		int lock_f = 0;
-		char *d = strstr(buf,":_@");
+		char *d = strstr(buf,":{@");
 		if(!d){
 			close_file(3,fds[0],fds[1],fds[2]);
 			return -1;
@@ -386,7 +386,7 @@ int import_data_to_system(char *data_file)
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
 
-		printf("key:%s\ndata:%s\noriginal:%s\n",key,cpy,buf);
+		printf("Key:%s\ndata:%s\n",key,cpy);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
