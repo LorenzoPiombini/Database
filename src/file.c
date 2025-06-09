@@ -6586,16 +6586,34 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			ram->size += sizeof(uint8_t);
 			break;
 		case TYPE_FLOAT:
-			memcpy(ram->mem[ram->size], htonl((uint32_t)rec->fields[positions[i]].data.i), sizeof(uint32_t));
+			memcpy(ram->mem[ram->size], htonf((uint32_t)rec->fields[positions[i]].data.f), sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			break;
 		case TYPE_DOLUBLE:
-			rec->fields[positions[i]].data
+			memcpy(ram->mem[ram->size], bswap_64((uint64_t)rec->fields[positions[i]].data.d), sizeof(uint64_t));
+			ram->size += sizeof(uint64_t);
 			break;
 		case TYPE_STRING:
-			rec->fields[positions[i]].data
+		{
+			uint64_t l = strlen(rec->fields[positions[i]].data.s));
+			memcpy(ram->mem[ram->size],bswap_64(l+1),sizeof(uint64_t));
+			ram->size += sizeof(uint64_t);
+			memcpy(ram->mem[ram->size],bswap_64((l * 2)+1), sizeof(uint64_t));
+			ram->size += sizeof(uint64_t);
+			memcpy(ram->mem[ram->size],0, sizeof(uint64_t));
+			ram->size += sizeof(uint64_t);
+			memcpy(ram->mem[ram->size],rec->fields[positions[i]].data.s), (l * 2) + 1);
+			ram->size += (( l * 2) + 1);
 			break;
+		}
 		case TYPE_ARRAY_INT:
+			memcpy(ram->mem[ram->size],htonl((uint32_t)rec->fields[positions[i]].data.v.size), sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+			memcpy(ram->mem[ram->size],(uint32_t)0, sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+
+			uint32_t arr[rec->fields[positions[i]].data.v.size];
+			memset(arr
 			break;
 		case TYPE_ARRAY_LONG:
 			break;
