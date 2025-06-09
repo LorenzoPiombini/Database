@@ -6607,13 +6607,19 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			break;
 		}
 		case TYPE_ARRAY_INT:
-			memcpy(ram->mem[ram->size],htonl((uint32_t)rec->fields[positions[i]].data.v.size), sizeof(uint32_t));
+			int sz = rec->fields[positions[i]].data.v.size;
+			memcpy(ram->mem[ram->size],htonl((uint32_t)sz), sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			memcpy(ram->mem[ram->size],(uint32_t)0, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 
-			uint32_t arr[rec->fields[positions[i]].data.v.size];
-			memset(arr
+			uint32_t arr[sz];
+			memset(arr,0,sizeof(uint32_t) * rec->fields[positions[i]].data.v.size);
+			for(int j = 0; j < sz; j++){
+				arr[i] = htonl(*(uint32_t*)rec->fields[positions[i]].data.v.elements.i[j]);
+			} 
+			memcpy(ram->mem[ram->size],arr,sizeof(uint32_t)*sz);
+			ram->size += (sizeof(uint32_t) *sz);
 			break;
 		case TYPE_ARRAY_LONG:
 			break;
