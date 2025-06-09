@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "build.h"
 #include "file.h"
 #include "lock.h"
@@ -11,7 +12,7 @@
 #include "crud.h"
 #include "common.h"
 
-
+static char prog[] = "db";
 /*this functionality is not implemented yet*/
 
 unsigned char build_from_txt_file(char *file_path, char *txt_f)
@@ -314,10 +315,20 @@ int import_data_to_system(char *data_file)
 	off_t size = ftell(fp);
 	rewind(fp);	
 
-	char content[size + 1];
-	memset(content,0,size+1);
+	errno = 0;
+	char *content = calloc(size+1, sizeof(char));
+	if(!content){
+		if(errno == ENOMEM)
+			fprintf(stderr,"(%s): not enough memory.\n",prog);
+		else
+			fprintf(stderr,"(%s): calloc failed.\n",prog);
+
+		return -1;
+	}
+
 	if(fread(content,size,1,fp) != 1){
 		fprintf(stderr,"fread() failed, %s:%d.\n",F,L-1);
+		free(content);
 		fclose(fp);
 		return -1;
 	}
@@ -329,6 +340,7 @@ int import_data_to_system(char *data_file)
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 	/* init the Schema structure*/
 	struct Schema sch = {0};
+	struct Record_f rec = {0};
 	memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 	struct Header_d hd = {0, 0, sch};
 
@@ -336,7 +348,8 @@ int import_data_to_system(char *data_file)
 	char *delim = NULL;
 	off_t start = 0;
 	char file_name[MAX_FILE_PATH_LENGTH] = {0};
-	while((delim = strstr(content,"\n"))){
+	int lock_f = 0;
+	while((delim = strstr(&content[start],"\n"))){
 		size_t l = 0;
 		off_t end = delim - content;		
 		if(start != 0) 
@@ -353,24 +366,34 @@ int import_data_to_system(char *data_file)
 		
 
 		if(buf[0] == '@'){
-			if(open_files(&buf[1],fds,files,0) == -1) return STATUS_ERROR;
-			if(is_db_file(&hd,fds) == -1) return STATUS_ERROR;
+			if(open_files(&buf[1],fds,files,0) == -1){
+				free(content);
+				return STATUS_ERROR;
+			}
+			if(is_db_file(&hd,fds) == -1){
+				free(content);
+				return STATUS_ERROR;
+			}
 			continue;
 		}
 
 		if(buf[0] == '='){
 			close_file(3,fds[0],fds[1],fds[2]);
+			memset(&sch,0,sizeof(struct Schema));
+			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);	
 			continue;
 		}
 
+		if(buf[0] == ' ' || buf[0] == '\0') continue;
+
 		/*write to file*/
-		struct Record_f rec = {0};
-		int lock_f = 0;
 		char *d = strstr(buf,":{@");
 		if(!d){
 			close_file(3,fds[0],fds[1],fds[2]);
+			free(content);
 			return -1;
 		}
+
 		/* separating the data from the key*/		
 		char *dd = d;
 		d += 3;
@@ -386,22 +409,25 @@ int import_data_to_system(char *data_file)
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
 
-		printf("Key:%s\ndata:%s\n",key,cpy);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);
+			free(content);
 			close_file(3,fds[0],fds[1],fds[2]);
 			return STATUS_ERROR;
 		}
 
 		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f) == -1) {
 			free_record(&rec,rec.fields_num);
-			if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+			memset(&rec,0,sizeof(struct Record_f));
 			continue;
 		}
 	
 		free_record(&rec,rec.fields_num);
+		memset(&rec,0,sizeof(struct Record_f));
+
 	}
+	free(content);
 	return 0;
 }

@@ -34,11 +34,23 @@ int lock(int fd, int flag){
 
 	FILE *fp = fopen(file_name,"r");
 	if(fp && (flag == WLOCK || flag == RLOCK)) {
+		char line[50] = {0};
+		while(fgets(line,50,fp)){
+			char *endptr;
+			pid_t p_on_file = (pid_t) strtol(line,&endptr,10);
+			if(*endptr == '\0' || *endptr == '\n'){
+				if(p_on_file == getpid()){
+					fclose(fp);
+					return 0;
+				}
+				return -1;
+			}
+		}	
 		fclose(fp);
 		return WTLK; 
 	} else if(fp && UNLOCK){
-		char line[80] = {0};
-		while(fgets(line,80,fp));
+		char line[50] = {0};
+		while(fgets(line,50,fp));
 
 		char *endptr;
 		pid_t p_on_file = (pid_t) strtol(line,&endptr,10);

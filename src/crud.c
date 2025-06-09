@@ -168,8 +168,19 @@ int check_data(char *file_path,char *data_to_add,
 
 	return check;
 }
-int write_record(int *fds,void *key,int key_type, struct Record_f *rec, int update, char files[3][MAX_FILE_PATH_LENGTH], int *lock_f)
+int write_record(int *fds,void *key,
+		int key_type,
+		struct Record_f *rec, 
+		int update,
+		char files[3][MAX_FILE_PATH_LENGTH],
+		int *lock_f,
+		int mode)
 {
+	if(mode == IMPORT){
+		/*allocate memory buffer for index and data file*/
+		/*don't write to disk al the time*/
+
+	}
 
 	if(!(*lock_f)){
 		*lock_f = 1;

@@ -518,6 +518,10 @@ int count_fields(char *fields, const char *user_target)
 		char *new_target = T_;
 		if(strstr(p,new_target) != NULL){
 			while ((p = strstr(p, new_target)) != NULL) {
+				if(is_target_db_type((char *)p) == -1){
+					p += strlen(new_target);
+					continue;
+				}
 				c++;
 				p += strlen(new_target);
 			}

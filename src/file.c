@@ -618,7 +618,58 @@ size_t record_size_on_disk(void *rec_f)
 	rec_size += sizeof(uint64_t);
 	return rec_size;
 }
+int virtual_write(struct Record_f *rec, struct Ram_record *ram_rec){
 
+	for(int i = 0; i < rec->fields_num;i++){
+		if(rec->field_set[i] == 0) continue;
+
+		ram_rec->recsactive_fields++;
+		ram_rec->index_active_fields[i] = i;
+		switch(rec->fields[i].type){
+		case TYPE_INT:
+			ram_rec->t[i].n = htonl((uint32_t) rec->fields[i].data.i);
+			break;
+		case TYPE_LONG:
+			ram_rec->t[i].large_n = bswap_64((uint64_t) rec->fields[i].data.l);
+			break;
+		case TYPE_FLOAT:
+			ram_rec->t[i].f_n = htonf((uint32_t) rec->fields[i].data.f);
+			break;
+		case TYPE_BYTE:
+			ram_rec->t[i].byt_n = rec->fields[i].data.b;
+			break;
+		case TYPE_STRING:
+			ram_rec->t[i].str.len = bswap_64((uint64_t) strlen(rec->fields[i].data.s);
+			ram_rec->t[i].str.strloc = 0;
+			ram_rec->t[i].str.buff_up = bswap_64((uint64_t) (strlen(rec->fields[i].data.s) * 2));
+			ram_rec->t[i].str.actual_string_bytes = strdup(rec->fields[i].data.s);
+			if(!ram_rec->t[i].str.actual_string_bytes)){
+				fprintf(stderr,"strdup() failed %s:%d.\n",__FILE__,__LINE__-1);
+				return -1;
+			}
+			break;
+		case TYPE_DOUBLE:
+			ram_rec->t[i].doub_n = htond(rec->fields[i].data.d);
+			break;
+		case TYPE_ARRAY_INT:			
+
+			break;
+		case TYPE_ARRAY_LONG:			
+			break;
+		case TYPE_ARRAY_BYTE:			
+			break;
+		case TYPE_ARRAY_FLOAT:			
+			break;
+		case TYPE_ARRAY_DOUBLE:			
+			break;
+		case TYPE_ARRAY_STRING:			
+			break;
+		case TYPE_ARRAY_FILE:			
+			break;
+		}
+	}
+
+}
 int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update)
 {
 	off_t go_back_to = 0;
@@ -6491,6 +6542,78 @@ int add_index(int index_nr, char *file_name, int bucket)
 	close_file(1, fd);
 	return 0;
 }
+
+
+
+int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
+{
+
+	uint8_t cnt = 0;
+	for(int i = 0; i < rec->fields_num; i++){
+		if(rec->set_field[i] == 0) continue;
+		cnt++;
+	}
+
+	memcpy(&ram->mem[ram->size],cnt,sizeof(uint8_t));
+	ram->size += sizeof(uint8_t);
+
+	if(cnt == 0) return -1;
+	uint8_t positions[cnt];
+	memset(positions,-1,cnt);
+
+
+
+	for(int i = 0; i < rec->fields_num; i++){
+		if(rec->set_field[i] == 0) continue;
+		positions[i] = i;
+	}
+	
+	memcpy(&ram->mem[ram->size],positions, sizeof(uint8_t)*cnt);
+	ram->size += (sizeof(uint8_t)* cnt);
+
+	for(uint8_t i = 0; i < cnt; i++){
+		switch(rec->fields[positions[i]].type){
+		case TYPE_INT:
+			memcpy(ram->mem[ram->size], htonl((uint32_t)rec->fields[positions[i]].data.i), sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+			break;
+		case TYPE_LONG:
+			memcpy(ram->mem[ram->size], bswap_64((uint64_t)rec->fields[positions[i]].data.l), sizeof(uint64_t));
+			ram->size += sizeof(uint64_t);
+			break;
+		case TYPE_BYTE:
+			memcpy(ram->mem[ram->size], (uint8_t)rec->fields[positions[i]].data.b, sizeof(uint32_t));
+			ram->size += sizeof(uint8_t);
+			break;
+		case TYPE_FLOAT:
+			memcpy(ram->mem[ram->size], htonl((uint32_t)rec->fields[positions[i]].data.i), sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+			break;
+		case TYPE_DOLUBLE:
+			rec->fields[positions[i]].data
+			break;
+		case TYPE_STRING:
+			rec->fields[positions[i]].data
+			break;
+		case TYPE_ARRAY_INT:
+			break;
+		case TYPE_ARRAY_LONG:
+			break;
+		case TYPE_ARRAY_FLOAT:
+			break;
+		case TYPE_ARRAY_DOUBLE:
+			break;
+		case TYPE_ARRAY_STRING:
+			break;
+		case TYPE_FILE:
+			break;
+		}
+
+	} 
+
+		
+}
+
 
 static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element, int type)
 {

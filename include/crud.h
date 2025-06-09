@@ -3,6 +3,8 @@
 
 #define ONLY_SCHEMA 1
 
+#define IMPORT 0
+
 int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], int option);
 int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds);
 int check_data(char *file_path,char *data_to_add,
@@ -16,7 +18,8 @@ int write_record(int *fds,void *key,
 		struct Record_f *rec, 
 		int update,
 		char files[3][MAX_FILE_PATH_LENGTH],
-		int *lock);
+		int *lock,
+		int mode);
 int is_db_file(struct Header_d *hd, int *fds);
 
 #endif

@@ -9,6 +9,14 @@
 
 #if defined(__linux__)
 
+
+struct Ram_file{
+	uint8_t *mem; /* memory */
+	uint64_t capacity; /*memory size*/
+	uint64_t size; /* size of the data written to memory*/
+};
+
+/*API end points*/
 int open_file(char *fileName, int use_trunc);
 int create_file(char *fileName);
 void close_file(int count, ...);
@@ -33,10 +41,11 @@ unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);
 off_t get_file_size(int fd, char *file_name);
 int add_index(int index_nr, char *file_name, int bucket);
+int write_ram_record(struct Ram_record * ram);
 
 #elif defined(_WIN32)
 
 HANDLE open_file(char *fileName, uint32_t use_trunc)
 
-#endif
-#endif
+#endif /* os if*/
+#endif /* ifndef */
