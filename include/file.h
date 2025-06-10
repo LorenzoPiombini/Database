@@ -43,6 +43,8 @@ unsigned char nr_bucket(int fd, int *p_buck);
 off_t get_file_size(int fd, char *file_name);
 int add_index(int index_nr, char *file_name, int bucket);
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec);
+void clear_ram_file(struct Ram_file *ram);
+void close_ram_file(struct Ram_file *ram);
 
 #elif defined(_WIN32)
 

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
 #include "build.h"
 #include "file.h"
 #include "lock.h"
@@ -378,9 +379,26 @@ int import_data_to_system(char *data_file)
 		}
 
 		if(buf[0] == '='){
+			if(write(fds[1],ram->mem,ram->size) == -1){
+				close_file(3,fds[0],fds[1],fds[2]);
+				if(g_ht) free_ht_array(g_ht,g_index);
+				close_ram_file(&ram);
+				free(content);
+				return STATUS_ERROR;
+
+			}
+
+			if(write_index(fds,g_index,g_ht) == -1){
+				close_file(3,fds[0],fds[1],fds[2]);
+				close_ram_file(&ram);
+				free(content);
+				return STATUS_ERROR;
+			}
+
 			close_file(3,fds[0],fds[1],fds[2]);
 			memset(&sch,0,sizeof(struct Schema));
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);	
+			clear_ram_file(&ram);
 			continue;
 		}
 

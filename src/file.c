@@ -6662,7 +6662,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 {
 
 	if(ram->capacity == 0)
-		if(init_ram_file(ram) == -1) return -1;
+		if(init_ram_file(ram, 0) == -1) return -1;
 
 	size_t rec_disk_size = 0;
 	if(!(rec_disk_size = get_disk_size_record(rec))){
