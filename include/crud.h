@@ -5,6 +5,12 @@
 
 #define IMPORT 0
 
+
+extern HashTable *g_ht;
+extern int g_index;
+extern int *p_gi;
+extern struct Ram_file ram;
+
 int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], int option);
 int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds);
 int check_data(char *file_path,char *data_to_add,

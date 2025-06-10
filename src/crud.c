@@ -15,6 +15,12 @@ static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, char *key);
 static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type);
 
+
+HashTable *g_ht = NULL;
+int g_index = 0;
+int *p_gi = &g_index;
+struct Ram_file ram = {0};
+
 int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
 {
 	HashTable ht = {0};
@@ -168,6 +174,7 @@ int check_data(char *file_path,char *data_to_add,
 
 	return check;
 }
+
 int write_record(int *fds,void *key,
 		int key_type,
 		struct Record_f *rec, 
@@ -178,8 +185,26 @@ int write_record(int *fds,void *key,
 {
 	if(mode == IMPORT){
 		/*allocate memory buffer for index and data file*/
-		/*don't write to disk al the time*/
+		/*don't write to disk all the time*/
+		if(!g_ht){
+			/* load al indexes in memory */
+			if (!read_all_index_file(fds[0], &g_ht, p_gi)) {
+				fprintf(stderr,"read index file failed. %s:%d.\n", F, L - 2);
+				return 1;
+			}
+		}
 
+		if(set_rec(g_ht,key,(off_t)ram.size,key_type) == -1){
+			free_ht_array(g_ht,g_index);
+			return STATUS_ERROR;
+		}
+
+		if(write_ram_record(&ram,rec) == -1){
+			free_ht_array(g_ht,g_index);
+			return STATUS_ERROR;
+		}
+	
+		return 0;
 	}
 
 	if(!(*lock_f)){
@@ -219,6 +244,14 @@ int write_record(int *fds,void *key,
 		return -1;
 	}
 
+	if(write_index(fds,index,ht) == -1) return -1;
+
+	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+	return 0;
+}
+
+int write_index(int *fds, int index, HashTable *ht)
+{
 	close_file(1, fds[0]);
 	fds[0] = open_file(files[0], 1); // opening with o_trunc
 
@@ -242,8 +275,9 @@ int write_record(int *fds,void *key,
 
 	close_file(1, fds[0]);
 	fds[0] = open_file(files[0], 0); // opening in regular mode
-	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	return 0;
+
+
 }
 
 int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], int option)

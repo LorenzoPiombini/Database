@@ -6578,22 +6578,27 @@ static size_t get_disk_size_record(struct Record_f *rec)
 		case TYPE_ARRAY_INT:
 			size += (sizeof(uint32_t) * 2);
 			size += (sizeof(uint32_t) * rec->fields[i].data.v.size);
+			size += (sizeof(uint64_t));
 			break;
 		case TYPE_ARRAY_LONG:
 			size += (sizeof(uint32_t) * 2);
 			size += (sizeof(uint64_t) * rec->fields[i].data.v.size);
+			size += (sizeof(uint64_t));
 			break;
 		case TYPE_ARRAY_BYTE:
 			size += (sizeof(uint32_t) * 2);
 			size += (sizeof(uint8_t) * rec->fields[i].data.v.size);
+			size += (sizeof(uint64_t));
 			break;
 		case TYPE_ARRAY_FLOAT:
 			size += (sizeof(uint32_t) * 2);
 			size += (sizeof(uint32_t) * rec->fields[i].data.v.size);
+			size += (sizeof(uint64_t));
 			break;
 		case TYPE_ARRAY_DOUBLE:
 			size += (sizeof(uint32_t) * 2);
 			size += (sizeof(uint64_t) * rec->fields[i].data.v.size);
+			size += (sizeof(uint64_t));
 			break;
 		case TYPE_ARRAY_STRING:
 			size += (sizeof(uint32_t) * 2);
@@ -6601,13 +6606,15 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
 				size += (++(strlen(rec->fields[i].data.v.elements.s[j]) * 2));
 			}
+			size += (sizeof(uint64_t));
 			break;
 		case TYPE_FILE:
 			size += get_disk_size_record(rec);
 			break;
 		}
 	}
-
+	
+	size += (sizeof(uint64_t);
 	return size;
 }
 
@@ -6634,6 +6641,23 @@ static int init_ram_file(struct Ram_file *ram, size_t size)
 	return 0;
 }
 
+void clear_ram_file(struct Ram_file *ram)
+{
+	memset(ram->mem,0,sizeof(ram->mem));
+	ram->size = 0;
+}
+
+void close_ram_file(struct Ram_file *ram)
+{
+	free(ram->mem);
+	ram->size = 0;
+	ram->capacity = 0;
+}
+
+size_t get_offset_ram_file(struct Ram_file *ram)
+{
+	return ram->size;
+}
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 {
 
@@ -6818,7 +6842,6 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			ram->size += (sizeof(uint64_t));
 			break;
 		}
-			break;
 		case TYPE_FILE:
 			if(write_ram_record(ram,rec) == -1){
 				fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
@@ -6827,6 +6850,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			break;
 		}
 	} 
+
+	memcpy(ram->mem[ram->size],0,sizeof(uint64_t));
+	ram->size += (sizeof(uint64_t));
 	return 0;
 }
 
