@@ -6604,6 +6604,33 @@ size_t get_offset_ram_file(struct Ram_file *ram)
 {
 	return ram->size;
 }
+
+int get_all_record(int fd, struct Ram_file *ram)
+{
+	off_t eof = go_to_EOF(fd);
+	if(init_ram_file(ram,(size_t)eof) == -1) return -1;	
+	if(read(fd,ram->mem,ram->capacity) == -1) return -1;
+
+	ram->size = (size_t)eof;
+	return 0;
+}
+
+int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct Record_f *rec, struct Schema sch)
+{
+	create_record(file_name, sch,rec);
+	uint8_t *p = &ram->mem[offset];
+
+	uint8_t fields_on_file = 0;
+	memcpy(&fields_on_file,p,sizeof(uint8_t));
+	p++;
+
+	for(uint8_t i = 0; i < fields_on_file; i++){
+		memcpy(&rec->field_set[i],p,sizeof(uint8_t));		
+		p++;
+	}
+
+
+}
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 {
 
@@ -6899,6 +6926,7 @@ static size_t get_string_size(int fd)
 
 	return 0;
 }
+
 #elif defined(_WIN32) 
 #include <windows.h>
 #include <stdint.h>
