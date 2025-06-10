@@ -379,7 +379,7 @@ int import_data_to_system(char *data_file)
 		}
 
 		if(buf[0] == '='){
-			if(write(fds[1],ram->mem,ram->size) == -1){
+			if(write(fds[1],ram.mem,ram.size) == -1){
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);
 				close_ram_file(&ram);
@@ -388,7 +388,7 @@ int import_data_to_system(char *data_file)
 
 			}
 
-			if(write_index(fds,g_index,g_ht) == -1){
+			if(write_index(fds,g_index,g_ht,files[0]) == -1){
 				close_file(3,fds[0],fds[1],fds[2]);
 				close_ram_file(&ram);
 				free(content);
@@ -409,6 +409,7 @@ int import_data_to_system(char *data_file)
 		if(!d){
 			close_file(3,fds[0],fds[1],fds[2]);
 			free(content);
+			close_ram_file(&ram);
 			return -1;
 		}
 
@@ -433,10 +434,11 @@ int import_data_to_system(char *data_file)
 			free_record(&rec,rec.fields_num);
 			free(content);
 			close_file(3,fds[0],fds[1],fds[2]);
+			close_ram_file(&ram);
 			return STATUS_ERROR;
 		}
 
-		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f) == -1) {
+		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f,IMPORT) == -1) {
 			free_record(&rec,rec.fields_num);
 			memset(&rec,0,sizeof(struct Record_f));
 			continue;
@@ -444,8 +446,8 @@ int import_data_to_system(char *data_file)
 	
 		free_record(&rec,rec.fields_num);
 		memset(&rec,0,sizeof(struct Record_f));
-
 	}
 	free(content);
+	close_ram_file(&ram);
 	return 0;
 }

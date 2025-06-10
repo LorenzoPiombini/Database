@@ -27,5 +27,6 @@ int write_record(int *fds,void *key,
 		int *lock,
 		int mode);
 int is_db_file(struct Header_d *hd, int *fds);
+int write_index(int *fds, int index, HashTable *ht, char *file_name);
 
 #endif

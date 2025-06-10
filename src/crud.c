@@ -194,12 +194,10 @@ int write_record(int *fds,void *key,
 			}
 		}
 
-		if(set_rec(g_ht,key,(off_t)ram.size,key_type) == -1){
-			free_ht_array(g_ht,g_index);
-			return STATUS_ERROR;
-		}
+		if(set_rec(g_ht,key,(off_t)ram.size,key_type) == -1) return 0;
 
 		if(write_ram_record(&ram,rec) == -1){
+			fprintf(stderr,"write_ram_record() failed. %s:%d.\n",__FILE__,__LINE__-1);
 			free_ht_array(g_ht,g_index);
 			return STATUS_ERROR;
 		}
@@ -244,16 +242,16 @@ int write_record(int *fds,void *key,
 		return -1;
 	}
 
-	if(write_index(fds,index,ht) == -1) return -1;
+	if(write_index(fds,index,ht,files[0]) == -1) return -1;
 
 	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	return 0;
 }
 
-int write_index(int *fds, int index, HashTable *ht)
+int write_index(int *fds, int index, HashTable *ht, char *file_name)
 {
 	close_file(1, fds[0]);
-	fds[0] = open_file(files[0], 1); // opening with o_trunc
+	fds[0] = open_file(file_name, 1); // opening with o_trunc
 
 	/* write the new indexes to file */
 	if (!write_index_file_head(fds[0], index)) {
@@ -274,10 +272,8 @@ int write_index(int *fds, int index, HashTable *ht)
 	free(ht);
 
 	close_file(1, fds[0]);
-	fds[0] = open_file(files[0], 0); // opening in regular mode
+	fds[0] = open_file(file_name, 0); // opening in regular mode
 	return 0;
-
-
 }
 
 int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], int option)
