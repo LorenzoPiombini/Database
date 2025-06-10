@@ -6595,18 +6595,19 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			break;
 		case TYPE_STRING:
 		{
-			uint64_t l = strlen(rec->fields[positions[i]].data.s));
+			uint64_t l = strlen(rec->fields[positions[i]].data.s);
 			memcpy(ram->mem[ram->size],bswap_64(l+1),sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
 			memcpy(ram->mem[ram->size],bswap_64((l * 2)+1), sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
 			memcpy(ram->mem[ram->size],0, sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
-			memcpy(ram->mem[ram->size],rec->fields[positions[i]].data.s), (l * 2) + 1);
+			memcpy(ram->mem[ram->size],rec->fields[positions[i]].data.s, (l * 2) + 1);
 			ram->size += (( l * 2) + 1);
 			break;
 		}
 		case TYPE_ARRAY_INT:
+		{
 			int sz = rec->fields[positions[i]].data.v.size;
 			memcpy(ram->mem[ram->size],htonl((uint32_t)sz), sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
@@ -6616,26 +6617,108 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			uint32_t arr[sz];
 			memset(arr,0,sizeof(uint32_t) * rec->fields[positions[i]].data.v.size);
 			for(int j = 0; j < sz; j++){
-				arr[i] = htonl(*(uint32_t*)rec->fields[positions[i]].data.v.elements.i[j]);
+				arr[j] = htonl(*(uint32_t*)rec->fields[positions[i]].data.v.elements.i[j]);
 			} 
 			memcpy(ram->mem[ram->size],arr,sizeof(uint32_t)*sz);
 			ram->size += (sizeof(uint32_t) *sz);
-			break;
-		case TYPE_ARRAY_LONG:
-			break;
-		case TYPE_ARRAY_FLOAT:
-			break;
-		case TYPE_ARRAY_DOUBLE:
-			break;
-		case TYPE_ARRAY_STRING:
-			break;
-		case TYPE_FILE:
+			
+			memcpy(ram->mem[ram->size],0,sizeof(uint64_t));
+			ram->size += (sizeof(uint64_t));
 			break;
 		}
+		case TYPE_ARRAY_LONG:
+		{
+			int sz = rec->fields[positions[i]].data.v.size;
+			memcpy(ram->mem[ram->size],htonl((uint32_t)sz), sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+			memcpy(ram->mem[ram->size],(uint32_t)0, sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
 
+			uint64_t arr[sz];
+			memset(arr,0,sizeof(uint64_t) * rec->fields[positions[i]].data.v.size);
+			for(int j = 0; j < sz; j++){
+				arr[j] = bswap_64(*(uint64_t*)rec->fields[positions[i]].data.v.elements.l[j]);
+			} 
+			memcpy(ram->mem[ram->size],arr,sizeof(uint64_t)*sz);
+			ram->size += (sizeof(uint64_t) *sz);
+
+			memcpy(ram->mem[ram->size],0,sizeof(uint64_t));
+			ram->size += (sizeof(uint64_t));
+			break;
+		}
+		case TYPE_ARRAY_FLOAT:
+		{
+			int sz = rec->fields[positions[i]].data.v.size;
+			memcpy(ram->mem[ram->size],htonl((uint32_t)sz), sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+			memcpy(ram->mem[ram->size],(uint32_t)0, sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+
+			uint32_t arr[sz];
+			memset(arr,0,sizeof(uint32_t) * rec->fields[positions[i]].data.v.size);
+			for(int j = 0; j < sz; j++){
+				arr[j] = htonf(*(uint32_t*)rec->fields[positions[i]].data.v.elements.f[j]);
+			} 
+			memcpy(ram->mem[ram->size],arr,sizeof(uint32_t)*sz);
+			ram->size += (sizeof(uint32_t) *sz);
+
+			memcpy(ram->mem[ram->size],0,sizeof(uint64_t));
+			ram->size += (sizeof(uint64_t));
+			break;
+		}
+		case TYPE_ARRAY_DOUBLE:
+		{
+			int sz = rec->fields[positions[i]].data.v.size;
+			memcpy(ram->mem[ram->size],htonl((uint32_t)sz), sizeof(uint64_t));
+			ram->size += sizeof(uint32_t);
+			memcpy(ram->mem[ram->size],(uint32_t)0, sizeof(uint64_t));
+			ram->size += sizeof(uint32_t);
+
+			uint64_t arr[sz];
+			memset(arr,0,sizeof(uint64_t) * rec->fields[positions[i]].data.v.size);
+			for(int j = 0; j < sz; j++){
+				arr[j] = bswap_64(*(uint64_t*)rec->fields[positions[i]].data.v.elements.d[j]);
+			} 
+			memcpy(ram->mem[ram->size],arr,sizeof(uint64_t)*sz);
+			ram->size += (sizeof(uint64_t) *sz);
+
+			memcpy(ram->mem[ram->size],0,sizeof(uint64_t));
+			ram->size += (sizeof(uint64_t));
+			break;
+		}
+		case TYPE_ARRAY_STRING:
+		{
+			int sz = rec->fields[positions[i]].data.v.size;
+			memcpy(ram->mem[ram->size],htonl((uint32_t)sz), sizeof(uint64_t));
+			ram->size += sizeof(uint32_t);
+			memcpy(ram->mem[ram->size],(uint32_t)0, sizeof(uint64_t));
+			ram->size += sizeof(uint32_t);
+
+			for(int j = 0; j < sz; j++){
+				uint64_t l = strlen(rec->fields[positions[i]].data.v.elements.s[j]);
+				memcpy(ram->mem[ram->size],bswap_64(l+1),sizeof(uint64_t));
+				ram->size += sizeof(uint64_t);
+				memcpy(ram->mem[ram->size],bswap_64((l * 2)+1), sizeof(uint64_t));
+				ram->size += sizeof(uint64_t);
+				memcpy(ram->mem[ram->size],0, sizeof(uint64_t));
+				ram->size += sizeof(uint64_t);
+				memcpy(ram->mem[ram->size],rec->fields[positions[i]].data.v.elements.s[j], (l * 2) + 1);
+				ram->size += (( l * 2) + 1);
+			} 
+
+			memcpy(ram->mem[ram->size],0,sizeof(uint64_t));
+			ram->size += (sizeof(uint64_t));
+			break;
+		}
+			break;
+		case TYPE_FILE:
+			if(write_ram_record(ram,rec) == -1){
+
+			}
+			break;
+		}
 	} 
-
-		
+	return 0;
 }
 
 
