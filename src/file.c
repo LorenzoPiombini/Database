@@ -6544,7 +6544,46 @@ int add_index(int index_nr, char *file_name, int bucket)
 }
 
 
+uint32_t get_size_of_record(struct Record_f *rec)
+{
 
+	uint32_t size = 0;
+	size += (sizeof(uint8_t) * 2);
+	for(int i = 0; i < rec->fields_num; i++){
+		if(rec->set_field[i] == 0) continue;
+		switch(rec->fields[i].type){
+		case TYPE_INT:
+			size += sizeof(uint32_t);
+			break;
+		case TYPE_LONG:
+			size += sizeof(uint64_t);
+			break;
+		case TYPE_BYTE:
+			size += sizeof(uint8_t);
+			break
+		case TYPE_STRING:
+			size += (sizeof(uint64_t) * 8);
+			break;
+		case TYPE_FLOAT:
+			size += sizeof(uint32_t);
+			break;
+		case TYPE_DOUBLE:
+			size += sizeof(uint64_t);
+			break;
+		case TYPE_ARRAY_INT:
+		case TYPE_ARRAY_LONG:
+		case TYPE_ARRAY_BYTE:
+		case TYPE_ARRAY_FLOAT:
+		case TYPE_ARRAY_DOUBLE:
+		case TYPE_ARRAY_STRING:
+		case TYPE_FILE:
+		}
+	}
+
+
+
+
+}
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 {
 
