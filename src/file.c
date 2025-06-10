@@ -20,6 +20,8 @@
 
 static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element, int type);
 static size_t get_string_size(int fd);
+static size_t get_disk_size_record(struct Record_f *rec);
+static int init_ram_file(struct Ram_file *ram, size_t size);
 
 int open_file(char *fileName, int use_trunc)
 {
@@ -6544,13 +6546,15 @@ int add_index(int index_nr, char *file_name, int bucket)
 }
 
 
-uint32_t get_size_of_record(struct Record_f *rec)
+static size_t get_disk_size_record(struct Record_f *rec)
 {
 
-	uint32_t size = 0;
-	size += (sizeof(uint8_t) * 2);
+	size_t size = 0;
+	size += (sizeof(uint8_t));
 	for(int i = 0; i < rec->fields_num; i++){
 		if(rec->set_field[i] == 0) continue;
+
+		size += sizeof(uint8_t);
 		switch(rec->fields[i].type){
 		case TYPE_INT:
 			size += sizeof(uint32_t);
@@ -6562,7 +6566,8 @@ uint32_t get_size_of_record(struct Record_f *rec)
 			size += sizeof(uint8_t);
 			break
 		case TYPE_STRING:
-			size += (sizeof(uint64_t) * 8);
+			size += (sizeof(uint64_t) * 3);
+			size += (++(strlen(rec->fields[i].data.s) * 2));
 			break;
 		case TYPE_FLOAT:
 			size += sizeof(uint32_t);
@@ -6571,22 +6576,86 @@ uint32_t get_size_of_record(struct Record_f *rec)
 			size += sizeof(uint64_t);
 			break;
 		case TYPE_ARRAY_INT:
+			size += (sizeof(uint32_t) * 2);
+			size += (sizeof(uint32_t) * rec->fields[i].data.v.size);
+			break;
 		case TYPE_ARRAY_LONG:
+			size += (sizeof(uint32_t) * 2);
+			size += (sizeof(uint64_t) * rec->fields[i].data.v.size);
+			break;
 		case TYPE_ARRAY_BYTE:
+			size += (sizeof(uint32_t) * 2);
+			size += (sizeof(uint8_t) * rec->fields[i].data.v.size);
+			break;
 		case TYPE_ARRAY_FLOAT:
+			size += (sizeof(uint32_t) * 2);
+			size += (sizeof(uint32_t) * rec->fields[i].data.v.size);
+			break;
 		case TYPE_ARRAY_DOUBLE:
+			size += (sizeof(uint32_t) * 2);
+			size += (sizeof(uint64_t) * rec->fields[i].data.v.size);
+			break;
 		case TYPE_ARRAY_STRING:
+			size += (sizeof(uint32_t) * 2);
+			size += ((sizeof(uint64_t) * 3) * rec->fields[i].data.v.size);
+			for(int j = 0; j < rec->fields[i].data.v.size; j++){
+				size += (++(strlen(rec->fields[i].data.v.elements.s[j]) * 2));
+			}
+			break;
 		case TYPE_FILE:
+			size += get_disk_size_record(rec);
+			break;
 		}
 	}
 
-
-
-
+	return size;
 }
+
+static int init_ram_file(struct Ram_file *ram, size_t size)
+{
+	if(size <= 0){
+		ram->mem = calloc(STD_RAM_FILE,sizeof(uint8_t)); 
+		if(!ram->mem){
+			fprintf(stderr,"cannot init ram file.\n");
+			return -1;
+		}
+		ram->size = 0;
+		ram->capacity = STD_RAM_FILE;
+		return 0;
+	}
+
+	ram->mem = calloc(size,sizeof(uint8_t));
+	if(!ram->mem){
+		fprintf(stderr,"cannot init ram file.\n");
+		return -1;
+	}
+	ram->size = 0;
+	ram->capacity = size;
+	return 0;
+}
+
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 {
 
+	if(ram->capacity == 0)
+		if(init_ram_file(ram) == -1) return -1;
+
+	size_t rec_disk_size = 0;
+	if(!(rec_disk_size = get_disk_size_record(rec))){
+		fprintf(stderr,"cannot compute record disk size.\n");
+		return -1;
+	}
+
+	if(rec_disk_size > (ram->capacity - ram->size)){
+		uint8_t *n_buff = realloc(ram->mem,(ram->capacity * 2) * sizeof(uint8_t));
+		if(!n_buff){
+			fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
+			return -1;
+		}
+
+		ram->mem = n_buff;
+	}
+	
 	uint8_t cnt = 0;
 	for(int i = 0; i < rec->fields_num; i++){
 		if(rec->set_field[i] == 0) continue;
@@ -6637,12 +6706,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			uint64_t l = strlen(rec->fields[positions[i]].data.s);
 			memcpy(ram->mem[ram->size],bswap_64(l+1),sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
-			memcpy(ram->mem[ram->size],bswap_64((l * 2)+1), sizeof(uint64_t));
+			memcpy(ram->mem[ram->size],bswap_64(++(l * 2)), sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
 			memcpy(ram->mem[ram->size],0, sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
-			memcpy(ram->mem[ram->size],rec->fields[positions[i]].data.s, (l * 2) + 1);
-			ram->size += (( l * 2) + 1);
+			memcpy(ram->mem[ram->size],rec->fields[positions[i]].data.s, ++(l * 2));
+			ram->size += (++( l * 2));
 			break;
 		}
 		case TYPE_ARRAY_INT:
@@ -6752,6 +6821,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			break;
 		case TYPE_FILE:
 			if(write_ram_record(ram,rec) == -1){
+				fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
 
 			}
 			break;

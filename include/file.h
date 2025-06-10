@@ -9,6 +9,7 @@
 
 #if defined(__linux__)
 
+#define STD_RAM_FILE 3145728 /* 3 MiB */  
 
 struct Ram_file{
 	uint8_t *mem; /* memory */
@@ -41,7 +42,7 @@ unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);
 off_t get_file_size(int fd, char *file_name);
 int add_index(int index_nr, char *file_name, int bucket);
-int write_ram_record(struct Ram_record * ram);
+int write_ram_record(struct Ram_file *ram, struct Record_f *rec);
 
 #elif defined(_WIN32)
 
