@@ -709,20 +709,17 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				/* adding 1 for '\0'*/
 				lt++, buff_update++;
 				buff_w = calloc(buff_update, sizeof(char));
-				if (!buff_w)
-				{
+				if (!buff_w){
 					__er_calloc(F, L - 2);
 					return 0;
 				}
 
 				strncpy(buff_w, rec->fields[i].data.s, lt - 1);
 
-				uint64_t l_ne = bswap_64(lt);
 				uint64_t bu_ne = bswap_64(buff_update);
 				uint64_t str_loc_ne = bswap_64(str_loc);
 
 				if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
-					write(fd, &l_ne, sizeof(l_ne)) < 0 ||
 					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 					write(fd, buff_w, buff_update) < 0)
 				{
@@ -764,17 +761,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				}
 
 				uint64_t bu_ne = 0;
-				uint64_t l_ne = 0;
-				if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-					read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-				{
+				if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 					perror("can't read safety buffer before writing string.\n");
 					printf("%s:%d", F, L - 3);
 					return 0;
 				}
 
 				buff_update = (off_t)bswap_64(bu_ne);
-				lt = (off_t)bswap_64(l_ne);
 
 				/*save the end offset of the first string record */
 				if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -805,17 +798,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t bu_ne = 0;
-					uint64_t l_ne = 0;
-					if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-						read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-					{
+					if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 						perror("read file.\n");
 						printf("%s:%d", F, L - 3);
 						return 0;
 					}
 
 					buff_update = (off_t)bswap_64(bu_ne);
-					lt = (off_t)bswap_64(l_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -823,7 +812,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				if (new_lt > buff_update) {
 					/*
 					 * if the new length is bigger then the buffer,
-					 * set the file pointer to the end of the file
+					 * set the file pointer to th of the file
 					 * to write the new data
 					 * */
 					if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
@@ -881,15 +870,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				 * write the data to file --
 				 * the file pointer is always pointing to the
 				 * right position at this point */
-				lt = new_lt;
 				buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-				l_ne = bswap_64(lt);
 				bu_ne = bswap_64(buff_update);
 
-				if (write(fd, &l_ne, sizeof(lt)) < 0 ||
-					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
-					write(fd, buff_w, buff_update) < 0)
-				{
+				if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+					write(fd, buff_w, buff_update) < 0){
 					perror("error in writing type string (char *)file.\n");
 					free(buff_w);
 					return 0;
@@ -2420,15 +2405,12 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					strncpy(buff_w, rec->fields[i].data.v.elements.s[k], lt - 1);
 
-					uint64_t l_ne = bswap_64(lt);
 					uint64_t bu_ne = bswap_64(buff_update);
 					uint64_t str_loc_ne = bswap_64(str_loc);
 
 					if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
-						write(fd, &l_ne, sizeof(l_ne)) < 0 ||
 						write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
-						write(fd, buff_w, buff_update) < 0)
-					{
+						write(fd, buff_w, buff_update) < 0){
 						perror("write file failed: ");
 						printf(" %s:%d", F, L - 2);
 						free(buff_w);
@@ -4702,7 +4684,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				uint32_t padding_ne = htonl(0);
+				uint32_t padding_ne = 0;
 				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -4718,7 +4700,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 				}
 
-				uint64_t upd_ne = bswap_64(0);
+				uint64_t upd_ne = 0;
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -5358,20 +5340,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			}
 			str_loc = (size_t)bswap_64(str_loc_ne);
 
-			uint64_t l_ne = 0;
-			if (read(fd, &l_ne, sizeof(l_ne)) < 0)
-			{
-				perror("read from file failed: ");
-				printf("%s:%d.\n", F, L - 2);
-				free_record(rec, rec->fields_num);
-				return -1;
-			}
-
-			l = (size_t)bswap_64(l_ne);
-
 			uint64_t bu_up_ne = 0;
-			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
-			{
+			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0){
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
 				free_record(rec, rec->fields_num);
@@ -5392,28 +5362,18 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				uint64_t l_ne = 0;
 				uint64_t bu_up_ne = 0;
-				if (read(fd, &l_ne, sizeof(l_ne)) < 0)
-				{
+				if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0){
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
 					free_record(rec, rec->fields_num);
 					return -1;
 				}
 
-				if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
-				{
-					perror("read file: ");
-					printf("%s:%d", F, L - 2);
-					free_record(rec, rec->fields_num);
-					return -1;
-				}
-
-				l = (size_t)bswap_64(l_ne);
 				buff_update = (size_t)bswap_64(bu_up_ne);
 			}
-			rec->fields[i].data.s = calloc(l, sizeof(char));
+
+			rec->fields[i].data.s = calloc(buff_update, sizeof(char));
 			if (!rec->fields[i].data.s)
 			{
 				printf("calloc failed: %s:%d.\n", F, L - 3);
@@ -5421,25 +5381,12 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 
-			char *all_buf = calloc(buff_update, sizeof(char));
-			if (!all_buf)
-			{
-				printf("calloc failed file.c l 532.\n");
-				free_record(rec, rec->fields_num);
-				return -1;
-			}
-
 			/*read the actual string*/
-			if (read(fd, all_buf, buff_update) < 0)
-			{
+			if (read(fd, rec->fields[i].data.s, buff_update) < 0){
 				perror("could not read buffer string, file.c l 539.\n");
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
-
-			strncpy(rec->fields[i].data.s, all_buf, l);
-			rec->fields[i].data.s[l - 1] = '\0';
-			free(all_buf);
 
 			/*set file pointer back at the end of the original str record*/
 			if (str_loc > 0)
@@ -5484,8 +5431,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_ARRAY_INT:
 		{
-			if (!rec->fields[i].data.v.elements.i)
-			{
+			if (!rec->fields[i].data.v.elements.i){
 				rec->fields[i].data.v.insert = insert_element;
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
@@ -5661,7 +5607,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_ARRAY_STRING:
 		{
-			if (!rec->fields[i].data.v.elements.l)
+			if (!rec->fields[i].data.v.elements.s)
 			{
 				rec->fields[i].data.v.insert = insert_element;
 				rec->fields[i].data.v.destroy = free_dynamic_array;
@@ -5703,17 +5649,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					}
 					str_loc = (size_t)bswap_64(str_loc_ne);
 
-					uint64_t l_ne = 0;
-					if (read(fd, &l_ne, sizeof(l_ne)) < 0)
-					{
-						perror("read from file failed: ");
-						printf("%s:%d.\n", F, L - 2);
-						free_record(rec, rec->fields_num);
-						return -1;
-					}
-
-					l = (size_t)bswap_64(l_ne);
-
 					uint64_t bu_up_ne = 0;
 					if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
 					{
@@ -5737,16 +5672,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							return -1;
 						}
 
-						uint64_t l_ne = 0;
 						uint64_t bu_up_ne = 0;
-						if (read(fd, &l_ne, sizeof(l_ne)) < 0)
-						{
-							perror("read file: ");
-							printf("%s:%d", F, L - 2);
-							free_record(rec, rec->fields_num);
-							return -1;
-						}
-
 						if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
 						{
 							perror("read file: ");
@@ -6665,11 +6591,6 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			off_t str_loc = bswap_64(str_loc_ne);
 
 
-			uint64_t l_ne = 0;
-			memcpy(&l_ne,p,sizeof(uint64_t));
-			p += sizeof(uint64_t);
-			size_t l = bswap_64(l_ne);
-
 			uint64_t buf_up_ne = 0;
 			memcpy(&buf_up_ne,p,sizeof(uint64_t));
 			p += sizeof(uint64_t);
@@ -6680,11 +6601,6 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 				move_back_to = (p - ram->mem) + buf_up;	
 				/* move to the new location*/
 				p = &ram->mem[str_loc];
-
-				l_ne = 0;
-				memcpy(&l_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
-				l = bswap_64(l_ne);
 
 				buf_up_ne = 0;
 				memcpy(&buf_up_ne,p,sizeof(uint64_t));
@@ -6702,8 +6618,6 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 
 			if(str_loc > 0) p = &ram->mem[move_back_to];
 
-
-
 			break;
 		}
 		case TYPE_FLOAT:
@@ -6715,19 +6629,345 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			break;
 		}
 		case TYPE_DOUBLE:
+		{
+			uint64_t n = 0;
+			memcpy(&n,p,sizeof(uint64_t));
+			p += sizeof(uint64_t);
+			rec->fields[i].data.d = bswap_64(n);
 			break;
+		}
 		case TYPE_ARRAY_INT:
+		{
+			if (!rec->fields[i].data.v.elements.i){
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
+			do
+			{
+				uint32_t size_array = 0;
+				memcpy(&size_array,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int sz = (int)ntohl(size_array);
+
+
+				uint32_t padding = 0;
+				memcpy(&padding,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int padd = (int)ntohl(padding);
+
+				for (int j = 0; j < sz; j++){
+					uint32_t n = 0;
+					memcpy(&n,p,sizeof(uint32_t));
+					p += sizeof(uint32_t);
+					int num = (int)ntohl(n);
+					rec->fields[i].data.v.insert((void *)&num,
+						&rec->fields[i].data.v,
+						rec->fields[i].type);
+				}
+
+				if (padd > 0) p += (sizeof(uint32_t) * padd);
+
+				uint64_t upd_ne = 0;
+				memcpy(&upd_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+
+				if (go_back_here == 0) go_back_here = p - ram->mem;
+
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0) p = &ram->mem[array_upd];
+
+			} while (array_upd > 0);
+
+			p = &ram->mem[go_back_here];
 			break;
+		}
 		case TYPE_ARRAY_LONG:
+		{
+			if(!rec->fields[i].data.v.elements.l){
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
+			do
+			{
+				uint32_t size_array = 0;
+				memcpy(&size_array,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int sz = (int)ntohl(size_array);
+
+
+				uint32_t padding = 0;
+				memcpy(&padding,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int padd = (int)ntohl(padding);
+
+				for (int j = 0; j < sz; j++){
+					uint64_t n = 0;
+					memcpy(&n,p,sizeof(uint64_t));
+					p += sizeof(uint64_t);
+
+					long num = (long)bswap_64(n);
+
+					rec->fields[i].data.v.insert((void *)&num,
+						&rec->fields[i].data.v,
+						rec->fields[i].type);
+				}
+
+				if (padd > 0) p += (sizeof(uint64_t) * padd);
+
+				uint64_t upd_ne = 0;
+				memcpy(&upd_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+
+				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
+
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0) p = &ram->mem[array_upd];
+
+			} while (array_upd > 0);
+
+			p = &ram->mem[go_back_here];
 			break;
+		}
 		case TYPE_ARRAY_BYTE:
+		{
+			if (!rec->fields[i].data.v.elements.b){
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
+			do
+			{
+				uint32_t size_array = 0;
+				memcpy(&size_array,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int sz = (int)ntohl(size_array);
+
+
+				uint32_t padding = 0;
+				memcpy(&padding,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int padd = (int)ntohl(padding);
+
+				for (int j = 0; j < sz; j++){
+					uint8_t n = 0;
+					memcpy(&n,p,sizeof(uint8_t));
+					p += sizeof(uint8_t);
+					rec->fields[i].data.v.insert((void *)&n,
+						&rec->fields[i].data.v,
+						rec->fields[i].type);
+				}
+
+				if (padd > 0) p += (sizeof(uint8_t) * padd);
+
+				uint64_t upd_ne = 0;
+				memcpy(&upd_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+
+				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
+
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0) p = &ram->mem[array_upd];
+
+			} while (array_upd > 0);
+
+			p = &ram->mem[go_back_here];
 			break;
+		}
 		case TYPE_ARRAY_FLOAT:
+		{
+			if (!rec->fields[i].data.v.elements.f){
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
+			do
+			{
+				uint32_t size_array = 0;
+				memcpy(&size_array,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int sz = (int)ntohl(size_array);
+
+
+				uint32_t padding = 0;
+				memcpy(&padding,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int padd = (int)ntohl(padding);
+
+				for (int j = 0; j < sz; j++){
+					uint32_t n = 0;
+					memcpy(&n,p,sizeof(uint32_t));
+					p += sizeof(uint32_t);
+					float num = (float)ntohf(n);
+					rec->fields[i].data.v.insert((void *)&num,
+						&rec->fields[i].data.v,
+						rec->fields[i].type);
+				}
+
+				if (padd > 0) p += (sizeof(uint32_t) * padd);
+
+				uint64_t upd_ne = 0;
+				memcpy(&upd_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+
+				if (go_back_here == 0) go_back_here = p - ram->mem;
+
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0) p = &ram->mem[array_upd];
+
+			} while (array_upd > 0);
+
+			p = &ram->mem[go_back_here];
 			break;
+		}
+
 		case TYPE_ARRAY_DOUBLE:
+		{
+			if(!rec->fields[i].data.v.elements.d){
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
+			do
+			{
+				uint32_t size_array = 0;
+				memcpy(&size_array,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int sz = (int)ntohl(size_array);
+
+
+				uint32_t padding = 0;
+				memcpy(&padding,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int padd = (int)ntohl(padding);
+
+				for (int j = 0; j < sz; j++){
+					uint64_t n = 0;
+					memcpy(&n,p,sizeof(uint64_t));
+					p += sizeof(uint64_t);
+
+					double num = (double)bswap_64(n);
+
+					rec->fields[i].data.v.insert((void *)&num,
+						&rec->fields[i].data.v,
+						rec->fields[i].type);
+				}
+
+				if (padd > 0) p += (sizeof(uint64_t) * padd);
+
+				uint64_t upd_ne = 0;
+				memcpy(&upd_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+
+				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
+
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0) p = &ram->mem[array_upd];
+
+			} while(array_upd > 0);
+
+			p = &ram->mem[go_back_here];
 			break;
+		}
 		case TYPE_ARRAY_STRING:
+		{
+			if (!rec->fields[i].data.v.elements.s){
+				rec->fields[i].data.v.insert = insert_element;
+				rec->fields[i].data.v.destroy = free_dynamic_array;
+			}
+
+			off_t array_upd = 0;
+			off_t go_back_here = 0;
+			do
+			{
+				uint32_t size_array = 0;
+				memcpy(&size_array,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int sz = (int)ntohl(size_array);
+
+
+				uint32_t padding = 0;
+				memcpy(&padding,p,sizeof(uint32_t));
+				p += sizeof(uint32_t);
+				int padd = (int)ntohl(padding);
+
+				for (int j = 0; j < sz; j++){
+					uint64_t str_loc_ne = 0;
+					memcpy(&str_loc_ne,p,sizeof(uint64_t));
+					p += sizeof(uint64_t);
+					off_t str_loc = bswap_64(str_loc_ne);
+
+
+					uint64_t buf_up_ne = 0;
+					memcpy(&buf_up_ne,p,sizeof(uint64_t));
+					p += sizeof(uint64_t);
+					size_t buf_up = bswap_64(str_loc_ne);
+
+					off_t move_back_to = 0
+					if(str_loc > 0){
+						move_back_to = (p - ram->mem) + buf_up;	
+						/* move to the new location*/
+						p = &ram->mem[str_loc];
+
+						buf_up_ne = 0;
+						memcpy(&buf_up_ne,p,sizeof(uint64_t));
+						p += sizeof(uint64_t);
+						buf_up = bswap_64(str_loc_ne);
+					}
+
+					char *string = calloc(buf_up,sizeof(char));
+					if(!string){
+						fprintf(stderr,"calloc failed.\n");
+						return -1;
+					}
+
+					memcpy(rec->fields[i].data.s,p,buf_up);
+
+					if(str_loc > 0) p = &ram->mem[move_back_to];
+
+					rec->fields[i].data.v.insert((void *)string,
+						&rec->fields[i].data.v,
+						rec->fields[i].type);
+
+					free(string);
+				}
+
+				if (padd > 0) {
+					for(int x = 0; x < padd; x++){
+						p += sizeof(uint64_t);
+						uint64_t buf_upn = 0;
+						memcpy(&buf_upn,p,sizeof(uint64_t));
+						p += sizeof(uint64_t);
+						size_t buf_up = bswap_64(buf_upn);
+						p += buf_up;
+					}
+				}
+
+				uint64_t upd_ne = 0;
+				memcpy(&upd_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+
+				if (go_back_here == 0) go_back_here = p - ram->mem;
+
+				array_upd = (off_t)bswap_64(upd_ne);
+				if (array_upd > 0) p = &ram->mem[array_upd];
+
+			} while (array_upd > 0);
+
+			p = &ram->mem[go_back_here];
 			break;
+		}
 		case TYPE_FILE:
 			break;
 		}
@@ -6814,15 +7054,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 		case TYPE_STRING:
 		{
 			uint64_t l = (uint64_t)strlen(rec->fields[i].data.s);
-			uint64_t l_ne = bswap_64(l+1);	
 			uint64_t buf_up_ne = bswap_64((l*2)+1);	
 			uint64_t str_loc = 0;	
 
 			memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
 
-			memcpy(&ram->mem[ram->size],&l_ne,sizeof(uint64_t));
-			ram->size += sizeof(uint64_t);
 			memcpy(&ram->mem[ram->size],&buf_up_ne, sizeof(uint64_t));
 			ram->size += sizeof(uint64_t);
 			char buff[(l * 2) + 1];
@@ -6938,15 +7175,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
 
 				uint64_t l = (uint64_t)strlen(rec->fields[i].data.s);
-				uint64_t l_ne = bswap_64(l+1);	
 				uint64_t buf_up_ne = bswap_64((l*2)+1);	
 				uint64_t str_loc = 0;	
 
 				memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint64_t));
 				ram->size += sizeof(uint64_t);
 
-				memcpy(&ram->mem[ram->size],&l_ne,sizeof(uint64_t));
-				ram->size += sizeof(uint64_t);
 				memcpy(&ram->mem[ram->size],&buf_up_ne, sizeof(uint64_t));
 				ram->size += sizeof(uint64_t);
 				char buff[(l * 2) + 1];
@@ -7017,10 +7251,11 @@ static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element
 
 	return update_pos == 0;
 }
+
 static size_t get_string_size(int fd)
 {
 
-	if(move_in_file_bytes(fd,16) == -1) return -1;
+	if(move_in_file_bytes(fd,sizeof(uint64_t)) == -1) return -1;
 	
 	uint64_t bu_ne = 0;
 	if(read(fd,&bu_ne,sizeof(bu_ne)) == -1) return -1;
