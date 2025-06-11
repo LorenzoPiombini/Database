@@ -6629,8 +6629,66 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 		p++;
 	}
 
+	for(int i = 0; i < rec->fields_num; i++){
+		if(rec->field_set[i] == 0) continue;
+
+		switch(rec->fields[i].type){
+		case TYPE_INT:
+		{
+			uint32_t n = 0;
+			memcpy(&n,p,sizeof(uint32_t));
+			p += sizeof(uint32_t);
+			rec->fields[i].data.i = ntohl(n);
+			break;
+		}
+		case TYPE_LONG:
+		{
+			uint64_t n = 0;
+			memcpy(&n,p,sizeof(uint64_t));
+			p += sizeof(uint64_t);
+			rec->fields[i].data.l = bswap_64(n);
+			break;
+		}
+		case TYPE_BYTE:
+		{
+			uint8_t n = 0;
+			memcpy(&n,p,sizeof(uint8_t));
+			p += sizeof(uint8_t);
+			rec->fields[i].data.b = n;
+			break;
+		}
+		case TYPE_STRING:
+			break;
+		case TYPE_FLOAT:
+		{
+			uint32_t n = 0;
+			memcpy(&n,p,sizeof(uint32_t));
+			p += sizeof(uint32_t);
+			rec->fields[i].data.f = ntohf(n);
+			break;
+		}
+		case TYPE_DOUBLE:
+			break;
+		case TYPE_ARRAY_INT:
+			break;
+		case TYPE_ARRAY_LONG:
+			break;
+		case TYPE_ARRAY_BYTE:
+			break;
+		case TYPE_ARRAY_FLOAT:
+			break;
+		case TYPE_ARRAY_DOUBLE:
+			break;
+		case TYPE_ARRAY_STRING:
+			break;
+		case TYPE_FILE:
+			break;
+		}
+	}
+
 
 }
+
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 {
 
