@@ -5216,7 +5216,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 	off_t str_loc = 0;
 	size_t buff_update = 0; /* to get the real size of the string*/
 	off_t move_to = 0;
-	size_t l = 0;
 
 
 	for (int i = 0; i < rec->fields_num; i++) {
@@ -5613,7 +5612,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							return -1;
 						}
 
-						l = (size_t)bswap_64(l_ne);
 						buff_update = (size_t)bswap_64(bu_up_ne);
 					}
 
@@ -6466,6 +6464,7 @@ size_t get_offset_ram_file(struct Ram_file *ram)
 int get_all_record(int fd, struct Ram_file *ram)
 {
 	off_t eof = go_to_EOF(fd);
+	if(begin_in_file(fd) == -1) return -1;
 	if(init_ram_file(ram,(size_t)eof) == -1) return -1;	
 	if(read(fd,ram->mem,ram->capacity) == -1) return -1;
 
@@ -6473,7 +6472,7 @@ int get_all_record(int fd, struct Ram_file *ram)
 	return 0;
 }
 
-int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct Record_f *rec, struct Schema sch)
+off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct Record_f *rec, struct Schema sch)
 {
 	create_record(file_name, sch,rec);
 	uint8_t *p = &ram->mem[offset];
@@ -6482,21 +6481,21 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 	memcpy(&fields_on_file,p,sizeof(uint8_t));
 	p++;
 
+	uint8_t indexes[fields_on_file];
+	memset(indexes,-1,fields_on_file);
+	memcpy(indexes,p,sizeof(uint8_t)*fields_on_file);		
+	p += fields_on_file;
+
+
 	for(uint8_t i = 0; i < fields_on_file; i++){
-		memcpy(&rec->field_set[i],p,sizeof(uint8_t));		
-		p++;
-	}
-
-	for(int i = 0; i < rec->fields_num; i++){
-		if(rec->field_set[i] == 0) continue;
-
-		switch(rec->fields[i].type){
+		rec->field_set[indexes[i]] = 1;
+		switch(rec->fields[indexes[i]].type){
 		case TYPE_INT:
 		{
 			uint32_t n = 0;
 			memcpy(&n,p,sizeof(uint32_t));
 			p += sizeof(uint32_t);
-			rec->fields[i].data.i = ntohl(n);
+			rec->fields[indexes[i]].data.i = ntohl(n);
 			break;
 		}
 		case TYPE_LONG:
@@ -6504,7 +6503,7 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			uint64_t n = 0;
 			memcpy(&n,p,sizeof(uint64_t));
 			p += sizeof(uint64_t);
-			rec->fields[i].data.l = bswap_64(n);
+			rec->fields[indexes[i]].data.l = bswap_64(n);
 			break;
 		}
 		case TYPE_BYTE:
@@ -6512,7 +6511,7 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			uint8_t n = 0;
 			memcpy(&n,p,sizeof(uint8_t));
 			p += sizeof(uint8_t);
-			rec->fields[i].data.b = n;
+			rec->fields[indexes[i]].data.b = n;
 			break;
 		}
 		case TYPE_STRING:
@@ -6526,9 +6525,9 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			uint64_t buf_up_ne = 0;
 			memcpy(&buf_up_ne,p,sizeof(uint64_t));
 			p += sizeof(uint64_t);
-			size_t buf_up = bswap_64(str_loc_ne);
+			size_t buf_up = bswap_64(buf_up_ne);
 
-			off_t move_back_to = 0
+			off_t move_back_to = 0;
 			if(str_loc > 0){
 				move_back_to = (p - ram->mem) + buf_up;	
 				/* move to the new location*/
@@ -6541,13 +6540,14 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 
 			}
 
-			rec->fields[i].data.s = calloc(buf_up,sizeof(char));
-			if(rec->fields[i].data.s){
+			rec->fields[indexes[i]].data.s = calloc(buf_up,sizeof(char));
+			if(!rec->fields[indexes[i]].data.s){
 				fprintf(stderr,"calloc failed.\n");
 				return -1;
 			}
-			memcpy(rec->fields[i].data.s,p,buf_up);
 
+			memcpy(rec->fields[indexes[i]].data.s,p,buf_up);
+			p += buf_up;
 			if(str_loc > 0) p = &ram->mem[move_back_to];
 
 			break;
@@ -6557,7 +6557,7 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			uint32_t n = 0;
 			memcpy(&n,p,sizeof(uint32_t));
 			p += sizeof(uint32_t);
-			rec->fields[i].data.f = ntohf(n);
+			rec->fields[indexes[i]].data.f = ntohf(n);
 			break;
 		}
 		case TYPE_DOUBLE:
@@ -6565,14 +6565,14 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			uint64_t n = 0;
 			memcpy(&n,p,sizeof(uint64_t));
 			p += sizeof(uint64_t);
-			rec->fields[i].data.d = bswap_64(n);
+			rec->fields[indexes[i]].data.d = bswap_64(n);
 			break;
 		}
 		case TYPE_ARRAY_INT:
 		{
-			if (!rec->fields[i].data.v.elements.i){
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
+			if (!rec->fields[indexes[i]].data.v.elements.i){
+				rec->fields[indexes[i]].data.v.insert = insert_element;
+				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
 
 			off_t array_upd = 0;
@@ -6595,9 +6595,9 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 					memcpy(&n,p,sizeof(uint32_t));
 					p += sizeof(uint32_t);
 					int num = (int)ntohl(n);
-					rec->fields[i].data.v.insert((void *)&num,
-						&rec->fields[i].data.v,
-						rec->fields[i].type);
+					rec->fields[indexes[i]].data.v.insert((void *)&num,
+						&rec->fields[indexes[i]].data.v,
+						rec->fields[indexes[i]].type);
 				}
 
 				if (padd > 0) p += (sizeof(uint32_t) * padd);
@@ -6618,11 +6618,10 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 		}
 		case TYPE_ARRAY_LONG:
 		{
-			if(!rec->fields[i].data.v.elements.l){
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
+			if (!rec->fields[indexes[i]].data.v.elements.l){
+				rec->fields[indexes[i]].data.v.insert = insert_element;
+				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
@@ -6645,9 +6644,9 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 
 					long num = (long)bswap_64(n);
 
-					rec->fields[i].data.v.insert((void *)&num,
-						&rec->fields[i].data.v,
-						rec->fields[i].type);
+					rec->fields[indexes[i]].data.v.insert((void *)&num,
+						&rec->fields[indexes[i]].data.v,
+						rec->fields[indexes[i]].type);
 				}
 
 				if (padd > 0) p += (sizeof(uint64_t) * padd);
@@ -6668,11 +6667,10 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 		}
 		case TYPE_ARRAY_BYTE:
 		{
-			if (!rec->fields[i].data.v.elements.b){
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
+			if (!rec->fields[indexes[i]].data.v.elements.b){
+				rec->fields[indexes[i]].data.v.insert = insert_element;
+				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
@@ -6692,9 +6690,9 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 					uint8_t n = 0;
 					memcpy(&n,p,sizeof(uint8_t));
 					p += sizeof(uint8_t);
-					rec->fields[i].data.v.insert((void *)&n,
-						&rec->fields[i].data.v,
-						rec->fields[i].type);
+					rec->fields[indexes[i]].data.v.insert((void *)&n,
+						&rec->fields[indexes[i]].data.v,
+						rec->fields[indexes[i]].type);
 				}
 
 				if (padd > 0) p += (sizeof(uint8_t) * padd);
@@ -6715,11 +6713,10 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 		}
 		case TYPE_ARRAY_FLOAT:
 		{
-			if (!rec->fields[i].data.v.elements.f){
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
+			if (!rec->fields[indexes[i]].data.v.elements.f){
+				rec->fields[indexes[i]].data.v.insert = insert_element;
+				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
@@ -6740,9 +6737,9 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 					memcpy(&n,p,sizeof(uint32_t));
 					p += sizeof(uint32_t);
 					float num = (float)ntohf(n);
-					rec->fields[i].data.v.insert((void *)&num,
-						&rec->fields[i].data.v,
-						rec->fields[i].type);
+					rec->fields[indexes[i]].data.v.insert((void *)&num,
+						&rec->fields[indexes[i]].data.v,
+						rec->fields[indexes[i]].type);
 				}
 
 				if (padd > 0) p += (sizeof(uint32_t) * padd);
@@ -6764,11 +6761,10 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 
 		case TYPE_ARRAY_DOUBLE:
 		{
-			if(!rec->fields[i].data.v.elements.d){
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
+			if (!rec->fields[indexes[i]].data.v.elements.d){
+				rec->fields[indexes[i]].data.v.insert = insert_element;
+				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
@@ -6791,9 +6787,9 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 
 					double num = (double)bswap_64(n);
 
-					rec->fields[i].data.v.insert((void *)&num,
-						&rec->fields[i].data.v,
-						rec->fields[i].type);
+					rec->fields[indexes[i]].data.v.insert((void *)&num,
+						&rec->fields[indexes[i]].data.v,
+						rec->fields[indexes[i]].type);
 				}
 
 				if (padd > 0) p += (sizeof(uint64_t) * padd);
@@ -6814,11 +6810,10 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 		}
 		case TYPE_ARRAY_STRING:
 		{
-			if (!rec->fields[i].data.v.elements.s){
-				rec->fields[i].data.v.insert = insert_element;
-				rec->fields[i].data.v.destroy = free_dynamic_array;
+			if (!rec->fields[indexes[i]].data.v.elements.s){
+				rec->fields[indexes[i]].data.v.insert = insert_element;
+				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-
 			off_t array_upd = 0;
 			off_t go_back_here = 0;
 			do
@@ -6846,7 +6841,7 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 					p += sizeof(uint64_t);
 					size_t buf_up = bswap_64(str_loc_ne);
 
-					off_t move_back_to = 0
+					off_t move_back_to = 0;
 					if(str_loc > 0){
 						move_back_to = (p - ram->mem) + buf_up;	
 						/* move to the new location*/
@@ -6864,13 +6859,13 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 						return -1;
 					}
 
-					memcpy(rec->fields[i].data.s,p,buf_up);
-
+					memcpy(string,p,buf_up);
+					p += buf_up;
 					if(str_loc > 0) p = &ram->mem[move_back_to];
 
-					rec->fields[i].data.v.insert((void *)string,
-						&rec->fields[i].data.v,
-						rec->fields[i].type);
+					rec->fields[indexes[i]].data.v.insert((void *)string,
+						&rec->fields[indexes[i]].data.v,
+						rec->fields[indexes[i]].type);
 
 					free(string);
 				}
@@ -6906,12 +6901,11 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 		}
 	}
 
-
+	return (off_t)(p - ram->mem);
 }
 
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 {
-
 	if(ram->capacity == 0)
 		if(init_ram_file(ram, 0) == -1) return -1;
 

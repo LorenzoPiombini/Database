@@ -1575,7 +1575,7 @@ int main(int argc, char *argv[])
 			while(is_locked(3,fd_index,fd_data) == LOCKED);
 
 			struct Record_f rec = {0};
-			if(get_record(file_path,&rec,(void *)key, hd,fds) == -1){
+			if(get_record(-1,file_path,&rec,(void *)key, hd,fds) == -1){
 				free_record(&rec,rec.fields_num);
 				close_file(3, fd_schema,fd_index, fd_data);
 				return STATUS_ERROR;
@@ -1589,6 +1589,7 @@ int main(int argc, char *argv[])
 				free_record(&rec, rec.fields_num);
 			}
 
+			if(ram.mem) close_ram_file(&ram);
 			close_file(3, fd_schema,fd_index, fd_data);
 			return 0;
 		}

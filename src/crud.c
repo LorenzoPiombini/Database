@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <byteswap.h>
 #include "file.h"
 #include "record.h"
 #include "lock.h"
@@ -21,8 +22,17 @@ int g_index = 0;
 int *p_gi = &g_index;
 struct Ram_file ram = {0};
 
-int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
+int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
 {
+	int e = 0;
+	if(mode == RAM_FILE){
+		e = 1;
+		if(get_all_record(fds[1],&ram) == -1){
+			e = 0;
+			fprintf(stderr,"cannot get all the record from '%s'.\n",file_name);
+		}
+	}
+
 	HashTable ht = {0};
 	HashTable *p_ht = &ht;
 	if (!read_index_nr(0, fds[0], &p_ht)) {
@@ -38,46 +48,85 @@ int get_record(char *file_name,struct Record_f *rec, void *key, struct Header_d 
 	}
 
 	destroy_hasht(p_ht);
-	if (find_record_position(fds[1], offset) == -1) {
-		__er_file_pointer(F, L - 1);
-		return STATUS_ERROR;
-	}
-
-	if(read_file(fds[1], file_name, rec, hd.sch_d) == -1) {
-		printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
-		return STATUS_ERROR;
-	}
-
-	off_t update_rec_pos = 0; 
-	struct Record_f *temp = NULL;
-	temp = rec;
-	while ((update_rec_pos = get_update_offset(fds[1])) > 0) {
-		struct Record_f *n = calloc(1, sizeof(struct Record_f));
-		if(!n){		
-			__er_calloc(F,L-2);
-			return STATUS_ERROR;
-		}
-
-		if (find_record_position(fds[1], update_rec_pos) == -1) {
+	if(!e){
+		if (find_record_position(fds[1], offset) == -1) {
 			__er_file_pointer(F, L - 1);
-			free(n);
 			return STATUS_ERROR;
 		}
 
-		if(read_file(fds[1], file_name,n,hd.sch_d) == -1) {
-			printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
+		if(read_file(fds[1], file_name, rec, hd.sch_d) == -1) {
+			printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+			return STATUS_ERROR;
+		}
+		off_t update_rec_pos = 0; 
+		struct Record_f *temp = NULL;
+		temp = rec;
+		while ((update_rec_pos = get_update_offset(fds[1])) > 0) {
+			struct Record_f *n = calloc(1, sizeof(struct Record_f));
+			if(!n){		
+				__er_calloc(F,L-2);
+				return STATUS_ERROR;
+			}
+
+			if (find_record_position(fds[1], update_rec_pos) == -1) {
+				__er_file_pointer(F, L - 1);
+				free(n);
+				return STATUS_ERROR;
+			}
+
+			if(read_file(fds[1], file_name,n,hd.sch_d) == -1) {
+				printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
+				return STATUS_ERROR;
+			}
+
+			temp->next = n;
+			while(temp->next) temp = temp->next; 
+			rec->count++;
+		}
+
+		if (update_rec_pos == -1) {
+			return STATUS_ERROR;
+		}
+	} else{
+		off_t pos_after_read = 0;
+		if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)offset, rec,hd.sch_d)) == -1){
+			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
+			clear_ram_file(&ram);
 			return STATUS_ERROR;
 		}
 
-		temp->next = n;
-		while(temp->next) temp = temp->next; 
-		rec->count++;
-	}
+		uint64_t up_r_pos_ne = 0; 
+		struct Record_f *temp = NULL;
+		temp = rec;
+		do{
+			memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(uint64_t));
+			if(up_r_pos_ne == 0) break;
 
-	if (update_rec_pos == -1) {
-		return STATUS_ERROR;
-	}
+			struct Record_f *n = calloc(1, sizeof(struct Record_f));
+			if(!n){		
+				__er_calloc(F,L-2);
+				clear_ram_file(&ram);
+				return STATUS_ERROR;
+			}
 
+			off_t update_rec_pos = bswap_64(up_r_pos_ne);
+			if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)update_rec_pos, n,hd.sch_d)) == -1){
+				fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
+				clear_ram_file(&ram);
+				return STATUS_ERROR;
+			}
+
+			temp->next = n;
+			while(temp->next) temp = temp->next; 
+			rec->count++;
+			
+		}while(up_r_pos_ne != 0); 
+
+		
+
+
+	}
+	clear_ram_file(&ram);
 	return 0;
 }
 

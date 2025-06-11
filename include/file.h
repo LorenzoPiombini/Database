@@ -43,6 +43,8 @@ unsigned char nr_bucket(int fd, int *p_buck);
 off_t get_file_size(int fd, char *file_name);
 int add_index(int index_nr, char *file_name, int bucket);
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec);
+off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct Record_f *rec, struct Schema sch);
+int get_all_record(int fd, struct Ram_file *ram);
 void clear_ram_file(struct Ram_file *ram);
 void close_ram_file(struct Ram_file *ram);
 
