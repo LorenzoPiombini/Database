@@ -6658,7 +6658,54 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			break;
 		}
 		case TYPE_STRING:
+		{
+			uint64_t str_loc_ne = 0;
+			memcpy(&str_loc_ne,p,sizeof(uint64_t));
+			p += sizeof(uint64_t);
+			off_t str_loc = bswap_64(str_loc_ne);
+
+
+			uint64_t l_ne = 0;
+			memcpy(&l_ne,p,sizeof(uint64_t));
+			p += sizeof(uint64_t);
+			size_t l = bswap_64(l_ne);
+
+			uint64_t buf_up_ne = 0;
+			memcpy(&buf_up_ne,p,sizeof(uint64_t));
+			p += sizeof(uint64_t);
+			size_t buf_up = bswap_64(str_loc_ne);
+
+			off_t move_back_to = 0
+			if(str_loc > 0){
+				move_back_to = (p - ram->mem) + buf_up;	
+				/* move to the new location*/
+				p = &ram->mem[str_loc];
+
+				l_ne = 0;
+				memcpy(&l_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+				l = bswap_64(l_ne);
+
+				buf_up_ne = 0;
+				memcpy(&buf_up_ne,p,sizeof(uint64_t));
+				p += sizeof(uint64_t);
+				buf_up = bswap_64(str_loc_ne);
+
+			}
+
+			rec->fields[i].data.s = calloc(buf_up,sizeof(char));
+			if(rec->fields[i].data.s){
+				fprintf(stderr,"calloc failed.\n");
+				return -1;
+			}
+			memcpy(rec->fields[i].data.s,p,buf_up);
+
+			if(str_loc > 0) p = &ram->mem[move_back_to];
+
+
+
 			break;
+		}
 		case TYPE_FLOAT:
 		{
 			uint32_t n = 0;
