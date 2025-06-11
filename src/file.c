@@ -2536,17 +2536,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 
 								uint64_t bu_ne = 0;
-								uint64_t l_ne = 0;
-								if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-									read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-								{
+								if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 									perror("can't read safety buffer before writing string.\n");
 									printf("%s:%d", F, L - 3);
 									return 0;
 								}
 
 								buff_update = (off_t)bswap_64(bu_ne);
-								lt = (off_t)bswap_64(l_ne);
 
 								/*save the end offset of the first string record */
 								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -2577,17 +2573,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									uint64_t bu_ne = 0;
-									uint64_t l_ne = 0;
-									if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-										read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-									{
+									if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 										perror("read file.\n");
 										printf("%s:%d", F, L - 3);
 										return 0;
 									}
 
 									buff_update = (off_t)bswap_64(bu_ne);
-									lt = (off_t)bswap_64(l_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -2654,15 +2646,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								 * write the data to file --
 								 * the file pointer is always pointing to the
 								 * right position at this point */
-								lt = new_lt;
 								buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-								l_ne = bswap_64(lt);
 								bu_ne = bswap_64(buff_update);
 
-								if (write(fd, &l_ne, sizeof(lt)) < 0 ||
-									write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
-									write(fd, buff_w, buff_update) < 0)
-								{
+								if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+									write(fd, buff_w, buff_update) < 0){
 									perror("error in writing type string (char *)file.\n");
 									free(buff_w);
 									return 0;
@@ -2805,21 +2793,16 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 
 								uint64_t bu_ne = 0;
-								uint64_t l_ne = 0;
-								if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-									read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-								{
+								if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 									perror("can't read safety buffer before writing string.\n");
 									printf("%s:%d", F, L - 3);
 									return 0;
 								}
 
 								buff_update = (off_t)bswap_64(bu_ne);
-								lt = (off_t)bswap_64(l_ne);
 
 								/*save the end offset of the first string record */
-								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
-								{
+								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR){
 									__er_file_pointer(F, L - 2);
 									return 0;
 								}
@@ -2846,30 +2829,24 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									uint64_t bu_ne = 0;
-									uint64_t l_ne = 0;
-									if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-										read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-									{
+									if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 										perror("read file.\n");
 										printf("%s:%d", F, L - 3);
 										return 0;
 									}
 
 									buff_update = (off_t)bswap_64(bu_ne);
-									lt = (off_t)bswap_64(l_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
 
-								if (new_lt > buff_update)
-								{
+								if (new_lt > buff_update){
 									/*
 									 * if the new length is bigger then the buffer,
 									 * set the file pointer to the end of the file
 									 * to write the new data
 									 * */
-									if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
-									{
+									if ((eof = go_to_EOF(fd)) == STATUS_ERROR){
 										__er_file_pointer(F, L - 2);
 										return 0;
 									}
@@ -2878,8 +2855,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									__n_buff_update = buff_update;
 									__n_buff_update += (new_lt - buff_update);
 									buff_w = calloc(__n_buff_update, sizeof(char));
-									if (!buff_w)
-									{
+									if (!buff_w){
 										printf("calloc failed, %s:%d.\n", F, L - 3);
 										return 0;
 									}
@@ -2923,15 +2899,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								 * write the data to file --
 								 * the file pointer is always pointing to the
 								 * right position at this point */
-								lt = new_lt;
 								buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-								l_ne = bswap_64(lt);
 								bu_ne = bswap_64(buff_update);
 
-								if (write(fd, &l_ne, sizeof(lt)) < 0 ||
-									write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
-									write(fd, buff_w, buff_update) < 0)
-								{
+								if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+									write(fd, buff_w, buff_update) < 0){
 									perror("error in writing type string (char *)file.\n");
 									free(buff_w);
 									return 0;
@@ -2991,11 +2963,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if(!(step < rec->fields[i].data.v.size)) exit = 1;
 						}
 
-						if (exit)
-						{
-
-							if (padding_value > 0)
-							{
+						if (exit){
+							if (padding_value > 0) {
 								for(int i = 0; i < padding_value; i++){
 									if(get_string_size(fd) == (size_t) -1){
 										__er_file_pointer(F, L - 1);
@@ -3005,8 +2974,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 							/*write the epty update offset*/
 							uint64_t empty_offset = bswap_64(0);
-							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
-							{
+							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1){
 								perror("error in writing size array to file.\n");
 								return 0;
 							}
@@ -3014,8 +2982,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					if (padding_value > 0)
-					{
+					if (padding_value > 0){
 						for(int i = 0; i < padding_value; i++){
 							if(get_string_size(fd) == (size_t) -1){
 								__er_file_pointer(F, L - 1);
@@ -3027,8 +2994,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					uint64_t update_off_ne = 0;
 					off_t go_back_to_string_array = get_file_offset(fd);
 
-					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
-					{
+					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1){
 						perror("failed read update off_t int array.\n");
 						return 0;
 					}
@@ -3037,34 +3003,28 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
 					update_pos = (off_t)bswap_64(update_off_ne);
-					if (update_pos == 0)
-					{
+					if (update_pos == 0){
 						/*go to EOF*/
-						if ((update_pos = go_to_EOF(fd)) == -1)
-						{
+						if ((update_pos = go_to_EOF(fd)) == -1){
 							__er_file_pointer(F, L - 1);
 							return 0;
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
 						uint32_t size_left_ne = htonl((uint32_t)size_left);
-						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
-						{
+						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1){
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
 						uint32_t padding_ne = htonl(0);
-						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
-						{
+						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1){
 							perror("error in writing size array to file.\n");
 							return 0;
 						}
 
-						for (int j = 0; j < size_left; j++)
-						{
-							if (step < rec->fields[i].data.v.size)
-							{
+						for (int j = 0; j < size_left; j++){
+							if (step < rec->fields[i].data.v.size){
 								if (!rec->fields[i].data.v.elements.s[step])
 									continue;
 
@@ -3084,12 +3044,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 								strncpy(buff_w, rec->fields[i].data.v.elements.s[step], lt - 1);
 
-								uint64_t l_ne = bswap_64(lt);
 								uint64_t bu_ne = bswap_64(buff_update);
 								uint64_t str_loc_ne = bswap_64(str_loc);
 
 								if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
-									write(fd, &l_ne, sizeof(l_ne)) < 0 ||
 									write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 									write(fd, buff_w, buff_update) < 0)
 								{
@@ -3210,17 +3168,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						uint64_t bu_ne = 0;
-						uint64_t l_ne = 0;
-						if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-							read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-						{
+						if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 							perror("can't read safety buffer before writing string.\n");
 							printf("%s:%d", F, L - 3);
 							return 0;
 						}
 
 						buff_update = (off_t)bswap_64(bu_ne);
-						lt = (off_t)bswap_64(l_ne);
 
 						/*save the end offset of the first string record */
 						if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -3251,17 +3205,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							uint64_t bu_ne = 0;
-							uint64_t l_ne = 0;
-							if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-								read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-							{
+							if(read(fd, &bu_ne, sizeof(bu_ne)) < 0)	{
 								perror("read file.\n");
 								printf("%s:%d", F, L - 3);
 								return 0;
 							}
 
 							buff_update = (off_t)bswap_64(bu_ne);
-							lt = (off_t)bswap_64(l_ne);
 						}
 
 						new_lt = strlen(rec->fields[i].data.v.elements.s[k]) + 1; /*get new str length*/
@@ -3328,15 +3278,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						 * write the data to file --
 						 * the file pointer is always pointing to the
 						 * right position at this point */
-						lt = new_lt;
 						buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-						l_ne = bswap_64(lt);
 						bu_ne = bswap_64(buff_update);
 
-						if (write(fd, &l_ne, sizeof(lt)) < 0 ||
-							write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
-							write(fd, buff_w, buff_update) < 0)
-						{
+						if(write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+							write(fd, buff_w, buff_update) < 0){
 							perror("error in writing type string (char *)file.\n");
 							free(buff_w);
 							return 0;
@@ -3352,8 +3298,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (eof > 0)
 						{
 							/*go at the beginning of the str record*/
-							if (find_record_position(fd, bg_pos) == STATUS_ERROR)
-							{
+							if (find_record_position(fd, bg_pos) == STATUS_ERROR){
 								__er_file_pointer(F, L - 2);
 								return 0;
 							}
@@ -3472,17 +3417,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							uint64_t bu_ne = 0;
-							uint64_t l_ne = 0;
-							if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-								read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-							{
+							if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 								perror("can't read safety buffer before writing string.\n");
 								printf("%s:%d", F, L - 3);
 								return 0;
 							}
 
 							buff_update = (off_t)bswap_64(bu_ne);
-							lt = (off_t)bswap_64(l_ne);
 
 							/*save the end offset of the first string record */
 							if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -3513,17 +3454,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 
 								uint64_t bu_ne = 0;
-								uint64_t l_ne = 0;
-								if (read(fd, &l_ne, sizeof(l_ne)) < 0 ||
-									read(fd, &bu_ne, sizeof(bu_ne)) < 0)
-								{
+								if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 									perror("read file.\n");
 									printf("%s:%d", F, L - 3);
 									return 0;
 								}
 
 								buff_update = (off_t)bswap_64(bu_ne);
-								lt = (off_t)bswap_64(l_ne);
 							}
 
 							new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -3590,15 +3527,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							 * write the data to file --
 							 * the file pointer is always pointing to the
 							 * right position at this point */
-							lt = new_lt;
 							buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-							l_ne = bswap_64(lt);
 							bu_ne = bswap_64(buff_update);
 
-							if (write(fd, &l_ne, sizeof(lt)) < 0 ||
-								write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
-								write(fd, buff_w, buff_update) < 0)
-							{
+							if(write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
+								write(fd, buff_w, buff_update) < 0){
 								perror("error in writing type string (char *)file.\n");
 								free(buff_w);
 								return 0;
@@ -4641,8 +4574,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		{
 			if (!update)
 			{
-		
-				int n = 0;	
+				int n = 0;
 				if(!rec->fields[i].data.file.recs){
 					uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
 					if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
@@ -4779,6 +4711,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							__er_file_pointer(F, L - 1);
 							return 0;
 						}
+
 						for(uint32_t y = 0; y < sz;y++){
 							struct Record_f dummy ={0};
 							if(read_file(fd, rec->fields[i].field_name, &dummy, hd.sch_d) == -1){
@@ -4792,7 +4725,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								__er_file_pointer(F, L - 1);
 								return 0;
 							}
-
 						}
 
 						uint64_t update_arr = 0;
@@ -6969,6 +6901,7 @@ int read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct R
 			break;
 		}
 		case TYPE_FILE:
+			/*coming soon*/
 			break;
 		}
 	}
