@@ -38,7 +38,7 @@ int sort_input_like_header_schema(int schema_tp,
 					int fields_num, 
 					struct Schema *sch, 
 					char names[][MAX_FIELD_LT], 
-					char **values,
+					char ***values, 
 					int *types_i);
 
 unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd, int fields_num);

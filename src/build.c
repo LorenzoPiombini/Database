@@ -395,6 +395,8 @@ int import_data_to_system(char *data_file)
 				return STATUS_ERROR;
 			}
 
+			g_index = 0;
+			g_ht = NULL;
 			close_file(3,fds[0],fds[1],fds[2]);
 			memset(&sch,0,sizeof(struct Schema));
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);	
