@@ -11,7 +11,6 @@
 #include "common.h"
 #include "debug.h"
 
-
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
 
@@ -714,7 +713,6 @@ int get_fileds_name(char *fields_name, int fields_count, int steps, char names[]
 	find_double_delim("::",fields_name,NULL);
 	char *cp_fv = fields_name;
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count) {
-		strip('_', s);
 		strncpy(names[j],s,strlen(s));
 
 		j++;
@@ -1537,7 +1535,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos)
 
 	if(c_t == 0 && c_T == 0	) return -1;
 	if(c_T > 0 && c_t > 0){
-		/* you gotta swap types you have to map 'TYPE_STRING' to 't_s'*/	
+		/* you gotta swap types you have to map 'TYPE_STRING' to 't_s' and so forth	*/	
 
 	}
 	

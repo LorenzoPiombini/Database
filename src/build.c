@@ -367,6 +367,7 @@ int import_data_to_system(char *data_file)
 		
 
 		if(buf[0] == '@'){
+			memset(file_name,0,MAX_FILE_PATH_LENGTH);
 			if(open_files(&buf[1],fds,files,0) == -1){
 				free(content);
 				return STATUS_ERROR;
@@ -375,6 +376,8 @@ int import_data_to_system(char *data_file)
 				free(content);
 				return STATUS_ERROR;
 			}
+			strncpy(file_name,&buf[1],strlen(&buf[1]));
+			printf("importing '%s' ...\n",file_name);
 			continue;
 		}
 
@@ -401,6 +404,10 @@ int import_data_to_system(char *data_file)
 			memset(&sch,0,sizeof(struct Schema));
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);	
 			clear_ram_file(&ram);
+			if(lock_f) {
+				while(lock(fds[0],UNLOCK) == WTLK)
+				lock_f = 0;
+			};
 			continue;
 		}
 
@@ -431,6 +438,10 @@ int import_data_to_system(char *data_file)
 		strncpy(key,d,key_sz -1);
 
 		/*check data (schema) and writing to file*/
+		if(strncmp(file_name,"inventory",strlen("inventory")) == 0)printf("key: %s\n",key);
+
+//		if((strcmp(key,"_O6") == 0) && (strncmp(file_name,"inventory",strlen("inventory") == 0)))printf("oabiut to enter check_data\n");
+
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);

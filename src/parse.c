@@ -173,7 +173,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 		create_record(file_path, *sch,rec);
 	}
 
-	if (check_sch == SCHEMA_CT) { 
+	if (check_sch == SCHEMA_CT || check_sch == SCHEMA_CT_NT) { 
 		/*the input contain one or more BUT NOT ALL, fields in the schema*/
 		create_record(file_path, *sch,rec);
 
@@ -798,7 +798,7 @@ unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
 		// if they are in the schema and the types are correct, return SCHEMA_CT
 		// create a record with only the values provided and set the other values to 0;
 
-		int ck_rst = ck_schema_contain_input(names, types_i, hd, fields_n);
+		int ck_rst = ck_schema_contain_input(names, types_i, &hd, fields_n);
 
 		switch (ck_rst) {
 		case SCHEMA_ERR:
@@ -809,6 +809,10 @@ unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
 			free(names_cs);
 			free(types_cs);
 			return SCHEMA_CT;
+		case SCHEMA_CT_NT:
+			free(names_cs);
+			free(types_cs);
+			return SCHEMA_CT_NT;
 		default:
 			free(names_cs);
 			free(types_cs);
@@ -937,33 +941,30 @@ int sort_input_like_header_schema(int schema_tp,
 	return 1;
 }
 
-unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd, int fields_num)
+unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd, int fields_num)
 {
 	// printf("fields are %d",fields_num);
 	register unsigned char i = 0, j = 0;
 	int found_f = 0;
+	int result = SCHEMA_CT;
 
-	for (i = 0; i < fields_num; i++)
-	{
-		for (j = 0; j < hd.sch_d.fields_num; j++)
-		{
-			//		 printf("%s == %s\n",names[i],hd.sch_d.fields_name[j]);
-			if (strcmp(names[i], hd.sch_d.fields_name[j]) == 0)
-			{
+	for (i = 0; i < fields_num; i++){
+		for (j = 0; j < hd->sch_d.fields_num; j++){
+			if (strncmp(names[i], hd->sch_d.fields_name[j],strlen(names[i])) == 0){
 				found_f++;
-				//		 printf("%d == %d\n",types_i[i], hd.sch_d.types[j]);
-				if ((int)types_i[i] != hd.sch_d.types[j])
-				{
+				if(hd->sch_d.types[j] == -1) {
+					hd->sch_d.types[j] = (int)types_i[i];
+					result = SCHEMA_CT_NT;
+				}
+
+				if ((int)types_i[i] != hd->sch_d.types[j]){
 					printf("Schema different than file definition.\n");
 					return SCHEMA_ERR;
 				}
 			}
 		}
 	}
-	if (found_f == fields_num)
-	{
-		return SCHEMA_CT;
-	}
+	if (found_f == fields_num) return result;
 
 	printf("Schema different than file definition.\n");
 	return SCHEMA_ERR;
@@ -1434,6 +1435,7 @@ static int check_double_compatibility(struct Schema *sch, char ***values)
 	char *decimal = ".00";
 	for(int i = 0; i < sch->fields_num; i++){ 
 		if(sch->types[i] == TYPE_DOUBLE){
+			if(!(*values)[i]) continue;
 			if(is_floaintg_point((*values)[i])) continue;		
 
 			size_t vs = strlen((*values)[i]);
@@ -1759,6 +1761,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				}
 			}
 
+
 			if(fields_count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, &values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
@@ -1863,6 +1866,10 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(parse_d_flag_input(file_path, fields_count, buffer, &hd->sch_d, SCHEMA_CT,rec) == -1) return SCHEMA_ERR;
 
 			return SCHEMA_CT;
+		case SCHEMA_CT_NT:
+			if(parse_d_flag_input(file_path, fields_count, buffer, &hd->sch_d, SCHEMA_CT_NT,rec) == -1) return SCHEMA_ERR;
+
+			return SCHEMA_CT_NT;
 		default:
 			printf("check is %d -> no processable option for the SCHEMA. parse.c:%d.\n", check, __LINE__ - 17);
 			return 0;
