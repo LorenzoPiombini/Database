@@ -579,8 +579,7 @@ unsigned char set_field(struct Record_f *rec,
 	{
 		if (type == TYPE_ARRAY_FLOAT)
 		{
-			if (!rec->fields[index].data.v.elements.f)
-			{
+			if (!rec->fields[index].data.v.elements.f){
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
@@ -588,6 +587,39 @@ unsigned char set_field(struct Record_f *rec,
 			char *t = strtok(value, ",");
 			while (t){
 				if (!is_floaintg_point(t)) {
+					if(is_integer(t)){
+						char *decimal = ".00";
+						size_t vs = strlen(t);
+						size_t ds = strlen(decimal);
+						size_t s = vs + ds + 1; 
+						char cpy[s];
+						memset(cpy,0,s);
+						strncpy(cpy,values,vs);
+						strncat(cpy,decimal,ds);
+
+						int range = 0;
+						if ((range = is_number_in_limits(cpy)) == 0){
+							printf("float value not allowed in this system.\n");
+							return 0;
+						}
+
+						if (range == IN_FLOAT){
+							float f = strtof(cpy, NULL);
+							if (f == ERANGE || f == EINVAL){
+								printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+								return 0;
+							}
+							rec->fields[index].data.v.insert((void *)&f,
+									&rec->fields[index].data.v,type);
+
+							t = strtok(NULL, ",");
+							continue;
+						}else{
+							fprintf(stderr,"float value '%s' is out of range.\n",cpy);
+							return 0;
+						}
+					}
+
 					printf("invalid value for float type: %s.\n", value);
 					return 0;
 				}
@@ -599,11 +631,9 @@ unsigned char set_field(struct Record_f *rec,
 					return 0;
 				}
 
-				if (range == IN_FLOAT)
-				{
+				if (range == IN_FLOAT){
 					float f = strtof(t, NULL);
-					if (f == ERANGE || f == EINVAL)
-					{
+					if (f == ERANGE || f == EINVAL){
 						printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -616,6 +646,35 @@ unsigned char set_field(struct Record_f *rec,
 		} else {
 
 			if (!is_floaintg_point(value)) {
+				if(is_integer(value)){
+					char *decimal = ".00";
+					size_t vs = strlen(value);
+					size_t ds = strlen(decimal);
+					size_t s = vs + ds + 1; 
+					char cpy[s];
+					memset(cpy,0,s);
+					strncpy(cpy,values,vs);
+					strncat(cpy,decimal,ds);
+
+					int range = 0;
+					if ((range = is_number_in_limits(cpy)) == 0){
+						printf("float value not allowed in this system.\n");
+						return 0;
+					}
+
+					if (range == IN_FLOAT){
+						float f = strtof(cpy, NULL);
+						if (f == ERANGE || f == EINVAL){
+							printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+							return 0;
+						}
+						rec->fields[index].data.f = f;
+						break;
+					}else{
+						fprintf(stderr,"float value '%s' is out of range.\n",cpy);
+						return 0;
+					}
+				}
 				printf("invalid value for float type: %s.\n", value);
 				return 0;
 			}
@@ -742,8 +801,41 @@ unsigned char set_field(struct Record_f *rec,
 			char *t = strtok(value, ",");
 			while (t)
 			{
-				if (!is_floaintg_point(t))
-				{
+				if (!is_floaintg_point(t)) {
+					if(is_integer(t)){
+						char *decimal = ".00";
+						size_t vs = strlen(t);
+						size_t ds = strlen(decimal);
+						size_t s = vs + ds + 1; 
+						char cpy[s];
+						memset(cpy,0,s);
+						strncpy(cpy,values,vs);
+						strncat(cpy,decimal,ds);
+
+						int range = 0;
+						if ((range = is_number_in_limits(cpy)) == 0){
+							printf("double value not allowed in this system.\n");
+							return 0;
+						}
+
+						if (range == IN_DOUBLE || range == IN_FLOAT) {
+							double d = strtod(cpy, NULL);
+							if (d == ERANGE || d == EINVAL) {
+								printf("conversion ERROR type double %s:%d.\n", F, L - 2);
+								return 0;
+							}
+
+							rec->fields[index].data.v.insert((void *)&d,
+									&rec->fields[index].data.v,
+									type);
+							t = strtok(NULL, ",");
+							continue;
+						} else {
+							fprintf(stderr,"value '%s', ids out of range for double.\n",t);
+							return 0;
+						}
+					}
+
 					printf("invalid value for double type: %s.\n", value);
 					return 0;
 				}
@@ -772,10 +864,38 @@ unsigned char set_field(struct Record_f *rec,
 		else
 		{
 
-			if (!is_floaintg_point(value))
-			{
-				printf("invalid value for double type: %s.\n", value);
-				return 0;
+			if (!is_floaintg_point(value)){
+				if(is_integer(t)){
+					char *decimal = ".00";
+					size_t vs = strlen(t);
+					size_t ds = strlen(decimal);
+					size_t s = vs + ds + 1; 
+					char cpy[s];
+					memset(cpy,0,s);
+					strncpy(cpy,values,vs);
+					strncat(cpy,decimal,ds);
+
+					int range = 0;
+					if ((range = is_number_in_limits(cpy)) == 0){
+						printf("double value not allowed in this system.\n");
+						return 0;
+					}
+
+					if (range == IN_DOUBLE || range == IN_FLOAT) {
+						double d = strtod(cpy, NULL);
+						if (d == ERANGE || d == EINVAL) {
+							printf("conversion ERROR type double %s:%d.\n", F, L - 2);
+							return 0;
+						}
+						rec->fields[index].data.d = d;
+						break;
+
+					} else {
+						fprintf(stderr,"value '%s', ids out of range for double.\n",t);
+						return 0;
+					}
+					printf("invalid value for double type: %s.\n", value);
+					return 0;
 			}
 
 			int range = 0;
