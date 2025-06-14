@@ -873,6 +873,7 @@ int sort_input_like_header_schema(int schema_tp,
 		for (int i = 0; i < sch->fields_num; i++) {
 			if(value_pos[i] == -1) continue;
 
+			if(!(*values)[i]) continue;
 			temp_val[value_pos[i]] = (*values)[i];
 			strncpy(temp_name[value_pos[i]],names[i],strlen(names[i]));
 			temp_types[value_pos[i]] = types_i[i];
@@ -883,6 +884,7 @@ int sort_input_like_header_schema(int schema_tp,
 
 		for (int i = 0; i < sch->fields_num; i++) {
 			if(value_pos[i] == -1) continue;
+			if(!(*values)[i]) continue;
 			(*values)[i] = temp_val[i];
 			strncpy(names[i],temp_name[i],strlen(temp_name[i]));
 			types_i[i] = temp_types[i];
@@ -1836,7 +1838,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
-				free_strs(count,1,values);
+				free_strs(fields_count,1,values);
 				return SCHEMA_NW;
 			}
 

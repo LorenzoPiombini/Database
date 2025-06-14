@@ -594,7 +594,7 @@ unsigned char set_field(struct Record_f *rec,
 						size_t s = vs + ds + 1; 
 						char cpy[s];
 						memset(cpy,0,s);
-						strncpy(cpy,values,vs);
+						strncpy(cpy,t,vs);
 						strncat(cpy,decimal,ds);
 
 						int range = 0;
@@ -653,7 +653,7 @@ unsigned char set_field(struct Record_f *rec,
 					size_t s = vs + ds + 1; 
 					char cpy[s];
 					memset(cpy,0,s);
-					strncpy(cpy,values,vs);
+					strncpy(cpy,value,vs);
 					strncat(cpy,decimal,ds);
 
 					int range = 0;
@@ -809,7 +809,7 @@ unsigned char set_field(struct Record_f *rec,
 						size_t s = vs + ds + 1; 
 						char cpy[s];
 						memset(cpy,0,s);
-						strncpy(cpy,values,vs);
+						strncpy(cpy,value,vs);
 						strncat(cpy,decimal,ds);
 
 						int range = 0;
@@ -865,14 +865,14 @@ unsigned char set_field(struct Record_f *rec,
 		{
 
 			if (!is_floaintg_point(value)){
-				if(is_integer(t)){
+				if(is_integer(value)){
 					char *decimal = ".00";
-					size_t vs = strlen(t);
+					size_t vs = strlen(value);
 					size_t ds = strlen(decimal);
 					size_t s = vs + ds + 1; 
 					char cpy[s];
 					memset(cpy,0,s);
-					strncpy(cpy,values,vs);
+					strncpy(cpy,value,vs);
 					strncat(cpy,decimal,ds);
 
 					int range = 0;
@@ -891,13 +891,13 @@ unsigned char set_field(struct Record_f *rec,
 						break;
 
 					} else {
-						fprintf(stderr,"value '%s', ids out of range for double.\n",t);
+						fprintf(stderr,"value '%s', is out of range for double.\n",value);
 						return 0;
 					}
 					printf("invalid value for double type: %s.\n", value);
 					return 0;
+				}
 			}
-
 			int range = 0;
 			if ((range = is_number_in_limits(value)) == 0)
 			{

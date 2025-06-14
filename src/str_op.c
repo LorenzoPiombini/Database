@@ -282,7 +282,9 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	for(int j = 0; j < s; j++){
 		int b = 0;
 		for(int x = 0; x < i; x++){
-			if(strstr(names_s[j],names[x])){
+			size_t sz = strlen(names_s[j]);
+			if(sz != strlen(names[x])) continue;
+			if(strncmp(names_s[j],names[x],sz) == 0){
 				skip = j;
 				b = 1;
 				break;
@@ -1219,17 +1221,13 @@ unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dt
 
 void free_strs(int fields_num, int count, ...)
 {
-	int i = 0, j = 0;
 	va_list args;
 	va_start(args, count);
 
-	for (i = 0; i < count; i++)
-	{
+	for (int i = 0; i < count; i++){
 		char **str = va_arg(args, char **);
-		for (j = 0; j < fields_num; j++)
-		{
-			if (str[j])
-			{
+		for (int j = 0; j < fields_num; j++){
+			if (str[j]){
 				free(str[j]);
 			}
 		}
@@ -1507,6 +1505,7 @@ int find_double_delim(char *delim, char *str, int *pos)
 
 	char *c = NULL;
 	while((c = strstr(str,delim))){
+		if(find_delim_in_fields(":",str,pos) == 0) return 0;
 		if(*(c + 2) == '\0'){
 			c++;
 			*c = '\0';
@@ -1542,13 +1541,14 @@ int find_delim_in_fields(char *delim, char *str, int *pos)
 	char *start = NULL;
 	char *end = NULL;
 
-	/*this is to avoid repeating code 
-	 * but this is HORRIBLE
-	 * i used the thirnary expretion to choose wich string costat i need to use
-	 * */
 	static char t[10] = {0};
-	strncpy(t,(c_t > 0 && c_T == 0) ? T_ : TYPE_,(c_t > 0 && c_T == 0) ? strlen(T_) : strlen(TYPE_)); 
-	while((start = strstr(buf,t)) && ((end = strstr(++start,t)))){
+	if (c_t > 0 && c_T == 0){
+		strncpy(t,T_,strlen(T_)+1);
+	}else{
+		strncpy(t,TYPE_,strlen(TYPE_)+1);
+	}
+
+	while((start = strstr(buf,t)) && ((end = strstr(start + 1,t)))){
 		*start = '@';
 		end--;
 		while(*start != ':') start++;
@@ -1564,11 +1564,15 @@ int find_delim_in_fields(char *delim, char *str, int *pos)
 
 		char *d = strstr(frag,delim);
 		if(d){
-			char *fr = strstr(str,d);
-			int i = fr-str;
-			str[i] = '{';
+			char *fr = strstr(str,frag);
+			assert(fr != NULL);
+			int frag_i = fr - str;
+			char *fr_d = strstr(fr,delim);	
+			int i = fr_d - fr;
+
+			str[frag_i + i] = '{';
 			if(pos){
-				*pos = d - str;
+				*pos = frag_i + i;
 				pos++;
 			}
 		} 

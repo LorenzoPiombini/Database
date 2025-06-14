@@ -149,6 +149,10 @@ int check_data(char *file_path,char *data_to_add,
 {
 	int fields_count = 0;
 	unsigned char check = 0;
+	int pos[200];
+	memset(pos,-1,sizeof(int)*200);
+
+	find_double_delim("::",data_to_add,pos);
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 
 	/*check schema*/
@@ -161,6 +165,13 @@ int check_data(char *file_path,char *data_to_add,
 		if (fields_count > MAX_FIELD_NR) {
 			printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 			return STATUS_ERROR;
+		}
+		if(pos[0] != -1){
+			int i = 0;
+			while(pos[i] != -1){
+				data_to_add[pos[i]] = ':';
+				i++;
+			}
 		}
 
 		char *buffer = strdup(data_to_add);
