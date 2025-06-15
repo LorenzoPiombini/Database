@@ -1,6 +1,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+/*global variable for importing*/
+extern int __IMPORT_EZ;
+
 #define STATUS_ERROR -1
 #define SCHEMA_ERR 2
 #define SCHEMA_EQ 3

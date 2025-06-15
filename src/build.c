@@ -16,11 +16,12 @@
 static char prog[] = "db";
 /*this functionality is not implemented yet*/
 
+int __IMPORT_EZ = 0;
+
 unsigned char build_from_txt_file(char *file_path, char *txt_f)
 {
 	FILE *fp = fopen(txt_f, "r");
-	if (!fp)
-	{
+	if (!fp){
 		printf("file open failed, build.c l %d.\n", __LINE__ - 2);
 		return 0;
 	}
@@ -335,6 +336,11 @@ int import_data_to_system(char *data_file)
 	}
 
 	fclose(fp);
+
+	/*  global variable that change the behavior of the inner
+	 *  working of the check_data functions
+	 *  for now it affects how the string functions detect types */
+	__IMPORT_EZ = 1;
 
 	int fds[3];
 	memset(fds,-1,sizeof(int)*3);

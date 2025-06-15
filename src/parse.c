@@ -689,13 +689,16 @@ char **extract_fields_value_types_from_input(char *buffer, char names[][MAX_FILE
 
 	/*reset the double delim*/
 	for(int i = 0; i < *count; i++){
-		types_i[i] = assign_type(values[i]);
+		if((types_i[i] = assign_type(values[i])) == -1){	
+			/* free the values and return NULL*/		
+			free_strs(*count,1,values);
+			return NULL;	
+		}
 		int x = (char *)strstr(buffer,values[i]) - buffer;
 		for(int k = 0;k < c; k++){
 			if(pos[k] == x) *values[i] = ':';
 		}
 	}
-
 	
 	return values;
 }
@@ -1689,9 +1692,10 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				
 			for(int i = 0; i < fields_count; i++) {
 				if(types_i[i] == -1){
-					types_i[i] = assign_type(values[i]);	
+					if((types_i[i] = assign_type(values[i])) == -1) goto clean_on_error;	
 				}
 			}
+
 			if(fields_count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, fields_count, &hd->sch_d, names, &values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
@@ -1759,7 +1763,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				
 			for(int i = 0; i < fields_count; i++) {
 				if(types_i[i] == -1){
-					types_i[i] = assign_type(values[i]);	
+					if((types_i[i] = assign_type(values[i])) == -1) goto clean_on_error;	
 				}
 			}
 

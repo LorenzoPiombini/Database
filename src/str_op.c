@@ -79,20 +79,23 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 
 	/* detect files types*/	
 	char *file_start = NULL;
-	while((file_start = strstr(cbuf,"["))){
-		char *end_file = strstr(file_start,"]");
-		if(end_file){ 
-			int end = end_file - cbuf;
-			char *delim = NULL;
-			while((delim = strstr(file_start,":"))){
-				if((delim - cbuf) < end) 
-					*delim = '@';
-				else
-					break;
+	if(!__IMPORT_EZ){
+		while((file_start = strstr(cbuf,"["))){
+			char *end_file = strstr(file_start,"]");
+			if(end_file){ 
+				int end = end_file - cbuf;
+				char *delim = NULL;
+				while((delim = strstr(file_start,":"))){
+					if((delim - cbuf) < end) 
+						*delim = '@';
+					else
+						break;
+				}
 			}
+			*file_start = '@';
 		}
-		*file_start = '@';
 	}
+
 	if(strstr(cbuf,T_)){
 		char *pos_t = NULL;
 		while((pos_t = strstr(cbuf,T_))){
@@ -816,6 +819,8 @@ int check_array_input(char *value)
 }
 int assign_type(char *value)
 {
+
+	if(!value) return -1;
 
 	if(value[0] == '[' && value[strlen(value) - 1] == ']') return TYPE_FILE;
 
