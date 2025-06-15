@@ -1564,15 +1564,24 @@ int find_delim_in_fields(char *delim, char *str, int *pos)
 
 		char *d = strstr(frag,delim);
 		if(d){
-			char *fr = strstr(str,frag);
+			char *fr = NULL;
+			int fix_i = -1;
+			char save = ' ';
+			while((fr = strstr(str,frag)) && ((fr - str) < begin)){
+				save = *fr;
+				*fr = '@';
+				fix_i = fr - str;
+			}
 			assert(fr != NULL);
+			if(fix_i != -1)	str[fix_i] = save;
+
 			int frag_i = fr - str;
 			char *fr_d = strstr(fr,delim);	
 			int i = fr_d - fr;
 
 			str[frag_i + i] = '{';
 			if(pos){
-				*pos = frag_i + i;
+				*pos = frag_i + i +1;
 				pos++;
 			}
 		} 

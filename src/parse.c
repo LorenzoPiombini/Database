@@ -836,7 +836,7 @@ int sort_input_like_header_schema(int schema_tp,
 
 	if(schema_tp == SCHEMA_CT || schema_tp == SCHEMA_CT_NT){
 		/*order with missing fields*/
-		char **n_v = realloc(*values,(sch->fields_num - fields_num) * sizeof(char*));
+		char **n_v = realloc(*values,sch->fields_num * sizeof(char*));
 		if(!n_v){
 			fprintf(stderr,"realloc failed %s:%d.\n",__FILE__,__LINE__-2);
 			return -1;
@@ -853,7 +853,7 @@ int sort_input_like_header_schema(int schema_tp,
 				if(strlen(names[i]) != strlen(sch->fields_name[j])) continue;
 
 				if (strncmp(names[i], sch->fields_name[j], strlen(names[i])) == 0){
-					value_pos[i] = j;
+					value_pos[j] = j;
 					break;
 				}
 			}
