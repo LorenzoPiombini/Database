@@ -7,13 +7,16 @@
 #include <limits.h>
 #include <errno.h>
 #include <assert.h>
+#include <math.h>
 #include "str_op.h"
 #include "common.h"
 #include "debug.h"
 
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
-static const char base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
+
+#define BASE 246
+static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
 				"_V","_W","_X","_Y","_Z","_[","_\\","_]","_^","__"," ","!","\"","#","$","%","&","'","(",")","*","+",
 				",","-",".","0","1","2","3","4","5","6","7","8","9",":",";","<","=","?","@","A","B","C","D","E","F",
 				"G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","[","]","_","`","a",
@@ -1628,12 +1631,43 @@ static int is_target_db_type(char *target)
 
 }
 
+static int packed_string_digits(uint32_t n)
+{ 
+	return (int)(log(n)/log(BASE)) +1;
+
+}
+
 const char *pack(uint32_t n)
 {
 	
 	if(n < 0) return NULL; 
 	if(n <= 246 && n >= 0) return base_247[n];
 
+	int i = 0;	
 
 
+	int size = packed_string_digits(n)
+	int digits_indexes[size];
+	memset(digits_indexes,-1,sizeof(int));
+
+	char *packed_num = calloc((size * 4)+1,sizeof(char));
+	if(!packed_num) {
+		fprintf(stderr,"calloc failed %s:%d.\n",__FILE__,__LINE__-2);
+		return NULL;
+	}
+
+	uint32_t rm = 0;
+	while(n > 0){
+		rm = n % BASE;
+		n /= BASE;
+		buffer = rm;
+		int i = 0;
+		
+		if(snprintf(&packed_num[i],32,"%s",base_247[rm]) == -1){
+			fprintf(stderr,"snprintf failed %s:%d.\n",__FILE__,__LINE__-2);
+			return NULL;
+		}
+	}
+
+	return packed_num;
 }
