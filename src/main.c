@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	printf("%s\n",pack((uint32_t)atoi(argv[1])));
+	printf("%u\n",unpack(argv[1]));
 	return 0;
 	/* file descriptors */
 	int fd_index = -1; 

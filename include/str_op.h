@@ -85,5 +85,6 @@ int count_delim(char *delim, char *str);
 int find_double_delim(char *delim, char *str, int *pos);
 int find_delim_in_fields(char *delim, char *str, int *pos);
 const char *pack(uint32_t n);
+uint32_t unpack(char *packed);
 
 #endif /* STR_OP_H */

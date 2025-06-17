@@ -13,9 +13,10 @@
 
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
+static uint32_t power(uint32_t n, int pow);
 
 #define BASE 247
-#define MAX_ENC_BASE 25 /* (log(MAX_VALUE) (uint32_t) divided by log(247) = 6 * 4 = 24 + 1 for '\0' => 25*/
+#define MAX_ENC_BASE 21 /* (log(MAX_VALUE) (uint32_t) divided by log(247) = (4.(...) + 1) = 5 * 4 = 20 + 1 for '\0' => 21*/
 
 static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
 				"_V","_W","_X","_Y","_Z","_[","_\\","_]","_^","__"," ","!","\"","#","$","%","&","'","(",")","*","+",
@@ -1667,7 +1668,7 @@ static uint32_t power(uint32_t n, int pow)
 	if(pow == 0) return 1;
 	
 	for(int i = 1; i < pow; i++){
-		n =* n;
+		n *= n;
 	}
 
 	return n;
@@ -1678,8 +1679,6 @@ uint32_t unpack(char *packed)
 
 	char *pos = NULL;	
 	uint32_t unpacked = 0;
-	int indexes[6];
-	memset(indexes, -1, sizeof(int) * 6);
 
 	size_t packed_l = strlen(packed);
 	if(packed_l <= 4){
