@@ -15,7 +15,7 @@ static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
 
 #define BASE 247
-#define MAX_ENC_BASE 24 /* log(MAX_VALUE) (uint32_t) divided by log(247) */
+#define MAX_ENC_BASE 25 /* (log(MAX_VALUE) (uint32_t) divided by log(247) = 6 * 4 = 24 + 1 for '\0' => 25*/
 
 static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
 				"_V","_W","_X","_Y","_Z","_[","_\\","_]","_^","__"," ","!","\"","#","$","%","&","'","(",")","*","+",
@@ -1660,4 +1660,73 @@ const char *pack(uint32_t n)
 	}
 
 	return packed_num;
+}
+
+static uint32_t power(uint32_t n, int pow)
+{
+	if(pow == 0) return 1;
+	
+	for(int i = 1; i < pow; i++){
+		n =* n;
+	}
+
+	return n;
+}
+
+uint32_t unpack(char *packed)
+{
+
+	char *pos = NULL;	
+	uint32_t unpacked = 0;
+	int indexes[6];
+	memset(indexes, -1, sizeof(int) * 6);
+
+	size_t packed_l = strlen(packed);
+	if(packed_l <= 4){
+		for(int i = 0; i < BASE; i++){
+			if(strlen(base_247[i]) != packed_l) continue; 	
+
+			if(strncmp(packed,base_247[i],packed_l) == 0) return i;
+		}
+
+	}
+
+	for(int i = 0; i < BASE; i++){
+		if((pos = strstr(packed,base_247[i]))){
+			size_t s = strlen(base_247[i]);
+			int place = pos - packed;
+			if((place + s) == packed_l) {
+				unpacked += power(BASE-1,0);
+				continue;
+			}
+
+			if(((pos + s) - packed_l) <=4 ){
+				unpacked += power(BASE-1,1);
+				continue;
+			}
+
+			if(((pos + s) - packed_l) >= 4  && (((pos +s) - packed_l) <= 8 )){
+				unpacked += power(BASE-1,2);
+				continue;
+			}
+
+			if(((pos + s) - packed_l) >= 8  && (((pos +s) - packed_l) <= 12 )){
+				unpacked += power(BASE-1,3);
+				continue;
+			}
+
+			if(((pos + s) - packed_l) >= 12  && (((pos +s) - packed_l) <= 16 )){
+				unpacked += power(BASE-1,4);
+				continue;
+			}
+
+			if(((pos + s) - packed_l) >= 16  && (((pos +s) - packed_l) <= 20 )){
+				unpacked += power(BASE-1,5);
+				continue;
+			}
+
+
+		}
+	}
+	 return unpacked;
 }
