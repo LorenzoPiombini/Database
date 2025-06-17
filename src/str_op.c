@@ -13,6 +13,20 @@
 
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
+static const char base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
+				"_V","_W","_X","_Y","_Z","_[","_\\","_]","_^","__"," ","!","\"","#","$","%","&","'","(",")","*","+",
+				",","-",".","0","1","2","3","4","5","6","7","8","9",":",";","<","=","?","@","A","B","C","D","E","F",
+				"G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","[","]","_","`","a",
+				"b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z",
+				"_x7f","_x80","_x81","_x82","_x83","_x84","_x85","_x86","_x87","_x88","_x89","_x8a","_x8b","_x8c","_x8d",
+				"_x8e","_x8f","_x90","_x91","_x92","_x93","_x94","_x95","_x96","_x97","_x98","_x99","_x9a","_x9b","_x9c",
+				"_x9d","_x9e","_x9f","_xa0","_xa1","_xa2","_xa3","_xa4","_xa5","_xa6","_xa7","_xa8","_xa9","_xaa","_xab",
+				"_xac","_xad","_xae","_xaf","_xb0","_xb1","_xb2","_xb3","_xb4","_xb5","_xb6","_xb7","_xb8","_xb9","_xba",
+				"_xbb","_xbc","_xbd","_xbe","_xbf","_xc0","_xc1","_xc2","_xc3","_xc4","_xc5","_xc6","_xc7","_xc8","_xc9",
+				"_xca","_xcb","_xcc","_xcd","_xce","_xcf","_xd0","_xd1","_xd2","_xd3","_xd4","_xd5","_xd6","_xd7","_xd8",
+				"_xd9","_xda","_xdb","_xdc","_xdd","_xde","_xdf","_xe0","_xe1","_xe2","_xe3","_xe4","_xe5","_xe6","_xe7",
+				"_xe8","_xe9","_xea","_xeb","_xec","_xed","_xee","_xef","_xf0","_xf1","_xf2","_xf3","_xf4","_xf5","_xf6",
+				"_xf7","_xf8","_xf9","_xfa","_xfb","_xfc","_xfd","_xfe","_xff"};
 
 int is_number_type(int type)
 {
@@ -1611,5 +1625,15 @@ static int is_target_db_type(char *target)
 	if(strstr(target,":t_fl")) return 0;
 
 	return -1;
+
+}
+
+const char *pack(uint32_t n)
+{
+	
+	if(n < 0) return NULL; 
+	if(n <= 246 && n >= 0) return base_247[n];
+
+
 
 }

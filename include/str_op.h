@@ -47,8 +47,6 @@ the number in e.i (int or long)*/
 
 
 
-
-
 int is_number_type(int type);
 int is_number_array(int type);
 int get_array_values(char *src, char ***values);
