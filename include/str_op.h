@@ -84,5 +84,6 @@ int check_array_input(char *value);
 int count_delim(char *delim, char *str);
 int find_double_delim(char *delim, char *str, int *pos);
 int find_delim_in_fields(char *delim, char *str, int *pos);
+const char *pack(uint32_t n);
 
 #endif /* STR_OP_H */
