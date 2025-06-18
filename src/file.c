@@ -474,12 +474,9 @@ unsigned char read_index_file(int fd, HashTable *ht)
 					return 0;
 				}
 
-				newNode->key.s = strdup(key);
-				if (!newNode->key.s)
-				{
-					fprintf(stderr,
-							"strdup() failed, %s:%d.\n",
-							F, L - 3);
+				newNode->key.k.s = strdup(key);
+				if (!newNode->key.k.s){
+					fprintf(stderr,"strdup() failed, %s:%d.\n",F, L - 3);
 					free_nodes(ht->data_map, ht->size);
 					free(key);
 					return 0;
@@ -487,11 +484,10 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				free(key);
 				newNode->value = value;
 				newNode->next = NULL;
-				newNode->key_type = key_type;
+				newNode->key.type = key_type;
 
-				int bucket = hash((void *)newNode->key.s, ht->size, key_type);
-				if (ht->data_map[bucket])
-				{
+				int bucket = hash((void *)newNode->key.k.s, ht->size, key_type);
+				if (ht->data_map[bucket]){
 					Node *current = ht->data_map[bucket];
 					while (current->next != NULL)
 					{
@@ -499,8 +495,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 					}
 					current->next = newNode;
 				}
-				else
-				{
+				else{
 					ht->data_map[bucket] = newNode;
 				}
 			}
@@ -538,29 +533,27 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				return 0;
 			}
 
-			new_node->key_type = key_type;
-			new_node->key.n = ntohl(k);
+			new_node->key.type = key_type;
+			new_node->key.k.n = ntohl(k);
 			new_node->value = (off_t)bswap_64(value);
 			new_node->next = NULL;
 
-			int index = hash((void *)&new_node->key.n, ht->size, key_type);
-			if (index == -1)
-			{
+			int index = hash((void *)&new_node->key.k.n, ht->size, key_type);
+			if (index == -1){
 				fprintf(stderr, "read index failed.%s:%d\n", F, L - 2);
 				free_nodes(ht->data_map, ht->size);
 				free_ht_node(new_node);
 				return 0;
 			}
-			if (ht->data_map[index])
-			{
+
+			if (ht->data_map[index]){
 				Node *current = ht->data_map[index];
 				while (current->next)
 					current = current->next;
 
 				current = new_node;
 			}
-			else
-			{
+			else{
 				ht->data_map[index] = new_node;
 			}
 

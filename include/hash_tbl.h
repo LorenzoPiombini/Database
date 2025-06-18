@@ -10,12 +10,17 @@
 #define STR 1
 #define UINT 2
 
-typedef struct Node {
-	int key_type;
+struct Key{
+	int type;
 	union {
 		uint32_t n;
 		char *s;
-	} key;
+	}k;
+	uint16_t paked_k[5];
+};
+
+typedef struct Node {
+	struct Key key;
 	off_t value;
 	struct Node *next;
 } Node;
@@ -27,8 +32,7 @@ typedef struct HashTable {
 } HashTable;
 
 /*this will contains all the keys of the hash table*/
-struct Keys_ht
-{
+struct Keys_ht{
 	void **k;
 	int *types;
 	int length;

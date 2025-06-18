@@ -16,7 +16,6 @@ static int is_target_db_type(char *target);
 static uint32_t power(uint32_t n, int pow);
 
 #define BASE 247
-#define MAX_ENC_BASE 21 /* (log(MAX_VALUE) (uint32_t) divided by log(247) = (4.(...) + 1) = 5 * 4 = 20 + 1 for '\0' => 21*/
 
 static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
 				"_V","_W","_X","_Y","_Z","_[","_\\","_]","_^","__"," ","!","\"","#","$","%","&","'","(",")","*","+",
@@ -385,8 +384,7 @@ void *key_converter(char *key, int *key_type)
 		char *end;
 		errno = 0;
 		long l = strtol(key, &end, 10);
-		if (l == 0 || errno == EINVAL)
-			return NULL;
+		if (errno == ERANGE || errno == EINVAL) return NULL;
 
 		if (l == MAX_KEY) {
 			fprintf(stderr, "key value out fo range.\n");
@@ -1633,99 +1631,60 @@ static int is_target_db_type(char *target)
 
 }
 
-const char *pack(uint32_t n)
+void pack(uint32_t n, uint16_t *digits_indexes)
 {
-	
-	if((n <= (BASE-1))) return base_247[n];
+	if((n <= (BASE-1))) {
+		memset(digits_indexes,-1,sizeof(uint16_t) * 5);
+		digits_indexes[4] = n;
+		return;
+	}
 
-	int i = 0;	
-	int digits_indexes[6];
-	memset(digits_indexes,-1,sizeof(int) * 6);
+	int i = 4;	
+	memset(digits_indexes,-1,sizeof(uint16_t) * 5);
 
 	uint32_t rm = 0;
 	while(n > 0){
+		if (i < 0){
+			memset(digits_indexes,-1,sizeof(uint16_t) * 5);
+			return;
+		}
 		rm = n % BASE;
 		n /= BASE;
 		digits_indexes[i] = rm;
-		i++;
+		i--;
 	}
+}
 
-	static char packed_num[MAX_ENC_BASE];
-	memset(packed_num,0,MAX_ENC_BASE);
-
-	for(int j = i - 1, x = 0; j >= 0; j--){ 
-		if(j >=0) {
-			strncpy(&packed_num[x],base_247[digits_indexes[j]],strlen(base_247[digits_indexes[j]])); 
-			x += strlen(base_247[digits_indexes[j]]);
-		}
+void print_pack_str(int *digits_index)
+{
+	for(int i = 0; i < 5; i++){
+		if(digits_index[i] == -1) continue;
+		printf("%s",base_247[digits_index[i]]);
 	}
-
-	return packed_num;
+	printf("\n");
 }
 
 static uint32_t power(uint32_t n, int pow)
 {
+	uint32_t a = n;
 	if(pow == 0) return 1;
 	
 	for(int i = 1; i < pow; i++){
-		n *= n;
+		a *= n;
 	}
 
-	return n;
+	return a;
 }
 
-uint32_t unpack(char *packed)
+long long unpack(int *digits_index)
 {
-
-	char *pos = NULL;	
-	uint32_t unpacked = 0;
-
-	size_t packed_l = strlen(packed);
-	if(packed_l <= 4){
-		for(int i = 0; i < BASE; i++){
-			if(strlen(base_247[i]) != packed_l) continue; 	
-
-			if(strncmp(packed,base_247[i],packed_l) == 0) return i;
-		}
-
+	long long unpacked = 0;
+	int pow = 0;
+	for(int i = 4; i >= 0; i--){
+		if(digits_index[i] == -1) break;
+		unpacked += (digits_index[i] * power(BASE,pow));
+		pow++;
 	}
 
-	for(int i = 0; i < BASE; i++){
-		if((pos = strstr(packed,base_247[i]))){
-			size_t s = strlen(base_247[i]);
-			int place = pos - packed;
-			if((place + s) == packed_l) {
-				unpacked += power(BASE-1,0);
-				continue;
-			}
-
-			if(((pos + s) - packed_l) <=4 ){
-				unpacked += power(BASE-1,1);
-				continue;
-			}
-
-			if(((pos + s) - packed_l) >= 4  && (((pos +s) - packed_l) <= 8 )){
-				unpacked += power(BASE-1,2);
-				continue;
-			}
-
-			if(((pos + s) - packed_l) >= 8  && (((pos +s) - packed_l) <= 12 )){
-				unpacked += power(BASE-1,3);
-				continue;
-			}
-
-			if(((pos + s) - packed_l) >= 12  && (((pos +s) - packed_l) <= 16 )){
-				unpacked += power(BASE-1,4);
-				continue;
-			}
-
-			if(((pos + s) - packed_l) >= 16  && (((pos +s) - packed_l) <= 20 )){
-				unpacked += power(BASE-1,5);
-				continue;
-			}
-
-
-		}
-	}
-	 return unpacked;
+	return unpacked;
 }

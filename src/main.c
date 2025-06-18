@@ -28,8 +28,6 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	printf("%u\n",unpack(argv[1]));
-	return 0;
 	/* file descriptors */
 	int fd_index = -1; 
 	int fd_data = -1;
@@ -924,24 +922,23 @@ int main(int argc, char *argv[])
 			
 			/*this will save the record that we deleted,
 			 * so we can undo this operations */
-			if(record_del->key_type == STR){
+			if(record_del->key.type == STR){
  				if(journal(fd_index, 
 						record_del->value, 
-						(void*)record_del->key.s, 
-						record_del->key_type, 
+						(void*)record_del->key.k.s, 
+						record_del->key.type, 
 						J_DEL) == -1){
 					fprintf(stderr,"(%s): failed to save del data.\n",prog);
 				}
 			}else{
-				uint32_t kn = record_del->key.n;
+				uint32_t kn = record_del->key.k.n;
 				if(journal(fd_index, 
 						record_del->value, 
 						(void*)&kn, 
-						record_del->key_type, 
+						record_del->key.type, 
 						J_DEL) == -1){
 					fprintf(stderr,"(%s): failed to save del data.\n",prog);
 				}
-
 			}
 
 			printf("record %s deleted!.\n", key);

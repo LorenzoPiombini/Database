@@ -23,14 +23,14 @@ void print_hash_table(HashTable tbl)
 
 		while (node)
 		{
-			switch (node->key_type)
+			switch (node->key.type)
 			{
 			case STR:
 			{
-				if (node->key.s)
+				if (node->key.k.s)
 				{
 					printf("\t{ %s,%ld }\n",
-						   node->key.s, node->value);
+						   node->key.k.s, node->value);
 				}
 
 				node = node->next;
@@ -38,7 +38,7 @@ void print_hash_table(HashTable tbl)
 			}
 			case UINT:
 			{
-				printf("\t{ %u,%ld}\n", node->key.n, node->value);
+				printf("\t{ %u,%ld}\n", node->key.k.n, node->value);
 				node = node->next;
 				break;
 			}
@@ -78,19 +78,18 @@ int write_ht(int fd, HashTable *ht)
 
 		Node *current = ht->data_map[i];
 		while (current != NULL) {
-			switch (current->key_type)
+			switch (current->key.type)
 			{
 			case STR:
 			{
-				uint32_t type = htonl((uint32_t)current->key_type);
-				uint64_t key_l = bswap_64((uint64_t)strlen(current->key.s));
+				uint32_t type = htonl((uint32_t)current->key.type);
+				uint64_t key_l = bswap_64((uint64_t)strlen(current->key.k.s));
 				uint64_t value = bswap_64((uint64_t)current->value);
 
 				if (write(fd, &type, sizeof(type)) == -1 ||
 					write(fd, &key_l, sizeof(key_l)) == -1 ||
-					write(fd, current->key.s, strlen(current->key.s) + 1) == -1 ||
-					write(fd, &value, sizeof(value)) < 0)
-				{
+					write(fd, current->key.k.s, strlen(current->key.k.s) + 1) == -1 ||
+					write(fd, &value, sizeof(value)) < 0){
 					perror("write index:");
 					return 0; // false
 				}
@@ -99,9 +98,9 @@ int write_ht(int fd, HashTable *ht)
 			}
 			case UINT:
 			{
-				uint32_t type = htonl((uint32_t)current->key_type);
+				uint32_t type = htonl((uint32_t)current->key.type);
 				uint64_t value = bswap_64((uint64_t)current->value);
-				uint32_t k = htonl(current->key.n);
+				uint32_t k = htonl(current->key.k.n);
 
 				if (write(fd, &type, sizeof(type)) == -1) {
 					perror("write index:");
@@ -149,9 +148,9 @@ int hash(void *key, int size, int key_type)
 	}
 	case STR:
 		string_key = (char *)key;
-		for (; *string_key != '\0'; string_key++,
-									number = COPRIME * number % (size - 1))
+		for (; *string_key != '\0'; string_key++, number = COPRIME * number % (size - 1)){
 			hash = (number * hash + *string_key) % size;
+		}
 		break;
 	default:
 		fprintf(stderr, "key type not supported");
@@ -169,15 +168,15 @@ off_t get(void *key, HashTable *tbl, int key_type)
 	{
 		switch (key_type) {
 		case STR:
-			if(!temp->key.s)return -1;
-			if (strcmp(temp->key.s, (char *)key) == 0)
+			if(!temp->key.k.s)return -1;
+			if (strcmp(temp->key.k.s, (char *)key) == 0)
 				return temp->value;
 
 			temp = temp->next;
 			break;
 		case UINT:
 		{
-			if (temp->key.n == *(uint32_t *)key)
+			if (temp->key.k.n == *(uint32_t *)key)
 				return temp->value;
 
 			temp = temp->next;
@@ -206,13 +205,13 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 	{
 	case UINT:
 	{
-		new_node->key.n = *(uint32_t *)key;
+		new_node->key.k.n = *(uint32_t *)key;
 		break;
 	}
 	case STR:
 	{
-		new_node->key.s = strdup((char *)key);
-		if (!new_node->key.s) {
+		new_node->key.k.s = strdup((char *)key);
+		if (!new_node->key.k.s) {
 			fprintf(stderr, "strdup() failed");
 			return 0;
 		}
@@ -223,7 +222,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		return 0;
 	}
 
-	new_node->key_type = key_type;
+	new_node->key.type = key_type;
 	new_node->value = value;
 	new_node->next = NULL;
 
@@ -236,12 +235,12 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		 * the base  element of the index
 		 * */
 		size_t key_len = 0;
-		if ((key_len = strlen(tbl->data_map[index]->key.s)) == strlen(new_node->key.s))
+		if ((key_len = strlen(tbl->data_map[index]->key.k.s)) == strlen(new_node->key.k.s))
 		{
-			if (strncmp(tbl->data_map[index]->key.s, new_node->key.s, ++key_len) == 0)
+			if (strncmp(tbl->data_map[index]->key.k.s, new_node->key.k.s, ++key_len) == 0)
 			{
-				printf("key %s, already exist.\n", new_node->key.s);
-				free(new_node->key.s);
+				printf("key %s, already exist.\n", new_node->key.k.s);
+				free(new_node->key.k.s);
 				free(new_node);
 				return 0;
 			}
@@ -253,11 +252,11 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		 * */
 		Node *temp = tbl->data_map[index];
 		while (temp->next != NULL) {
-			if ((key_len = strlen(temp->next->key.s)) == strlen(new_node->key.s)) {
-				if (strncmp(temp->next->key.s, new_node->key.s, ++key_len) == 0) {
-					printf("could not insert new node \"%s\"\n", new_node->key.s);
+			if ((key_len = strlen(temp->next->key.k.s)) == strlen(new_node->key.k.s)) {
+				if (strncmp(temp->next->key.k.s, new_node->key.k.s, ++key_len) == 0) {
+					printf("could not insert new node \"%s\"\n", new_node->key.k.s);
 					printf("key already exist. Choose another key value.\n");
-					free(new_node->key.s);
+					free(new_node->key.k.s);
 					free(new_node);
 					return 0;
 				}
@@ -271,8 +270,8 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		temp->next = new_node;
 	}
 	else if (key_type == UINT) {
-		if (tbl->data_map[index]->key.n == new_node->key.n) {
-			printf("could not insert new node \"%u\"\n", new_node->key.n);
+		if (tbl->data_map[index]->key.k.n == new_node->key.k.n) {
+			printf("could not insert new node \"%u\"\n", new_node->key.k.n);
 			printf("key already exist. Choose another key value.\n");
 			free(new_node);
 			return 0;
@@ -280,8 +279,8 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 
 		Node *temp = tbl->data_map[index];
 		while (temp->next) {
-			if (temp->next->key.n == new_node->key.n) {
-				printf("could not insert new node \"%u\"\n", new_node->key.n);
+			if (temp->next->key.k.n == new_node->key.k.n) {
+				printf("could not insert new node \"%u\"\n", new_node->key.k.n);
 				printf("key already exist. Choose another key value.\n");
 				free(new_node);
 				return 0;
@@ -305,13 +304,11 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 		switch (key_type)
 		{
 		case STR:
-			if (strcmp(current->key.s, (char *)key) == 0)
+			if (strcmp(current->key.k.s, (char *)key) == 0)
 			{
-				if (previous == NULL)
-				{
+				if (previous == NULL){
 					tbl->data_map[index] = current->next;
-				}
-				else {
+				}else {
 					previous->next = current->next;
 				}
 
@@ -323,7 +320,7 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 		case UINT:
 		{
 
-			if (current->key.n == *(uint32_t *)key)
+			if (current->key.k.n == *(uint32_t *)key)
 			{
 				if (previous == NULL)
 					tbl->data_map[index] = current->next;
@@ -363,11 +360,11 @@ void destroy_hasht(HashTable *tbl)
 	for (i = 0; i < tbl->size; i++) {
 		Node *current = tbl->data_map[i];
 		while (current != NULL) {
-			switch (current->key_type) {
+			switch (current->key.type) {
 			case STR:
 			{
 				Node *next = current->next;
-				free(current->key.s);
+				free(current->key.k.s);
 				free(current);
 				current = next;
 				break;
@@ -413,9 +410,9 @@ struct Keys_ht *keys(HashTable *ht)
 		Node *temp = ht->data_map[i];
 		while (temp != NULL)
 		{
-			if (temp->key_type == STR)
+			if (temp->key.type == STR)
 			{
-				keys_arr[index] = (void *)strdup(temp->key.s);
+				keys_arr[index] = (void *)strdup(temp->key.k.s);
 				if (!keys_arr[index])
 				{
 					fprintf(stderr, "strdup() failed.");
@@ -425,7 +422,7 @@ struct Keys_ht *keys(HashTable *ht)
 			}
 			else
 			{
-				keys_arr[index] = (void *)&temp->key.n;
+				keys_arr[index] = (void *)&temp->key.k.n;
 				types[index] = UINT;
 			}
 			temp = temp->next;
@@ -471,12 +468,12 @@ void free_nodes(Node **data_map, int size)
 	for (i = 0; i < size; i++) {
 		Node *current = (*data_map);
 		while (current) {
-			switch (current->key_type)
+			switch (current->key.type)
 			{
 			case STR:
 			{
 				Node *next = current->next;
-				free(current->key.s);
+				free(current->key.k.s);
 				free(current);
 				current = next;
 				break;
@@ -502,10 +499,10 @@ void free_ht_node(Node *node)
 	if (!node)
 		return;
 
-	switch (node->key_type)
+	switch (node->key.type)
 	{
 	case STR:
-		free(node->key.s);
+		free(node->key.k.s);
 		break;
 	case UINT:
 		break;
@@ -552,18 +549,16 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 	{
 		if (src->data_map[i])
 		{
-			switch (src->data_map[i]->key_type)
-			{
+			switch (src->data_map[i]->key.type){
 			case STR:
 			{
-				set((void *)src->data_map[i]->key.s,
-					src->data_map[i]->key_type,
+				set((void *)src->data_map[i]->key.k.s,
+					src->data_map[i]->key.type,
 					src->data_map[i]->value, dest);
 				Node *next = src->data_map[i]->next;
-				while (next)
-				{
-					set(next->key.s,
-						next->key_type,
+				while (next){
+					set(next->key.k.s,
+						next->key.type,
 						next->value, dest);
 					next = next->next;
 				}
@@ -571,14 +566,14 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 			}
 			case UINT:
 			{
-				set((void *)&src->data_map[i]->key.n,
-					src->data_map[i]->key_type,
+				set((void *)&src->data_map[i]->key.k.n,
+					src->data_map[i]->key.type,
 					src->data_map[i]->value, dest);
 				Node *next = src->data_map[i]->next;
 				while (next)
 				{
-					set((void *)&next->key.n,
-						next->key_type,
+					set((void *)&next->key.k.n,
+						next->key.type,
 						next->value, dest);
 					next = next->next;
 				}
