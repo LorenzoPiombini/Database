@@ -453,7 +453,10 @@ int import_data_to_system(char *data_file)
 			return STATUS_ERROR;
 		}
 
-		if(write_record(fds,(void*)key,STR,&rec, 0,files,&lock_f,IMPORT) == -1) {
+		int key_type = STR;
+		if(is_integer(key)) key_type = UINT; 
+
+		if(write_record(fds,(void*)key,key_type,&rec, 0,files,&lock_f,IMPORT) == -1) {
 			free_record(&rec,rec.fields_num);
 			memset(&rec,0,sizeof(struct Record_f));
 			continue;

@@ -60,6 +60,8 @@ int lock(int fd, int flag){
 				unlink(file_name);
 				return 0;
 			}
+
+			fclose(fp);
 			return -1;
 		}
 
