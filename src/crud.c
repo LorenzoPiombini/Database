@@ -152,7 +152,8 @@ int check_data(char *file_path,char *data_to_add,
 	int pos[200];
 	memset(pos,-1,sizeof(int)*200);
 
-	find_double_delim("::",data_to_add,pos);
+   	find_double_delim("::",data_to_add,pos); 
+
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 
 	/*check schema*/

@@ -444,10 +444,6 @@ int import_data_to_system(char *data_file)
 		strncpy(key,d,key_sz -1);
 
 		/*check data (schema) and writing to file*/
-		if(strncmp(file_name,"inventory",strlen("inventory")) == 0)printf("key: %s\n",key);
-
-//		if((strcmp(key,"_O6") == 0) && (strncmp(file_name,"inventory",strlen("inventory") == 0)))printf("oabiut to enter check_data\n");
-
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);

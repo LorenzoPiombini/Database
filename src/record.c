@@ -469,8 +469,9 @@ unsigned char set_field(struct Record_f *rec,
 				if (range == IN_INT) {
 					/*convert the value to long and then cast it to int */
 					/*i do not want to use atoi*/
+					errno = 0;
 					long n = strtol(t, NULL, 10);
-					if (n == ERANGE || n == EINVAL) {
+					if (errno == ERANGE || errno == EINVAL) {
 						printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -502,8 +503,9 @@ unsigned char set_field(struct Record_f *rec,
 			if (range == IN_INT){
 				/*convert the value to long and then cast it to int */
 				/*i do not want to use atoi*/
+				errno = 0;
 				long n = strtol(value, NULL, 10);
-				if (n == ERANGE || n == EINVAL) {
+				if (errno == ERANGE || errno == EINVAL) {
 					printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 					return 0;
 				}
@@ -540,8 +542,9 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if (range == IN_INT || range == IN_LONG) {
+					errno = 0;
 					long n = strtol(t, NULL, 10);
-					if (n == ERANGE || n == EINVAL){
+					if (errno == ERANGE || errno == EINVAL){
 						printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -564,8 +567,9 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			if (range == IN_INT || range == IN_LONG) {
+				errno = 0;
 				long n = strtol(value, NULL, 10);
-				if (n == ERANGE || n == EINVAL) {
+				if (errno == ERANGE || errno == EINVAL) {
 					printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 					return 0;
 				}
@@ -604,8 +608,9 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if (range == IN_FLOAT){
+							errno = 0;
 							float f = strtof(cpy, NULL);
-							if (f == ERANGE || f == EINVAL){
+							if (errno == ERANGE || errno == EINVAL){
 								printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 								return 0;
 							}
@@ -745,8 +750,9 @@ unsigned char set_field(struct Record_f *rec,
 					return 0;
 				}
 
+				errno = 0;
 				unsigned long un = strtoul(t, NULL, 10);
-				if (un == ERANGE || un == EINVAL)
+				if (errno == ERANGE || un == EINVAL)
 				{
 					printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 					return 0;
@@ -772,8 +778,9 @@ unsigned char set_field(struct Record_f *rec,
 				return 0;
 			}
 
+			errno = 0;
 			unsigned long un = strtoul(value, NULL, 10);
-			if (un == ERANGE || un == EINVAL)
+			if (errno == ERANGE || errno == EINVAL)
 			{
 				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 				return 0;
@@ -819,8 +826,9 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if (range == IN_DOUBLE || range == IN_FLOAT) {
+							errno = 0;
 							double d = strtod(cpy, NULL);
-							if (d == ERANGE || d == EINVAL) {
+							if (errno == ERANGE || errno == EINVAL) {
 								printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 								return 0;
 							}
@@ -882,8 +890,9 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					if (range == IN_DOUBLE || range == IN_FLOAT) {
+						errno = 0;
 						double d = strtod(cpy, NULL);
-						if (d == ERANGE || d == EINVAL) {
+						if (errno == ERANGE || errno == EINVAL) {
 							printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 							return 0;
 						}

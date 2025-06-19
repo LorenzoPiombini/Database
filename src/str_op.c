@@ -1526,7 +1526,9 @@ int find_double_delim(char *delim, char *str, int *pos)
 {
 
 	char *c = NULL;
+	int f = 0;
 	while((c = strstr(str,delim))){
+		f = 1;
 		if(find_delim_in_fields(":",str,pos) == 0) return 0;
 		if(*(c + 2) == '\0'){
 			c++;
@@ -1540,8 +1542,9 @@ int find_double_delim(char *delim, char *str, int *pos)
 			pos++;
 		}
 	}
+	if(f) return 0;
 	
-	return 0;
+	return -1;
 }
 
 int find_delim_in_fields(char *delim, char *str, int *pos)
