@@ -16,7 +16,7 @@ struct Key{
 		uint32_t n;
 		char *s;
 	}k;
-	uint16_t paked_k[5];
+	uint8_t paked_k[5];
 };
 
 typedef struct Node {
@@ -33,8 +33,7 @@ typedef struct HashTable {
 
 /*this will contains all the keys of the hash table*/
 struct Keys_ht{
-	void **k;
-	int *types;
+	struct Key *keys;
 	int length;
 };
 
@@ -58,7 +57,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl);
 void free_ht_array(HashTable *ht, int l);
 void destroy_hasht(HashTable *tbl); /*free memory*/
 off_t get(void *key, HashTable *tbl, int key_type);
-struct Keys_ht *keys(HashTable *ht);
+int keys(HashTable *ht, struct Keys_ht *all_keys);
 int len(HashTable tbl);
 void free_nodes(Node **dataMap, int size);
 void free_ht_node(Node *node);

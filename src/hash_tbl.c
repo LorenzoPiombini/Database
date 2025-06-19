@@ -195,8 +195,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 
 	int index = hash(key, tbl->size, key_type);
 	Node *new_node = calloc(1, sizeof(Node));
-	if (!new_node)
-	{
+	if (!new_node){
 		__er_calloc(F, L - 2);
 		return 0;
 	}
@@ -385,22 +384,14 @@ void destroy_hasht(HashTable *tbl)
 
 }
 
-struct Keys_ht *keys(HashTable *ht)
+int keys(HashTable *ht, struct Keys_ht *all_keys)
 {
 	int elements = len(*ht);
 
-	void **keys_arr = calloc(elements, sizeof(void *));
-	if (!keys_arr)
-	{
+	struct Key *keys = calloc(elements, sizeof(struct Key));
+	if (!keys){
 		__er_calloc(F, L - 2);
-		return NULL;
-	}
-
-	int *types = calloc(elements, sizeof(int));
-	if (!types)
-	{
-		__er_calloc(F, L - 2);
-		return NULL;
+		return -1;
 	}
 
 	int i = 0;
@@ -412,35 +403,30 @@ struct Keys_ht *keys(HashTable *ht)
 		{
 			if (temp->key.type == STR)
 			{
-				keys_arr[index] = (void *)strdup(temp->key.k.s);
-				if (!keys_arr[index])
+
+				keys[index].k.s = (void *)strdup(temp->key.k.s);
+				if (!keys[index].k.s)
 				{
 					fprintf(stderr, "strdup() failed.");
-					return NULL;
+					return -1;
 				}
-				types[index] = STR;
+				keys[index].type = STR;
 			}
 			else
 			{
-				keys_arr[index] = (void *)&temp->key.k.n;
-				types[index] = UINT;
+				keys[index].k.n = temp->key.k.n;
+				keys[index].type = UINT;
+				pack(keys[index].k.n,keys[index].paked_k);
 			}
 			temp = temp->next;
 			++index;
+			
 		}
 	}
 
-	struct Keys_ht *keys = calloc(1, sizeof(struct Keys_ht));
-	if (!keys)
-	{
-		__er_calloc(F, L - 2);
-		return NULL;
-	}
-
-	keys->k = keys_arr;
-	keys->types = types;
-	keys->length = elements;
-	return keys;
+	all_keys->keys = keys;
+	all_keys->length = elements;
+	return 0;
 }
 
 int len(HashTable tbl)
@@ -518,13 +504,11 @@ void free_keys_data(struct Keys_ht *data)
 {
 	for (int i = 0; i < data->length; i++)
 	{
-		if (data->types[i] == STR)
-			free(data->k[i]);
+		if (data->keys[i].type == STR)
+			free(data->keys[i].k.s);
 	}
 
-	free(data->k);
-	free(data->types);
-	free(data);
+	free(data->keys);
 }
 
 /*if mode is set to 1 it will overwrite the content of dest

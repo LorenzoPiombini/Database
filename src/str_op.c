@@ -1634,7 +1634,7 @@ static int is_target_db_type(char *target)
 
 }
 
-void pack(uint32_t n, uint16_t *digits_indexes)
+void pack(uint32_t n, uint8_t *digits_indexes)
 {
 	if((n <= (BASE-1))) {
 		memset(digits_indexes,-1,sizeof(uint16_t) * 5);
@@ -1643,12 +1643,12 @@ void pack(uint32_t n, uint16_t *digits_indexes)
 	}
 
 	int i = 4;	
-	memset(digits_indexes,-1,sizeof(uint16_t) * 5);
+	memset(digits_indexes,255,sizeof(uint8_t) * 5);
 
 	uint32_t rm = 0;
 	while(n > 0){
 		if (i < 0){
-			memset(digits_indexes,-1,sizeof(uint16_t) * 5);
+			memset(digits_indexes,255,sizeof(uint16_t) * 5);
 			return;
 		}
 		rm = n % BASE;
@@ -1658,10 +1658,10 @@ void pack(uint32_t n, uint16_t *digits_indexes)
 	}
 }
 
-void print_pack_str(int *digits_index)
+void print_pack_str(uint8_t *digits_index)
 {
 	for(int i = 0; i < 5; i++){
-		if(digits_index[i] == -1) continue;
+		if(digits_index[i] == 255) continue;
 		printf("%s",base_247[digits_index[i]]);
 	}
 	printf("\n");
@@ -1679,12 +1679,12 @@ static uint32_t power(uint32_t n, int pow)
 	return a;
 }
 
-long long unpack(int *digits_index)
+long long unpack(uint8_t *digits_index)
 {
 	long long unpacked = 0;
 	int pow = 0;
 	for(int i = 4; i >= 0; i--){
-		if(digits_index[i] == -1) break;
+		if(digits_index[i] == 255) break;
 		unpacked += (digits_index[i] * power(BASE,pow));
 		pow++;
 	}

@@ -1540,21 +1540,23 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			struct Keys_ht *keys_data = keys(p_ht);
+			struct Keys_ht keys_data = {0};
+			if(keys(p_ht,&keys_data) == -1){
+				fprintf(stderr,"(%s): cannot get all keys from index file.\n",prog);
+				close_file(3,fd_schema, fd_index, fd_data);
+				return STATUS_ERROR;
+			}
 			char keyboard = '0';
 			int end = len(ht), i = 0, j = 0;
 			for (i = 0, j = i; i < end; i++) {
-				switch (keys_data->types[i]){
+				switch (keys_data.keys[i].type){
 				case STR:
-					printf("%d. %s\n", ++j, (char *)keys_data->k[i]);
+					printf("%d. %s\n", ++j, keys_data.keys[i].k.s);
 					break;
 				case UINT:
 				{
 					printf("%d. ", ++j);
-					int digits[5];
-					pack(*(uint32_t *)keys_data->k[i],digits);
-					print_pack_str(digits);
-					printf("\n");
+					print_pack_str(keys_data.keys[i].paked_k);
 				//	printf("%d. %u\n", ++j, *(uint32_t *)keys_data->k[i]);
 					break;
 				}
@@ -1571,7 +1573,7 @@ int main(int argc, char *argv[])
 
 			destroy_hasht(p_ht);
 			close_file(3,fd_schema, fd_index, fd_data);
-			free_keys_data(keys_data);
+			free_keys_data(&keys_data);
 			return 0;
 		}
 

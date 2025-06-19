@@ -548,10 +548,12 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 			if (ht->data_map[index]){
 				Node *current = ht->data_map[index];
-				while (current->next)
-					current = current->next;
-
-				current = new_node;
+				if(current->next){
+					while (current->next) current = current->next;
+					current->next = new_node;
+				}else{
+					current->next = new_node;
+				}
 			}
 			else{
 				ht->data_map[index] = new_node;

@@ -442,7 +442,8 @@ int import_data_to_system(char *data_file)
 		char key[key_sz];
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
-
+		
+		printf("key:%s\n",key);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
@@ -454,7 +455,7 @@ int import_data_to_system(char *data_file)
 		}
 
 		int key_type = STR;
-		if(is_integer(key)) key_type = UINT; 
+		if(is_integer(key)) key_type = -1;
 
 		if(write_record(fds,(void*)key,key_type,&rec, 0,files,&lock_f,IMPORT) == -1) {
 			free_record(&rec,rec.fields_num);
