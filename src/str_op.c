@@ -605,6 +605,10 @@ int get_type(char *s){
 	{
 		return 4;
 	}
+	else if(strcmp(s, "TYPE_PACK") == 0)
+	{
+		return 5;
+	}
 	else if (strcmp(s, "TYPE_DOUBLE") == 0)
 	{
 		return 6;
@@ -628,6 +632,10 @@ int get_type(char *s){
 	else if (strcmp(s, "t_b") == 0)
 	{
 		return 4;
+	}
+	else if (strcmp(s, "t_p") == 0)
+	{
+		return 5;
 	}
 	else if (strcmp(s, "t_d") == 0)
 	{
@@ -1664,7 +1672,6 @@ void print_pack_str(uint8_t *digits_index)
 		if(digits_index[i] == 255) continue;
 		printf("%s",base_247[digits_index[i]]);
 	}
-	printf("\n");
 }
 
 static uint32_t power(uint32_t n, int pow)

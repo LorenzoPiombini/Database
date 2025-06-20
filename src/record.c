@@ -1065,6 +1065,14 @@ static void display_data(struct Record_f rec, int max)
 		case TYPE_BYTE:
 			printf("%u\n", rec.fields[i].data.b);
 			break;
+		case TYPE_PACK:
+		{
+			uint8_t packed[5];
+			pack(rec.fields[i].data.p,packed);
+			print_pack_str(packed);
+			printf("\n");
+			break;
+		}
 		case TYPE_DOUBLE:
 			printf("%.2f\n", rec.fields[i].data.d);
 			break;

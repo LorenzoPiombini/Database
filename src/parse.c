@@ -3383,6 +3383,9 @@ void print_schema(struct Schema sch)
 			case TYPE_BYTE:
 				printf("byte.\n");
 				break;
+			case TYPE_PACK:
+				printf("pack.\n");
+				break;
 			case TYPE_DOUBLE:
 				printf("double.\n");
 				break;

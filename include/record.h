@@ -14,6 +14,7 @@
 #define MAX_FIELD_NR 200 /*max field nr in a file */
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
 #define MAX_RECS_OLD_CAP 100/*maximum capacity for recs old array */
+
 struct Schema {
 	unsigned short fields_num;
 	char fields_name[MAX_FIELD_NR][MAX_FIELD_LT];
@@ -36,7 +37,7 @@ enum ValueType
 	TYPE_FLOAT,
 	TYPE_STRING,
 	TYPE_BYTE,
-	TYPE_OFF_T,
+	TYPE_PACK,
 	TYPE_DOUBLE,
 	TYPE_ARRAY_INT,
 	TYPE_ARRAY_LONG,
@@ -78,6 +79,7 @@ struct Field {
 		long l;
 		float f;
 		char *s;
+		uint32_t p;
 		unsigned char b;
 		double d;
 		struct array v;
