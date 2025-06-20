@@ -1598,15 +1598,24 @@ int find_delim_in_fields(char *delim, char *str, int *pos)
 		char *d = strstr(frag,delim);
 		if(d){
 			char *fr = NULL;
-			int fix_i = -1;
-			char save = ' ';
+			int fix_i[10] = {0};
+			memset(fix_i,-1,sizeof(int) * 10);
+
+			char save[10] = {0};
+			int ix = 0;
 			while((fr = strstr(str,frag)) && ((fr - str) < begin)){
-				save = *fr;
+				save[ix] = *fr;
 				*fr = '@';
-				fix_i = fr - str;
+				fix_i[ix] = fr - str;
+				ix++;
 			}
 			assert(fr != NULL);
-			if(fix_i != -1)	str[fix_i] = save;
+	
+			ix = 0;
+			while(fix_i[ix] != -1) {
+				str[fix_i[ix]] = save[ix]; 
+				ix++;
+			}
 
 			int frag_i = fr - str;
 			char *fr_d = strstr(fr,delim);	
@@ -1645,7 +1654,7 @@ static int is_target_db_type(char *target)
 void pack(uint32_t n, uint8_t *digits_indexes)
 {
 	if((n <= (BASE-1))) {
-		memset(digits_indexes,-1,sizeof(uint16_t) * 5);
+		memset(digits_indexes,255,sizeof(uint8_t) * 5);
 		digits_indexes[4] = n;
 		return;
 	}
@@ -1656,7 +1665,7 @@ void pack(uint32_t n, uint8_t *digits_indexes)
 	uint32_t rm = 0;
 	while(n > 0){
 		if (i < 0){
-			memset(digits_indexes,255,sizeof(uint16_t) * 5);
+			memset(digits_indexes,255,sizeof(uint8_t) * 5);
 			return;
 		}
 		rm = n % BASE;

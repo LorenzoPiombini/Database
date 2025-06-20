@@ -69,6 +69,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 				 strstr(names[i], "TYPE INT") ||
 				 strstr(names[i], "TYPE BYTE") ||
 				 strstr(names[i], "TYPE FLOAT") ||
+				 strstr(names[i], "TYPE PACK") ||
 				 strstr(names[i], "TYPE DOUBLE") ||
 				 strstr(names[i], "TYPE ARRAY INT") ||
 				 strstr(names[i], "TYPE ARRAY FLOAT") ||
@@ -202,6 +203,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 				case TYPE_INT:
 				case TYPE_LONG:
 				case TYPE_BYTE:
+				case TYPE_PACK:
 				case -1:
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
@@ -355,6 +357,7 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 				case TYPE_INT:
 				case TYPE_LONG:
 				case TYPE_BYTE:
+				case TYPE_PACK:
 					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);

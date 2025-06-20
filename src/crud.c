@@ -167,6 +167,7 @@ int check_data(char *file_path,char *data_to_add,
 			printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 			return STATUS_ERROR;
 		}
+
 		if(pos[0] != -1){
 			int i = 0;
 			while(pos[i] != -1){

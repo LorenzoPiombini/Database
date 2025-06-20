@@ -794,6 +794,29 @@ unsigned char set_field(struct Record_f *rec,
 		}
 		break;
 	}
+	case TYPE_PACK:
+	{
+			if (!is_integer(value)){
+				printf("invalid value for pack type: %s.\n", value);
+				return 0;
+			}
+
+			errno = 0;
+			char *endp;
+			long p = strtol(value, &endp, 10);
+			if (errno == ERANGE || errno == EINVAL || *endp != '\0'){
+				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+				return 0;
+			}
+
+			if (p > MAX_KEY){
+				printf("pack value not allowed on this system.\n");
+				return 0;
+			}
+			rec->fields[index].data.p = (uint32_t)p;
+
+			break;
+	}
 	case TYPE_DOUBLE:
 	case TYPE_ARRAY_DOUBLE:
 	{
@@ -969,7 +992,7 @@ void free_record(struct Record_f *rec, int fields_num)
 		case TYPE_LONG:
 		case TYPE_FLOAT:
 		case TYPE_BYTE:
-		case TYPE_OFF_T:
+		case TYPE_PACK:
 		case TYPE_DOUBLE:
 			break;
 		case TYPE_STRING:

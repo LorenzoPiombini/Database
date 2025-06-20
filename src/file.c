@@ -945,8 +945,17 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		}
 		case TYPE_BYTE:
 		{
-			uint16_t b_ne = htonb(rec->fields[i].data.b);
-			if (write(fd, &b_ne, sizeof(b_ne)) < 0)
+			if (write(fd, &rec->fields[i].data.b, sizeof(unsigned char)) < 0)
+			{
+				perror("error in writing type byte to file.\n");
+				return 0;
+			}
+			break;
+		}
+		case TYPE_PACK:
+		{
+			uint32_t p_ne = htonl(rec->fields[i].data.p);
+			if (write(fd, &p_ne, sizeof(p_ne)) < 0)
 			{
 				perror("error in writing type byte to file.\n");
 				return 0;
@@ -5272,6 +5281,18 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			rec->fields[i].data.f = ntohf(f_ne);
 			break;
 		}
+		case TYPE_PACK:
+		{
+			uint32_t p_ne = 0;
+			if (read(fd, &p_ne, sizeof(uint32_t)) < 0) {
+				perror("could not read type float, file.c l 505.\n");
+				free_record(rec, rec->fields_num);
+				return -1;
+			}
+
+			rec->fields[i].data.p = ntohl(p_ne);
+			break;
+		}
 		case TYPE_STRING:
 		{
 			/*read pos of new str if any*/
@@ -5348,8 +5369,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_BYTE:
 		{
-			uint16_t b_ne = 0;
-			if (read(fd, &b_ne, sizeof(b_ne)) < 0)
+			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) < 0)
 			{
 				perror("could not read type byte: ");
 				printf(" %s:%d.\n", F, L - 2);
@@ -5357,7 +5377,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 
-			rec->fields[i].data.b = ntohb(b_ne);
 			break;
 		}
 		case TYPE_DOUBLE:
@@ -6574,6 +6593,14 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			rec->fields[indexes[i]].data.f = ntohf(n);
 			break;
 		}
+		case TYPE_PACK:
+		{
+			uint32_t n = 0;
+			memcpy(&n,p,sizeof(uint32_t));
+			p += sizeof(uint32_t);
+			rec->fields[indexes[i]].data.p = ntohl(n);
+			break;
+		}
 		case TYPE_DOUBLE:
 		{
 			uint64_t n = 0;
@@ -6981,6 +7008,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 		case TYPE_FLOAT:
 		{
 			uint32_t value = htonf((uint32_t)rec->fields[i].data.f);
+			memcpy(&ram->mem[ram->size], &value, sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
+			break;
+		}
+		case TYPE_PACK:
+		{
+			uint32_t value = htonl((uint32_t)rec->fields[i].data.p);
 			memcpy(&ram->mem[ram->size], &value, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			break;

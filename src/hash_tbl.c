@@ -272,6 +272,10 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		 * */
 		Node *temp = tbl->data_map[index];
 		while (temp->next != NULL) {
+			if (temp->next->key.type != STR){
+				temp = temp->next;
+				continue;
+			}
 			if ((key_len = strlen(temp->next->key.k.s)) == strlen(new_node->key.k.s)) {
 				if (strncmp(temp->next->key.k.s, new_node->key.k.s, ++key_len) == 0) {
 					printf("could not insert new node \"%s\"\n", new_node->key.k.s);

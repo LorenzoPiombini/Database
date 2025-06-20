@@ -1557,6 +1557,7 @@ int main(int argc, char *argv[])
 				{
 					printf("%d. %u   ", ++j, keys_data.keys[i].k.n);
 					print_pack_str(keys_data.keys[i].paked_k);
+					printf("\n");
 
 				//	printf("%d. %u\n", ++j, *(uint32_t *)keys_data->k[i]);
 					break;
