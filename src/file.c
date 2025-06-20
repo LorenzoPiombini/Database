@@ -297,8 +297,7 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 		return 0;
 	}
 
-	if (!read_index_file(fd, *ht))
-	{
+	if (!read_index_file(fd, *ht)){
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
@@ -509,13 +508,29 @@ unsigned char read_index_file(int fd, HashTable *ht)
 		}
 		case UINT:
 		{
+			uint8_t size = 0;
 			uint32_t k = 0;
+			uint16_t k16 = 0;
 			uint64_t value = 0;
-			if (read(fd, &k, sizeof(k)) == -1)
+			if (read(fd, &size, sizeof(size)) == -1)
 			{
 				fprintf(stderr, "read index failed.\n");
 				free_nodes(ht->data_map, ht->size);
 				return 0;
+			}
+			if(size == 16){
+				if (read(fd, &k16, sizeof(k16)) == -1){
+					fprintf(stderr, "read index failed.\n");
+					free_nodes(ht->data_map, ht->size);
+					return 0;
+				}
+			}else{
+				if (read(fd, &k, sizeof(k)) == -1){
+					fprintf(stderr, "read index failed.\n");
+					free_nodes(ht->data_map, ht->size);
+					return 0;
+				}
+
 			}
 
 			if (read(fd, &value, sizeof(value)) == -1)
@@ -534,7 +549,11 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			}
 
 			new_node->key.type = key_type;
-			new_node->key.k.n = ntohl(k);
+			if(size == 16)
+				new_node->key.k.n16 = ntohs(k16);
+			else
+				new_node->key.k.n = ntohl(k);
+
 			new_node->value = (off_t)bswap_64(value);
 			new_node->next = NULL;
 

@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <math.h>
+#include <limits.h>
 #include "hash_tbl.h"
 #include "str_op.h"
 #include "debug.h"
@@ -99,19 +100,34 @@ int write_ht(int fd, HashTable *ht)
 			case UINT:
 			{
 				uint32_t type = htonl((uint32_t)current->key.type);
+				uint8_t size = (uint8_t)current->key.size;
 				uint64_t value = bswap_64((uint64_t)current->value);
-				uint32_t k = htonl(current->key.k.n);
+				
+				uint32_t k = 0;
+				uint16_t k16 = 0;
+				if(current->key.size == 32)
+					k = htonl(current->key.k.n);
+				else
+					k16 = htons(current->key.k.n16);
 
-				if (write(fd, &type, sizeof(type)) == -1) {
+				if (write(fd, &type, sizeof(type)) == -1 ||
+						write(fd, &size, sizeof(size)) == -1) {
 					perror("write index:");
 					return 0; // false
 				}
 
-				if (write(fd, &k, sizeof(k)) == -1) {
-					perror("write index:");
-					return 0; // false
-				}
+				if(current->key.size == 16){
+					if (write(fd, &k16, sizeof(k16)) == -1) {
+						perror("write index:");
+						return 0; // false
+					}
+				}else{
+					if (write(fd, &k, sizeof(k)) == -1) {
+						perror("write index:");
+						return 0; // false
 
+					}
+				}
 				if (write(fd, &value, sizeof(value)) == -1) {
 					perror("write index:");
 					return 0; // false
@@ -200,11 +216,16 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		return 0;
 	}
 
-	switch (key_type)
-	{
+	switch (key_type){
 	case UINT:
 	{
-		new_node->key.k.n = *(uint32_t *)key;
+		if(*(uint32_t*)key < SHRT_MAX){ 
+			new_node->key.k.n16 = *(uint16_t *)key;
+			new_node->key.size = 16;
+		}else{ 
+			new_node->key.k.n = *(uint32_t *)key;
+			new_node->key.size = 32;
+		}
 		break;
 	}
 	case STR:

@@ -12,7 +12,9 @@
 
 struct Key{
 	int type;
+	uint8_t size;
 	union {
+		uint16_t n16;
 		uint32_t n;
 		char *s;
 	}k;
