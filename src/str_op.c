@@ -47,10 +47,39 @@ int is_number_array(int type)
 		|| type == TYPE_ARRAY_INT;
 }
 
+char *get_sub_str(char *start_delim, char *end_delim, char *str)
+{
+	char *start_d = NULL;
+	char *end_d = NULL;
+	static char sub_str[1024] = {0};
+
+	if((start_d = strstr(str,start_delim))){
+		if((end_d = strstr(str,end_delim))){
+			int sx = start_d - str;
+			int size = ((--end_d - str) - sx)+1;
+
+			strncpy(sub_str,&str[sx +1],size);
+			return &sub_str[0];
+		}
+	}
+	return NULL;
+}
+
 int check_handle_input_mode(char *buffer, int op)
 {
-	int c_t = count_fields(buffer,T_); 
-	int c_T = count_fields(buffer,TYPE_); 
+
+	/*look for TYPE_FILE*/
+	char *sub_str = get_sub_str("[", "]", buffer);
+	int av_ct = 0;
+	int av_cT = 0;
+	if(sub_str){
+		/*count T_ and TYPE_ that we have to ignore*/
+		av_ct = count_fields(buffer,T_); 
+		av_cT = count_fields(buffer,TYPE_);
+
+	}
+	int c_t = count_fields(buffer,T_) - av_ct; 
+	int c_T = count_fields(buffer,TYPE_) - av_cT; 
 	int c_delim =  count_fields(buffer,":");
 	
 	if(c_T == 0 && c_t == 0 && c_delim > 0) return NO_TYPE;
@@ -1695,6 +1724,7 @@ static uint32_t power(uint32_t n, int pow)
 	return a;
 }
 
+/* this is good for internal unpack*/
 long long unpack(uint8_t *digits_index)
 {
 	long long unpacked = 0;
@@ -1706,4 +1736,11 @@ long long unpack(uint8_t *digits_index)
 	}
 
 	return unpacked;
+}
+
+long long unpack_external(char *str)
+{
+
+
+
 }

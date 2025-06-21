@@ -208,7 +208,7 @@ unsigned char set_field(struct Record_f *rec,
 					return 0;
 				}
 
-				if(create_file_definition_with_no_value(mode,f_count,
+				if(!create_file_definition_with_no_value(mode,f_count,
 							count == 1 ? value : values[0],buff_t,&sch)){
 					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
 							__FILE__,__LINE__-2);
@@ -1259,11 +1259,15 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 	if(sch)
 		create_record(src->file_name, *sch, dest);
 
-	if(!sch){
+	/*if(!sch){
 		if(dest->fields_num == 0) return 0;
 		if(dest->fields[0].field_name[0] == '\0') return 0;
-	}
+	}*/
+
 	
+	strncpy(dest->file_name,src->file_name,strlen(src->file_name));
+	dest->fields_num = src->fields_num;
+
 	char data[30];
 	for (int i = 0; i < src->fields_num; i++)
 	{
@@ -1485,9 +1489,10 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			}
 			break;
 		case TYPE_FILE:
+			dest->field_set[i] = 1;
 			dest->fields[i].data.file.count = src->fields[i].data.file.count;
 			dest->fields[i].data.file.recs = calloc(dest->fields[i].data.file.count,sizeof(struct Record_f));
-			if(dest->fields[i].data.file.recs){
+			if(!dest->fields[i].data.file.recs){
 				__er_calloc(F,L-2);
 				free_record(dest, dest->fields_num);
 				return 0;

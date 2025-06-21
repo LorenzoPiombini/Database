@@ -2105,6 +2105,12 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 							}
 							break;
 						}
+					case TYPE_FILE:
+						{	
+							if (!rec_old->recs[0].fields[j].data.file.recs) break;
+
+						break;
+						}
 					default:
 						printf("invalid type! type -> %d.\n", rec->fields[j].type);
 						return 0;
@@ -2306,6 +2312,18 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 								rec_old->recs[0].fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.i[a], &rec_old->recs[0].fields[j].data.v, rec->fields[j].type);
 							}
 						}
+						break;
+					}
+					case TYPE_FILE:
+					{	
+							if (!rec_old->recs[0].fields[j].data.file.recs){
+								if(!copy_rec(rec,&rec_old->recs[0],NULL)){
+									fprintf(stderr,"cpy rec failed %s:%d",__FILE__,__LINE__-1);
+									return 0;
+								}
+								break;
+							}
+
 						break;
 					}
 					default:

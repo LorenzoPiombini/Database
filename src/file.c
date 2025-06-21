@@ -634,6 +634,7 @@ size_t record_size_on_disk(void *rec_f)
 	rec_size += sizeof(uint64_t);
 	return rec_size;
 }
+
 int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update)
 {
 	off_t go_back_to = 0;
@@ -4596,7 +4597,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		case TYPE_FILE:
 		{
 			if (!update)
-			{
+			{	
 				int n = 0;
 				if(!rec->fields[i].data.file.recs){
 					uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
@@ -4688,11 +4689,87 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				close(fd_schema);
 
 
-				/*skip the NTG_WR value*/
-				if(move_in_file_bytes(fd,sizeof(uint32_t)) == -1){
+				/*read the NTG_WR value*/
+				uint32_t ntg_ne = 0;
+				if(read(fd,&ntg_ne,sizeof(uint32_t)) == -1){
 					__er_file_pointer(F,L-1);
 					return 0;
-				}	
+				}
+
+				int ntg = ntohl(ntg_ne);
+				if(ntg == NTG_WR){
+					/*go back 4 bytes in the file*/
+					if(move_in_file_bytes(fd,-sizeof(uint32_t)) == -1){
+						__er_file_pointer(F,L-1);
+						return 0;
+					}
+
+					int n = 0;
+					if(!rec->fields[i].data.file.recs){
+						uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
+						if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
+							perror("error in writing size array to file.\n");
+							return 0;
+						}
+						break;
+					}
+
+					for(uint32_t v = 0 ; v < rec->fields[i].data.file.count; v++){
+						for(int f = 0; f < rec->fields[i].data.file.recs[v].fields_num; f++)
+							if(rec->fields[i].data.file.recs[v].field_set[f] == 0) n++;
+
+					}	
+
+					if(n == rec->fields[i].data.file.recs[0].fields_num){ 
+						/* write NTG_WR so 
+						 * when we read we know there is no data*/
+						uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
+						if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
+							perror("error in writing size array to file.\n");
+							return 0;
+						}
+						break;
+					}
+
+					/* write NTG_WR as 0 so the read function 
+					 * will know to read data from the file */		
+					uint32_t ntg_ne = htonl((uint32_t)0);
+					if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					/*write the size of the array */
+					uint32_t size_ne = htonl(rec->fields[i].data.file.count);
+					if (write(fd, &size_ne, sizeof(size_ne)) == -1)	{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					uint32_t padding_ne = 0;
+					if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+
+					for (uint32_t k = 0; k < rec->fields[i].data.file.count; k++)
+					{
+
+						if(write_file(fd,&rec->fields[i].data.file.recs[k],0,0) == 0){
+							perror("failed write record array to file");
+							return 0;
+						}
+					}
+
+					uint64_t upd_ne = 0;
+					if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
+					{
+						perror("error in writing size array to file.\n");
+						return 0;
+					}
+					break;
+				}
 				/* update branch*/
 				off_t update_pos = 0;
 				off_t go_back_to_first_rec = 0;
