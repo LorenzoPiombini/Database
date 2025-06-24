@@ -20,6 +20,7 @@
 #include "build.h"
 #include "crud.h"
 
+
 char prog[] = "db";
 int main(int argc, char *argv[])
 {
@@ -28,6 +29,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	__UTILITY = 1;
 	/* file descriptors */
 	int fd_index = -1; 
 	int fd_data = -1;

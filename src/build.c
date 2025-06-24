@@ -388,13 +388,26 @@ int import_data_to_system(char *data_file)
 		}
 
 		if(buf[0] == '='){
+			int r = 0;
+			while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
+			while((r = lock(fds[0],WLOCK)) == WTLK);
+			if(r == -1){
+				fprintf(stderr,"can't acquire or release proper lock.\n");
+				close_file(3,fds[0],fds[1],fds[2]);
+				if(g_ht) free_ht_array(g_ht,g_index);
+				close_ram_file(&ram);
+				free(content);
+				return STATUS_ERROR;
+			}
+
+			lock_f = 1;
+
 			if(write(fds[1],ram.mem,ram.size) == -1){
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);
 				close_ram_file(&ram);
 				free(content);
 				return STATUS_ERROR;
-
 			}
 
 			if(write_index(fds,g_index,g_ht,files[0]) == -1){
@@ -406,18 +419,18 @@ int import_data_to_system(char *data_file)
 
 			g_index = 0;
 			g_ht = NULL;
-			close_file(3,fds[0],fds[1],fds[2]);
 			memset(&sch,0,sizeof(struct Schema));
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);	
 			clear_ram_file(&ram);
 			if(lock_f) {
-				while(lock(fds[0],UNLOCK) == WTLK)
+				while(lock(fds[0],UNLOCK) == WTLK);
 				lock_f = 0;
-			};
+			}
+			close_file(3,fds[0],fds[1],fds[2]);
 			continue;
 		}
 
-		if(buf[0] == ' ' || buf[0] == '\0') continue;
+		if(buf[0] == ' ' || buf[0] == '\0' || buf[0] == '\n' || buf[0] == '#') continue;
 
 		/*write to file*/
 		char *d = strstr(buf,":{@");
@@ -449,8 +462,9 @@ int import_data_to_system(char *data_file)
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);
 			free(content);
-			close_file(3,fds[0],fds[1],fds[2]);
 			close_ram_file(&ram);
+			if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+			close_file(3,fds[0],fds[1],fds[2]);
 			return STATUS_ERROR;
 		}
 
@@ -468,5 +482,6 @@ int import_data_to_system(char *data_file)
 	}
 	free(content);
 	close_ram_file(&ram);
+	__IMPORT_EZ = 0;
 	return 0;
 }

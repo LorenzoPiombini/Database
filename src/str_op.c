@@ -69,14 +69,22 @@ int check_handle_input_mode(char *buffer, int op)
 {
 
 	/*look for TYPE_FILE*/
-	char *sub_str = get_sub_str("[", "]", buffer);
 	int av_ct = 0;
 	int av_cT = 0;
-	if(sub_str){
-		/*count T_ and TYPE_ that we have to ignore*/
-		av_ct = count_fields(buffer,T_); 
-		av_cT = count_fields(buffer,TYPE_);
+	/*
+	 * __IMPORT_EZ is a global variable that will we true
+	 * only if we import from an EZgen system
+	 * in that case we do not need to check for file type
+	 * */
 
+	if(!__IMPORT_EZ){
+		char *sub_str = get_sub_str("[", "]", buffer);
+		if(sub_str){
+			/*count T_ and TYPE_ that we have to ignore*/
+			av_ct = count_fields(buffer,T_); 
+			av_cT = count_fields(buffer,TYPE_);
+
+		}
 	}
 	int c_t = count_fields(buffer,T_) - av_ct; 
 	int c_T = count_fields(buffer,TYPE_) - av_cT; 
@@ -120,7 +128,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	strncpy(cbuf,buffer,size);
 
 
-	find_double_delim("::",cbuf,NULL);
+	//find_double_delim("::",cbuf,NULL);
 	replace('@','^',cbuf);
 	int i = 0;
 
@@ -769,7 +777,7 @@ int get_fileds_name(char *fields_name, int fields_count, int steps, char names[]
 	int j = 0;
 	char *s = NULL;
 
-	find_double_delim("::",fields_name,NULL);
+	//find_double_delim("::",fields_name,NULL);
 	char *cp_fv = fields_name;
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count) {
 		strncpy(names[j],s,strlen(s));
@@ -1559,14 +1567,14 @@ int count_delim(char *delim, char *str)
 
 	return c;
 }
-int find_double_delim(char *delim, char *str, int *pos)
+int find_double_delim(char *delim, char *str, int *pos, struct Schema sch)
 {
 
 	char *c = NULL;
 	int f = 0;
 	while((c = strstr(str,delim))){
 		f = 1;
-		if(find_delim_in_fields(":",str,pos) == 0) return 0;
+		if(find_delim_in_fields(":",str,pos,sch) == 0) return 0;
 		if(*(c + 2) == '\0'){
 			c++;
 			*c = '\0';
@@ -1584,80 +1592,86 @@ int find_double_delim(char *delim, char *str, int *pos)
 	return -1;
 }
 
-int find_delim_in_fields(char *delim, char *str, int *pos)
+int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 {
 	size_t l = strlen(str) + 1;
 	char buf[l];
 	memset(buf,0,l);
 	strncpy(buf,str,l-1);
 	
-	int c_T = count_delim(TYPE_,str);
-	int c_t = count_delim(T_,str);
+	/*
+	 * -step 1;
+	 * erase the field name from the buf string and the attached ':'*/
+	for(int i = 0; i < sch.fields_num;i++){
+		char *f = NULL;
+		if(!(f = strstr(buf,sch.fields_name[i]))) continue;
 
-	if(c_t == 0 && c_T == 0	) return -1;
-	if(c_T > 0 && c_t > 0){
-		/* you gotta swap types you have to map 'TYPE_STRING' to 't_s' and so forth	*/	
+		if(*f == buf[0]) {
+			while( *f != ':'){
+				*f = ' '; 
+				f++;
+			}
+			if(*f == ':') *f = ' ';
+			continue;
+		}
 
+		f--;
+		if(*f == ':') *f = ' ';
+
+		while( *f != ':'){
+			*f = ' '; 
+			f++;
+		}
+		if(*f == ':') *f = ' ';
 	}
-	
+
 	char *start = NULL;
 	char *end = NULL;
 
-	static char t[10] = {0};
-	if (c_t > 0 && c_T == 0){
-		strncpy(t,T_,strlen(T_)+1);
-	}else{
-		strncpy(t,TYPE_,strlen(TYPE_)+1);
-	}
 
-	while((start = strstr(buf,t)) && ((end = strstr(start + 1,t)))){
+	while((start = strstr(buf,"TYPE_"))){
 		*start = '@';
-		end--;
 		while(*start != ':') start++;
-		while(*end != ':') end--;
 
-		start++;
-		int begin = start - buf;
-		int size = (end - buf) - (start - buf)+1;	
-		char frag[size]; 
-		memset(frag,0,size);
-
-		strncpy(frag,&buf[begin],size - 1);
-
-		char *d = strstr(frag,delim);
-		if(d){
-			char *fr = NULL;
-			int fix_i[10] = {0};
-			memset(fix_i,-1,sizeof(int) * 10);
-
-			char save[10] = {0};
-			int ix = 0;
-			while((fr = strstr(str,frag)) && ((fr - str) < begin)){
-				save[ix] = *fr;
-				*fr = '@';
-				fix_i[ix] = fr - str;
-				ix++;
-			}
-			assert(fr != NULL);
-	
-			ix = 0;
-			while(fix_i[ix] != -1) {
-				str[fix_i[ix]] = save[ix]; 
-				ix++;
-			}
-
-			int frag_i = fr - str;
-			char *fr_d = strstr(fr,delim);	
-			int i = fr_d - fr;
-
-			str[frag_i + i] = '{';
-			if(pos){
-				*pos = frag_i + i +1;
-				pos++;
-			}
-		} 
+		if(*start == ':') *start = ' ';
 	}
+
+	/* at this point only the ':' inside the fields are left*/
+	char *delim_in_fields = NULL;
+	while((delim_in_fields = strstr(buf,delim))){
+		int p = delim_in_fields - buf;
+		str[p] = '{';
+		*pos = p;
+		pos++;
+	}
+
 	return 0;
+}
+
+char *find_field_to_reset_delim(int *pos, char *buffer)
+{
+	static char field[MAX_FILED_LT] = {0};
+	
+	for(int i = 0; i < 200; i++){
+		if (pos[i] == -1) break;
+		
+		char *p = &buffer[pos[i]];
+		int count = 0;
+		int start = 0;
+		int end = 0;
+		while(count < 2) {
+			p--;
+			if (*p == ':') {
+				if(count == 0) end = p - buffer;
+				if(count == 1) start = p - buffer;
+				count++;
+			}
+		}
+	
+		strncpy(field, &buffer[start],end - start);
+	}
+
+	return &field;
 }
 
 static int is_target_db_type(char *target)

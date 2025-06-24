@@ -18,7 +18,8 @@ unsigned char perform_checks_on_schema(int mode, char *buffer,
 					int fields_count,
 					char *file_path, 
 					struct Record_f *rec, 
-					struct Header_d *hd);
+					struct Header_d *hd,
+					int *pos);
 
 int parse_input_with_no_type(char *file_path, int fields_num, 
 							char names[][MAX_FIELD_LT], 

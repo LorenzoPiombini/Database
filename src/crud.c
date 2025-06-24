@@ -16,6 +16,7 @@ static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, char *key);
 static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type);
 
+int __UTILITY = 0;
 
 HashTable *g_ht = NULL;
 int g_index = 0;
@@ -152,7 +153,7 @@ int check_data(char *file_path,char *data_to_add,
 	int pos[200];
 	memset(pos,-1,sizeof(int)*200);
 
-   	find_double_delim("::",data_to_add,pos); 
+	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields("::",data_to_add,pos,hd->sch_d); 
 
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 
@@ -186,7 +187,8 @@ int check_data(char *file_path,char *data_to_add,
 		free(buffer);
 
 	} else {
-		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd);
+			
+		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd, pos);
 	}
 
 	if (check == SCHEMA_ERR || check == 0) return STATUS_ERROR;

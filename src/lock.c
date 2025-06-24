@@ -3,11 +3,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
-#include <semaphore.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 #include "lock.h"
 #include "debug.h"
 #include "str_op.h"
@@ -18,8 +17,10 @@
 int lock(int fd, int flag){
 
 	struct stat st;
+	errno = 0;
 	if(fstat(fd,&st) != 0){
-		fprintf(stderr,"can't aquire lock on file.");
+		fprintf(stderr,"can't aquire lock on file %s:%d.\n",__FILE__,__LINE__-1);
+		fprintf(stderr,"%s\n",strerror(errno));
 		return -1;
 	}
 	
@@ -27,7 +28,7 @@ int lock(int fd, int flag){
 	char file_name[l];
 	memset(file_name,0,l);
 	if(snprintf(file_name,l,"%ld.lock",st.st_ino) < 0){
-		fprintf(stderr,"can't aquire lock on file.");
+		fprintf(stderr,"can't aquire lock on file %s:%d.\n",__FILE__,__LINE__-1);
 		return -1;
 	}
 
@@ -71,7 +72,7 @@ int lock(int fd, int flag){
 	}else if (!fp && flag == WLOCK){
 		fp = fopen(file_name,"w");
 		if(!fp){
-			fprintf(stderr,"can't aquire lock on file.\n");
+			fprintf(stderr,"can't aquire lock on file %s:%d.\n",__FILE__,__LINE__-1);
 			return -1;
 		}
 
@@ -81,7 +82,7 @@ int lock(int fd, int flag){
 		memset(strpid,0,pid_str_l);
 
 		if(snprintf(strpid,pid_str_l,"%d\n",pid) < 0){
-			fprintf(stderr,"can't aquire lock on file.\n");
+			fprintf(stderr,"can't aquire lock on file %s:%d.\n",__FILE__,__LINE__-1);
 			return -1;
 		}
 
