@@ -793,11 +793,6 @@ unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
 {
 
 		
-	if(find_delim_in_fields(":",buffer,NULL,hd.sch_d) == -1){
-		fprintf(stderr,"(%s): cannot process the data correctly.\n",prog);
-		return 0;
-	}
-
 	char *names_cs = strdup(buffer);
 	char *types_cs = strdup(buffer);
 
@@ -848,9 +843,8 @@ unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
 			free(types_cs);
 			return 0;
 		}
-	}
-	else if (hd.sch_d.fields_num > fields_n)
-	{ /*case where the fileds are less than the schema */
+	} else if (hd.sch_d.fields_num > fields_n){ 
+		/*case where the fileds are less than the schema */
 		// if they are in the schema and the types are correct, return SCHEMA_CT
 		// create a record with only the values provided and set the other values to 0;
 
@@ -891,7 +885,7 @@ int sort_input_like_header_schema(int schema_tp,
 {
 
 	if(schema_tp == SCHEMA_CT || schema_tp == SCHEMA_CT_NT){
-		/*order with missing fields*/
+		/*order the data with missing fields*/
 		char **n_v = realloc(*values,sch->fields_num * sizeof(char*));
 		if(!n_v){
 			fprintf(stderr,"realloc failed %s:%d.\n",__FILE__,__LINE__-2);
@@ -949,6 +943,7 @@ int sort_input_like_header_schema(int schema_tp,
 
 	}
 
+	/* order the data when SCHEM_EQ*/
 	int f_n = schema_tp == SCHEMA_NW ? sch->fields_num : fields_num;
 	int value_pos[f_n];
 	memset(value_pos,-1,sizeof(int) * f_n);
@@ -999,13 +994,11 @@ int sort_input_like_header_schema(int schema_tp,
 
 unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd, int fields_num)
 {
-	// printf("fields are %d",fields_num);
-	register unsigned char i = 0, j = 0;
 	int found_f = 0;
 	int result = SCHEMA_CT;
 
-	for (i = 0; i < fields_num; i++){
-		for (j = 0; j < hd->sch_d.fields_num; j++){
+	for (int i = 0; i < fields_num; i++){
+		for (int j = 0; j < hd->sch_d.fields_num; j++){
 			if (strncmp(names[i], hd->sch_d.fields_name[j],strlen(names[i])) == 0){
 				found_f++;
 				if(hd->sch_d.types[j] == -1) {
@@ -1129,6 +1122,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					types_i[i] != TYPE_LONG &&
 					types_i[i] != TYPE_DOUBLE &&
 					types_i[i] != TYPE_BYTE &&
+					types_i[i] != TYPE_PACK &&
 					types_i[i] != TYPE_STRING &&
 					types_i[i] != TYPE_FILE &&
 					types_i[i] != TYPE_ARRAY_INT &&
@@ -1153,6 +1147,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "TYPE FLOAT") ||
 					strstr(names[i], "TYPE DOUBLE") ||
 					strstr(names[i], "TYPE FILE") ||
+					strstr(names[i], "TYPE PACK") ||
 					strstr(names[i], "TYPE ARRAY DOUBLE") ||
 					strstr(names[i], "TYPE ARRAY INT") ||
 					strstr(names[i], "TYPE ARRAY LONG") ||
@@ -1163,6 +1158,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "t_l") ||
 					strstr(names[i], "t_i") ||
 					strstr(names[i], "t_b") ||
+					strstr(names[i], "t_p") ||
 					strstr(names[i], "t_f") ||
 					strstr(names[i], "t_d") ||
 					strstr(names[i], "t_ad") ||
@@ -1198,6 +1194,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "TYPE FLOAT") ||
 					strstr(names[i], "TYPE DOUBLE") ||
 					strstr(names[i], "TYPE FILE") ||
+					strstr(names[i], "TYPE PACK") ||
 					strstr(names[i], "TYPE ARRAY DOUBLE") ||
 					strstr(names[i], "TYPE ARRAY INT") ||
 					strstr(names[i], "TYPE ARRAY LONG") ||
@@ -1208,6 +1205,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "t_l") ||
 					strstr(names[i], "t_i") ||
 					strstr(names[i], "t_b") ||
+					strstr(names[i], "t_p") ||
 					strstr(names[i], "t_f") ||
 					strstr(names[i], "t_d") ||
 					strstr(names[i], "t_ad") ||
@@ -1610,15 +1608,20 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				}
 
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
+
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								&hd->sch_d, SCHEMA_EQ,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
@@ -1639,16 +1642,19 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
-
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								&hd->sch_d, 
 								SCHEMA_CT_NT,rec) == -1){	
@@ -1666,13 +1672,18 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
 
@@ -1705,13 +1716,17 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
 
@@ -1738,13 +1753,17 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
 
@@ -1771,13 +1790,17 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
 
@@ -1785,8 +1808,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 							&hd->sch_d, SCHEMA_NW,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
-					err = SCHEMA_ERR;
-					goto clean_on_error;
+					err = SCHEMA_ERR; goto clean_on_error;
 				}
 				free_strs(count,1,values);
 				return SCHEMA_NW;
@@ -1819,15 +1841,20 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < fields_count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
+				
 				if(schema_check_type(fields_count, SCHEMA_EQ,&hd->sch_d,names,types_i,&values) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
@@ -1848,15 +1875,17 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				}
 				check = SCHEMA_CT;
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < hd->sch_d.fields_num; i++){
-					if(names[i][0] == '\0')continue;
-
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < hd->sch_d.fields_num; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
 			}
@@ -1931,15 +1960,20 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < fields_count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
+
 				if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 							&hd->sch_d, SCHEMA_EQ,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
@@ -2005,15 +2039,20 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				char *field_n =	find_field_to_reset_delim(pos,buffer);
-				size_t fd_nl = strlen(field_n);
-				for(int i = 0; i < count; i++){
-					if(fd_nl != strlen(names[i])) continue;
-					if(strncmp(field_n,names[i], fd_nl) == 0){
-						replace('{',':',values[i]);	
-						break;
+				if(pos){
+					if(pos[0] != -1){
+						char *field_n =	find_field_to_reset_delim(pos,buffer);
+						size_t fd_nl = strlen(field_n);
+						for(int i = 0; i < fields_count; i++){
+							if(fd_nl != strlen(names[i])) continue;
+							if(strncmp(field_n,names[i], fd_nl) == 0){
+								replace('{',':',values[i]);	
+								break;
+							}
+						}
 					}
 				}
+
 				if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 							&hd->sch_d, SCHEMA_NW,rec) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",

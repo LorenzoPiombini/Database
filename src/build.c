@@ -302,6 +302,10 @@ int return_bigger_buffer(FILE *fp, int *lines)
 	return max + 10;
 }
 
+/* 
+ * import_data_to_system 
+ * is to be use to import old EZgen systems
+ * */
 int import_data_to_system(char *data_file)
 {
 	FILE *fp = fopen(data_file,"r"); 
@@ -337,7 +341,7 @@ int import_data_to_system(char *data_file)
 
 	/*  global variable that change the behavior of the inner
 	 *  working of the check_data functions
-	 *  for now it affects how the string functions detect types */
+	 *  it affects how the string functions detect types */
 	__IMPORT_EZ = 1;
 
 	int fds[3];
