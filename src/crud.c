@@ -153,7 +153,7 @@ int check_data(char *file_path,char *data_to_add,
 	int pos[200];
 	memset(pos,-1,sizeof(int)*200);
 
-	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields("::",data_to_add,pos,hd->sch_d); 
+	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields(":",data_to_add,pos,hd->sch_d); 
 
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 
@@ -169,13 +169,6 @@ int check_data(char *file_path,char *data_to_add,
 			return STATUS_ERROR;
 		}
 
-		if(pos[0] != -1){
-			int i = 0;
-			while(pos[i] != -1){
-				data_to_add[pos[i]] = ':';
-				i++;
-			}
-		}
 
 		char *buffer = strdup(data_to_add);
 		if(!buffer){
@@ -183,7 +176,7 @@ int check_data(char *file_path,char *data_to_add,
 			return STATUS_ERROR;
 		}
 
-		check = perform_checks_on_schema(mode,buffer, fields_count,file_path, rec, hd);
+		check = perform_checks_on_schema(mode,buffer, fields_count,file_path, rec, hd,pos);
 		free(buffer);
 
 	} else {
@@ -213,7 +206,6 @@ int check_data(char *file_path,char *data_to_add,
 		 * SCHEMA_CT_NT
 		 * we update the header
 		 * */
-
 		/* aquire lock */
 		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
 		while((r = lock(fds[0],WLOCK)) == WTLK);
@@ -227,7 +219,7 @@ int check_data(char *file_path,char *data_to_add,
 
 		if(file_error_handler(1,fds[2]) != 0) return STATUS_ERROR;
 
-		if (!write_header(fds[2], hd)) {
+		if(!write_header(fds[2], hd)) {
 			__er_write_to_file(F, L - 1);
 			return STATUS_ERROR;
 		}

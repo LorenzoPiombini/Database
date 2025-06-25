@@ -7,6 +7,7 @@
 #include "common.h"
 #include "file.h"
 #include "str_op.h"
+#include "crud.h"
 #include "debug.h"
 
 static char prog[] = "db";
@@ -35,63 +36,17 @@ unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 	return 1;
 }
 
-unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char *key,
+unsigned char append_to_file(int *fds, char *file_path, char *key,
 		char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
 {
 
-	int fields_count = 0; 
-	
 	struct Record_f rec ={0};
 	struct Schema sch = {0};
 	struct Header_d hd = {0, 0, sch};
-	unsigned char check = 0;
+	int lock_f = 0;
+	if(check_data(file_path,data_to_add,fds,files, &rec,&hd,&lock_f) == -1) return -1;
 
-	int mode = check_handle_input_mode(data_to_add, FWRT);
-	if(mode == 1){
-		
-		fields_count = count_fields(data_to_add, NULL);
-		if (fields_count > MAX_FIELD_NR) {
-			printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
-			return 0;
-		}
-
-		char *buffer = strdup(data_to_add);
-		if(!buffer) return 0;
-		check = perform_checks_on_schema(mode,buffer, fields_count, file_path, &rec, &hd);
-
-		free(buffer);
-	
-	}else{
-		check = perform_checks_on_schema(mode,data_to_add, -1, file_path, &rec, &hd);
-	}
-
-	begin_in_file(fd_data);
-	if (check == SCHEMA_ERR || check == 0) {
-		return 0;
-	}
-
-	if (check == SCHEMA_NW || 
-		check == SCHEMA_NW_NT ||
-		check == SCHEMA_CT_NT ||
-		check == SCHEMA_EQ_NT ) { 
-		/*if the schema is new we update the header*/
-		close_file(1,*fd_schema);
-		*fd_schema = open_file(files[2],1);
-
-		if(file_error_handler(1,*fd_schema) != 0) {
-			free_record(&rec, rec.fields_num);
-			return 0;
-		}
-
-		if (!write_header(*fd_schema, &hd))
-		{
-			printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
-			free_record(&rec, rec.fields_num);
-			return 0;
-		}
-	}
-
-	off_t eof = go_to_EOF(fd_data);
+	off_t eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
 		printf("file pointer failed, helper.c l %d.\n", __LINE__ - 2);
 		free_record(&rec, rec.fields_num);
@@ -104,7 +59,8 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 		return ALREADY_KEY;
 	}
 
-	if (!write_file(fd_data, &rec, 0, 0)) {
+	if(!lock_f)
+	if (!write_file(fds[1], &rec, 0, 0)) {
 		printf("write to file failed, helper.c l %d.\n", __LINE__ - 1);
 		free_record(&rec, rec.fields_num);
 		return 0;
@@ -116,12 +72,11 @@ unsigned char append_to_file(int fd_data, int *fd_schema, char *file_path, char 
 
 int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int bucket_ht, int indexes, int file_field)
 {
-
 	int mode = check_handle_input_mode(schema_def, FCRT) | DF;
 	int fields_count = 0; 
 	char *buf_sdf = NULL; 
 	char *buf_t = NULL;
-	/* init he Schema structure*/
+	/* init the Schema structure*/
 	struct Schema sch = {0};
 	sch.fields_num = fields_count;
 	memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);

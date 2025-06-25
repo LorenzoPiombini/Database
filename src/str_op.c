@@ -1626,9 +1626,6 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	}
 
 	char *start = NULL;
-	char *end = NULL;
-
-
 	while((start = strstr(buf,"TYPE_"))){
 		*start = '@';
 		while(*start != ':') start++;
@@ -1638,11 +1635,15 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 
 	/* at this point only the ':' inside the fields are left*/
 	char *delim_in_fields = NULL;
+	int i = 0;
 	while((delim_in_fields = strstr(buf,delim))){
 		int p = delim_in_fields - buf;
 		str[p] = '{';
-		*pos = p;
-		pos++;
+		if(i < 200){
+			pos[i] = p;
+			i++;
+		}
+		*delim_in_fields = '@';
 	}
 
 	return 0;
@@ -1659,19 +1660,31 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 		int count = 0;
 		int start = 0;
 		int end = 0;
-		while(count < 2) {
+		int variable_steps = 2;
+		while(count < variable_steps) {
 			p--;
 			if (*p == ':') {
 				if(count == 0) end = p - buffer;
 				if(count == 1) start = p - buffer;
+				if(count == 2) start = p - buffer;
+				
+				if(count == 1){
+					char *type = NULL;
+					if((type = strstr(p,TYPE_))){
+						if(p == type){ 		
+							end = p - buffer;
+							variable_steps = 3;
+						}
+					}
+				}
 				count++;
 			}
 		}
 	
-		strncpy(field, &buffer[start],end - start);
+		strncpy(field, &buffer[start+1],end - start -1);
 	}
 
-	return &field;
+	return field;
 }
 
 static int is_target_db_type(char *target)

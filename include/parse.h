@@ -12,7 +12,8 @@ int parse_d_flag_input(char *file_path,
 			char *buffer, 
 			struct Schema *sch, 
 			int check_sch,
-			struct Record_f *rec);
+			struct Record_f *rec, 
+			int *pos);
 
 unsigned char perform_checks_on_schema(int mode, char *buffer, 
 					int fields_count,

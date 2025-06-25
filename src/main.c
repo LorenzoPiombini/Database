@@ -366,8 +366,8 @@ int main(int argc, char *argv[])
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 			
 			switch(mode){
-			case NO_TYPE_WR:			
-			case HYB_WR:			
+			case NO_TYPE_WR:	
+			case HYB_WR:
 			{
 				char names[MAX_FIELD_NR][MAX_FILED_LT] ={0};
 				int types_i[MAX_FIELD_NR];
@@ -430,7 +430,7 @@ int main(int argc, char *argv[])
 					goto clean_on_error_2;
 				}
 
-				if(parse_d_flag_input(file_path, fields_count,buffer, &sch, 0,&rec) == -1) {
+				if(parse_d_flag_input(file_path, fields_count,buffer, &sch, 0,&rec,NULL) == -1) {
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					goto clean_on_error_2;
 				}

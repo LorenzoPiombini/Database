@@ -303,13 +303,13 @@ unsigned char set_field(struct Record_f *rec,
 						check = perform_checks_on_schema(mode,buffer, fields_count,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[i],
-								&hd);
+								&hd,NULL);
 						free(buffer);
 					}else{
 						check = perform_checks_on_schema(mode,values[i],-1,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[i],
-								&hd);
+								&hd,NULL);
 
 					}
 
@@ -385,12 +385,12 @@ unsigned char set_field(struct Record_f *rec,
 
 					check = perform_checks_on_schema(mode,buffer, fields_count,rec->fields[index].field_name,
 							rec->fields[index].data.file.recs,
-							&hd);
+							&hd,NULL);
 					free(buffer);
 				} else {
 					check = perform_checks_on_schema(mode,value, -1,rec->fields[index].field_name,
 								rec->fields[index].data.file.recs,
-								&hd);
+								&hd,NULL);
 				}			
 
 				if (check == SCHEMA_ERR || check == 0) {
