@@ -731,8 +731,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				strncpy(buff_w, rec->fields[i].data.s, lt - 1);
 
-				uint64_t bu_ne = bswap_64(buff_update);
-				uint64_t str_loc_ne = bswap_64(str_loc);
+				uint16_t bu_ne = htons((uint16_t)buff_update);
+				uint16_t str_loc_ne = htons((uint16_t)str_loc);
 
 				if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
 					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
@@ -5373,7 +5373,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		case TYPE_STRING:
 		{
 			/*read pos of new str if any*/
-			uint64_t str_loc_ne = 0;
+			uint16_t str_loc_ne = 0;
 			if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == -1)
 			{
 				perror("can't read string location: ");
@@ -5381,9 +5381,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
-			str_loc = (size_t)bswap_64(str_loc_ne);
+			str_loc = (off_t)ntohs(str_loc_ne);
 
-			uint64_t bu_up_ne = 0;
+			uint16_t bu_up_ne = 0;
 			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0){
 				perror("read from file failed: ");
 				printf("%s:%d.\n", F, L - 2);
@@ -5391,7 +5391,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 
-			buff_update = (size_t)bswap_64(bu_up_ne);
+			buff_update = (size_t)ntohs(bu_up_ne);
 
 			if (str_loc > 0)
 			{
@@ -5405,7 +5405,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				uint64_t bu_up_ne = 0;
+				uint16_t bu_up_ne = 0;
 				if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0){
 					perror("read file: ");
 					printf("%s:%d", F, L - 2);
@@ -5413,12 +5413,11 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				buff_update = (size_t)bswap_64(bu_up_ne);
+				buff_update = (off_t)bswap_64(bu_up_ne);
 			}
 
 			rec->fields[i].data.s = calloc(buff_update, sizeof(char));
-			if (!rec->fields[i].data.s)
-			{
+			if (!rec->fields[i].data.s){
 				printf("calloc failed: %s:%d.\n", F, L - 3);
 				free_record(rec, rec->fields_num);
 				return -1;
@@ -5434,8 +5433,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			/*set file pointer back at the end of the original str record*/
 			if (str_loc > 0)
 			{
-				if (find_record_position(fd, move_to) == -1)
-				{
+				if (find_record_position(fd, move_to) == -1){
 					__er_file_pointer(F, L - 2);
 					free_record(rec, rec->fields_num);
 					return -1;
@@ -6626,15 +6624,15 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 		}
 		case TYPE_STRING:
 		{
-			uint64_t str_loc_ne = 0;
-			memcpy(&str_loc_ne,p,sizeof(uint64_t));
-			p += sizeof(uint64_t);
-			off_t str_loc = bswap_64(str_loc_ne);
+			uint16_t str_loc_ne = 0;
+			memcpy(&str_loc_ne,p,sizeof(uint16_t));
+			p += sizeof(uint16_t);
+			off_t str_loc = (off_t)ntohs(str_loc_ne);
 
 
-			uint64_t buf_up_ne = 0;
-			memcpy(&buf_up_ne,p,sizeof(uint64_t));
-			p += sizeof(uint64_t);
+			uint16_t buf_up_ne = 0;
+			memcpy(&buf_up_ne,p,sizeof(uint16_t));
+			p += sizeof(uint16_t);
 			size_t buf_up = bswap_64(buf_up_ne);
 
 			off_t move_back_to = 0;
@@ -6644,9 +6642,9 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				p = &ram->mem[str_loc];
 
 				buf_up_ne = 0;
-				memcpy(&buf_up_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
-				buf_up = bswap_64(str_loc_ne);
+				memcpy(&buf_up_ne,p,sizeof(uint16_t));
+				p += sizeof(uint16_t);
+				buf_up = ntohs(str_loc_ne);
 
 			}
 
@@ -7105,15 +7103,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 		}
 		case TYPE_STRING:
 		{
-			uint64_t l = (uint64_t)strlen(rec->fields[i].data.s);
-			uint64_t buf_up_ne = bswap_64((l*2)+1);	
-			uint64_t str_loc = 0;	
+			uint16_t l = (uint16_t)strlen(rec->fields[i].data.s);
+			uint16_t buf_up_ne = htons((l*2)+1);	
+			uint16_t str_loc = 0;	
 
-			memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint64_t));
-			ram->size += sizeof(uint64_t);
+			memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint16_t));
+			ram->size += sizeof(uint16_t);
 
-			memcpy(&ram->mem[ram->size],&buf_up_ne, sizeof(uint64_t));
-			ram->size += sizeof(uint64_t);
+			memcpy(&ram->mem[ram->size],&buf_up_ne, sizeof(uint16_t));
+			ram->size += sizeof(uint16_t);
 			char buff[(l * 2) + 1];
 			memset(buff,0,(l * 2) +1);
 			strncpy(buff,rec->fields[i].data.s,l);

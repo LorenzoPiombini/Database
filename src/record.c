@@ -490,7 +490,7 @@ unsigned char set_field(struct Record_f *rec,
 		} else {
 
 			if (!is_integer(value)){
-				printf("invalid value for integer type: %s.\n", value);
+				fprintf(stderr,"(%s): invalid value for integer type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 				return 0;
 			}
 
@@ -531,7 +531,7 @@ unsigned char set_field(struct Record_f *rec,
 			char *t = strtok(value, ",");
 			while (t){
 				if (!is_integer(t)){
-					printf("invalid value for long integer type: %s.\n", value);
+					fprintf(stderr,"(%s): invalid value for long integer type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 					return 0;
 				}
 
@@ -556,7 +556,7 @@ unsigned char set_field(struct Record_f *rec,
 		} else {
 
 			if (!is_integer(value)) {
-				printf("invalid value for long integer type: %s.\n", value);
+				fprintf(stderr,"(%s): invalid value for long integer type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 				return 0;
 			}
 
@@ -625,7 +625,7 @@ unsigned char set_field(struct Record_f *rec,
 						}
 					}
 
-					printf("invalid value for float type: %s.\n", value);
+					fprintf(stderr,"(%s): invalid value for float type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 					return 0;
 				}
 
@@ -680,7 +680,7 @@ unsigned char set_field(struct Record_f *rec,
 						return 0;
 					}
 				}
-				printf("invalid value for float type: %s.\n", value);
+				fprintf(stderr,"(%s): invalid value for float type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 				return 0;
 			}
 
@@ -746,7 +746,7 @@ unsigned char set_field(struct Record_f *rec,
 			{
 				if (!is_integer(t))
 				{
-					printf("invalid value for byte type: %s.\n", value);
+					fprintf(stderr,"(%s): invalid value for byte type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 					return 0;
 				}
 
@@ -774,7 +774,7 @@ unsigned char set_field(struct Record_f *rec,
 
 			if (!is_integer(value))
 			{
-				printf("invalid value for byte type: %s.\n", value);
+				fprintf(stderr,"(%s): invalid value for byte type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 				return 0;
 			}
 
@@ -797,7 +797,7 @@ unsigned char set_field(struct Record_f *rec,
 	case TYPE_PACK:
 	{
 			if (!is_integer(value)){
-				printf("invalid value for pack type: %s.\n", value);
+				fprintf(stderr,"(%s): invalid value for pack type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 				return 0;
 			}
 
@@ -805,7 +805,7 @@ unsigned char set_field(struct Record_f *rec,
 			char *endp;
 			long p = strtol(value, &endp, 10);
 			if (errno == ERANGE || errno == EINVAL || *endp != '\0'){
-				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
+				printf("conversion ERROR type pack %s:%d.\n", F, L - 2);
 				return 0;
 			}
 
@@ -862,12 +862,12 @@ unsigned char set_field(struct Record_f *rec,
 							t = strtok(NULL, ",");
 							continue;
 						} else {
-							fprintf(stderr,"value '%s', ids out of range for double.\n",t);
+							fprintf(stderr,"value '%s', it's out of range for double.\n",t);
 							return 0;
 						}
 					}
 
-					printf("invalid value for double type: %s.\n", value);
+					fprintf(stderr,"(%s): invalid value for double type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 					return 0;
 				}
 
@@ -926,7 +926,7 @@ unsigned char set_field(struct Record_f *rec,
 						fprintf(stderr,"value '%s', is out of range for double.\n",value);
 						return 0;
 					}
-					printf("invalid value for double type: %s.\n", value);
+					fprintf(stderr,"(%s): invalid value for double type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 					return 0;
 				}
 			}

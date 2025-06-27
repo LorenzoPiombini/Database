@@ -128,7 +128,6 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	strncpy(cbuf,buffer,size);
 
 
-	//find_double_delim("::",cbuf,NULL);
 	replace('@','^',cbuf);
 	int i = 0;
 
@@ -151,9 +150,19 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		}
 	}
 
+	int reset_mistype_index[10];
+	memset(reset_mistype_index,-1,sizeof(int)*10);
+	int rmi = 0;
 	if(strstr(cbuf,T_)){
 		char *pos_t = NULL;
 		while((pos_t = strstr(cbuf,T_))){
+			if(is_target_db_type(pos_t) == -1){
+				/* this is not a type*/
+				*pos_t = '@';			
+				reset_mistype_index[rmi] = pos_t - cbuf;
+				rmi++;
+				continue;
+			}
 			int start = pos_t - cbuf;
 
 			/*this change the delimeter so it won't
@@ -218,6 +227,12 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		}
 	}
 
+	
+	rmi = 0;
+	while(reset_mistype_index[rmi] != -1){
+		cbuf[reset_mistype_index[rmi]] = ':';
+		rmi++;
+	}
 	if (strstr(cbuf,TYPE_)){
 		char *pos_T = NULL;
 		while((pos_T = strstr(cbuf,TYPE_))){
@@ -469,7 +484,7 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	char *file_block = NULL;
 
 	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - buffer],delim)) != NULL)){
-		if(first[1] == '[' && ((file_block = strstr(&first[1],"]")))){
+		if(first[1] == '[' && ((file_block = strstr(&first[1],"]"))) && !__IMPORT_EZ){
 			int size = first - p2;
 			int next_start = file_block - buffer;
 			char cpy[size+1];
@@ -977,35 +992,47 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 	}
 
 	replace('@','^',cbuff);
-	/* detect files types*/	
+	/* detect files types - ONLY IF NOT IMPORTING FROM EZgen*/	
 	char *file_start = NULL;
 	int count = 0;
-	while((file_start = strstr(cbuff,"["))){
-		char *end_file = strstr(file_start,"]");
-		if(end_file){ 
-			int end = end_file - cbuff;
-			char *delim = NULL;
-			while((delim = strstr(file_start,":"))){
-				if((delim - cbuff) < end) 
-					*delim = '&';
-				else
-					break;
+	if(!__IMPORT_EZ){
+		
+		while((file_start = strstr(cbuff,"["))){
+			char *end_file = strstr(file_start,"]");
+			if(end_file){ 
+				int end = end_file - cbuff;
+				char *delim = NULL;
+				while((delim = strstr(file_start,":"))){
+					if((delim - cbuff) < end) 
+						*delim = '&';
+					else
+						break;
+				}
 			}
+
+			*file_start = '@';
+			count++;
 		}
 
-		*file_start = '@';
-		count++;
+		replace('@','[',cbuff);
+		replace('&','@',cbuff);
 	}
 
-	replace('@','[',cbuff);
-	replace('&','@',cbuff);
-
 	int i = 0;
+	int reset_mistype_index[10];
+	memset(reset_mistype_index,-1,sizeof(int)*10);
+	int rmi = 0;
 	if(strstr(cbuff,T_)){
 		char *pos_t = NULL;
 		while((pos_t = strstr(cbuff,T_))){
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
+			if(is_target_db_type(pos_t) == -1){
+				*pos_t = '@';
+				reset_mistype_index[rmi] = pos_t - cbuff;
+				rmi++;
+				continue;
+			}
 			*pos_t= '@';
 			char *end_t = (strstr(pos_t,":"));
 			assert(end_t != NULL); 
@@ -1053,6 +1080,12 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			i++;
 		}		
 	}
+ 	rmi = 0;
+	while(reset_mistype_index[rmi] != -1){
+		cbuff[reset_mistype_index[rmi]] = ':';
+		rmi++;
+	}
+	
 
 	if(strstr(cbuff,TYPE_)){
 		char *pos_T = NULL;
@@ -1616,7 +1649,18 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		}
 
 		f--;
-		if(*f == ':') *f = ' ';
+		/* if f is not ':' it means that 
+		 * this is not a field so we need to skip and look again
+		 * for the field 
+		 * */
+		if(*f == ':'){
+			*f = ' ';
+		}else{
+			f++;
+			*f = '@';
+			i--;/* this is to recheck on the same field in the next iteration*/
+			continue;
+		}
 
 		while( *f != ':'){
 			*f = ' '; 
@@ -1689,12 +1733,47 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 
 static int is_target_db_type(char *target)
 {
+	int size = 0;
+	size_t l = strlen(target);
+	if(l > 4){
+		/*extract the real target*/
+		char *e = strstr(&target[1],":");
+		if(e) size = e - target;
+	}
+
+	if(size > 5) return -1;
+
+	char tg[size+1];
+	memset(tg,0,size+1);
+
+	if(size > 0){
+		strncpy(tg,target,size);
+		
+		if(strlen(tg) == strlen(":t_s")) if(strncmp(tg,":t_s",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_l")) if(strncmp(tg,":t_l",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_b")) if(strncmp(tg,":t_b",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_d")) if(strncmp(tg,":t_d",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_i")) if(strncmp(tg,":t_i",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_f")) if(strncmp(tg,":t_f",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_p")) if(strncmp(tg,":t_p",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_ai")) if(strncmp(tg,":t_ai",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_al")) if(strncmp(tg,":t_al",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_af")) if(strncmp(tg,":t_af",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_ad")) if(strncmp(tg,":t_ad",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_as")) if(strncmp(tg,":t_as",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_ab")) if(strncmp(tg,":t_ab",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_fl")) if(strncmp(tg,":t_fl",size) == 0) return 0;
+
+		return -1;
+
+	}
 	if(strstr(target,":t_s")) return 0;
 	if(strstr(target,":t_l")) return 0;
 	if(strstr(target,":t_b")) return 0;
 	if(strstr(target,":t_d")) return 0;
 	if(strstr(target,":t_i")) return 0;
 	if(strstr(target,":t_f")) return 0;
+	if(strstr(target,":t_p")) return 0;
 	if(strstr(target,":t_ai")) return 0;
 	if(strstr(target,":t_al")) return 0;
 	if(strstr(target,":t_as")) return 0;

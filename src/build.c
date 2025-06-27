@@ -248,7 +248,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		if(file_field[j]){
 			fd_schema = create_file(files[2]);
 
-			if (file_error_handler(1,fd_schema) !=0){
+			if(file_error_handler(1,fd_schema) !=0){
 				fprintf(stderr, "system already exist!\n");
 				free_strs(lines, 2, files_n, schemas);
 				return 0;
@@ -437,6 +437,7 @@ int import_data_to_system(char *data_file)
 		/*write to file*/
 		char *d = strstr(buf,":{@");
 		if(!d){
+			fprintf(stderr,"(%s): delim ':{@' not found, import of '%s' aborted.\n",prog,file_name);
 			close_file(3,fds[0],fds[1],fds[2]);
 			free(content);
 			close_ram_file(&ram);
@@ -458,7 +459,7 @@ int import_data_to_system(char *data_file)
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
 		
-		//printf("key: '%s'\n",key);
+	//	printf("key: '%s' - '%s'\n",key,file_name);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);

@@ -1514,7 +1514,9 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 	int name_check = 0;
 	for(int i = 0; i < count; i++){
 		for(int j = 0; j < sch->fields_num; j++){
-			if(strncmp(names[i],sch->fields_name[j],strlen(sch->fields_name[j])) != 0) continue;
+			size_t l = strlen(sch->fields_name[j]);
+			if(strlen(names[i]) != l) continue;
+			if(strncmp(names[i],sch->fields_name[j],l) != 0) continue;
 			
 			name_check++;
 			if(sch->types[j] == -1){ 
@@ -1574,6 +1576,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 	char **values = NULL;
 	int count = 0;
 	int err = 0;
+	uint8_t sorted = 0;
 
 	if(mode == NO_TYPE_WR){
 		values = extract_fields_value_types_from_input(buffer,names,types_i, &count);
@@ -1747,6 +1750,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
+				sorted  = 1;
 				int result = 0;
 				if((result = schema_check_type(count, SCHEMA_CT,&hd->sch_d,names,types_i,&values)) == -1 ){
 					err = SCHEMA_ERR;
@@ -1869,6 +1873,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 					
+				sorted  = 1;
 				if(schema_check_type(fields_count, SCHEMA_CT,&hd->sch_d,names,types_i,&values) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
@@ -1996,6 +2001,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
+				sorted = 1;
 				if(check_double_compatibility(&hd->sch_d,&values) == -1){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
@@ -2108,10 +2114,18 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 	clean_on_error:
 	fprintf(stderr,"schema different then file definition.\n");
-	if(fields_count < hd->sch_d.fields_num)
-		free_strs(hd->sch_d.fields_num,1,values);
-	else
-		free_strs(count == 0 ? fields_count : count,1,values);
+	if(count == 0){
+
+		if(fields_count < hd->sch_d.fields_num && sorted)
+			free_strs(hd->sch_d.fields_num,1,values);
+		else
+			free_strs(fields_count,1,values);
+	}else{
+		if(count < hd->sch_d.fields_num && sorted)
+			free_strs(hd->sch_d.fields_num,1,values);
+		else
+			free_strs(count,1,values);
+	}
 
 	return err;	
 }
