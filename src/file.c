@@ -723,28 +723,21 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				/* adding 1 for '\0'*/
 				lt++, buff_update++;
-				buff_w = calloc(buff_update, sizeof(char));
-				if (!buff_w){
-					__er_calloc(F, L - 2);
-					return 0;
-				}
+				char buff_w[buff_update];
+				memset(buff_w,0,buff_update);
 
 				strncpy(buff_w, rec->fields[i].data.s, lt - 1);
 
 				uint16_t bu_ne = htons((uint16_t)buff_update);
-				uint16_t str_loc_ne = htons((uint16_t)str_loc);
+				uint32_t str_loc_ne = htonl((uint32_t)str_loc);
 
 				if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
 					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
-					write(fd, buff_w, buff_update) < 0)
-				{
+					write(fd, buff_w, buff_update) < 0){
 					perror("write file failed: ");
 					printf(" %s:%d", F, L - 2);
-					free(buff_w);
 					return 0;
 				}
-
-				free(buff_w);
 			}
 			else
 			{
@@ -752,21 +745,21 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				__n_buff_update = 0;
 				eof = 0;
 				/*save the starting offset for the string record*/
-				if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR)
-				{
+				if ((bg_pos = get_file_offset(fd)) == STATUS_ERROR){
 					__er_file_pointer(F, L - 2);
 					return 0;
 				}
 
 				/*read pos of new str if any*/
-				uint64_t str_loc_ne = 0;
+				uint32_t str_loc_ne = 0;
 				if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
 				{
 					perror("can't read string location: ");
 					printf(" %s:%d", F, L - 3);
 					return 0;
 				}
-				str_loc = (off_t)bswap_64(str_loc_ne);
+
+				str_loc = (off_t)ntohl(str_loc_ne);
 
 				/*store record  beginning pos*/
 				if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -775,14 +768,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				uint64_t bu_ne = 0;
+				uint16_t bu_ne = 0;
 				if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 					perror("can't read safety buffer before writing string.\n");
 					printf("%s:%d", F, L - 3);
 					return 0;
 				}
 
-				buff_update = (off_t)bswap_64(bu_ne);
+				buff_update = (off_t)ntohs(bu_ne);
 
 				/*save the end offset of the first string record */
 				if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -812,14 +805,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					uint64_t bu_ne = 0;
+					uint16_t bu_ne = 0;
 					if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 						perror("read file.\n");
 						printf("%s:%d", F, L - 3);
 						return 0;
 					}
 
-					buff_update = (off_t)bswap_64(bu_ne);
+					buff_update = (off_t)ntohl(bu_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -912,7 +905,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*update new string position*/
-					uint64_t eof_ne = bswap_64((uint64_t)eof);
+					uint32_t eof_ne = htons((uint32_t)eof);
 					if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 					{
 						perror("write file: ");
@@ -5373,7 +5366,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		case TYPE_STRING:
 		{
 			/*read pos of new str if any*/
-			uint16_t str_loc_ne = 0;
+			uint32_t str_loc_ne = 0;
 			if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == -1)
 			{
 				perror("can't read string location: ");
@@ -5381,7 +5374,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
-			str_loc = (off_t)ntohs(str_loc_ne);
+			str_loc = (off_t)ntohl(str_loc_ne);
 
 			uint16_t bu_up_ne = 0;
 			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0){
@@ -6476,7 +6469,7 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			size += sizeof(uint8_t);
 			break;
 		case TYPE_STRING:
-			size += (sizeof(uint64_t) * 3);
+			size += (sizeof(uint16_t) * 3);
 			size += ((strlen(rec->fields[i].data.s) * 2) + 1);
 			break;
 		case TYPE_FLOAT:
@@ -6624,10 +6617,10 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 		}
 		case TYPE_STRING:
 		{
-			uint16_t str_loc_ne = 0;
-			memcpy(&str_loc_ne,p,sizeof(uint16_t));
-			p += sizeof(uint16_t);
-			off_t str_loc = (off_t)ntohs(str_loc_ne);
+			uint32_t str_loc_ne = 0;
+			memcpy(&str_loc_ne,p,sizeof(uint32_t));
+			p += sizeof(uint32_t);
+			off_t str_loc = (off_t)ntohl(str_loc_ne);
 
 
 			uint16_t buf_up_ne = 0;
@@ -7105,10 +7098,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec)
 		{
 			uint16_t l = (uint16_t)strlen(rec->fields[i].data.s);
 			uint16_t buf_up_ne = htons((l*2)+1);	
-			uint16_t str_loc = 0;	
+			uint32_t str_loc = 0;	
 
-			memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint16_t));
-			ram->size += sizeof(uint16_t);
+			memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint32_t));
+			ram->size += sizeof(uint32_t);
 
 			memcpy(&ram->mem[ram->size],&buf_up_ne, sizeof(uint16_t));
 			ram->size += sizeof(uint16_t);
