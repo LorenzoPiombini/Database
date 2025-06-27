@@ -3365,7 +3365,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								printf(" %s:%d", F, L - 3);
 								return 0;
 							}
-							str_loc = (off_t)bswap_64(str_loc_ne);
+							str_loc = (off_t)ntohl(str_loc_ne);
 
 							/*store record  beginning pos*/
 							if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -3374,14 +3374,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 
-							uint64_t bu_ne = 0;
+							uint16_t bu_ne = 0;
 							if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 								perror("can't read safety buffer before writing string.\n");
 								printf("%s:%d", F, L - 3);
 								return 0;
 							}
 
-							buff_update = (off_t)bswap_64(bu_ne);
+							buff_update = (off_t)ntohs(bu_ne);
 
 							/*save the end offset of the first string record */
 							if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -3411,14 +3411,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								uint64_t bu_ne = 0;
+								uint16_t bu_ne = 0;
 								if (read(fd, &bu_ne, sizeof(bu_ne)) < 0){
 									perror("read file.\n");
 									printf("%s:%d", F, L - 3);
 									return 0;
 								}
 
-								buff_update = (off_t)bswap_64(bu_ne);
+								buff_update = (off_t)ntohs(bu_ne);
 							}
 
 							new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -3439,22 +3439,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								/*expand the buff_update only for the bytes needed*/
 								__n_buff_update = buff_update;
 								__n_buff_update += (new_lt - buff_update);
-								buff_w = calloc(__n_buff_update, sizeof(char));
-								if (!buff_w)
-								{
-									printf("calloc failed, %s:%d.\n", F, L - 3);
-									return 0;
-								}
+								buff_update = __n_buff_update;							
 							}
-							else
-							{
-								buff_w = calloc(buff_update, sizeof(char));
-								if (!buff_w)
-								{
-									__er_calloc(F, L - 2);
-									return 0;
-								}
-							}
+							
+							char buff_w[buff_update];
+							memset(buff_w,0,buff_update);
 
 							strncpy(buff_w, rec->fields[i].data.v.elements.s[step], new_lt - 1);
 							/*
@@ -3467,7 +3456,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (find_record_position(fd, af_str_loc_pos) == -1)
 								{
 									__er_file_pointer(F, L - 3);
-									free(buff_w);
 									return 0;
 								}
 							}
@@ -3476,7 +3464,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (find_record_position(fd, move_to) == STATUS_ERROR)
 								{
 									__er_file_pointer(F, L - 3);
-									free(buff_w);
 									return 0;
 								}
 							}
@@ -3485,8 +3472,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							 * write the data to file --
 							 * the file pointer is always pointing to the
 							 * right position at this point */
-							buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-							bu_ne = bswap_64(buff_update);
+							bu_ne = htons((uint16_t)buff_update);
 
 							if(write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 								write(fd, buff_w, buff_update) < 0){
@@ -3495,7 +3481,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 
-							free(buff_w);
 
 							/*
 							 * if eof is bigger than 0 means we updated the string
@@ -3512,7 +3497,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 
 								/*update new string position*/
-								uint64_t eof_ne = bswap_64((uint64_t)eof);
+								uint32_t eof_ne = htonl((uint32_t)eof);
 								if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 								{
 									perror("write file: ");
