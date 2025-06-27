@@ -646,7 +646,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 	size_t lt = 0, new_lt = 0;
 	off_t str_loc = 0, af_str_loc_pos = 0, eof = 0;
-	size_t buff_update = 0, __n_buff_update = 0;
+	size_t buff_update = 0;
+	size_t __n_buff_update = 0;
 	off_t move_to = 0, bg_pos = 0;
 
 	/*--------------------------------------------------*/
@@ -681,7 +682,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		}
 	}
 
-	char *buff_w = NULL;
 	for (int i = 0; i < rec->fields_num; i++) {
 		if(rec->field_set[i] == 0) continue;
 
@@ -812,7 +812,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					buff_update = (off_t)ntohl(bu_ne);
+					buff_update = (off_t)ntohs(bu_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -830,24 +830,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*expand the buff_update only for the bytes needed*/
-					__n_buff_update = buff_update;
-					__n_buff_update += (new_lt - buff_update);
-					buff_w = calloc(__n_buff_update, sizeof(char));
-					if (!buff_w)
-					{
-						printf("calloc failed, %s:%d.\n", F, L - 3);
-						return 0;
-					}
+					buff_update += (new_lt - buff_update);
 				}
-				else
-				{
-					buff_w = calloc(buff_update, sizeof(char));
-					if (!buff_w)
-					{
-						__er_calloc(F, L - 2);
-						return 0;
-					}
-				}
+				char buff_w[buff_update];
+				memset(buff_w,0,buff_update);
 
 				strncpy(buff_w, rec->fields[i].data.s, new_lt - 1);
 				/*
@@ -860,7 +846,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (find_record_position(fd, af_str_loc_pos) == -1)
 					{
 						__er_file_pointer(F, L - 3);
-						free(buff_w);
 						return 0;
 					}
 				}
@@ -869,7 +854,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (find_record_position(fd, move_to) == STATUS_ERROR)
 					{
 						__er_file_pointer(F, L - 3);
-						free(buff_w);
 						return 0;
 					}
 				}
@@ -878,17 +862,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				 * write the data to file --
 				 * the file pointer is always pointing to the
 				 * right position at this point */
-				buff_update = __n_buff_update > 0 ? __n_buff_update : buff_update;
-				bu_ne = bswap_64(buff_update);
+				bu_ne = htons((uint16_t)buff_update);
 
 				if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 					write(fd, buff_w, buff_update) < 0){
 					perror("error in writing type string (char *)file.\n");
-					free(buff_w);
 					return 0;
 				}
 
-				free(buff_w);
 
 				/*
 				 * if eof is bigger than 0 means we updated the string
@@ -2647,7 +2628,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 									write(fd, buff_w, buff_update) < 0){
 									perror("error in writing type string (char *)file.\n");
-									free(buff_w);
 									return 0;
 								}
 
@@ -2792,7 +2772,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								buff_update = (off_t)htohs(bu_ne);
+								buff_update = (off_t)htons(bu_ne);
 
 								/*save the end offset of the first string record */
 								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR){
@@ -2863,7 +2843,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									if (find_record_position(fd, af_str_loc_pos) == -1)
 									{
 										__er_file_pointer(F, L - 3);
-										free(buff_w);
 										return 0;
 									}
 								}
@@ -2872,7 +2851,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									if (find_record_position(fd, move_to) == STATUS_ERROR)
 									{
 										__er_file_pointer(F, L - 3);
-										free(buff_w);
 										return 0;
 									}
 								}
@@ -2886,7 +2864,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 									write(fd, buff_w, buff_update) < 0){
 									perror("error in writing type string (char *)file.\n");
-									free(buff_w);
 									return 0;
 								}
 
@@ -3222,7 +3199,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if (find_record_position(fd, af_str_loc_pos) == -1)
 							{
 								__er_file_pointer(F, L - 3);
-								free(buff_w);
 								return 0;
 							}
 						}
@@ -3231,7 +3207,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if (find_record_position(fd, move_to) == STATUS_ERROR)
 							{
 								__er_file_pointer(F, L - 3);
-								free(buff_w);
 								return 0;
 							}
 						}
@@ -3244,7 +3219,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if(write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 							write(fd, buff_w, buff_update) < 0){
 							perror("error in writing type string (char *)file.\n");
-							free(buff_w);
 							return 0;
 						}
 
@@ -3477,7 +3451,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if(write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 								write(fd, buff_w, buff_update) < 0){
 								perror("error in writing type string (char *)file.\n");
-								free(buff_w);
 								return 0;
 							}
 
