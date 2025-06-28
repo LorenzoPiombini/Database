@@ -89,6 +89,7 @@ struct Field {
 
 struct Record_f {
 	char file_name[MAX_FILE_NAME_LEN];
+	off_t offset;
 	int fields_num;
 	uint8_t field_set[MAX_FIELD_NR];
 	struct Field fields[MAX_FIELD_NR];

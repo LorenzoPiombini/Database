@@ -31,6 +31,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct 
 		if(get_all_record(fds[1],&ram) == -1){
 			e = 0;
 			fprintf(stderr,"cannot get all the record from '%s'.\n",file_name);
+			return -1;
 		}
 	}
 
@@ -48,6 +49,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct 
 		return STATUS_ERROR;
 	}
 
+	rec->offset = offset;
 	destroy_hasht(p_ht);
 	if(!e){
 		if (find_record_position(fds[1], offset) == -1) {
@@ -75,6 +77,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct 
 				return STATUS_ERROR;
 			}
 
+			n->offset = update_rec_pos;
 			if(read_file(fds[1], file_name,n,hd.sch_d) == -1) {
 				printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
 				return STATUS_ERROR;
@@ -89,6 +92,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct 
 			return STATUS_ERROR;
 		}
 	} else{
+
 		off_t pos_after_read = 0;
 		if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)offset, rec,hd.sch_d)) == -1){
 			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
@@ -111,6 +115,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct 
 			}
 
 			off_t update_rec_pos = bswap_64(up_r_pos_ne);
+			n->offset = update_rec_pos;
 			if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)update_rec_pos, n,hd.sch_d)) == -1){
 				fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
 				clear_ram_file(&ram);
@@ -122,10 +127,6 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct 
 			rec->count++;
 			
 		}while(up_r_pos_ne != 0); 
-
-		
-
-
 	}
 	clear_ram_file(&ram);
 	return 0;

@@ -991,7 +991,6 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 		return -1;
 	}
 
-	replace('@','^',cbuff);
 	/* detect files types - ONLY IF NOT IMPORTING FROM EZgen*/	
 	char *file_start = NULL;
 	int count = 0;

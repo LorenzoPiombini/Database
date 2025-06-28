@@ -53,7 +53,7 @@ unsigned char compare_old_rec_update_rec(struct Recs_old *rec_old,
 						unsigned char check, 
 						struct Header_d hd);
 
-void find_fields_to_update(struct Recs_old *recs_old, char *positions, struct Record_f *rec);
+void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec);
 int create_new_fields_from_schema(struct Recs_old *recs_old, 
 						struct Record_f *rec, 
 						struct Schema *sch,
