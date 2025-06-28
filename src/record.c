@@ -1213,7 +1213,6 @@ void free_record_array(int len, struct Record_f **recs)
 	for (int i = 0; i < len; i++) {
 			free_record(&(*recs)[i],  (*recs)[i].fields_num);
 	}
-	free(*recs);
 }
 
 /* this parameters are:
@@ -2272,7 +2271,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 					return i;
 				case TYPE_STRING:
 				{
-					size_t l = strlen(dest->fields[i].data.s);
+					size_t l = strlen(src->fields[i].data.s);
+					if (l != strlen(dest->fields[i].data.s)) return i;
+
 					if(strncmp(src->fields[i].data.s,dest->fields[i].data.s,l) == 0) c++;
 					if(c == active) break;
 					return i;

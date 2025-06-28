@@ -1019,7 +1019,7 @@ int main(int argc, char *argv[])
 			void *key_conv = key_converter(key, &key_type);
 			if (key_type == UINT && !key_conv) {
 				fprintf(stderr, "error to convert key");
-				goto clean_on_error;
+				goto clean_on_error_7;
 			} else if (key_type == UINT) {
 				if (key_conv) {
 					if (!set(key_conv, key_type, eof, &ht[0])){
@@ -1062,7 +1062,7 @@ int main(int argc, char *argv[])
 				if (!write_index_body(fd_index, i, &ht[i])) {
 					printf("write to file failed. %s:%d.\n", F, L - 2);
 					free_ht_array(ht, index);
-					goto clean_on_error;
+					goto clean_on_error_7;
 				}
 
 				destroy_hasht(&ht[i]);
@@ -1101,7 +1101,12 @@ int main(int argc, char *argv[])
 			int lock_f = 0;
 			int check = 0;
 			int r = 0;
-			if((check = check_data(file_path,data_to_add,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error;
+			if((check = check_data(file_path,data_to_add,fds,files,&rec,&hd,&lock_f)) == -1){
+				if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
+				close_file(3, fd_schema, fd_index, fd_data);
+				free_record(&rec, rec.fields_num);
+				return -1;
+			}
 
 			/* 2 - schema is good, thus load the old record into memory and update the fields if any
 			 -- at this point you already checked the header, and you have an updated header,
@@ -1112,60 +1117,20 @@ int main(int argc, char *argv[])
 				while((r = lock(fd_index,WLOCK)) == WTLK);
 				if(r == -1){
 					fprintf(stderr,"can't acquire or release proper lock.\n");
-					goto clean_on_error;
+					close_file(3, fd_schema, fd_index, fd_data);
+					free_record(&rec, rec.fields_num);
+					return -1;
 				}
 				lock_f = 1;
 			}
 
-			if(get_record(-1,file_path,&rec_old, (void*)key,hd,fds) == -1) goto clean_on_error;
+			if(get_record(-1,file_path,&rec_old, (void*)key,hd,fds) == -1){
+				if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
+				close_file(3, fd_schema, fd_index, fd_data);
+				free_record(&rec, rec.fields_num);
+				return -1;
+			}
 #if 0
-			HashTable ht = {0};
-			HashTable *p_ht = &ht;
-			if (!read_index_nr(0, fd_index, &p_ht)) {
-				printf("index file reading failed. %s:%d.\n", F, L - 1);
-				goto clean_on_error;
-			}
-
-			off_t offset = 0;
-			int key_type = 0;
-			void *key_conv = key_converter(key, &key_type);
-			if (key_type == UINT && !key_conv) {
-				fprintf(stderr, "error to convert key");
-				destroy_hasht(p_ht);
-				goto clean_on_error;
-			}else if (key_type == UINT){
-				if (key_conv) {
-					offset = get(key_conv, p_ht, key_type); /*look for the key in the ht */
-					free(key_conv);
-				}
-			}else if (key_type == STR) {
-				/*look for the key in the ht */
-				offset = get((void *)key, p_ht, key_type);
-			}
-
-			if (offset == -1) {
-				printf("record not found.\n");
-				destroy_hasht(p_ht);
-				goto clean_on_error;
-			}
-
-			destroy_hasht(p_ht);
-
-			/*find record in the file*/
-			if (find_record_position(fd_data, offset) == -1) {
-				__er_file_pointer(F, L - 1);
-				goto clean_on_error;
-			}
-
-			/*read the old record, aka the record that we want to update*/
-			if(read_file(fd_data, file_path,&rec_old,hd.sch_d) == -1) {
-				printf("reading record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
-				goto clean_on_error;
-			}
-
-			/*after each record in the file there is the offset of the next part of the record
-				(if any) in the file*/
-
 
 			off_t updated_rec_pos = 0; 
 			struct Recs_old recs_old = {0};
@@ -1211,6 +1176,24 @@ int main(int argc, char *argv[])
 			}else if(fragments){
 
 #endif
+			struct Record_f *recs[rec_old.count];
+			memset(recs,0,sizeof(struct Record_f*)*rec_old.count);
+			if (rec_old.count == 1 ) {
+				recs[0] = &rec_old;
+			}else{
+
+				recs[0] = &rec_old;
+				int i = 1;
+				struct Record_f *temp = rec_old.next;
+				recs[i] = temp;
+				while(temp->next){
+					temp = temp->next;
+					i++;
+					recs[i] = temp;
+				}
+			}
+
+
 			if(rec_old.count > 1){
 				/* here we have the all record in memory and we have
 					to check which fields in the record we have to update*/
@@ -1220,24 +1203,7 @@ int main(int argc, char *argv[])
 				memset(positions,0,rec_old.count);
 
 
-				struct Record_f *recs[rec_old.count];
-				memset(recs,0,sizeof(struct Record_f*)*rec_old.count);
-				if (rec_old.count == 1 ) {
-					recs[0] = &rec_old;
-				}else{
-
-					recs[0] = &rec_old;
-					int i = 1;
-					struct Record_f *temp = rec_old.next;
-
-					while(temp->next){
-						recs[i] = temp;
-						temp = temp->next;
-						i++;
-					}
-				}
-
-				/* this function check all records from the file
+							/* this function check all records from the file
 				   against the new record setting the values that we have to update
 				   and populates in  the char array positions. If an element contain 'y'
 				   you have to update the field  at that index position of 'y'. */
@@ -1264,7 +1230,7 @@ int main(int argc, char *argv[])
 					no_updates = 0;
 					++updates;
 					changed = 1;
-					if (find_record_position(fd_data, recs[rec_old.count - 1]->offset) == -1) {
+					if (find_record_position(fd_data, recs[i]->offset) == -1) {
 						__er_file_pointer(F, L - 1);
 						goto clean_on_error;
 					}
@@ -1406,31 +1372,29 @@ int main(int argc, char *argv[])
 				printf("record %s updated!\n", key);
 				while(lock(fd_index,UNLOCK) == WTLK);
 				close_file(3,fd_schema, fd_index, fd_data);
+				free_record_array(rec_old.count,recs);
 				free_record(&rec, rec.fields_num);
 				return 0;
 			} /*end of if(update_pos > 0) --AKA-- fragments*/
 
-#if 0
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 			memset(&new_rec,0,sizeof(struct Record_f));
 			
-			
-			unsigned char comp_rr = compare_old_rec_update_rec(&recs_old, &rec, &new_rec,
-									file_path, check,hd);
+			unsigned char comp_rr = compare_old_rec_update_rec(recs, &rec, &new_rec,file_path, check,hd);
 			if (comp_rr == 0) {
-				printf("compare records failed, %s:%d.\n", F, L - 4);
+				printf("compare records failed, %s:%d.\n", F, L -2);
 				goto clean_on_error;
 			}
 
 			if (rec_old.count == 1 && comp_rr == UPDATE_OLD) {
 				// set the position back to the record
-				if (find_record_position(fd_data, recs_old.pos_u[0]) == -1) {
+				if (find_record_position(fd_data, recs[0]->offset) == -1) {
 					__er_file_pointer(F, L - 1);
 					goto clean_on_error;
 				}
 
 				// write the updated record to the file
-				if (!write_file(fd_data, &recs_old.recs[0], 0, update)) {
+				if (!write_file(fd_data, recs[0], 0, update)) {
 					printf("write to file failed, %s:%d.\n", F, L - 1);
 					goto clean_on_error;
 				}
@@ -1440,13 +1404,11 @@ int main(int argc, char *argv[])
 				close_file(2, fd_index, fd_data);
 				free_record(&rec, rec.fields_num);
 				free_record(&rec_old, rec_old.fields_num);
-				free_recs_old(&recs_old);
 				return 0;
 			}
 
 			/*updating the record but we need to write some data in another place in the file*/
-			if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && 
-					(check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
+			if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && (check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
 
 				off_t eof = 0;
 				if ((eof = go_to_EOF(fd_data)) == -1) {
@@ -1455,13 +1417,13 @@ int main(int argc, char *argv[])
 				}
 
 				// put the position back to the record
-				if (find_record_position(fd_data, recs_old.pos_u[0]) == -1) {
+				if (find_record_position(fd_data, recs[0]->offset) == -1) {
 					__er_file_pointer(F, L - 1);
 					goto clean_on_error;
 				}
 
 				// update the old record :
-				if (!write_file(fd_data, &recs_old.recs[0], eof, update)) {
+				if (!write_file(fd_data, recs[0], eof, update)) {
 					printf("can't write record, %s:%d.\n", __FILE__, __LINE__ - 1);
 					goto clean_on_error;
 				}
@@ -1485,13 +1447,11 @@ int main(int argc, char *argv[])
 				free_record(&rec, rec.fields_num);
 				free_record(&rec_old, rec_old.fields_num);
 				free_record(&new_rec, new_rec.fields_num);
-				free_recs_old(&recs_old);
 				return 0;
 			}
 
 			return 0; /*this should be unreachable*/
 
-#endif
 			clean_on_error:
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_schema, fd_index, fd_data);
