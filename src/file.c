@@ -556,6 +556,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 			new_node->value = (off_t)bswap_64(value);
 			new_node->next = NULL;
+			new_node->key.size = size;
 
 			int index = hash((void *)&new_node->key.k.n, ht->size, key_type);
 			if (index == -1){
@@ -977,7 +978,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 				}
 
-				uint64_t upd_ne = bswap_64(0);
+				uint64_t upd_ne = 0;
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");

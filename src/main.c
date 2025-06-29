@@ -1380,7 +1380,7 @@ int main(int argc, char *argv[])
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 			memset(&new_rec,0,sizeof(struct Record_f));
 			
-			unsigned char comp_rr = compare_old_rec_update_rec(recs, &rec, &new_rec,file_path, check,hd);
+			unsigned char comp_rr = compare_old_rec_update_rec(recs, &rec, check);
 			if (comp_rr == 0) {
 				printf("compare records failed, %s:%d.\n", F, L -2);
 				goto clean_on_error;
@@ -1408,7 +1408,7 @@ int main(int argc, char *argv[])
 			}
 
 			/*updating the record but we need to write some data in another place in the file*/
-			if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && (check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
+			if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && (check == 1 || check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
 
 				off_t eof = 0;
 				if ((eof = go_to_EOF(fd_data)) == -1) {
@@ -1449,8 +1449,6 @@ int main(int argc, char *argv[])
 				free_record(&new_rec, new_rec.fields_num);
 				return 0;
 			}
-
-			return 0; /*this should be unreachable*/
 
 			clean_on_error:
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);

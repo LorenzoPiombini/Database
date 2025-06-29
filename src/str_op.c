@@ -1676,6 +1676,16 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		if(*start == ':') *start = ' ';
 	}
 
+	while((start = strstr(buf,"t_"))){
+		if(is_target_db_type(start) == -1)break;
+
+		*start = '@';
+		while(*start != ':') start++;
+
+		if(*start == ':') *start = ' ';
+	}
+
+
 	/* at this point only the ':' inside the fields are left*/
 	char *delim_in_fields = NULL;
 	int i = 0;
@@ -1736,18 +1746,33 @@ static int is_target_db_type(char *target)
 	size_t l = strlen(target);
 	if(l > 4){
 		/*extract the real target*/
-		char *e = strstr(&target[1],":");
-		if(e) size = e - target;
+		if(*target == ':'){
+			char *e = strstr(&target[1],":");
+			if(e) size = e - target;
+		}else{
+			char *e = strstr(target,":");
+			if(e) size = e - target;
+		}
+	
 	}
 
 	if(size > 5) return -1;
 
-	char tg[size+1];
-	memset(tg,0,size+1);
+	int b_size = 0;
+	if(*target == ':') b_size += size + 1;
+	if(*target != ':') b_size += (size + 2);
+
+
+	char tg[b_size];
+	memset(tg,0,b_size);
 
 	if(size > 0){
-		strncpy(tg,target,size);
-		
+		if(*target == ':') {
+			strncpy(tg,target,size);
+		}else{
+			*tg = ':';
+			strncpy(&tg[1],target,size);
+		}
 		if(strlen(tg) == strlen(":t_s")) if(strncmp(tg,":t_s",size) == 0) return 0;
 		if(strlen(tg) == strlen(":t_l")) if(strncmp(tg,":t_l",size) == 0) return 0;
 		if(strlen(tg) == strlen(":t_b")) if(strncmp(tg,":t_b",size) == 0) return 0;
