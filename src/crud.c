@@ -379,7 +379,221 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	fds[2] = fd_schema;
 	return 0;
 }
+int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct Header_d hd,int check,int *lock_f)
+{
 
+	struct Record_f rec_old = {0};
+	int r = 0;
+
+	if(!(*lock_f)){
+		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
+		while((r = lock(fds[0],WLOCK)) == WTLK);
+		if(r == -1){
+			fprintf(stderr,"can't acquire or release proper lock.\n");
+			return -1;
+		}
+		*lock_f = 1;
+	}
+
+	if(get_record(-1,file_path,&rec_old, key,hd,fds) == -1){
+		if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+		return -1;
+	}
+
+	struct Record_f *recs[rec_old.count];
+	memset(recs,0,sizeof(struct Record_f*)*rec_old.count);
+
+	if (rec_old.count == 1 ) {
+		recs[0] = &rec_old;
+	}else{
+
+		recs[0] = &rec_old;
+		int i = 1;
+		struct Record_f *temp = rec_old.next;
+		recs[i] = temp;
+		while(temp->next){
+			temp = temp->next;
+			i++;
+			recs[i] = temp;
+		}
+	}
+
+
+	if(rec_old.count > 1){
+		/* here we have the all record in memory and we have
+		   to check which fields in the record we have to update*/
+
+		//int size_pos = recs_old.capacity + recs_old.dynamic_capacity;
+		char positions[rec_old.count];
+		memset(positions,0,rec_old.count);
+
+
+		/* 
+		 * find_fields_to_update:
+		 * 	check all records from the file
+		 * 	against the new record, setting the position of the field 
+		 * 	that we have to update in  the char array positions. 
+		 * 	
+		 * 	If an element contain 'y', you have to update the field  
+		 * 	at that index position of 'y'.
+		 * */
+
+		find_fields_to_update(recs, positions, rec);
+
+		if (positions[0] != 'n' && positions[0] != 'y' && positions[0] != 'e') {
+			printf("check on fields failed, %s:%d.\n", F, L - 1);
+			goto clean_on_error;
+		}
+
+		/* write the update records to file */
+		int changed = 0;
+		int no_updates = 0;
+		uint16_t updates = 0; /* bool value if 0 no updates*/
+		for (uint32_t i = 0; i < rec_old.count; i++) {
+			if (positions[i] == 'n') continue;
+
+			if (positions[i] == 'e'){
+				no_updates = 1;
+				continue;
+			}
+
+			no_updates = 0;
+			++updates;
+			changed = 1;
+			if (find_record_position(fds[1], recs[i]->offset) == -1) {
+				__er_file_pointer(F, L - 1);
+				goto clean_on_error;
+			}
+
+			off_t right_update_pos = 0;
+			if ((rec_old.count - i) > 1)
+				right_update_pos = recs[i+1]->offset;
+
+			/*this might need to be deleted*/
+			if (rec_old.count - i == 1 && check == SCHEMA_NW) {
+				right_update_pos = go_to_EOF(fds[1]);
+				if (find_record_position(fds[1], recs[i]->offset) == -1 || right_update_pos == -1){
+					printf("error file pointer, %s:%d.\n", F, L - 2);
+					goto clean_on_error;
+				}
+			}
+			/**********/
+
+			/*the 1 is a flag that make the program know that is an update operation*/
+			if (!write_file(fds[1], recs[i], right_update_pos, 1)) {
+				printf("error write file, %s:%d.\n", F, L - 1);
+				goto clean_on_error;
+			}
+		}
+
+		if((check == SCHEMA_CT  ||  check == SCHEMA_CT_NT) && !changed) {
+			if(no_updates) goto clean_on_error;
+
+			off_t eof = go_to_EOF(fds[1]); /* file pointer to the end*/
+			if (eof == -1) {
+				__er_file_pointer(F, L - 1);
+				goto clean_on_error;
+			}
+
+			/*writing the new part of the schema to the file*/
+			int write_op = 0;
+			if ((write_op = write_file(fds[1], rec, 0, 0)) == 0) {
+				printf("write to file failed, %s:%d.\n", F, L - 1);
+				goto clean_on_error;
+			}
+
+			if(write_op == NTG_WR){
+				if(*lock_f)while(lock(fds[0],UNLOCK) == WTLK);
+				return 0;
+			}	
+
+			if(find_record_position(fds[1],recs[rec_old.count - 1]->offset) == -1){
+				__er_file_pointer(F, L - 1);
+				goto clean_on_error;
+			}
+
+			if(!write_file(fds[1],recs[rec_old.count-1],eof,1)){
+				__er_file_pointer(F, L - 1);
+				goto clean_on_error;
+			}
+		}
+
+		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+		free_record_array(rec_old.count,recs);
+		return 0;
+	} /*end of if(update_pos > 0) --AKA-- fragments*/
+
+	/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
+
+	unsigned char comp_rr = compare_old_rec_update_rec(recs, rec, check);
+	if (comp_rr == 0) {
+		fprintf(stderr,"(%s):compare records failed, %s:%d.\n",prog, F, L -2);
+		goto clean_on_error;
+	}
+
+	if (rec_old.count == 1 && comp_rr == UPDATE_OLD) {
+		// set the position back to the record
+		if (find_record_position(fds[1], recs[0]->offset) == -1) {
+			__er_file_pointer(F, L - 1);
+			goto clean_on_error;
+		}
+
+		// write the updated record to the file
+		if (!write_file(fds[1], recs[0], 0, 1)) {
+			printf("write to file failed, %s:%d.\n", F, L - 1);
+			goto clean_on_error;
+		}
+
+		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+		free_record(&rec_old, rec_old.fields_num);
+		return 0;
+	}
+
+	/*updating the record but we need to write some data in another place in the file*/
+	if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && (check == 1 || check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
+
+		off_t eof = 0;
+		if ((eof = go_to_EOF(fds[1])) == -1) {
+			__er_file_pointer(F, L - 1);
+			goto clean_on_error;
+		}
+
+		// put the position back to the record
+		if (find_record_position(fds[1], recs[0]->offset) == -1) {
+			__er_file_pointer(F, L - 1);
+			goto clean_on_error;
+		}
+
+		// update the old record :
+		if (!write_file(fds[1], recs[0], eof, 1)) {
+			printf("can't write record, %s:%d.\n", __FILE__, __LINE__ - 1);
+			goto clean_on_error;
+		}
+
+		eof = go_to_EOF(fds[1]);
+		if (eof == -1) {
+			__er_file_pointer(F, L - 1);
+			goto clean_on_error;
+		}
+
+		/*passing update as 0 becuase is a "new_rec", (right most paramaters) */
+		if (!write_file(fds[1], rec, 0, 0)) {
+			printf("can't write record, main.c l %d.\n", __LINE__ - 1);
+			goto clean_on_error;
+		}
+
+		/*free the lock */
+		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+		free_record(&rec_old, rec_old.fields_num);
+		return 0;
+	}
+
+clean_on_error:
+	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+	free_record(&rec_old, rec_old.fields_num);
+	return STATUS_ERROR;
+
+}
 static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 {
 	if(key_type == UINT){

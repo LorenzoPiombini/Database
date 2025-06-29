@@ -1536,6 +1536,8 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 				counter = SCHEMA_CT_NT;
 				sch->types[j] = types_i[i];	
 			}else{
+				if(sch->types[j] != types_i[i]) types_i[i] = sch->types[j];
+
 				counter++;
 			}
 		}

@@ -1592,6 +1592,7 @@ int count_delim(char *delim, char *str)
 
 	int c = 0;
 	char *d = NULL;
+		
 	while((d = strstr(buf,delim))){
 		c++;
 		*d = '@';	

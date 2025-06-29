@@ -30,5 +30,6 @@ int write_record(int *fds,void *key,
 		int mode);
 int is_db_file(struct Header_d *hd, int *fds);
 int write_index(int *fds, int index, HashTable *ht, char *file_name);
+int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct Header_d hd,int check,int *lock_f);
 
 #endif
