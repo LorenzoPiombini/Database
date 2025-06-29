@@ -378,9 +378,23 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 		create_record(file_path, *sch,rec);
 
 		int i = 0, j = 0, found = 0;
+
+		/* 
+		 * when we order the fields in the case of SCHEMA_CT 
+		 * can cause issue because in some cases we have only one fields
+		 * and it might be a position 3 in the name array and this can cause wrong results
+		 * the loop 
+		 * 		while(names[j][0] == '\0') j++;
+		 * is fixing the issue 
+		 * */
+
+		while(names[j][0] == '\0') j++;			
+		int move_fields = fields_num + j;
+		int start = j;
 		for (i = 0; i < sch->fields_num; i++) {
 			found = 0;
-			for (j = 0; j < fields_num ; j++) {
+
+			for (j = start; j < move_fields ; j++) {
 				if (strcmp(sch->fields_name[i], names[j]) == 0) {
 					switch(check_sch){
 					case SCHEMA_CT_NT:

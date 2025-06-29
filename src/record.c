@@ -2225,7 +2225,6 @@ int schema_has_type(struct Header_d *hd)
 		if(hd->sch_d.types[i] == -1) return 0;
 
 	return 1;
-
 }
 
 
