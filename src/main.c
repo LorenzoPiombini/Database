@@ -1094,9 +1094,6 @@ int main(int argc, char *argv[])
 
 			struct Record_f rec = {0};
 			struct Record_f rec_old = {0};
-			struct Record_f new_rec = {0};
-
-
 
 			int lock_f = 0;
 			int check = 0;
@@ -1130,52 +1127,7 @@ int main(int argc, char *argv[])
 				free_record(&rec, rec.fields_num);
 				return -1;
 			}
-#if 0
 
-			off_t updated_rec_pos = 0; 
-			struct Recs_old recs_old = {0};
-			int fragments = 0;
-			/*first record position*/
-			if(insert_rec(&recs_old,&rec_old,offset) == -1){
-				fprintf(stderr,"(%s): cannot insert rec t Rec_old struct.\n",prog);
-				goto clean_on_error;
-			}
-
-			while ((updated_rec_pos = get_update_offset(fd_data)) > 0) {
-				fragments = 1;
-				/*if update_rec_pos is bigger than 0, it means that this record is
-				  in different locations in the file,here we check for this case,
-				  and if the record is fragmented we read all the data
-				  and we store in the recs_old */
-				if (find_record_position(fd_data, updated_rec_pos) == -1) {
-					__er_file_pointer(F, L - 1);
-					free_recs_old(&recs_old);
-					goto clean_on_error;
-				}
-
-				struct Record_f rec_old_s = {0};
-				if(read_file(fd_data, file_path,&rec_old_s,hd.sch_d) == -1) {
-					printf("error reading file, main.c l %d.\n", __LINE__ - 2);
-					free_recs_old(&recs_old);
-					goto clean_on_error;
-				}
-
-				/*the following fragment of the record and its location*/
-				if(insert_rec(&recs_old,&rec_old_s,updated_rec_pos) == -1){
-					fprintf(stderr,"(%s): cannot insert rec t Rec_old struct.\n",prog);
-					free_record(&rec_old_s,rec_old_s.fields_num);
-					free_recs_old(&recs_old);
-					goto clean_on_error;
-				}
-				free_record(&rec_old_s,rec_old_s.fields_num);
-			}
-
-			if (updated_rec_pos == -1) {
-				__er_file_pointer(F, L - 1);
-				goto clean_on_error;
-			}else if(fragments){
-
-#endif
 			struct Record_f *recs[rec_old.count];
 			memset(recs,0,sizeof(struct Record_f*)*rec_old.count);
 			if (rec_old.count == 1 ) {
@@ -1203,10 +1155,15 @@ int main(int argc, char *argv[])
 				memset(positions,0,rec_old.count);
 
 
-							/* this function check all records from the file
-				   against the new record setting the values that we have to update
-				   and populates in  the char array positions. If an element contain 'y'
-				   you have to update the field  at that index position of 'y'. */
+				/* 
+				 * find_fields_to_update:
+				 * 	check all records from the file
+				 * 	against the new record, setting the position of the field 
+				 * 	that we have to update in  the char array positions. 
+				 * 	
+				 * 	If an element contain 'y', you have to update the field  
+				 * 	at that index position of 'y'.
+				 * */
 				
 				find_fields_to_update(recs, positions, &rec);
 
@@ -1297,7 +1254,6 @@ int main(int argc, char *argv[])
 			} /*end of if(update_pos > 0) --AKA-- fragments*/
 
 			/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
-			memset(&new_rec,0,sizeof(struct Record_f));
 			
 			unsigned char comp_rr = compare_old_rec_update_rec(recs, &rec, check);
 			if (comp_rr == 0) {
@@ -1365,7 +1321,6 @@ int main(int argc, char *argv[])
 				close_file(3, fd_schema, fd_index, fd_data);
 				free_record(&rec, rec.fields_num);
 				free_record(&rec_old, rec_old.fields_num);
-				free_record(&new_rec, new_rec.fields_num);
 				return 0;
 			}
 
@@ -1374,7 +1329,6 @@ int main(int argc, char *argv[])
 			close_file(3, fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
 			free_record(&rec_old, rec_old.fields_num);
-			free_record(&new_rec, new_rec.fields_num);
 			return STATUS_ERROR;
 
 		} /*end of update path*/
