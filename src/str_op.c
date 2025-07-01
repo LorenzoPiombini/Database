@@ -11,6 +11,7 @@
 #include "common.h"
 #include "debug.h"
 
+static char prog[] = "db";
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
 static uint32_t power(uint32_t n, int pow);
@@ -486,7 +487,8 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - buffer],delim)) != NULL)){
 		if(first[1] == '[' && ((file_block = strstr(&first[1],"]"))) && !__IMPORT_EZ){
 			int size = first - p2;
-			int next_start = file_block - buffer;
+			p2 += size +1;
+			int next_start = (file_block - buffer) - (&first[1] - buffer);
 			char cpy[size+1];
 			memset(cpy,0,size+1);
 			strncpy(names[i],p2,size);
@@ -1640,14 +1642,30 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	
 	/* in the case of UTILITY usage we need to exclude the type file syntax
 	 * field_name:[file data]*/
-	int f_start = -1;
-	int f_end = -1;
+	int16_t f_start[50];
+	int16_t f_end[50];
+	memset(f_start,-1,sizeof(int16_t)*50);
+	memset(f_end,-1,sizeof(int16_t)*50);
+
 	if(__UTILITY){
 		char *fs = NULL;
 		char *fe = NULL;
-		if((fs = strstr(buf,"[")) && (fe = strstr(buf,"]"))){
-			f_start = fs - buf;
-			f_end = fe - buf;
+		int i = 0;
+		for(; (fs = strstr(buf,"[")) && (fe = strstr(buf,"]")); i++){
+			if (i == 50){
+				fprintf(stderr,"(%s): code refactor needed for %s() %s:%d\n",prog,__func__,__FILE__,__LINE__-10);
+				break;
+			}
+
+			f_start[i] = fs - buf;
+			f_end[i] = fe - buf;
+			*fs = '@';
+			*fe = '&';
+		}
+
+		if (i > 0) {
+			replace('@','[',buf);
+			replace('&',']',buf);
 		}
 	}
 	/*
@@ -1708,13 +1726,21 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	/* at this point only the ':' inside the fields are left*/
 	char *delim_in_fields = NULL;
 	int i = 0;
+	int8_t cont = 0;
 	while((delim_in_fields = strstr(buf,delim))){
 		
 		int p = delim_in_fields - buf;
-		if(f_start > -1 && f_end > -1){
-			if (p > f_start && p < f_end){
-				*delim_in_fields = '@';
-				continue;	
+		if(f_start[0] > -1 && f_end[0] > -1){
+			for(int i = 0; f_start[i] != -1 && f_end[i] != -1; i++){
+				if (p > f_start[i] && p < f_end[i]){
+					*delim_in_fields = '@';
+					cont = 1;	
+					break;
+				}
+			}
+			if(cont){
+				cont = 0;
+				continue;
 			}
 		}
 
