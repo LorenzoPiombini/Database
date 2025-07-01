@@ -1545,6 +1545,7 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 	}
 
 	if(name_check != count ) return 0; 
+	if(counter != SCHEMA_CT_NT) return SCHEMA_CT;
 	return counter;
 }
 
@@ -3053,7 +3054,6 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 
 void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec)
 {
-	int j = 0;
 	int dif = 0;
 	
 	for (uint32_t i = 0; i < rec_old[0]->count; i++) {
@@ -3264,7 +3264,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * and in the old record we create a new one we the data
 				 * of the new record
 				 * */
-				rec_old[i]->fields[j].data.v.destroy(&rec_old[i]->fields[index].data.v, rec->fields[index].type);
+				rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, rec->fields[index].type);
 				for (int a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v
 						.insert((void *)rec->fields[index].data.v.elements.s[a],

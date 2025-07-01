@@ -519,7 +519,7 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 		}
 
 		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
-		free_record_array(rec_old.count,recs);
+		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	} /*end of if(update_pos > 0) --AKA-- fragments*/
 

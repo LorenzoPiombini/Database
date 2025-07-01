@@ -459,7 +459,7 @@ int import_data_to_system(char *data_file)
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
 		
-		printf("key: '%s' - '%s'\n",key,file_name);
+		/*printf("key: '%s' - '%s'\n",key,file_name);*/
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
@@ -486,5 +486,6 @@ int import_data_to_system(char *data_file)
 	free(content);
 	close_ram_file(&ram);
 	__IMPORT_EZ = 0;
+	if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	return 0;
 }

@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
 #include "record.h"
 #include "debug.h"
 #include "str_op.h"
@@ -137,14 +138,43 @@ unsigned char set_field(struct Record_f *rec,
 		struct Schema sch = {0};
 		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 		
+		/* 
+		 * we need to guarantee that the file gets created
+		 * in the same directory as the main file wher this file as a field
+		 * is embended.
+		 * */
+
+
+		/* this make sure we create the right path for the file*/
+		char *p = rec->file_name;
+		char *f = NULL;
+		int i = 0;
+		char *last = NULL;
+		for(; (f =strstr(p,"/")) != NULL; i++, p[f - p] = '@', last = f);
+
+		replace('@','/',rec->file_name);
+		int partial_path = 0;
+		if (i > 0) partial_path = last - p;
+
 		char *sfx = ".sch"; 
 		size_t sfxl = strlen(sfx);
 		size_t fl = strlen(rec->fields[index].field_name); 
-		size_t l = fl + sfxl + 1;
+		size_t l = 0; 
+		if(partial_path > 0)
+			 l = fl + sfxl + partial_path + 1;
+		else 
+			l = fl + sfxl + 1;
+
 		char file_name[l];
 		memset(file_name,0,l);
-		strncpy(file_name,rec->fields[index].field_name,l);
-		strncat(file_name,sfx,sfxl);
+		if(partial_path > 0){
+			strncpy(file_name,rec->file_name,partial_path);
+			strncat(file_name,rec->fields[index].field_name,fl);
+			strncat(file_name,sfx,sfxl);
+		}else{
+			strncpy(file_name,rec->fields[index].field_name,l);
+			strncat(file_name,sfx,sfxl);
+		}
 	
 		int fd_schema = -1;
 		int cr = 0;
@@ -744,13 +774,25 @@ unsigned char set_field(struct Record_f *rec,
 			char *t = strtok(value, ",");
 			while (t)
 			{
+
+				if(strlen(t) == 1){
+					char c = *t;
+					if(isalpha(c)){	
+						char p = tolower(c);
+						if(p == 'n') t = "0";
+						if(p == 'y') t = "1";
+
+					}
+				}
+
 				if (!is_integer(t))
 				{
 					fprintf(stderr,"(%s): invalid value for byte type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
 					return 0;
 				}
-
-				errno = 0;
+				
+				
+				errno = 0;	
 				unsigned long un = strtoul(t, NULL, 10);
 				if (errno == ERANGE || un == EINVAL)
 				{
@@ -771,6 +813,15 @@ unsigned char set_field(struct Record_f *rec,
 		}
 		else
 		{
+			if(strlen(value) == 1){
+				char c = *value;
+				if(isalpha(c)){	
+					char p = tolower(c);
+					if(p == 'n') value = "0";
+					if(p == 'y') value = "1";
+				}
+			}
+
 
 			if (!is_integer(value))
 			{

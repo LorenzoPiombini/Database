@@ -769,15 +769,21 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 	}
 		
 	while((delim = strstr(p,":"))){
-		int size = delim - p;
 		pos = delim - fields_name;
-		strncpy(names[j],p,size);
-		p += size +1;
+		*delim = '@';
+		delim--;
+		int i = 0;
+		for( i = 1;*delim != ':' && *delim != '@' && delim != &p[0]; i++, delim--);
+		
+		if(delim != &p[0]) delim++, i--;
+
+		strncpy(names[j],delim,i);
+		p += (i+1);
 		j++;
 	}
 
 	if(fields_name[pos + 1] != '\0') {
-		strncpy(names[j],p,strlen(p));
+		strncpy(names[j],&fields_name[pos+1],strlen(&fields_name[pos + 1]));
 		j++;
 	}
 
@@ -1012,9 +1018,10 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			*file_start = '@';
 			count++;
 		}
-
-		replace('@','[',cbuff);
-		replace('&','@',cbuff);
+		if(count){
+			replace('@','[',cbuff);
+			replace('&','@',cbuff);
+		}
 	}
 
 	int i = 0;
@@ -1340,8 +1347,7 @@ int is_file_name_valid(char *str)
 	for (size_t i = 0; i < l; i++)
 	{
 		if (ispunct(str[i]))
-			if ((str[i] != '/' && str[i] != '_'))
-				return 0;
+			if ((str[i] != '-' && str[i] != '/' && str[i] != '_' && str[i] != '.')) return 0;
 
 		if (isspace(str[i]))
 			return 0;
@@ -1632,6 +1638,18 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	memset(buf,0,l);
 	strncpy(buf,str,l-1);
 	
+	/* in the case of UTILITY usage we need to exclude the type file syntax
+	 * field_name:[file data]*/
+	int f_start = -1;
+	int f_end = -1;
+	if(__UTILITY){
+		char *fs = NULL;
+		char *fe = NULL;
+		if((fs = strstr(buf,"[")) && (fe = strstr(buf,"]"))){
+			f_start = fs - buf;
+			f_end = fe - buf;
+		}
+	}
 	/*
 	 * -step 1;
 	 * erase the field name from the buf string and the attached ':'*/
@@ -1691,7 +1709,15 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	char *delim_in_fields = NULL;
 	int i = 0;
 	while((delim_in_fields = strstr(buf,delim))){
+		
 		int p = delim_in_fields - buf;
+		if(f_start > -1 && f_end > -1){
+			if (p > f_start && p < f_end){
+				*delim_in_fields = '@';
+				continue;	
+			}
+		}
+
 		str[p] = '{';
 		if(i < 200){
 			pos[i] = p;
