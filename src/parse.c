@@ -2328,8 +2328,12 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_FILE:
 				{	
-					if (!rec_old[0]->fields[j].data.file.recs) break;
-
+					if (!rec_old[0]->fields[j].data.file.recs){
+						if(!copy_rec(rec,rec_old[0],NULL)){
+							fprintf(stderr,"cpy rec failed %s:%d",__FILE__,__LINE__-1);
+							return 0;
+						}
+					}
 					break;
 				}
 				default:

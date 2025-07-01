@@ -154,7 +154,7 @@ unsigned char set_field(struct Record_f *rec,
 
 		replace('@','/',rec->file_name);
 		int partial_path = 0;
-		if (i > 0) partial_path = last - p;
+		if (i > 0) partial_path = (last - p) +1;
 
 		char *sfx = ".sch"; 
 		size_t sfxl = strlen(sfx);
