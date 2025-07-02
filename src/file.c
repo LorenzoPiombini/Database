@@ -5151,7 +5151,11 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 	//	printf("the off set before writing the update pos is %ld.\n",get_file_offset(fd));
 
-	uint64_t uot_ne = bswap_64((uint64_t)update_off_t);
+	
+	uint64_t uot_ne = 0;
+	if(update_off_t > 0) 
+		uot_ne = bswap_64((uint64_t)update_off_t);
+
 	if (write(fd, &uot_ne, sizeof(uot_ne)) == STATUS_ERROR)
 	{
 		perror("writing off_t for future update");
@@ -5229,8 +5233,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		case TYPE_LONG: 
 		{
 			uint64_t l_ne = 0;
-			if (read(fd, &l_ne, sizeof(l_ne)) < 0)
-			{
+			if (read(fd, &l_ne, sizeof(l_ne)) < 0){
 				perror("could not read type long, file.c 498.\n");
 				free_record(rec, rec->fields_num);
 				return -1;
@@ -5970,7 +5973,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			}
 			int ntg = 0;
 			if(( ntg = ntohl(ntg_ne)) == NTG_WR){
-				rec->field_set[i] = 0;
+				//rec->field_set[i] = 0;
 				break; 
 			}
 

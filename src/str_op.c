@@ -487,8 +487,7 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - buffer],delim)) != NULL)){
 		if(first[1] == '[' && ((file_block = strstr(&first[1],"]"))) && !__IMPORT_EZ){
 			int size = first - p2;
-			p2 += size +1;
-			int next_start = (file_block - buffer) - (&first[1] - buffer);
+			int next_start = (size + 1)+(file_block - buffer) - (&first[1] - buffer)+1;
 			char cpy[size+1];
 			memset(cpy,0,size+1);
 			strncpy(names[i],p2,size);
@@ -1360,9 +1359,17 @@ int is_file_name_valid(char *str)
 void strip(const char c, char *str)
 {
 	size_t l = strlen(str);
-	for (size_t i = 0; i < l; i++)
-		if (str[i] == c)
-			str[i] = ' ';
+	char cpy[l];
+	memset(cpy,0,l);
+	for (size_t i = 0, j = 0; i < l; i++){
+		if (str[i] == c)continue;
+
+		cpy[j] = str[i];
+		j++;
+	}
+
+	memset(str,0,l);
+	strncpy(str,cpy,l);
 }
 
 void replace(const char c, const char with, char *str)

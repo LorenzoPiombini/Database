@@ -1643,7 +1643,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								&hd->sch_d, SCHEMA_EQ,rec) == -1){
-					fprintf(stderr,"can't parse input to record,%s:%d",
+					fprintf(stderr,"can't parse input to record,%s:%d.\n",
 							__FILE__,__LINE__-2);
 					goto clean_on_error;
 				}
@@ -2328,12 +2328,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_FILE:
 				{	
-					if (!rec_old[0]->fields[j].data.file.recs){
-						if(!copy_rec(rec,rec_old[0],NULL)){
-							fprintf(stderr,"cpy rec failed %s:%d",__FILE__,__LINE__-1);
-							return 0;
-						}
-					}
+					if (!rec_old[0]->fields[j].data.file.recs) return UPDATE_OLDN;
+					/*you need to test the other cases*/
 					break;
 				}
 				default:

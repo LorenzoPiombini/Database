@@ -1017,6 +1017,7 @@ void free_type_file(struct Record_f *rec)
 
 	if(index == -1) return;
 
+	rec->field_set[index] = 0;
 	for(uint32_t j = 0; j < rec->fields[index].data.file.count; j++){
 		struct Record_f *temp = rec->fields[index].data.file.recs[j].next;
 		if(temp){
@@ -1117,7 +1118,10 @@ static void display_data(struct Record_f rec, int max)
 		if(rec.field_set[i] == 0) continue;
 
 		strip('"', rec.fields[i].field_name);
-		strip('_', rec.fields[i].field_name);
+
+		if(rec.fields[i].type == TYPE_FILE)
+			if(rec.fields[i].data.file.count == 0) continue;
+			
 		printf("%-*s\t", max++, rec.fields[i].field_name);
 		int t = (int)rec.fields[i].type;
 		switch (t){
@@ -1249,9 +1253,12 @@ static void display_data(struct Record_f rec, int max)
 		}
 		case TYPE_FILE:
 
-		printf("\n");
-				for(uint32_t x =0; x < rec.fields[i].data.file.count; x++)
-					display_data(rec.fields[i].data.file.recs[x],max);
+			if(rec.fields[i].data.file.count == 0) break;
+			for(uint32_t x =0; x < rec.fields[i].data.file.count; x++){
+				printf("\n\t");
+				display_data(rec.fields[i].data.file.recs[x],max);
+			}
+
 			break;
 		default:
 			break;
@@ -2516,18 +2523,4 @@ static void clean_input(char *value)
 {
 	strip('[',value);
 	strip(']',value);
-	/*
-	 * this is to clean the string value from trailig 
-	 * white spaces
-	 * */
-	int i = 0;
-	while(value[i] != '\0'){
-		if(value[i+1] == '\0'){
-			value[i] = '\0';
-			break;
-		}
-		value[i] = value[i+1];	
-		if(value[i] == ' ') value[i] = '\0';
-		i++;
-	}
 }
