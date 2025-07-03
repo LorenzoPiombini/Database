@@ -423,7 +423,6 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 		/* here we have the all record in memory and we have
 		   to check which fields in the record we have to update*/
 
-		//int size_pos = recs_old.capacity + recs_old.dynamic_capacity;
 		char positions[rec_old.count];
 		memset(positions,0,rec_old.count);
 
@@ -550,7 +549,7 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 	}
 
 	/*updating the record but we need to write some data in another place in the file*/
-	if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && (check == 1 || check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
+	if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && ( check == SCHEMA_EQ || check == 1 || check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
 
 		off_t eof = 0;
 		if ((eof = go_to_EOF(fds[1])) == -1) {

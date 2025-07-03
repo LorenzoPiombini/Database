@@ -1682,7 +1682,9 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		char *f = NULL;
 		if(!(f = strstr(buf,sch.fields_name[i]))) continue;
 
-		if(*f == buf[0]) {
+		
+		
+		if(f == &buf[0]) {
 			while( *f != ':'){
 				*f = ' '; 
 				f++;
@@ -1692,12 +1694,48 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		}
 
 		f--;
-		/* if f is not ':' it means that 
-		 * this is not a field so we need to skip and look again
+		/* 
+		 * if f is not ':' it means that 
+		 * this is not a field  or a similar field, i.e name and last_name 
+		 * so we need to skip and look again
 		 * for the field 
+		 * */
+
+		/* 
+		 * check for a similir field
+		 * example name and last_name
 		 * */
 		if(*f == ':'){
 			*f = ' ';
+		}else if(f != &buf[0]){
+			while(*f != ':' && f != &buf[0]) f--;
+			if(f == &buf[0] || *f == ':'){
+				
+				if (*f == ':') *f = ' ';
+				int size = 0;
+				if(f == &buf[0])
+					size = strstr(f,":") - f;
+				else 
+					size = strstr(&f[1],":") - f;
+
+				if (size < 0) continue;
+
+				char cpy[size+1];
+				memset(cpy,0,size+1);
+				strncpy(cpy,f,size);
+				if(strlen(sch.fields_name[i]) == (size_t)size){
+					if(strncmp(cpy,sch.fields_name[i],size) == 0){
+						while(*f != ':'){
+							*f = ' ';
+							f++;
+						}
+						if(*f == ':') *f = ' ';
+						continue;
+					}
+				}
+
+				continue;
+			}
 		}else{
 			f++;
 			*f = '@';

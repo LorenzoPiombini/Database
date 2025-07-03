@@ -6372,7 +6372,7 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			size += sizeof(uint8_t);
 			break;
 		case TYPE_STRING:
-			size += (sizeof(uint16_t) * 3);
+			size += (sizeof(uint32_t) + sizeof(uint16_t));
 			size += ((strlen(rec->fields[i].data.s) * 2) + 1);
 			break;
 		case TYPE_FLOAT:
@@ -6408,7 +6408,7 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			break;
 		case TYPE_ARRAY_STRING:
 			size += (sizeof(uint32_t) * 2);
-			size += ((sizeof(uint64_t) * 3) * rec->fields[i].data.v.size);
+			size += ((sizeof(uint32_t) + sizeof(uint16_t)) * rec->fields[i].data.v.size);
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
 				size += ((strlen(rec->fields[i].data.s) * 2) + 1);
 			}

@@ -1751,8 +1751,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 							&hd->sch_d, SCHEMA_EQ,rec) == -1){
-					fprintf(stderr,"can't parse input to record,%s:%d",
-							__FILE__,__LINE__-2);
+					fprintf(stderr,"can't parse input to record,%s:%d.\n",__FILE__,__LINE__-2);
 					goto clean_on_error;
 				}
 
@@ -1761,7 +1760,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 			}else if(count < hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(SCHEMA_CT, count, &hd->sch_d, names, &values, types_i)){
-					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					fprintf(stderr,"can't sort input like schema %s:%d.\n",__FILE__,__LINE__-1);
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -2149,6 +2148,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec, unsigned char check) 
 {
 	int changed = 0;
+	int update_new = 0;
 	int types_i[MAX_FIELD_NR]; 
 	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 
@@ -2328,7 +2328,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_FILE:
 				{	
-					if (!rec_old[0]->fields[j].data.file.recs) return UPDATE_OLDN;
+					if (!rec_old[0]->fields[j].data.file.recs || rec_old[0]->fields[j].data.file.recs) {
+						update_new = 1;
+					}
 					/*you need to test the other cases*/
 					break;
 				}
@@ -2340,14 +2342,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 		}
 
 
-		if(changed){
-			return UPDATE_OLD;
-		}else {
+		if(changed && update_new){
 			return UPDATE_OLDN;
+		}else if(changed && !update_new){
+			return UPDATE_OLD;
+		}else if (!changed && update_new){
+			return UPDATE_OLD;
 		}
 	}
 
 
+	
 	changed = 0;
 	for (int i = 0; i < rec_old[0]->fields_num; i++){
 		if(rec->field_set[i] == 1 && rec_old[0]->field_set[i] == 1){
@@ -2537,13 +2542,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 			}
 			case TYPE_FILE:
 			{	
-				if (!rec_old[0]->fields[i].data.file.recs){
-					changed = 1;
-					if(!copy_rec(rec,rec_old[0],NULL)){
-						fprintf(stderr,"cpy rec failed %s:%d",__FILE__,__LINE__-1);
-						return 0;
-					}
-					break;
+				if (!rec_old[0]->fields[i].data.file.recs || rec_old[0]->fields[i].data.file.count == 0){ 
+					if (!changed) update_new = 1;
 				}
 
 				break;
@@ -2555,501 +2555,15 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 		}
 	}
 
-	if(changed) return UPDATE_OLD;
-
+	if(changed && update_new){
+		return UPDATE_OLDN;
+	}else if(changed && !update_new){
+		return UPDATE_OLD;
+	}else if (!changed && update_new){
+		return UPDATE_OLD;
+	}
 
 	return  UPDATE_OLDN;
-#if 0
-	create_record(file_path, hd.sch_d, new_rec);
-	char **values = calloc(elements, sizeof(char *));
-	if (!values) {
-		__er_calloc(F,L-2);
-		return 0;
-	}
-
-	for (int i = 0; i < rec_old[0]->fields_num; i++)
-	{
-		if (strncmp(rec_old[0]->fields[i].field_name, rec->fields[i].field_name,strlen(rec->fields[i].field_name)) == 0){
-			switch (rec_old[0]->fields[i].type){
-			case TYPE_INT:
-				if (rec->fields[i].data.i != 0)
-					rec_old[0]->fields[i].data.i = rec->fields[i].data.i;
-				break;
-			case TYPE_LONG:
-				if (rec->fields[i].data.l != 0)
-					rec_old[0]->fields[i].data.l = rec->fields[i].data.l;
-
-				break;
-			case TYPE_FLOAT:
-				if (rec->fields[i].data.f != 0.0)
-				{
-					rec_old[0]->fields[i].data.f = rec->fields[i].data.f;
-				}
-				break;
-			case TYPE_STRING:
-				if (strcmp(rec->fields[i].data.s, "null") != 0)
-				{
-					// free memory before allocating other memory
-					if (rec_old[0]->fields[i].data.s != NULL)
-					{
-						free(rec_old[0]->fields[i].data.s);
-						rec_old[0]->fields[i].data.s = NULL;
-
-						rec_old[0]->fields[i].data.s = strdup(rec->fields[i].data.s);
-						if(!rec_old[0]->fields[i].data.s){
-							fprintf(stderr,"(%s): strdup() failed, %s:%d.\n",prog,__FILE__,__LINE__-2);
-						}
-					}
-				}
-				break;
-			case TYPE_BYTE:
-				if (rec->fields[i].data.b != 0)
-					rec_old[0]->fields[i].data.b = rec->fields[i].data.b;
-				break;
-			case TYPE_DOUBLE:
-				if (rec->fields[i].data.d != 0.0)
-					rec_old[0]->fields[i].data.d = rec->fields[i].data.d;
-				break;
-			case TYPE_ARRAY_INT:
-				if (rec->fields[i].data.v.elements.i){
-					if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.i[0] == 0)break;
-
-					if (rec_old[0]->fields[i].data.v.elements.i){
-						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								if (*rec_old[0]->fields[i].data.v.elements.i[a] == *rec->fields[i].data.v.elements.i[a])
-									continue;
-
-								*rec_old[0]->fields[i].data.v.elements.i[a] = *rec->fields[i].data.v.elements.i[a];
-							}
-						}
-						else
-						{
-							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec_old[0]->fields[i].type);
-							for (int a = 0; a < rec->fields[i].data.v.size; a++){
-								rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.i[a],
-												&rec_old[0]->fields[i].data.v, 
-												rec_old[0]->fields[i].type);
-							}
-						}
-					}else{
-						rec_old[0]->fields[i].data.v.insert = insert_element;
-						rec_old[0]->fields[i].data.v.destroy = free_dynamic_array;
-
-						for (int a = 0; a < rec->fields[i].data.v.size; a++){
-							rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.i[a],
-													&rec_old[0]->fields[i].data.v, 
-													rec_old[0]->fields[i].type);
-						}
-					}
-				}
-				break;
-			case TYPE_ARRAY_LONG:
-				if (rec->fields[i].data.v.elements.l)
-				{
-					if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.l[0] == 0)break;
-
-					if (rec_old[0]->fields[i].data.v.elements.l){
-						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								if (*rec_old[0]->fields[i].data.v.elements.l[a] == *rec->fields[i].data.v.elements.l[a])
-									continue;
-
-								*rec_old[0]->fields[i].data.v.elements.l[a] = *rec->fields[i].data.v.elements.l[a];
-							}
-						}else{
-							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec_old[0]->fields[i].type);
-							for (int a = 0; a < rec->fields[i].data.v.size; a++){
-								rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.l[a],
-													&rec_old[0]->fields[i].data.v, 
-													rec_old[0]->fields[i].type);
-							}
-						}
-					}else{
-						rec_old[0]->fields[i].data.v.insert = insert_element;
-						rec_old[0]->fields[i].data.v.destroy = free_dynamic_array;
-						for (int a = 0; a < rec->fields[i].data.v.size; a++){
-							rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.l[a],
-												&rec_old[0]->fields[i].data.v,
-												rec_old[0]->fields[i].type);
-						}
-					}
-				}
-				break;
-			case TYPE_ARRAY_FLOAT:
-				if (rec->fields[i].data.v.elements.f)
-				{
-					if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.f[0] == 0.0)break;
-
-					if (rec_old[0]->fields[i].data.v.elements.f)
-					{
-						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
-						{
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								if (*rec_old[0]->fields[i].data.v.elements.f[a] == *rec->fields[i].data.v.elements.f[a])
-									continue;
-
-								*rec_old[0]->fields[i].data.v.elements.f[a] = *rec->fields[i].data.v.elements.f[a];
-							}
-						}else{
-							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec_old[0]->fields[i].type);
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.f[a],
-													&rec_old[0]->fields[i].data.v, 
-													rec_old[0]->fields[i].type);
-							}
-						}
-					}else{
-						rec_old[0]->fields[i].data.v.insert = insert_element;
-						rec_old[0]->fields[i].data.v.destroy = free_dynamic_array;
-						for (int a = 0; a < rec->fields[i].data.v.size; a++)
-						{
-							rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.f[a],
-											&rec_old[0]->fields[i].data.v,
-											rec_old[0]->fields[i].type);
-						}
-					}
-				}
-				break;
-			case TYPE_ARRAY_DOUBLE:
-				if (rec->fields[i].data.v.elements.d){
-					if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.d[0] == 0)break;
-
-					if (rec_old[0]->fields[i].data.v.elements.d)
-					{
-						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
-						{
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								if (*rec_old[0]->fields[i].data.v.elements.d[a] == *rec->fields[i].data.v.elements.d[a])
-									continue;
-
-								*rec_old[0]->fields[i].data.v.elements.d[a] = *rec->fields[i].data.v.elements.d[a];
-							}
-						}
-						else
-						{
-							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec_old[0]->fields[i].type);
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.d[a],
-											&rec_old[0]->fields[i].data.v,
-											rec_old[0]->fields[i].type);
-							}
-						}
-					}
-					else
-					{
-						rec_old[0]->fields[i].data.v.insert = insert_element;
-						rec_old[0]->fields[i].data.v.destroy = free_dynamic_array;
-						for (int a = 0; a < rec->fields[i].data.v.size; a++){
-							rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.d[a],
-									&rec_old[0]->fields[i].data.v, 
-									rec_old[0]->fields[i].type);
-						}
-					}
-				}
-				break;
-				case TYPE_ARRAY_BYTE:
-				if (rec->fields[i].data.v.elements.b)
-				{
-					if (rec->fields[i].data.v.size == 1 && *rec->fields[i].data.v.elements.b[0] == 0)break;
-
-					if (rec_old[0]->fields[i].data.v.elements.b){
-						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								if (*rec_old[0]->fields[i].data.v.elements.b[a] == *rec->fields[i].data.v.elements.b[a])
-								continue;
-
-								*rec_old[0]->fields[i].data.v.elements.b[a] = *rec->fields[i].data.v.elements.b[a];
-							}
-						}
-						else
-						{
-							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec_old[0]->fields[i].type);
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.b[a],
-														&rec_old[0]->fields[i].data.v, 
-														rec_old[0]->fields[i].type);
-							}
-						}
-					}
-					else
-					{
-						rec_old[0]->fields[i].data.v.insert = insert_element;
-						rec_old[0]->fields[i].data.v.destroy = free_dynamic_array;
-						for (int a = 0; a < rec->fields[i].data.v.size; a++)
-						{
-							rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.b[a],
-											&rec_old[0]->fields[i].data.v,
-											rec_old[0]->fields[i].type);
-						}
-						}
-			}
-				break;
-			case TYPE_ARRAY_STRING:
-				if (rec->fields[i].data.v.elements.s){
-					if (rec->fields[i].data.v.size == 1 && strcmp(rec->fields[i].data.v.elements.s[0], "null") == 0)break;
-
-					if (rec_old[0]->fields[i].data.v.elements.s)
-					{
-						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
-						{
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								if (strcmp(rec_old[0]->fields[i].data.v.elements.s[a], rec->fields[i].data.v.elements.s[a]) == 0)
-									continue;
-
-								free(rec_old[0]->fields[i].data.v.elements.s[a]);
-								rec_old[0]->fields[i].data.v.elements.s[a] = NULL;
-								rec_old[0]->fields[i].data.v.elements.s[a] = strdup(rec->fields[i].data.v.elements.s[a]);
-								if (!rec_old[0]->fields[i].data.v.elements.s[a]){
-									fprintf(stderr, "(%s): strdup() failed,%s:%d.\n",prog, F, L - 2);
-									return 0;
-								}
-							}
-						}else{
-							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec_old[0]->fields[i].type);
-							for (int a = 0; a < rec->fields[i].data.v.size; a++)
-							{
-								rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.s[a],
-											&rec_old[0]->fields[i].data.v, 
-											rec_old[0]->fields[i].type);
-							}
-						}
-					}
-					else
-					{
-						rec_old[0]->fields[i].data.v.insert = insert_element;
-						rec_old[0]->fields[i].data.v.destroy = free_dynamic_array;
-						for (int a = 0; a < rec->fields[i].data.v.size; a++)
-						{
-							rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.s[a],
-										&rec_old[0]->fields[i].data.v, 
-										rec_old[0]->fields[i].type);
-						}
-					}
-				}
-				break;
-			default:
-				printf("invalid type! type -> %d.\n", rec->fields[i].type);
-				free(values);
-				return 0;
-			}
-		}
-	}
-
-	for (int i = 0, j = 0; i < rec->fields_num; i++)
-	{
-		if (i < rec_old[0]->fields_num)continue;
-
-		strncpy(names[j],rec->fields[i].field_name,strlen(rec->fields[i].field_name));
-		types_i[j] = rec->fields[i].type;
-		char buffer[64] ={0};
-
-		switch (rec->fields[i].type){
-		case TYPE_INT:
-			if (snprintf(buffer, 64, "%d", rec->fields[i].data.i) < 0){
-				fprintf(stderr, "(%s): snprintf() failed, %s:%d",prog, F, L - 1);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			values[j] = strdup(buffer);
-			if (!values[j]){
-				fprintf(stderr, "(%s): strdup() failed, %s:%d",prog, F, L - 2);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			break;
-		case TYPE_LONG:
-			if (snprintf(buffer, sizeof(buffer), "%ld", rec->fields[i].data.l) < 0)
-			{
-				fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			values[j] = strdup(buffer);
-			if (!values[j])
-			{
-				fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			break;
-		case TYPE_FLOAT:
-			if (snprintf(buffer, sizeof(buffer), "%f", rec->fields[i].data.f))
-			{
-				fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-
-			values[j] = strdup(buffer);
-			if (!values[j])
-			{
-				fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			break;
-		case TYPE_STRING:
-			values[j] = strdup(rec->fields[i].data.s);
-			if (!values[j])
-			{
-				fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			break;
-		case TYPE_BYTE:
-			if (snprintf(buffer, sizeof(buffer), "%u", rec->fields[i].data.b) < 0)
-			{
-				fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			values[j] = strdup(buffer);
-			if (!values[j])
-			{
-				fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			break;
-		case TYPE_DOUBLE:
-			if (snprintf(buffer, sizeof(buffer), "%lf", rec->fields[i].data.d) < 0)
-			{
-				fprintf(stderr, "snprintf() failed, %s:%d", F, L - 1);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			values[j] = strdup(buffer);
-			if (!values[j])
-			{
-				fprintf(stderr, "strdup() failed, %s:%d", F, L - 2);
-				free_strs(elements, 1, values);
-				return 0;
-			}
-			break;
-		case TYPE_ARRAY_INT:
-		{
-			strncpy(new_rec->fields[j].field_name,names[j],strlen(names[j]));
-
-			new_rec->fields[j].type = rec->fields[i].type;
-			new_rec->fields[j].data.v.insert = insert_element;
-			new_rec->fields[j].data.v.destroy = free_dynamic_array;
-
-			for (int a = 0; a < rec->fields[i].data.v.size; a++) {
-				new_rec->fields[j].data.v.insert((void *)rec->fields[i].data.v.elements.i[a],
-								&new_rec->fields[j].data.v, rec->fields[i].type);
-
-			}
-			break;
-		}
-		case TYPE_ARRAY_LONG:
-		{
-			strncpy(new_rec->fields[j].field_name,names[j],strlen(names[j]));
-			new_rec->fields[j].type = rec->fields[i].type;
-			new_rec->fields[j].data.v.insert = insert_element;
-			new_rec->fields[j].data.v.destroy = free_dynamic_array;
-
-			for (int a = 0; a < rec->fields[i].data.v.size; a++) {
-				new_rec->fields[j].data.v.insert((void *)rec->fields[i].data.v.elements.l[a],
-							&new_rec->fields[j].data.v, rec->fields[i].type);
-			}
-			break;
-		}
-		case TYPE_ARRAY_FLOAT:
-		{
-			strncpy(new_rec->fields[j].field_name,names[j],strlen(names[j]));
-
-			new_rec->fields[j].type = rec->fields[i].type;
-			new_rec->fields[j].data.v.insert = insert_element;
-			new_rec->fields[j].data.v.destroy = free_dynamic_array;
-
-			for (int a = 0; a < rec->fields[i].data.v.size; a++) {
-				new_rec->fields[j].data.v.insert((void *)rec->fields[i].data.v.elements.f[a],
-							&new_rec->fields[j].data.v, rec->fields[i].type);
-			}
-			break;
-		}
-		case TYPE_ARRAY_BYTE:
-		{
-			strncpy(new_rec->fields[j].field_name,names[j],strlen(names[j]));
-
-			new_rec->fields[j].type = rec->fields[i].type;
-			new_rec->fields[j].data.v.insert = insert_element;
-			new_rec->fields[j].data.v.destroy = free_dynamic_array;
-
-			for (int a = 0; a < rec->fields[i].data.v.size; a++) {
-				new_rec->fields[j].data.v.insert((void *)rec->fields[i].data.v.elements.b[a],
-								&new_rec->fields[j].data.v, rec->fields[i].type);
-			}
-			break;
-		}
-		case TYPE_ARRAY_STRING:
-		{
-			strncpy(new_rec->fields[j].field_name,names[j],strlen(names[j]));
-
-			new_rec->fields[j].type = rec->fields[i].type;
-			new_rec->fields[j].data.v.insert = insert_element;
-			new_rec->fields[j].data.v.destroy = free_dynamic_array;
-
-			for (int a = 0; a < rec->fields[i].data.v.size; a++) {
-				new_rec->fields[j].data.v.insert((void *)rec->fields[i].data.v.elements.s[a],
-						&new_rec->fields[j].data.v, rec->fields[i].type);
-			}
-			break;
-		}
-		case TYPE_ARRAY_DOUBLE:
-		{
-			strncpy(new_rec->fields[j].field_name,names[j],strlen(names[j]));
-
-			new_rec->fields[j].type = rec->fields[i].type;
-			new_rec->fields[j].data.v.insert = insert_element;
-			new_rec->fields[j].data.v.destroy = free_dynamic_array;
-
-			for (int a = 0; a < rec->fields[i].data.v.size; a++) {
-				new_rec->fields[j].data.v.insert((void *)rec->fields[i].data.v.elements.d[a],
-							&new_rec->fields[j].data.v, rec->fields[i].type);
-			}
-			break;
-		}
-		default:
-			printf("invalid type! type -> %d.\n", rec->fields[i].type);
-			free_strs(elements, 1, values);
-			return 0;
-		}
-		j++;
-	}
-
-	for (int i = 0; i < elements; i++) {
-		if (types_i[i] == TYPE_ARRAY_INT ||
-			types_i[i] == TYPE_ARRAY_LONG ||
-			types_i[i] == TYPE_ARRAY_FLOAT ||
-			types_i[i] == TYPE_ARRAY_BYTE ||
-			types_i[i] == TYPE_ARRAY_STRING ||
-			types_i[i] == TYPE_ARRAY_DOUBLE)
-			continue;
-
-		if (!set_field(new_rec, i, names[i], types_i[i], values[i],1)) {
-			printf("set_field failed, %s:%d.\n", F, L - 2);
-			free_strs(elements, 1, values);
-			return 0;
-		}
-	}
-
-	free_strs(elements, 1, values);
-	return UPDATE_OLDN;
-
-#endif
-	return 0;
 }
 
 void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec)

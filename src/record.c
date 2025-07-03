@@ -20,7 +20,7 @@
 static char prog[] = "db";
 #define ERR_MSG_PAR prog,__FILE__,__LINE__
 
-static void display_data(struct Record_f rec,int max);
+static void display_data(struct Record_f rec,int max,int tab);
 static void clean_input(char *value);
 
 void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
@@ -59,6 +59,13 @@ unsigned char set_field(struct Record_f *rec,
 		break;
 	case TYPE_FILE:
 	{	
+		/*validate the input*/
+
+		if(!strstr(value,"|")){
+			fprintf(stderr,"(%s): syntax error for type file.\nUsage field_name:[w|fields in the file]\n",prog);
+			return 0;
+		}
+
 		/*
 		 * understand how many records you have to create
 		 * */
@@ -139,9 +146,8 @@ unsigned char set_field(struct Record_f *rec,
 		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 		
 		/* 
-		 * we need to guarantee that the file gets created
-		 * in the same directory as the main file wher this file as a field
-		 * is embended.
+		 * we need to guarantee that the file field gets created
+		 * in the same directory as the main file.
 		 * */
 
 
@@ -189,42 +195,179 @@ unsigned char set_field(struct Record_f *rec,
 		if(cr){
 			/*here the file is new*/	
 			int mode = 0;
-			if(count == 1)
-				mode = check_handle_input_mode(value, FCRT) | DF;
-			else
-				mode = check_handle_input_mode(values[0], FCRT) | DF;
-
+			if(count == 1){
+				if(value[0] == 'w')
+					mode = check_handle_input_mode(&value[2], FCRT) | WR;
+				/*you can implement other modes*/
+			}else{
+				if(value[0] == 'w')
+					mode = check_handle_input_mode(&values[0][2], FCRT) | WR;
+				
+			}
+			
 			switch(mode){
-			case NO_TYPE_DF:
+			case NO_TYPE_WR:
 			case HYB_DF:
-				if(!create_file_definition_with_no_value(mode,-1,
-							count == 1 ? value : values[0],NULL,&sch)){
-					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
-							__FILE__,__LINE__-2);
+				int fields_count = 0;
+				char names[MAX_FIELD_NR][MAX_FILED_LT] ={0};
+				int types_i[MAX_FIELD_NR];
+				memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
+				char **values_in = NULL;
+
+				if(count == 1){
+					switch (mode){
+					case NO_TYPE_WR:			
+					{	
+						values_in = extract_fields_value_types_from_input(&value[2],names,types_i,&fields_count);
+						if(!values_in){
+							fprintf(stderr,"(%s): cannot extract value from input,%s:%d.\n",prog,__FILE__,__LINE__-1);
+							close_file(1,fd_schema);	
+							return 0;
+						}
+						break;
+					}
+					case HYB_WR:			
+					{
+						if((fields_count = get_name_types_hybrid(mode,&value[2],names,types_i)) == -1){ 
+							free_strs(fields_count,1,values_in);
+							close_file(1,fd_schema);	
+							return 0;
+						}
+
+						if(get_values_hyb(value,&values_in,fields_count) == -1){
+							free_strs(fields_count,1,values_in);
+							close_file(1,fd_schema);	
+							return 0;
+						}
+
+						for(int i = 0; i < fields_count; i++){
+							if(types_i[i] == -1) types_i[i] = assign_type(values[i]);		
+						}
+						break;
+					}	
+					default:
+					close_file(1,fd_schema);	
 					return 0;
-				}	
+					}
+					set_schema(names,types_i,&sch,fields_count);	
+
+					rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+					rec->fields[index].data.file.count = 1;
+					if(!rec->fields[index].data.file.recs){
+						__er_calloc(F,L-2);
+						free_strs(fields_count,1,values_in);
+						close_file(1,fd_schema);	
+						return 0;
+					}
+					if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
+								types_i, values_in,&sch,0,rec->fields[index].data.file.recs) == -1){
+						fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+						free_strs(fields_count,1,values_in);
+						close_file(1,fd_schema);	
+						return 0;
+					}
+
+
+					free_strs(fields_count,1,values_in);
+				}else{
+
+					for(int i = 0; i < count;i++){
+						switch (mode){
+						case NO_TYPE_WR:			
+						{	
+							values_in = extract_fields_value_types_from_input(values[i],names,types_i,&fields_count);
+							if(!values_in){
+								fprintf(stderr,"(%s): cannot extract value from input,%s:%d.\n",prog,__FILE__,__LINE__-1);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+							break;
+						}
+						case HYB_WR:			
+						{
+							if((fields_count = get_name_types_hybrid(mode,values[i],names,types_i)) == -1){ 
+								free_strs(fields_count,1,values_in);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+							if(get_values_hyb(values[i],&values_in,fields_count) == -1){
+								free_strs(fields_count,1,values_in);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+							for(int i = 0; i < fields_count; i++){
+								if(types_i[i] == -1) types_i[i] = assign_type(values[i]);		
+							}
+							break;
+						}	
+						default:
+							close_file(1,fd_schema);	
+							return 0;
+						}
+						set_schema(names,types_i,&sch,fields_count);	
+
+						if(!rec->fields[index].data.file.recs){
+							rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.count = 1;
+							if(!rec->fields[index].data.file.recs){
+								__er_calloc(F,L-2);
+								free_strs(fields_count,1,values_in);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+							if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
+										types_i, values_in,&sch,0,rec->fields[index].data.file.recs) == -1){
+								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+								free_strs(fields_count,1,values_in);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+
+						}else{
+							rec->fields[index].data.file.recs->next = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.count++;
+							if(!rec->fields[index].data.file.recs->next){
+								__er_calloc(F,L-2);
+								free_strs(fields_count,1,values_in);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+							if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
+										types_i, values_in,&sch,0,rec->fields[index].data.file.recs->next) == -1){
+								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+								free_strs(fields_count,1,values_in);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+						}
+
+						free_strs(fields_count,1,values_in);
+						break;
+					}
+				}
 				break;
-			case TYPE_DF:
+			case TYPE_WR:
 			{
-				char *buff = NULL;
-				char *buff_t = NULL;
+				char *buffer = NULL;
 				int f_count = 0; 
 				if(count == 1){		
-					buff = strdup(value);
-					buff_t = strdup(value);
+					buffer = strdup(value);
 					f_count = count_fields(value,NULL);
 				}else{
-					buff = strdup(values[0]);
-					buff_t = strdup(values[0]);
+					buffer = strdup(values[0]);
 					f_count = count_fields(values[0],NULL);
 				}
-
-				if(!buff || !buff_t){
-					fprintf(stderr,"(%s): strdup() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+					
+				if(!buffer){
+					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
 					close_file(1,fd_schema);	
 					return 0;
 				}
-					
+
 				if (f_count == 0) {
 					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
 					close_file(1,fd_schema);	
@@ -232,22 +375,32 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if (f_count > MAX_FIELD_NR) {
-					fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
-							,prog, MAX_FIELD_NR);
+					fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
 					close_file(1,fd_schema);	
 					return 0;
 				}
 
-				if(!create_file_definition_with_no_value(mode,f_count,
-							count == 1 ? value : values[0],buff_t,&sch)){
-					fprintf(stderr,"create_file_definition_with_no_value failed, %s:%d.\n",
-							__FILE__,__LINE__-2);
+				rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+				rec->fields[index].data.file.count = 1;
+				if(!rec->fields[index].data.file.recs){
+					__er_calloc(F,L-2);
 					close_file(1,fd_schema);	
 					return 0;
-				}	
+				}
 
-				free(buff);
-				free(buff_t);
+				if(parse_d_flag_input(rec->fields[index].field_name, 
+							f_count,
+							buffer,
+							&sch, 
+							0,
+							rec->fields[index].data.file.recs,
+							NULL) == -1) {
+					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+					close_file(1,fd_schema);	
+					return 0;
+				}
+
+				free(buffer); 
 				break;
 			}
 			default:
@@ -269,15 +422,6 @@ unsigned char set_field(struct Record_f *rec,
 
 			close_file(1,fd_schema);	
 
-			rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
-			rec->fields[index].data.file.count = 1;
-			if(!rec->fields[index].data.file.recs){
-				__er_calloc(F,L-2);
-				return 0;
-			}
-			
-			
-			create_record(rec->fields[index].field_name, hd.sch_d, rec->fields[index].data.file.recs);
 
 		}else {
 			/*file exist*/
@@ -1093,18 +1237,18 @@ void print_record(int count, struct Record_f recs)
 	printf("the Record data are: \n");
 
 
-	display_data(recs,0);
+	display_data(recs,0,0);
 	if(count > 1){
 		while(recs.next){
 			struct Record_f rec = *recs.next;
-			display_data(rec,0);
+			display_data(rec,0,0);
 			recs.next =recs.next->next;
 		}
 	}
 	printf("\n#################################################################\n\n");
 }
 
-static void display_data(struct Record_f rec, int max)
+static void display_data(struct Record_f rec, int max,int tab)
 {
 	for (int i = 0; i < rec.fields_num; i++){
 		if (max < (int)strlen(rec.fields[i].field_name))
@@ -1122,6 +1266,7 @@ static void display_data(struct Record_f rec, int max)
 		if(rec.fields[i].type == TYPE_FILE)
 			if(rec.fields[i].data.file.count == 0) continue;
 			
+		if(tab)printf("\t");
 		printf("%-*s\t", max++, rec.fields[i].field_name);
 		int t = (int)rec.fields[i].type;
 		switch (t){
@@ -1254,9 +1399,10 @@ static void display_data(struct Record_f rec, int max)
 		case TYPE_FILE:
 
 			if(rec.fields[i].data.file.count == 0) break;
+				printf("\n");
 			for(uint32_t x =0; x < rec.fields[i].data.file.count; x++){
-				printf("\n\t");
-				display_data(rec.fields[i].data.file.recs[x],max);
+				/*the last parameters is 1,will serve for formatting reason*/
+				display_data(rec.fields[i].data.file.recs[x],max,1);
 			}
 
 			break;
