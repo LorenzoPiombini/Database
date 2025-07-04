@@ -200,14 +200,15 @@ unsigned char set_field(struct Record_f *rec,
 					mode = check_handle_input_mode(&value[2], FCRT) | WR;
 				/*you can implement other modes*/
 			}else{
-				if(value[0] == 'w')
-					mode = check_handle_input_mode(&values[0][2], FCRT) | WR;
+				for(int i = 0; i < count;i++)
+					if(values[i][0] == 'w')
+						mode = check_handle_input_mode(&values[0][2], FCRT) | WR;
 				
 			}
 			
 			switch(mode){
 			case NO_TYPE_WR:
-			case HYB_DF:
+			case HYB_WR:
 				int fields_count = 0;
 				char names[MAX_FIELD_NR][MAX_FILED_LT] ={0};
 				int types_i[MAX_FIELD_NR];
@@ -239,10 +240,11 @@ unsigned char set_field(struct Record_f *rec,
 							close_file(1,fd_schema);	
 							return 0;
 						}
-
-						for(int i = 0; i < fields_count; i++){
-							if(types_i[i] == -1) types_i[i] = assign_type(values[i]);		
+							
+						for(int j = 0; j < fields_count; j++){
+							if(types_i[j] == -1) types_i[j] = assign_type(values_in[j]);		
 						}
+
 						break;
 					}	
 					default:
@@ -275,7 +277,7 @@ unsigned char set_field(struct Record_f *rec,
 						switch (mode){
 						case NO_TYPE_WR:			
 						{	
-							values_in = extract_fields_value_types_from_input(values[i],names,types_i,&fields_count);
+							values_in = extract_fields_value_types_from_input(&values[i][2],names,types_i,&fields_count);
 							if(!values_in){
 								fprintf(stderr,"(%s): cannot extract value from input,%s:%d.\n",prog,__FILE__,__LINE__-1);
 								close_file(1,fd_schema);	
@@ -285,20 +287,20 @@ unsigned char set_field(struct Record_f *rec,
 						}
 						case HYB_WR:			
 						{
-							if((fields_count = get_name_types_hybrid(mode,values[i],names,types_i)) == -1){ 
+							if((fields_count = get_name_types_hybrid(mode,&values[i][2],names,types_i)) == -1){ 
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
-							if(get_values_hyb(values[i],&values_in,fields_count) == -1){
+							if(get_values_hyb(&values[i][2],&values_in,fields_count) == -1){
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
-							for(int i = 0; i < fields_count; i++){
-								if(types_i[i] == -1) types_i[i] = assign_type(values[i]);		
+							for(int j = 0; j < fields_count; j++){
+								if(types_i[j] == -1) types_i[j] = assign_type(values_in[j]);		
 							}
 							break;
 						}	
@@ -327,9 +329,11 @@ unsigned char set_field(struct Record_f *rec,
 
 
 						}else{
-							rec->fields[index].data.file.recs->next = calloc(1,sizeof(struct Record_f));
+							struct Record_f *temp = rec->fields[index].data.file.recs;
+							while(temp->next) temp = temp->next;	
+							temp->next = calloc(1,sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
-							if(!rec->fields[index].data.file.recs->next){
+							if(!temp->next){
 								__er_calloc(F,L-2);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
@@ -346,12 +350,13 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						free_strs(fields_count,1,values_in);
-						break;
+						values_in = NULL;
 					}
 				}
 				break;
 			case TYPE_WR:
 			{
+				/*TODO implement the for loop*/
 				char *buffer = NULL;
 				int f_count = 0; 
 				if(count == 1){		

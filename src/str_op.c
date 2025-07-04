@@ -475,17 +475,39 @@ static char *strstr_last(char *src, char delim)
 }
 int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 {
+	/*copy the buffer*/
+	size_t l = strlen(buffer);
+	char cpy[l+1];
+	memset(cpy,0,l+1);
+	strncpy(cpy,buffer,l);
+	
+
+	if(strstr(buffer,"@")) replace('@','^',cpy);
+
+	/*exclude file syntax*/
+	char *f_st = NULL;
+	char *f_en = NULL;
+	while((f_st = strstr(cpy,"[")) && (f_en = strstr(cpy,"]"))){
+		*f_st = '\n';
+		for(; *f_st != ']'; f_st++){
+			if(*f_st == ':') *f_st = '@';
+		}
+		*f_en = '\r';
+	}
+
+	if(strstr(cpy,"\n")) replace('\n','[',cpy);
+	if(strstr(cpy,"\r")) replace('\r',']',cpy);
+	
+
 	char *delim = ":";
 	char *first = NULL;
-	char *p = buffer;
-	char *p2 = buffer;
 	char *last = NULL;
 	
 	int i = 0;
-	char *file_block = NULL;
-
-	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - buffer],delim)) != NULL)){
-		if(first[1] == '[' && ((file_block = strstr(&first[1],"]"))) && !__IMPORT_EZ){
+	char *p = cpy;
+	char *p2 = cpy;
+	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - cpy],delim)) != NULL)){
+	/*	if(first[1] == '[' && ((file_block = strstr(&first[1],"]"))) && !__IMPORT_EZ){
 			int size = first - p2;
 			int next_start = (size + 1)+(file_block - buffer) - (&first[1] - buffer)+1;
 			char cpy[size+1];
@@ -496,20 +518,18 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			i++;
 			continue;
 		}	
-
+	*/
 		char *move_back = (first - 1); 
-		while(move_back != &buffer[0] && *move_back != '@' && *move_back != ':') --move_back;   
+		while(move_back != &cpy[0] && *move_back != '@' && *move_back != ':') --move_back;   
 			
 		int size = 0;
-		if(move_back == &buffer[0])
-			size = (first - buffer) - ( move_back - buffer) +1;
+		if(move_back == &cpy[0])
+			size = (first - cpy) - ( move_back - cpy) +1;
 		else
-			size = (first - buffer) - ( move_back - buffer);
+			size = (first - cpy) - ( move_back - cpy);
 		
 		int next_start = last - p2;
-		char cpy[size];
-		memset(cpy,0,size);
-		if(move_back == &buffer[0])
+		if(move_back == &cpy[0])
 			strncpy(names[i],move_back,size-1);
 		else
 			strncpy(names[i],++move_back,size-1);
@@ -521,9 +541,9 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	if(first){
 		if(*(first + 1) != '\0') {
 			char *cf = (first - 1);		
-			while(*cf != ':' && cf != &buffer[0] && *cf != '@') cf--;
+			while(*cf != ':' && cf != &cpy[0] && *cf != '@') cf--;
 			int size = 0; 
-			if(cf != &buffer[0])	 
+			if(cf != &cpy[0])	 
 				size = first - (++cf) +1;
 			else 
 				size = first - cf +1;	
@@ -531,19 +551,19 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			strncpy(names[i],cf,size-1);
 			i++;
 		}
-	}else if(strstr(buffer,delim) == NULL && !strstr(buffer,"@")){
+	}else if(strstr(cpy,delim) == NULL && !strstr(cpy,"@")){
 		if(buffer){
-			strncpy(names[i],buffer,strlen(buffer));
+			strncpy(names[i],cpy,strlen(buffer));
 			i++;
 		}
-	}else if ((first = strstr(buffer,delim))){
+	}else if ((first = strstr(cpy,delim))){
 		if(first[1] == '['){
 			if((last = strstr(&first[1],delim))){
 				if(last[strlen(last)-1] == ']') return i;
 			}
 		}
 
-	}else if((last = strstr_last(buffer,'@'))){
+	}else if((last = strstr_last(cpy,'@'))){
 		++last;
 		strncpy(names[i],last,strlen(last));
 	}else {
@@ -1199,10 +1219,13 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 }
 char ** get_values_with_no_types(char *buff,int fields_count)
 {
+	size_t l = strlen(buff);
+	char cpy[l+1];
+	memset(cpy,0,l+1);
+	strncpy(cpy,buff,l);
+
 	char *delim = ":";
 	char *first = NULL;
-	char *p = buff;
-	char *p2 = buff;
 	char *last = NULL;
 	
 	char **values = calloc(fields_count, sizeof(char *));
@@ -1211,10 +1234,28 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 		return NULL;
 	}
 
+	if(strstr(buff,"@")) replace('@','^',cpy);
+
+	/*exclude file syntax*/
+	char *f_st = NULL;
+	char *f_en = NULL;
+	while((f_st = strstr(cpy,"[")) && (f_en = strstr(cpy,"]"))){
+		*f_st = '\n';
+		for(; *f_st != ']'; f_st++){
+			if(*f_st == ':') *f_st = '@';
+		}
+		*f_en = '\r';
+	}
+
+	if(strstr(cpy,"\n")) replace('\n','[',cpy);
+	if(strstr(cpy,"\r")) replace('\r',']',cpy);
+	
+
 	int i = 0;
-	char *file_block = NULL;
-	while((first = strstr(p2,delim)) != NULL && (last=strstr(&p[(first+1) - buff],delim)) != NULL){
-		if(first[1] == '[' && ((file_block = strstr(&first[1],"]")))){
+	char *p2 = cpy;
+	char *p = cpy;
+	while((first = strstr(p2,delim)) != NULL && (last = strstr(&p[(first+1) - cpy],delim)) != NULL){
+	/*	if(first[1] == '[' && ((file_block = strstr(&first[1],"]")))){
 			int start = (first + 1) - buff;
 			int size = (file_block - buff) - start +1;
 			char cpy[size+1];
@@ -1229,16 +1270,22 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 			i++;
 			continue;
 		}
-		int start = (first + 1) - buff;
-		int size = (last - buff) - start;
-		char cpy[size+1];
-		memset(cpy,0,size+1);
-		strncpy(cpy,&buff[start],size);
-		values[i] = strdup(cpy);
+		*/
+		int start = (first + 1) - cpy;
+		int size = (last - cpy) - start;
+		char bpy[size+1];
+		memset(bpy,0,size+1);
+		strncpy(bpy,&buff[start],size);
+
+		values[i] = strdup(bpy);
 		if(!values[i]){
 			fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
 			return NULL;
 		}
+
+		if(strstr(values[i],"@")) replace('@',':',values[i]);
+		if(strstr(values[i],"^")) replace('^','@',values[i]);
+
 		p2 = (first + 1) + size+1;
 		i++;
 	}
@@ -1250,7 +1297,8 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 				fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
 				return NULL;
 			}
-
+			if(strstr(values[i],"@")) replace('@',':',values[i]);
+			if(strstr(values[i],"^")) replace('^','@',values[i]);
 		}
 	}
 

@@ -1677,7 +1677,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								&hd->sch_d, 
 								SCHEMA_CT_NT,rec) == -1){	
-					fprintf(stderr,"can't parse input to record,%s:%d",
+					fprintf(stderr,"can't parse input to record,%s:%d\n",
 							__FILE__,__LINE__-2);
 					goto clean_on_error;
 				}
@@ -2328,8 +2328,13 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_FILE:
 				{	
-					if (!rec_old[0]->fields[j].data.file.recs || rec_old[0]->fields[j].data.file.recs) {
+					if(!rec_old[0]->fields[j].data.file.recs || rec_old[0]->fields[j].data.file.recs) {
 						update_new = 1;
+					}
+					if(rec_old[0]->fields[j].data.file.count == rec->fields[j].data.file.count) {
+
+
+						
 					}
 					/*you need to test the other cases*/
 					break;
@@ -2824,6 +2829,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				free_record(&rec_old[i]->fields[index].data.file.recs[m],
 						rec_old[i]->fields[index].data.file.recs[m].fields_num);
 			}
+
 			/*resize the memory accordingly*/
 			if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
 				struct Record_f *n_recs = realloc(rec_old[i]->fields[index].data.file.recs,

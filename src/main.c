@@ -714,7 +714,6 @@ int main(int argc, char *argv[])
 			switch(mode){
 			case NO_TYPE_WR:
 				if (!add_fields_to_schema(mode, fields_count, schema_def, NULL, &hd.sch_d)) {
-					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
 				break;

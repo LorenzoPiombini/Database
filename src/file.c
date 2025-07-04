@@ -4526,7 +4526,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				/*write the size of the array */
+				/*write the size of the LIST */
 				uint32_t size_ne = htonl(rec->fields[i].data.file.count);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)	{
 					perror("error in writing size array to file.\n");
@@ -4540,12 +4540,19 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				for (uint32_t k = 0; k < rec->fields[i].data.file.count; k++)
-				{
-
-					if(write_file(fd,&rec->fields[i].data.file.recs[k],0,0) == 0){
-						perror("failed write record array to file");
-						return 0;
+				if(write_file(fd,rec->fields[i].data.file.recs,0,0) == 0){
+					perror("failed write record array to file");
+					return 0;
+				}
+				
+				if(rec->fields[i].data.file.recs->next){
+					struct Record_f *temp = rec->fields[i].data.file.recs->next;
+					while(temp){
+						if(write_file(fd,temp,0,0) == 0){
+							perror("failed write record array to file");
+							return 0;
+						}
+						temp = temp->next;
 					}
 				}
 
