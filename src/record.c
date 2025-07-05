@@ -329,9 +329,10 @@ unsigned char set_field(struct Record_f *rec,
 
 
 						}else{
-							struct Record_f *temp = rec->fields[index].data.file.recs;
+							struct File *temp = &rec->fields[index].data.file;
 							while(temp->next) temp = temp->next;	
-							temp->next = calloc(1,sizeof(struct Record_f));
+							temp->next = calloc(1,sizeof(struct File));
+							temp->next->recs = calloc(1,sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!temp->next){
 								__er_calloc(F,L-2);
@@ -341,7 +342,7 @@ unsigned char set_field(struct Record_f *rec,
 							}
 
 							if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
-										types_i, values_in,&sch,0,rec->fields[index].data.file.recs->next) == -1){
+										types_i, values_in,&sch,0,temp->next->recs) == -1){
 								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
@@ -1167,25 +1168,44 @@ void free_type_file(struct Record_f *rec)
 	if(index == -1) return;
 
 	rec->field_set[index] = 0;
-	for(uint32_t j = 0; j < rec->fields[index].data.file.count; j++){
-		struct Record_f *temp = rec->fields[index].data.file.recs[j].next;
-		if(temp){
-			while(rec->fields[index].data.file.recs[j].count > 1){
-				rec->fields[index].data.file.recs[j].next = temp->next;
-				temp->next = NULL;
-				free_record(temp,temp->fields_num);
-				free(temp);
-				rec->fields[index].data.file.recs[j].count--;
-			}
+	if(rec->fields[index].data.file.count == 1) {
+		struct Record_f *temp = rec->fields[index].data.file.recs->next;
+		while(temp){
+			rec->fields[index].data.file.recs->next = temp->next;
+			temp->next = NULL;
+			free_record(temp,temp->fields_num);
+			free(temp);
+			temp = NULL;
+			temp = rec->fields[index].data.file.recs->next;
 		}
-		free_record(&rec->fields[index].data.file.recs[j],
-				rec->fields[index].data.file.recs[j].fields_num);
+
+		free_record(rec->fields[index].data.file.recs,rec->fields[index].data.file.recs->fields_num);
+		free(rec->fields[index].data.file.recs);
+		return;
 	}
-	free(rec->fields[index].data.file.recs);
+
+	struct File *temp = &rec->fields[index].data.file;
+	while(temp){
+		struct Record_f *t = temp->recs;
+		while(t){
+			struct Record_f *r = t->next;
+			t->next = NULL;
+			free_record(t,t->fields_num);
+			free(t);
+			t= NULL;
+			if(r)t=r->next;
+		}
+
+		temp = temp->next;
+	}	
+
+	free(rec->fields[index].data.file.next);
 }
+
 void free_record(struct Record_f *rec, int fields_num)
 {
 	for (int i = 0; i < fields_num; i++){
+
 		int t = (int)rec->fields[i].type;
 		switch (t) {
 		case -1:
@@ -1407,7 +1427,17 @@ static void display_data(struct Record_f rec, int max,int tab)
 				printf("\n");
 			for(uint32_t x =0; x < rec.fields[i].data.file.count; x++){
 				/*the last parameters is 1,will serve for formatting reason*/
-				display_data(rec.fields[i].data.file.recs[x],max,1);
+				if(x == 0){
+					display_data(*rec.fields[i].data.file.recs,max,1);
+				}else{
+					struct File *t = &rec.fields[i].data.file;
+					while(t->next){
+						display_data(*t->next->recs,max,1);
+						t = t->next;
+					}
+					break;	
+				}
+
 			}
 
 			break;

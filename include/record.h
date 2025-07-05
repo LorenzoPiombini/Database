@@ -68,7 +68,7 @@ struct array
 struct File {
 	struct Record_f *recs;
 	uint32_t count;	
-	uint8_t ntg;
+	struct File *next;
 };
 	
 struct Field {
