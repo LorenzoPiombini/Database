@@ -4499,23 +4499,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 					break;
 				}
-				
-				/*TODO refactor this*/
-				/**/for(uint32_t v = 0 ; v < rec->fields[i].data.file.count; v++){
-				/**/	for(int f = 0; f < rec->fields[i].data.file.recs[v].fields_num; f++)
-				/**/		if(rec->fields[i].data.file.recs[v].field_set[f] == 0) n++;
-				/**/}	
-				/**/	
-				/**/if(n == rec->fields[i].data.file.recs[0].fields_num){ 
-				/**/	/* write NTG_WR so when we read we know there is no data*/
-				/**/	uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
-				/**/	if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
-				/**/		perror("error in writing size array to file.\n");
-				/**/		return 0;
-				/**/	}
-				/**/	break;
-				/**/}
-				/***********************************/
 
 				/* write NTG_WR as 0 so the read function 
 				 * will know to read data from the file */		
@@ -4586,7 +4569,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				}
 
 				close(fd_schema);
-
 
 				/*read the NTG_WR value*/
 				uint32_t ntg_ne = 0;
@@ -6056,7 +6038,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						while(temp->next)temp = temp->next;
 						temp->next = calloc(1,sizeof(struct File));
 						temp->next->recs = calloc(1,sizeof(struct Record_f));
-						if (!temp->next || !temp->next->recs) {
+						if (!temp->next || !temp->next->recs){
 							__er_calloc(F,L-3);
 							free_record(rec, rec->fields_num);
 							return -1;

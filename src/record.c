@@ -1184,7 +1184,7 @@ void free_type_file(struct Record_f *rec)
 		return;
 	}
 
-	struct File *temp = &rec->fields[index].data.file;
+	struct File *temp = rec->fields[index].data.file.next;
 	while(temp){
 		struct Record_f *t = temp->recs;
 		while(t){
@@ -1196,10 +1196,23 @@ void free_type_file(struct Record_f *rec)
 			if(r)t=r->next;
 		}
 
+		struct File *f = temp;		
 		temp = temp->next;
+		free(f);
 	}	
 
-	free(rec->fields[index].data.file.next);
+	struct Record_f *tem = rec->fields[index].data.file.recs->next;
+	while(tem){
+		rec->fields[index].data.file.recs->next = tem->next;
+		tem->next = NULL;
+		free_record(tem,tem->fields_num);
+		free(tem);
+		tem = NULL;
+		tem = rec->fields[index].data.file.recs->next;
+	}
+
+	free_record(rec->fields[index].data.file.recs,rec->fields[index].data.file.recs->fields_num);
+	free(rec->fields[index].data.file.recs);
 }
 
 void free_record(struct Record_f *rec, int fields_num)
