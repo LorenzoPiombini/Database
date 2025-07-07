@@ -4490,7 +4490,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		case TYPE_FILE:
 		{
 			if (!update){	
-				int n = 0;
+				/* --- the new refactor, make thid code useless ---*/
+#if 0
 				if(!rec->fields[i].data.file.recs){
 					uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
 					if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
@@ -4507,6 +4508,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
+#endif
 
 				/*write the size of the LIST */
 				uint32_t size_ne = htonl(rec->fields[i].data.file.count);
@@ -4569,7 +4571,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				}
 
 				close(fd_schema);
-
+				/* --- the new refactor, make thid code useless ---*/
+#if 0
 				/*read the NTG_WR value*/
 				uint32_t ntg_ne = 0;
 				if(read(fd,&ntg_ne,sizeof(uint32_t)) == -1){
@@ -4620,7 +4623,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					/*write the size of the array */
 					uint32_t size_ne = htonl(rec->fields[i].data.file.count);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)	{
 						perror("error in writing size array to file.\n");
@@ -4651,6 +4653,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 					break;
 				}
+
+#endif
 				/* update branch*/
 				off_t update_pos = 0;
 				off_t go_back_to_first_rec = 0;
@@ -5953,6 +5957,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_FILE:
 		{
+			/**/
+#if 0
 			uint32_t ntg_ne = 0; 
 			if (read(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
 				perror("error in reading ntg value firmn the file.\n");
@@ -5964,7 +5970,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				//rec->field_set[i] = 0;
 				break; 
 			}
-
+#endif
 			size_t len = strlen(rec->fields[i].field_name);
 			char *sfx = ".sch";
 			int sfxl = (int)strlen(sfx);

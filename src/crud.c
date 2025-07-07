@@ -406,7 +406,6 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 	if (rec_old.count == 1 ) {
 		recs[0] = &rec_old;
 	}else{
-
 		recs[0] = &rec_old;
 		int i = 1;
 		struct Record_f *temp = rec_old.next;

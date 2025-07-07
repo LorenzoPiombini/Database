@@ -507,18 +507,6 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	char *p = cpy;
 	char *p2 = cpy;
 	while(((first = strstr(p2,delim)) != NULL) && ((last=strstr(&p[(first+1) - cpy],delim)) != NULL)){
-	/*	if(first[1] == '[' && ((file_block = strstr(&first[1],"]"))) && !__IMPORT_EZ){
-			int size = first - p2;
-			int next_start = (size + 1)+(file_block - buffer) - (&first[1] - buffer)+1;
-			char cpy[size+1];
-			memset(cpy,0,size+1);
-			strncpy(names[i],p2,size);
-
-			p2 += next_start+1;
-			i++;
-			continue;
-		}	
-	*/
 		char *move_back = (first - 1); 
 		while(move_back != &cpy[0] && *move_back != '@' && *move_back != ':') --move_back;   
 			
@@ -813,13 +801,11 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 
 int get_fileds_name(char *fields_name, int fields_count, int steps, char names[][MAX_FILED_LT])
 {
-
 	if (fields_count == 0) return -1;
 
 	int j = 0;
 	char *s = NULL;
 
-	//find_double_delim("::",fields_name,NULL);
 	char *cp_fv = fields_name;
 	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count) {
 		strncpy(names[j],s,strlen(s));

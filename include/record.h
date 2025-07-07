@@ -98,6 +98,9 @@ struct Record_f {
 	struct Record_f *next;
 };
 
+
+/* --------------- this is not in use anymore ----------*/
+/* --------------- 	  July 6 2025	      ----------*/
 /*
  * used to update records
  * this will optimize the process,
@@ -113,9 +116,10 @@ struct Recs_old	{
 	off_t *pos_u_r;
 	int dynamic_capacity;
 };
-
 int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos);
 void free_recs_old(struct Recs_old *buffer);
+/*------------------------------------------------------*/
+
 int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
@@ -130,6 +134,6 @@ unsigned char get_index_rec_field(char *field_name, struct Record_f **recs, int 
 int schema_has_type(struct Header_d *hd);
 int compare_rec(struct Record_f *src, struct Record_f *dest);
 void set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);
-void free_type_file(struct Record_f *rec);
+void free_type_file(struct Record_f *rec,int optimized);
 
 #endif /*record.h*/

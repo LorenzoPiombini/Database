@@ -53,11 +53,12 @@ int main(int argc, char *argv[])
 
 	/* parameters populated with the flag from getopt()*/
 	int c = 0;
-	char *file_path = NULL;
-	char *data_to_add = NULL;
-	char *key = NULL;
-	char *schema_def = NULL;
-	char *txt_f = NULL;
+	char file_path[1024] = {0};
+	char data_to_add[1024] = {0};
+	char key[1024] = {0};
+	char schema_def[1024] = {0};
+	char txt_f[1024] = {0};
+
 	char *option = NULL;
 	int bucket_ht = 0;
 	int indexes = 0;
@@ -68,21 +69,33 @@ int main(int argc, char *argv[])
 	{
 		switch (c){
 		case 'a':
-			data_to_add = optarg;
+		{
+			size_t l = strlen(optarg);
+			strncpy(data_to_add,optarg,l);
 			break;
+		}
 		case 'n':
 			new_file = 1; // true
 			break;
 		case 'f':
-			file_path = optarg;
+		{
+			size_t l = strlen(optarg);
+			strncpy(file_path,optarg,l);
 			break;
+		}
 		case 'F':
-			file_path = optarg;
+		{
+			size_t l = strlen(optarg);
+			strncpy(file_path,optarg,l);
 			file_field = 1;
 			break;
+		}
 		case 'k':
-			key = optarg;
+		{
+			size_t l = strlen(optarg);
+			strncpy(key,optarg,l);
 			break;
+		}
 		case 'D':
 		{
 			del = 1;
@@ -100,8 +113,11 @@ int main(int argc, char *argv[])
 			print_types();
 			return 0;
 		case 'R':
-			schema_def = optarg;
+		{
+			size_t l = strlen(optarg);
+			strncpy(schema_def,optarg,l);
 			break;
+		}
 		case 'u':
 			update = 1;
 			break;
@@ -112,11 +128,19 @@ int main(int argc, char *argv[])
 			del_file = 1;
 			break;
 		case 'b':
-			build = 1, txt_f = optarg;
+		{
+			build = 1;
+			size_t l = strlen(optarg);
+			strncpy(txt_f,optarg,l);
 			break;
+		}
 		case 'B':
-			import_from_data = 1, txt_f = optarg;
+		{
+			import_from_data = 1;
+			size_t l = strlen(optarg);
+			strncpy(txt_f,optarg,l);
 			break;
+		}
 		case 's':
 		{
 			char *endptr;
@@ -142,8 +166,12 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'c':
-			create = 1, txt_f = optarg;
+		{
+			create = 1;
+			size_t l = strlen(optarg);
+			strncpy(txt_f,optarg,l);
 			break;
+		}
 		case 'i':
 		{
 			char *endptr;
@@ -237,7 +265,7 @@ int main(int argc, char *argv[])
 			if (file_error_handler(3, fd_index, fd_data, fd_schema) != 0) return STATUS_ERROR;
 		}
 
-		if (schema_def) { 
+		if (schema_def[0] != '\0' ) { 
 			/* case when user creates a file with only file definition*/
 
 			int mode = check_handle_input_mode(schema_def, FCRT) | DF;
@@ -344,7 +372,7 @@ int main(int argc, char *argv[])
 
 			fprintf(stdout,"(%s): File created successfully!\n",prog);
 
-			close_file(3, fd_index, fd_data);
+			close_file(3, fd_index, fd_data,fd_schema);
 			return 0;
 
 			clean_on_error_1:
@@ -353,16 +381,14 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 		}
 
-		if (data_to_add) { 
+		if (data_to_add[0] != '\0') { 
 			/* creates a file with full definitons (fields and value)*/
-			int mode = check_handle_input_mode(data_to_add, FCRT) | WR;
+			int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 			int fields_count = 0; 
-			char *buffer = NULL; 
 
 			/* init he Schema structure*/
 			struct Schema sch = {0};
 			struct Record_f rec = {0};
-			sch.fields_num = fields_count;
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 			
 			switch(mode){
@@ -423,22 +449,18 @@ int main(int argc, char *argv[])
 					goto clean_on_error_2;
 				}
 
-				buffer = strdup(data_to_add);
+				size_t l = strlen(data_to_add);
+				char cpy[l + 1];
+				memset(cpy,0,l + 1);
+				strncpy(cpy,data_to_add,l);
 					
-				if(!buffer){
-					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
-					goto clean_on_error_2;
-				}
-
-				if(parse_d_flag_input(file_path, fields_count,buffer, &sch, 0,&rec,NULL) == -1) {
+				if(parse_d_flag_input(file_path, fields_count,cpy, &sch, 0,&rec,NULL) == -1) {
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					goto clean_on_error_2;
 				}
 
-				free(buffer); 
 				break;
 			}
-
 			default:
 				goto clean_on_error_2;
 			}
@@ -705,7 +727,7 @@ int main(int argc, char *argv[])
 			return 0;
 		} /* end of delete file path*/
 
-		if (schema_def){ 
+		if (schema_def[0] != '\0' ){ 
 			/* add field to schema */
 			/* locks here are released that is why we do not have to release them if an error occurs*/
 			/*check if the fields are in limit*/
@@ -979,7 +1001,7 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 		} /*end of del path (either del the all content or a record )*/
 
-		if (!update && data_to_add) { 
+		if (!update && (data_to_add[0] != '\0')) { 
 			/* append data to the specified file*/
 		
 			struct Record_f rec = {0};
@@ -989,7 +1011,7 @@ int main(int argc, char *argv[])
 			int r =0;
 			if(( check = check_data(file_path,data_to_add,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error_7;
 
-		if(!lock_f){
+			if(!lock_f){
 				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 				while((r = lock(fd_index,WLOCK)) == WTLK);
 				if(r == -1){
@@ -1088,7 +1110,7 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 		}
 
-		if (update && data_to_add && key) { 
+		if (update && (data_to_add[0] != '\0') && key[0] != '\0' ) { 
 			/* updating an existing record */
 			struct Record_f rec = {0};
 
@@ -1171,9 +1193,9 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		if (key) { 
+		if (key[0] != '\0' ) { 
 			/*display record*/
-			while(is_locked(3,fd_index,fd_data) == LOCKED);
+			while(is_locked(3,fd_index,fd_data,fd_schema) == LOCKED);
 
 			struct Record_f rec = {0};
 			if(get_record(-1,file_path,&rec,(void *)key, hd,fds) == -1){

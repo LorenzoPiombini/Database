@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <math.h>
 #include "record.h"
@@ -681,9 +682,7 @@ int read_header(int fd, struct Header_d *hd)
 			return 0;
 		}
 
-		//field[l - 1] = '\0';
 		strncpy(hd->sch_d.fields_name[i],field,l);
-
 	}
 
 	for (int i = 0; i < hd->sch_d.fields_num; i++) {
@@ -2584,6 +2583,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			positions[i] = 'e';
 			continue;
 		}
+
 		if(index == DIF) {
 			dif++; 
 			continue;
@@ -2821,41 +2821,69 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			close_file(1,fd_sch);
 
 
+			/**TODO
+			 * refactor all thid code!
+			 * now struct File can act as a linked list
+			 *
+			 * **/ 
+
 			/*
 			 * ensure that previously allcoated memory
-			 * in the rec is freed
+			 * in the rec is freed this function also zeros the memory out
+			 * when the second parameter is on (1)
 			 * */
-			for(uint32_t m = 0; m < rec_old[i]->fields[index].data.file.count;m++){
-				free_record(&rec_old[i]->fields[index].data.file.recs[m],
-						rec_old[i]->fields[index].data.file.recs[m].fields_num);
-			}
+			free_type_file(rec_old[i],1);
+			
 
 			/*resize the memory accordingly*/
 			if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
-				struct Record_f *n_recs = realloc(rec_old[i]->fields[index].data.file.recs,
-						rec->fields[index].data.file.count * sizeof(struct Record_f));
-				if(!n_recs){
-					__er_realloc(F,L-3);
-					positions[0] = '0';
-					return ;
+				int32_t new_nodes = (int32_t)rec_old[i]->fields[index].data.file.count - (int32_t)rec->fields[index].data.file.count;
+				if(new_nodes < 0){
+					/*erase node(s)*/
+					while(new_nodes < 0 && (((int32_t)rec_old[i]->fields[index].data.file.count + new_nodes) > 0)){
+						struct File *f = rec_old[i]->fields[index].data.file.next;
+						rec_old[i]->fields[index].data.file.next = rec_old[i]->fields[index].data.file.next->next;
+						free(f->recs);
+						free(f);
+						new_nodes++;	
+					}
+				}else{
+					/*insert node(s)*/
+					struct File *f = &rec_old[i]->fields[index].data.file;
+					while(f->next) f = f->next;
+					while(new_nodes > 0){
+						errno = 0;
+						f->recs = calloc(1,sizeof(struct Record_f));
+						if(!f->recs){
+							fprintf(stderr,"(%s): calloc failed, error: %s %s:%d.\n",prog,strerror(errno),__FILE__,__LINE__-2);
+							positions[0] = '0';
+							return;
+						}
+						errno = 0;
+						f->next = calloc(1,sizeof(struct File));
+						if(!f->recs){
+							fprintf(stderr,"(%s): calloc failed, error: %s %s:%d.\n",prog,strerror(errno),__FILE__,__LINE__-2);
+							positions[0] = '0';
+							return;
+						}
+						f = f->next;
+						new_nodes--;
+					}
 				}
-
-				rec_old[i]->fields[index].data.file.recs = n_recs;
-				rec_old[i]->fields[index].data.file.count = rec->fields[index].data.file.count;
 			}
 
-			/*zeroed out the memory for reuse*/
-			memset(rec_old[i]->fields[index].data.file.recs,
-					0,rec_old[i]->fields[index].data.file.count * sizeof(struct Record_f)); 
+			struct File *f =  &rec_old[i]->fields[index].data.file;
+			struct File *f_new =  &rec->fields[index].data.file;
 
-			for(uint32_t x = 0; x < rec->fields[index].data.file.count; x++){
-				if(!copy_rec(&rec->fields[index].data.file.recs[x],
-							&rec_old[i]->fields[index].data.file.recs[x],
-							&hd.sch_d)){
+			rec_old[i]->field_set[i] = 1;
+			while(f_new){
+				if(!copy_rec(f_new->recs,f->recs,&hd.sch_d)){
 					fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
 					positions[i] = '0';
 					return;
 			        }
+				f_new = f_new->next;
+				f = f->next;
 			}
 			positions[i] = 'y';
 			break;

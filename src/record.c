@@ -334,7 +334,7 @@ unsigned char set_field(struct Record_f *rec,
 							temp->next = calloc(1,sizeof(struct File));
 							temp->next->recs = calloc(1,sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
-							if(!temp->next){
+							if(!temp->next || !temp->next->recs){
 								__er_calloc(F,L-2);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
@@ -357,56 +357,127 @@ unsigned char set_field(struct Record_f *rec,
 				break;
 			case TYPE_WR:
 			{
-				/*TODO implement the for loop*/
 				char *buffer = NULL;
 				int f_count = 0; 
 				if(count == 1){		
 					buffer = strdup(value);
 					f_count = count_fields(value,NULL);
-				}else{
-					buffer = strdup(values[0]);
-					f_count = count_fields(values[0],NULL);
-				}
-					
-				if(!buffer){
+					if(!buffer){
 					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
 					close_file(1,fd_schema);	
 					return 0;
-				}
+					}
 
-				if (f_count == 0) {
-					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
-					close_file(1,fd_schema);	
-					return 0;
-				}
+					if (f_count == 0) {
+						fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
+						close_file(1,fd_schema);	
+						return 0;
+					}
 
-				if (f_count > MAX_FIELD_NR) {
-					fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
-					close_file(1,fd_schema);	
-					return 0;
-				}
+					if (f_count > MAX_FIELD_NR) {
+						fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
+						close_file(1,fd_schema);	
+						return 0;
+					}
+					rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+					rec->fields[index].data.file.count = 1;
+					if(!rec->fields[index].data.file.recs){
+						__er_calloc(F,L-2);
+						close_file(1,fd_schema);	
+						return 0;
+					}
 
-				rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
-				rec->fields[index].data.file.count = 1;
-				if(!rec->fields[index].data.file.recs){
-					__er_calloc(F,L-2);
-					close_file(1,fd_schema);	
-					return 0;
-				}
+					if(parse_d_flag_input(rec->fields[index].field_name, 
+								f_count,
+								buffer,
+								&sch, 
+								0,
+								rec->fields[index].data.file.recs,
+								NULL) == -1) {
+						fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+						close_file(1,fd_schema);	
+						return 0;
+					}
+					free(buffer); 
 
-				if(parse_d_flag_input(rec->fields[index].field_name, 
-							f_count,
-							buffer,
-							&sch, 
-							0,
-							rec->fields[index].data.file.recs,
-							NULL) == -1) {
-					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
-					close_file(1,fd_schema);	
-					return 0;
-				}
+				}else{
+					for(int i = 0; i < count;i++){
 
-				free(buffer); 
+					
+						buffer = strdup(values[i]);
+						f_count = count_fields(values[i],NULL);
+
+						if(!buffer){
+							fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
+							close_file(1,fd_schema);	
+							return 0;
+						}
+
+						if (f_count == 0) {
+							fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
+							close_file(1,fd_schema);	
+							return 0;
+						}
+
+						if (f_count > MAX_FIELD_NR) {
+							fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
+							close_file(1,fd_schema);	
+							return 0;
+						}
+
+						if(!rec->fields[index].data.file.recs){
+							rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.count = 1;
+							if(!rec->fields[index].data.file.recs){
+								__er_calloc(F,L-2);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+							if(parse_d_flag_input(rec->fields[index].field_name, 
+										f_count,
+										buffer,
+										&sch, 
+										0,
+										rec->fields[index].data.file.recs,
+										NULL) == -1) {
+								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+							free(buffer); 
+						}else{
+							struct File *temp = &rec->fields[index].data.file;
+							while(temp->next) temp = temp->next;	
+							temp->next = calloc(1,sizeof(struct File));
+							temp->next->recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.count++;
+							if(!temp->next || !temp->next->recs){
+								__er_calloc(F,L-2);
+								free_strs(fields_count,1,values_in);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+							if(parse_d_flag_input(rec->fields[index].field_name, 
+										f_count,
+										buffer,
+										&sch, 
+										0,
+										temp->next->recs,
+										NULL) == -1) {
+								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+							free(buffer); 
+						
+						}
+
+					}
+
+
+				}
 				break;
 			}
 			default:
@@ -444,14 +515,7 @@ unsigned char set_field(struct Record_f *rec,
 
 			int fields_count = 0;
 			unsigned char check = 0;
-			rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
-			rec->fields[index].data.file.count = count;
-			if(!rec->fields[index].data.file.recs){
-				__er_calloc(F,L-2);
-				return 0;
-			}
-
-			int mode = 0; 
+					int mode = 0; 
 			if(count == 1){
 				mode = check_handle_input_mode(value, FWRT) | WR;
 			}else{
@@ -459,7 +523,7 @@ unsigned char set_field(struct Record_f *rec,
 					mode = check_handle_input_mode(values[i], FWRT) | WR;
 
 					if(mode == TYPE_WR){
-						fields_count = count_fields(values[i],NULL);
+						fields_count = count_fields(&values[i][2],NULL);
 
 						if(fields_count == 0){
 							fprintf(stderr,"(%s):check input syntax.\n",prog);
@@ -473,23 +537,72 @@ unsigned char set_field(struct Record_f *rec,
 							return 0;
 						}
 
-						char *buffer = strdup(value);
-						if(!buffer){
-							fprintf(stderr,"(%s): strdup faild, %s:%d.\n",prog, __FILE__,__LINE__-1);
-							close_file(1,fd_schema);
-							return 0;
-						}
+						size_t l = strlen(&values[i][2]);
+						char buffer[l+1];
+						memset(buffer,0,l+1);
+						strncpy(buffer,values[i],l);
 
-						check = perform_checks_on_schema(mode,buffer, fields_count,
+						if(!rec->fields[index].data.file.recs){
+							rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+							rec->fields[index].data.file.count = count;
+							if(!rec->fields[index].data.file.recs){
+								__er_calloc(F,L-2);
+								return 0;
+							}
+							check = perform_checks_on_schema(mode,buffer, fields_count,
 								rec->fields[index].field_name,
-								&rec->fields[index].data.file.recs[i],
+								rec->fields[index].data.file.recs,
 								&hd,NULL);
-						free(buffer);
+
+						}else{
+							struct File *temp = &rec->fields[index].data.file;
+							while(temp->next) temp = temp->next;	
+							temp->next = calloc(1,sizeof(struct File));
+							temp->next->recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.count++;
+							if(!temp->next || !temp->next->recs){
+								__er_calloc(F,L-2);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+
+							check = perform_checks_on_schema(mode,buffer, fields_count,
+									rec->fields[index].field_name,
+									temp->next->recs,
+									&hd,NULL);
+						}
 					}else{
-						check = perform_checks_on_schema(mode,values[i],-1,
+						if(!rec->fields[index].data.file.recs){
+							rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+							rec->fields[index].data.file.count = count;
+							if(!rec->fields[index].data.file.recs){
+								__er_calloc(F,L-2);
+								return 0;
+							}
+							check = perform_checks_on_schema(mode,&values[i][2], -1,
 								rec->fields[index].field_name,
-								&rec->fields[index].data.file.recs[i],
+								rec->fields[index].data.file.recs,
 								&hd,NULL);
+
+						}else{
+							struct File *temp = &rec->fields[index].data.file;
+							while(temp->next) temp = temp->next;	
+							temp->next = calloc(1,sizeof(struct File));
+							temp->next->recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.count++;
+							if(!temp->next || !temp->next->recs){
+								__er_calloc(F,L-2);
+								close_file(1,fd_schema);	
+								return 0;
+							}
+
+
+							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
+									rec->fields[index].field_name,
+									temp->next->recs,
+									&hd,NULL);
+						}
 
 					}
 
@@ -556,21 +669,37 @@ unsigned char set_field(struct Record_f *rec,
 						return 0;
 					}
 
-					char *buffer = strdup(value);
-					if(!buffer){
-						fprintf(stderr,"(%s): strdup faild, %s:%d.\n",prog, __FILE__,__LINE__-1);
-						close_file(1,fd_schema);
-						return 0;
-					}
+					size_t l = strlen(&values[i][2]);
+					char buffer[l+1];
+					memset(buffer,0,l+1);
+					strncpy(buffer,values[i],l);
 
-					check = perform_checks_on_schema(mode,buffer, fields_count,rec->fields[index].field_name,
-							rec->fields[index].data.file.recs,
-							&hd,NULL);
-					free(buffer);
-				} else {
-					check = perform_checks_on_schema(mode,value, -1,rec->fields[index].field_name,
+					if(!rec->fields[index].data.file.recs){
+						rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+						rec->fields[index].data.file.count = count;
+						if(!rec->fields[index].data.file.recs){
+							__er_calloc(F,L-2);
+							return 0;
+						}
+						check = perform_checks_on_schema(mode,buffer, fields_count,
+								rec->fields[index].field_name,
 								rec->fields[index].data.file.recs,
 								&hd,NULL);
+					}
+				} else {
+					if(!rec->fields[index].data.file.recs){
+						rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+						rec->fields[index].data.file.count = count;
+						if(!rec->fields[index].data.file.recs){
+							__er_calloc(F,L-2);
+							return 0;
+						}
+						check = perform_checks_on_schema(mode,&value[2], -1,rec->fields[index].field_name,
+								rec->fields[index].data.file.recs,
+								&hd,NULL);
+
+					}
+
 				}			
 
 				if (check == SCHEMA_ERR || check == 0) {
@@ -1158,7 +1287,14 @@ unsigned char set_field(struct Record_f *rec,
 	return 1;
 }
 
-void free_type_file(struct Record_f *rec)
+/*
+ * if optimized is 1 the main allocation
+ * wont be freed, because we need that allocation again
+ * so instead of free, and reallocating, we just zeroed out 
+ * the memory and we use to store new data
+ * */
+
+void free_type_file(struct Record_f *rec,int optimized)
 {
 	int index = -1;
 	for(int i = 0; i < rec->fields_num; i++){
@@ -1174,13 +1310,21 @@ void free_type_file(struct Record_f *rec)
 			rec->fields[index].data.file.recs->next = temp->next;
 			temp->next = NULL;
 			free_record(temp,temp->fields_num);
-			free(temp);
+			if(!optimized) 
+				free(temp);
+			else
+				memset(temp,0,sizeof(struct Record_f));
+
 			temp = NULL;
 			temp = rec->fields[index].data.file.recs->next;
 		}
 
 		free_record(rec->fields[index].data.file.recs,rec->fields[index].data.file.recs->fields_num);
-		free(rec->fields[index].data.file.recs);
+		if(!optimized) 
+			free(rec->fields[index].data.file.recs);
+		else
+			memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
+
 		return;
 	}
 
@@ -1191,14 +1335,20 @@ void free_type_file(struct Record_f *rec)
 			struct Record_f *r = t->next;
 			t->next = NULL;
 			free_record(t,t->fields_num);
-			free(t);
+			if(!optimized)
+				free(t);
+			else
+				memset(t,0,sizeof(struct Record_f));
 			t= NULL;
 			if(r)t=r->next;
 		}
 
 		struct File *f = temp;		
 		temp = temp->next;
-		free(f);
+		if(!optimized)
+			free(f);
+		else
+			memset(f,0,sizeof(struct File));
 	}	
 
 	struct Record_f *tem = rec->fields[index].data.file.recs->next;
@@ -1206,13 +1356,20 @@ void free_type_file(struct Record_f *rec)
 		rec->fields[index].data.file.recs->next = tem->next;
 		tem->next = NULL;
 		free_record(tem,tem->fields_num);
-		free(tem);
+		if(!optimized) 
+			free(tem);
+		else
+			memset(tem,0,sizeof(struct Record_f));
+
 		tem = NULL;
 		tem = rec->fields[index].data.file.recs->next;
 	}
 
 	free_record(rec->fields[index].data.file.recs,rec->fields[index].data.file.recs->fields_num);
-	free(rec->fields[index].data.file.recs);
+	if(!optimized) 
+		free(rec->fields[index].data.file.recs);
+	else
+		memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 }
 
 void free_record(struct Record_f *rec, int fields_num)
@@ -1234,7 +1391,7 @@ void free_record(struct Record_f *rec, int fields_num)
 				free(rec->fields[i].data.s);
 			break;
 		case TYPE_FILE:
-			free_type_file(rec);
+			free_type_file(rec,0);
 			break;
 		case TYPE_ARRAY_INT:
 		case TYPE_ARRAY_LONG:
@@ -1740,14 +1897,33 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			}
 			break;
 		case TYPE_FILE:
+			/*need to understand this better*/
 			dest->field_set[i] = 1;
 			dest->fields[i].data.file.count = src->fields[i].data.file.count;
-			dest->fields[i].data.file.recs = calloc(dest->fields[i].data.file.count,sizeof(struct Record_f));
+
 			if(!dest->fields[i].data.file.recs){
-				__er_calloc(F,L-2);
-				free_record(dest, dest->fields_num);
-				return 0;
-			}	
+				if(src->fields[i].data.file.count == 1){
+					dest->fields[i].data.file.recs = calloc(1,sizeof(struct Record_f));
+
+					if(!dest->fields[i].data.file.recs){
+						__er_calloc(F,L-2);
+						free_record(dest, dest->fields_num);
+						return 0;
+					}	
+				}else{
+
+					struct File *f = &src->fields[i].data.file;
+					while(f->next) f = f->next;
+					f->next = calloc(1,sizeof(struct File));
+					f->next->recs = calloc(1,sizeof(struct Record_f));
+					dest->fields[i].data.file.count++;
+					if(!f->next || !f->next->recs){
+						__er_calloc(F,L-2);
+						free_record(dest, dest->fields_num);
+						return 0;
+					}
+				}
+			}
 			for (uint32_t j = 0; j < src->fields[i].data.file.count; j++) {
 				if(!copy_rec(&src->fields[i].data.file.recs[j],&dest->fields[i].data.file.recs[j],sch)){
 					fprintf(stderr,"copy_rec() failed, %s:%d.\n",F,L-1);
@@ -2680,17 +2856,28 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 						int comp = 0;
 						/*if the files have the same count*/
 						if(src->fields[i].data.file.count == dest->fields[i].data.file.count){
-							for(uint32_t a = 0;a < src->fields[i].data.file.count; a++){
-								if((comp = compare_rec(&src->fields[i].data.file.recs[a],
-									&dest->fields[i].data.file.recs[a])) == -1) continue; 
-
-								return i;
+							struct File *temp = &src->fields[i].data.file;
+							struct File *temp_dst = &dest->fields[i].data.file;
+							while(temp && temp_dst){
+								struct Record_f *src_tm = temp->recs;
+								struct Record_f *dest_tm = temp_dst->recs;
+								while(src_tm && dest_tm){
+									if((comp = compare_rec(src_tm,dest_tm)) == -1){ 
+										src_tm= src_tm->next;
+										dest_tm = dest_tm->next;
+										continue;
+									} 
+									return i;
+								}
+								temp = temp->next;
+								temp_dst = temp_dst->next;
 							}
+							break;
 						}
 						
+						/*files have a different count*/
 						if(src->fields[i].data.file.count > dest->fields[i].data.file.count) return i;
 						if(src->fields[i].data.file.count < dest->fields[i].data.file.count) return i;
-						/*files have a different count*/
 						break;
 					}
 					break;
