@@ -2820,13 +2820,6 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 			close_file(1,fd_sch);
 
-
-			/**TODO
-			 * refactor all thid code!
-			 * now struct File can act as a linked list
-			 *
-			 * **/ 
-
 			/*
 			 * ensure that previously allcoated memory
 			 * in the rec is freed this function also zeros the memory out
