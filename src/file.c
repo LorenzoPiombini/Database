@@ -4490,25 +4490,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		case TYPE_FILE:
 		{
 			if (!update){	
-				/* --- the new refactor, make thid code useless ---*/
-#if 0
-				if(!rec->fields[i].data.file.recs){
-					uint32_t ntg_ne = htonl((uint32_t)NTG_WR);
-					if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
-						perror("error in writing size array to file.\n");
-						return 0;
-					}
-					break;
-				}
-
-				/* write NTG_WR as 0 so the read function 
-				 * will know to read data from the file */		
-				uint32_t ntg_ne = htonl((uint32_t)0);
-				if (write(fd, &ntg_ne, sizeof(ntg_ne)) == -1) {
-					perror("error in writing size array to file.\n");
-					return 0;
-				}
-#endif
 
 				/*write the size of the LIST */
 				uint32_t size_ne = htonl(rec->fields[i].data.file.count);
@@ -4679,7 +4660,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						while (sz)
 						{
-							if (step < rec->fields[i].data.file.recs->count){
+							if (step < rec->fields[i].data.file.count){
+
 								if(write_file(fd,&rec->fields[i].data.file.recs[step],0,0) == 0){
 									perror("failed write record array to file");
 									return 0;

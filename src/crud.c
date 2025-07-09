@@ -158,6 +158,11 @@ int check_data(char *file_path,char *data_to_add,
 
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 
+
+	if(mode == -1){
+		fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+		return -1;
+	}
 	/*check schema*/
 	if(mode == TYPE_WR){
 		fields_count = count_fields(data_to_add,NULL);
@@ -548,7 +553,11 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 	}
 
 	/*updating the record but we need to write some data in another place in the file*/
-	if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && ( check == SCHEMA_EQ || check == 1 || check == SCHEMA_CT || check == SCHEMA_CT_NT)) {
+	if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && 
+			( check == SCHEMA_EQ || check == SCHEMA_EQ_NT 
+					     || check == 1 || 
+					     	check == SCHEMA_CT ||
+						check == SCHEMA_CT_NT)) {
 
 		off_t eof = 0;
 		if ((eof = go_to_EOF(fds[1])) == -1) {

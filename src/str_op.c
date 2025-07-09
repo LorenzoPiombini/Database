@@ -108,6 +108,7 @@ int check_handle_input_mode(char *buffer, int op)
 	}
 	case FWRT:
 	{
+		if(c_T == 0 && c_t == 0 && c_delim == 0) return -1;
 		int additional_c_delim_count = v == 1 ? 2 : v *2;
 		if((c_delim - v -additional_c_delim_count) > 0) return HYB;
 		if((c_delim - v -additional_c_delim_count) == 0) return TYPE;
@@ -823,6 +824,9 @@ int get_fileds_name(char *fields_name, int fields_count, int steps, char names[]
 
 unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_count)
 {
+	int c = 0;
+
+	if(fields_count == 0) return 0;
 	for (int i = 0; i < fields_count; i++) {
 		if ((fields_count - i) == 1)
 			break;
@@ -835,6 +839,8 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 
 				int l_i = strlen(names[i]);
 				int l_j = strlen(names[j]);
+				if(names[j][0] == '\0') c++;
+				if(c == fields_count) return 0;
 
 				if (l_i == l_j)
 				{
@@ -1676,6 +1682,7 @@ int find_double_delim(char *delim, char *str, int *pos, struct Schema sch)
 
 int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 {
+	if(strstr(str, delim) == NULL) return -1;
 	size_t l = strlen(str) + 1;
 	char buf[l];
 	memset(buf,0,l);
@@ -1784,6 +1791,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		if(*f == ':') *f = ' ';
 	}
 
+	if(strstr(buf," ") == NULL) return -1;
 	char *start = NULL;
 	while((start = strstr(buf,"TYPE_"))){
 		*start = '@';

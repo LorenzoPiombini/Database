@@ -269,6 +269,10 @@ int main(int argc, char *argv[])
 			/* case when user creates a file with only file definition*/
 
 			int mode = check_handle_input_mode(schema_def, FCRT) | DF;
+			if(mode == -1){
+				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+				goto clean_on_error_1;
+			}
 			int fields_count = 0; 
 			char *buf_sdf = NULL; 
 			char *buf_t = NULL;
@@ -384,6 +388,10 @@ int main(int argc, char *argv[])
 		if (data_to_add[0] != '\0') { 
 			/* creates a file with full definitons (fields and value)*/
 			int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
+			if(mode == -1){
+				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+				goto clean_on_error_2;
+			}
 			int fields_count = 0; 
 
 			/* init he Schema structure*/
@@ -732,6 +740,10 @@ int main(int argc, char *argv[])
 			/* locks here are released that is why we do not have to release them if an error occurs*/
 			/*check if the fields are in limit*/
 			int mode = check_handle_input_mode(schema_def,FCRT) | WR;
+			if(mode == -1){
+				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+				goto clean_on_error_5;
+			}
 			int fields_count = 0; 
 			switch(mode){
 			case NO_TYPE_WR:
@@ -1149,7 +1161,6 @@ int main(int argc, char *argv[])
 			HashTable ht = {0};
 			HashTable *p_ht = &ht;
 			if (!read_index_nr(index_nr, fd_index, &p_ht)) {
-				printf("reading index file failed, %s:%d.\n", F, L - 1);
 				close_file(3,fd_schema, fd_index, fd_data);
 				return STATUS_ERROR;
 			}

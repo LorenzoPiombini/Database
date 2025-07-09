@@ -81,7 +81,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 	}
 
 	if (!check_fields_integrity(names, fields_num)) {
-		printf("invalid input, one or more fields have the same name.\n");
+		printf("invalid input, one or more fields have the same name, or the value is missing\n");
 		printf("input syntax: fieldname:type:value\n");
 		free(buf_v);
 		free(buf_t);
@@ -390,12 +390,11 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 		 * */
 
 		while(names[j][0] == '\0') j++;			
-		int move_fields = fields_num + j;
 		int start = j;
 		for (i = 0; i < sch->fields_num; i++) {
 			found = 0;
 
-			for (j = start; j < move_fields ; j++) {
+			for (j = start; j < sch->fields_num ; j++) {
 				if (strcmp(sch->fields_name[i], names[j]) == 0) {
 					switch(check_sch){
 					case SCHEMA_CT_NT:
@@ -1247,7 +1246,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 
 
 	if (!check_fields_integrity(names, fields_num)) {
-		printf("invalid input, one or more fields have the same name.\n");
+		printf("invalid input, one or more fields have the same name, or the value is missing\n");
 		printf("input syntax: fieldName:TYPE:value\n");
 		return 0;
 	}
@@ -1602,7 +1601,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 		
 		/*check if the names are valid names*/
 		if(!check_fields_integrity(names,count)){
-			printf("invalid input, one or more fields have the same name.\n");
+			printf("invalid input, one or more fields have the same name, or the value is missing\n");
 			printf("input syntax: fieldname:type:value\n");
 			goto clean_on_error;
 		}
@@ -1616,6 +1615,15 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			if(count == hd->sch_d.fields_num){
 				if(!sort_input_like_header_schema(0, count, &hd->sch_d, names, &values, types_i)){
 					fprintf(stderr,"can't sort input like schema %s:%d",__FILE__,__LINE__-1);
+					err = SCHEMA_ERR;
+					goto clean_on_error;
+				}
+
+				int verify = 0;
+				for(int i = 0; i < count; i++)
+					if(names[i][0] == '\0')verify++;
+
+				if(verify == count){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -2359,7 +2367,15 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 	
 	changed = 0;
 	for (int i = 0; i < rec_old[0]->fields_num; i++){
+		if(rec->field_set[i] == 1 && rec_old[0]->field_set[i] == 0) update_new = 1;
 		if(rec->field_set[i] == 1 && rec_old[0]->field_set[i] == 1){
+			/*
+			 * this statment guarantee that we do not overwirte data
+			 * or add redundant data
+			 * */
+
+			rec->field_set[i] = 0;
+
 			switch (rec_old[0]->fields[i].type){
 			case -1:
 				break;
@@ -2421,7 +2437,6 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					}
 				}else{
 					
-
 					changed = 1;
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					for (int a = 0; a < rec->fields[i].data.v.size; a++){
