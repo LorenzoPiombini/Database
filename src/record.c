@@ -1304,6 +1304,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 	if(index == -1) return;
 
 	rec->field_set[index] = 0;
+	if(!rec->fields[index].data.file.recs) return;
 	if(rec->fields[index].data.file.count == 1) {
 		struct Record_f *temp = rec->fields[index].data.file.recs->next;
 		while(temp){

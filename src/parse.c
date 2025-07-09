@@ -2162,6 +2162,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 	if (check == SCHEMA_CT || check == SCHEMA_CT_NT ) {
 
 		for (int j = 0; j < rec_old[0]->fields_num; j++) {
+			if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 0) update_new = 1; 
+
 			if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 1) {
 				changed = 1;
 				switch (rec->fields[j].type) {
@@ -2359,7 +2361,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 		}else if(changed && !update_new){
 			return UPDATE_OLD;
 		}else if (!changed && update_new){
-			return UPDATE_OLD;
+			return UPDATE_OLDN;
 		}
 	}
 
