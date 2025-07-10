@@ -473,6 +473,7 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 				right_update_pos = recs[i+1]->offset;
 
 			/*this might need to be deleted*/
+#if 0
 			if (rec_old.count - i == 1 && check == SCHEMA_NW) {
 				right_update_pos = go_to_EOF(fds[1]);
 				if (find_record_position(fds[1], recs[i]->offset) == -1 || right_update_pos == -1){
@@ -481,6 +482,7 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 				}
 			}
 			/**********/
+#endif
 
 			/*the 1 is a flag that make the program know that is an update operation*/
 			if (!write_file(fds[1], recs[i], right_update_pos, 1)) {

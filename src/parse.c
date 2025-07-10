@@ -2885,7 +2885,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			struct File *f =  &rec_old[i]->fields[index].data.file;
 			struct File *f_new =  &rec->fields[index].data.file;
 
-			rec_old[i]->field_set[i] = 1;
+			rec_old[i]->field_set[index] = 1;
 			while(f_new){
 				if(!copy_rec(f_new->recs,f->recs,&hd.sch_d)){
 					fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
