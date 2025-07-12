@@ -1070,8 +1070,9 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			if(!write_file(fd_data, &rec, 0, update)) {
-				printf("write to file failed, main.c l %d.\n", __LINE__ - 1);
+			/*NEW APROACH */
+			if(buffered_write(fd_data,&rec,0) == -1 ){
+				fprintf(stderr,"init_ram_file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 				free_ht_array(ht, index);
 				goto clean_on_error_7;
 			}

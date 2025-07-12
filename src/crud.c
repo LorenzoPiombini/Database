@@ -258,7 +258,7 @@ int write_record(int *fds,void *key,
 
 		if(set_rec(g_ht,key,(off_t)ram.size,key_type) == -1) return 0;
 
-		if(write_ram_record(&ram,rec) == -1){
+		if(write_ram_record(&ram,rec,0,0) == -1){
 			fprintf(stderr,"write_ram_record() failed. %s:%d.\n",__FILE__,__LINE__-1);
 			free_ht_array(g_ht,g_index);
 			return STATUS_ERROR;

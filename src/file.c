@@ -642,22 +642,6 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	off_t go_back_to = 0;
 	        
 	
-	size_t s = get_disk_size_record(rec);
-	struct Ram_file ram = {0};
-	ram.mem = calloc(s*2,sizeof(uint8_t));
-	if(!ram.mem){
-		fprintf(stderr,"(%s): calloc failed %s:%d.\n",prog,__FILE__,__LINE__-2)
-		return -1;
-	}
-
-	ram.capacity = s;
-	ram.size = 0;
-
-	if(write_ram_record(ram,rec) == -1){
-		fprintf(stderr,"(%s): write_ram_record failed %s:%d.\n",prog,__FILE__,__LINE__-2)
-		return -1;
-	}
-
 	/* ----------these variables are used to handle the strings-------- */
 	/* now each string fields can be updated regardless the string size */
 	/* ----------some realities might required such a feature----------- */
@@ -6378,9 +6362,9 @@ static size_t get_disk_size_record(struct Record_f *rec)
 		case TYPE_FILE:
 			size += get_disk_size_record(rec);
 			break;
-		}
 		default:
 			return -1;
+		}
 	}
 	
 	size += (sizeof(uint64_t));
@@ -6886,6 +6870,7 @@ static int move_ram_file_ptr(struct Ram_file *ram,size_t size, int update)
 	if(!update && (ram->size == ram->offset)){
 		ram->size += size;
 		ram->offset = ram->size;
+		return 0;
 	}else{
 		return -1;
 	}
@@ -6893,10 +6878,12 @@ static int move_ram_file_ptr(struct Ram_file *ram,size_t size, int update)
 	if(update && (ram->size == ram->offset)){
 		ram->size += size;
 		ram->offset = ram->size;
+		return 0;
 	}
 
 	if(update && (ram->size != ram->offset)){
 		ram->offset += size;
+		return 0;
 	}else{
 		return -1;
 	}
@@ -7046,6 +7033,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			}else{
 				uint64_t move_to = 0;
 				uint64_t eof = 0;
+				uint16_t bu_ne = 0;
+				uint16_t new_lt = 0;
 				/*save the starting offset for the string record*/
 				uint64_t bg_pos = ram->size;
 				uint32_t str_loc_ne= 0;
@@ -7124,13 +7113,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				 * right position at this point */
 				bu_ne = htons((uint16_t)buff_update);
 
-				memcpy(&ram->mem[ram->offset],bu_ne,sizeof(uint16_t));
+				memcpy(&ram->mem[ram->offset],&bu_ne,sizeof(uint16_t));
 				if(move_ram_file_ptr(ram,sizeof(uint16_t),update) == -1){
 					fprintf(stderr,"move_ram_file_ptr failed, %s:%d",__FILE__,__LINE__-1);
 					return -1;
 				}
 
-				memcpy(&ram->mem[ram->offset],buf_w,buff_update);
+				memcpy(&ram->mem[ram->offset],buff_w,buff_update);
 				if(move_ram_file_ptr(ram,buff_update,update) == -1){
 					fprintf(stderr,"move_ram_file_ptr failed, %s:%d",__FILE__,__LINE__-1);
 					return -1;
@@ -7296,7 +7285,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			break;
 		}
 		case TYPE_FILE:
-			if(write_ram_record(ram,rec) == -1){
+			if(write_ram_record(ram,rec,update,init_ram_size) == -1){
 				fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
 				return -1;
 			}
@@ -7352,6 +7341,29 @@ static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element
 	return update_pos == 0;
 }
 
+
+int buffered_write(int fd, struct Record_f *rec, int update)
+{
+	struct Ram_file ram = {0};
+	size_t rec_disk_size = get_disk_size_record(rec);
+	if(init_ram_file(&ram,rec_disk_size) == -1){
+		fprintf(stderr,"init_ram_file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+		return -1;
+	}
+
+	if(write_ram_record(&ram,rec,update,0) == -1){
+		fprintf(stderr,"write_ram_file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+		return -1;
+	}
+
+	if(write(fd,ram.mem,ram.size) == -1){
+		fprintf(stderr,"write failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+		return -1;
+	}
+
+	close_ram_file(&ram);
+	return 0;
+}
 static size_t get_string_size(int fd)
 {
 
