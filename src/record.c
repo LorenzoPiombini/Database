@@ -543,8 +543,8 @@ unsigned char set_field(struct Record_f *rec,
 						strncpy(buffer,values[i],l);
 
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
-							rec->fields[index].data.file.count = count;
+							rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.count++;
 							if(!rec->fields[index].data.file.recs){
 								__er_calloc(F,L-2);
 								return 0;

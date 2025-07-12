@@ -2847,7 +2847,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 
 			/*resize the memory accordingly*/
 			if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
-				int32_t new_nodes = (int32_t)rec_old[i]->fields[index].data.file.count - (int32_t)rec->fields[index].data.file.count;
+				int32_t new_nodes = (int32_t)rec->fields[index].data.file.count - (int32_t)rec_old[i]->fields[index].data.file.count; 
 				if(new_nodes < 0){
 					/*erase node(s)*/
 					while(new_nodes < 0 && (((int32_t)rec_old[i]->fields[index].data.file.count + new_nodes) > 0)){
@@ -2860,6 +2860,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				}else{
 					/*insert node(s)*/
 					struct File *f = &rec_old[i]->fields[index].data.file;
+					f->count += new_nodes;
 					while(f->next) f = f->next;
 					while(new_nodes > 0){
 						errno = 0;
