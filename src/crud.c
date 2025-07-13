@@ -246,6 +246,7 @@ int write_record(int *fds,void *key,
 		int mode)
 {
 	if(mode == IMPORT){
+		if(!__IMPORT_EZ) return -1;
 		/*allocate memory buffer for index and data file*/
 		/*don't write to disk all the time*/
 		if(!g_ht){
@@ -258,7 +259,7 @@ int write_record(int *fds,void *key,
 
 		if(set_rec(g_ht,key,(off_t)ram.size,key_type) == -1) return 0;
 
-		if(write_ram_record(&ram,rec,0,0) == -1){
+		if(write_ram_record(&ram,rec,0,0,0) == -1){
 			fprintf(stderr,"write_ram_record() failed. %s:%d.\n",__FILE__,__LINE__-1);
 			free_ht_array(g_ht,g_index);
 			return STATUS_ERROR;
@@ -299,10 +300,11 @@ int write_record(int *fds,void *key,
 		return STATUS_ERROR;
 	}
 
-	if(!write_file(fds[1], rec, 0, update)) {
+	if(buffered_write(fds[1],rec,update,eof) == -1){
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
 		return -1;
 	}
+
 
 	if(write_index(fds,index,ht,files[0]) == -1) return -1;
 
@@ -485,10 +487,16 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 #endif
 
 			/*the 1 is a flag that make the program know that is an update operation*/
-			if (!write_file(fds[1], recs[i], right_update_pos, 1)) {
+			if(buffered_write(fds[1], recs[i], 0,right_update_pos) == -1){
 				printf("error write file, %s:%d.\n", F, L - 1);
 				goto clean_on_error;
 			}
+
+			/*if (!write_file(fds[1], recs[i], right_update_pos, 1)) {
+				printf("error write file, %s:%d.\n", F, L - 1);
+				goto clean_on_error;
+			}
+			*/
 		}
 
 		if((check == SCHEMA_CT  ||  check == SCHEMA_CT_NT) && !changed) {
@@ -544,8 +552,14 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 		}
 
 		// write the updated record to the file
+		/*
 		if (!write_file(fds[1], recs[0], 0, 1)) {
 			printf("write to file failed, %s:%d.\n", F, L - 1);
+			goto clean_on_error;
+		}
+		*/
+		if(buffered_write(fds[1], recs[0], 0,0) == -1){
+			printf("error write file, %s:%d.\n", F, L - 1);
 			goto clean_on_error;
 		}
 

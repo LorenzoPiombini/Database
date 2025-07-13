@@ -1033,85 +1033,12 @@ int main(int argc, char *argv[])
 				lock_f = 1;
 			}
 
-			off_t eof = go_to_EOF(fd_data);
-			if (eof == -1) {
-				__er_file_pointer(F, L - 1);
-				goto clean_on_error_7;
-			}
-
-			HashTable *ht = NULL;
-			int index = 0;
-			int *p_index = &index;
-			/* load al indexes in memory */
-			if (!read_all_index_file(fd_index, &ht, p_index)) {
-				printf("read file failed. %s:%d.\n", F, L - 2);
-				goto clean_on_error_7;
-			}
-
-			int key_type = 0;
-			void *key_conv = key_converter(key, &key_type);
-			if (key_type == UINT && !key_conv) {
-				fprintf(stderr, "error to convert key");
-				goto clean_on_error_7;
-			} else if (key_type == UINT) {
-				if (key_conv) {
-					if (!set(key_conv, key_type, eof, &ht[0])){
-						free(key_conv);
-						free_ht_array(ht, index);
-						goto clean_on_error_7;
-					}
-					free(key_conv);
-				}
-			} else if (key_type == STR) {
-				/*create a new key value pair in the hash table*/
-				if (!set((void *)key, key_type, eof, &ht[0])) {
-					free_ht_array(ht, index);
-					goto clean_on_error_7;
-				}
-			}
-
-			/*NEW APROACH */
-			if(buffered_write(fd_data,&rec,0) == -1 ){
-				fprintf(stderr,"init_ram_file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
-				free_ht_array(ht, index);
+			if(write_record(fds,(void *)key, -1, &rec, update, files, &lock_f, -1)){
+				fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
 				goto clean_on_error_7;
 			}
 
 			free_record(&rec, rec.fields_num);
-			close_file(1, fd_index);
-
-			fd_index = open_file(files[0], 1); // opening with O_TRUNC
-
-			/* write the new indexes to file */
-
-			if (!write_index_file_head(fd_index, index)) {
-				printf("write to file failed, %s:%d", F, L - 2);
-				free_ht_array(ht, index);
-				goto clean_on_error_7;
-			}
-
-			int i = 0;
-			for (i = 0; i < index; i++) {
-
-				if (!write_index_body(fd_index, i, &ht[i])) {
-					printf("write to file failed. %s:%d.\n", F, L - 2);
-					free_ht_array(ht, index);
-					goto clean_on_error_7;
-				}
-
-				destroy_hasht(&ht[i]);
-			}
-
-
-			free(ht);
-			while((r = lock(fd_index,UNLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				lock_f = 0;
-				goto clean_on_error_7;
-			}
-
-
 			close_file(3, fd_index, fd_data, fd_schema);
 			printf("record %s wrote succesfully.\n", key);
 			return 0;

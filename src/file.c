@@ -8,14 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <byteswap.h>
-#include <arpa/inet.h>
 #include <math.h>
 #include <errno.h>
 #include "file.h"
 #include "str_op.h"
 #include "common.h"
-#include "float_endian.h"
+#include "endian.h"
 #include "debug.h"
 
 static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element, int type);
@@ -167,7 +165,7 @@ unsigned char write_index_file_head(int fd, int index_num)
 	int i = 0;
 	off_t pos = 0;
 
-	uint32_t in = htonl((uint32_t)index_num);
+	uint32_t in = swap32((uint32_t)index_num);
 	if (write(fd, &in, sizeof(in)) == -1)
 	{
 		printf("write to file failed. %s:%d.\n", F, L - 2);
@@ -176,7 +174,7 @@ unsigned char write_index_file_head(int fd, int index_num)
 
 	for (i = 0; i < index_num; i++)
 	{
-		uint64_t p_n = bswap_64(pos);
+		uint64_t p_n = swap64(pos);
 		if (write(fd, &p_n, sizeof(p_n)) == -1)
 		{
 			printf("write to file failed, %s:%d.\n", F, L - 2);
@@ -191,7 +189,7 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 {
 	off_t pos = 0;
 
-	uint32_t i_n = htonl(i);
+	uint32_t i_n = swap32(i);
 	if (write(fd, &i_n, sizeof(i_n)) == -1)
 	{
 		printf("write to file failed. %s:%d.\n", F, L - 2);
@@ -228,7 +226,7 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 		}
 	}
 
-	uint64_t p_n = bswap_64(pos);
+	uint64_t p_n = swap64(pos);
 	if (write(fd, &p_n, sizeof(p_n)) == -1)
 	{
 		printf("write to file failed. %s:%d.\n", F, L - 2);
@@ -258,7 +256,7 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 		return 0;
 	}
 
-	int array_size = (int)ntohl(a_s);
+	int array_size = (int)swap32(a_s);
 	if (array_size == 0)
 	{
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
@@ -285,7 +283,7 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 		return 0;
 	}
 
-	off_t index_pos = (off_t)bswap_64(i_p);
+	off_t index_pos = (off_t)swap64(i_p);
 	if (index_pos == 0)
 	{
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
@@ -319,7 +317,7 @@ unsigned char indexes_on_file(int fd, int *p_i_nr)
 		return 0;
 	}
 
-	int array_size = (int)ntohl(a_s);
+	int array_size = (int)swap32(a_s);
 	if (array_size == 0) {
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
@@ -359,7 +357,7 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 		return 0;
 	}
 
-	int array_size = (int)ntohl(a_s);
+	int array_size = (int)swap32(a_s);
 	if (array_size == 0) {
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
@@ -418,7 +416,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 		return 0; // false
 	}
 
-	ht->size = (int)ntohl(s_n); 
+	ht->size = (int)swap32(s_n); 
 
 	uint32_t ht_ln = 0;
 	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR) {
@@ -426,7 +424,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 		return 0;
 	}
 
-	int ht_l = (int)ntohl(ht_ln);
+	int ht_l = (int)swap32(ht_ln);
 	register int i = 0;
 	for (i = 0; i < ht_l; i++) {
 		uint32_t type = 0;
@@ -437,14 +435,14 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			return 0;
 		}
 
-		int key_type = (int)ntohl(type);
+		int key_type = (int)swap32(type);
 
 		switch (key_type) {
 		case STR:
 		{
 			uint64_t key_l = 0l;
 			if (read(fd, &key_l, sizeof(key_l)) > 0) {
-				size_t size = (size_t)bswap_64(key_l);
+				size_t size = (size_t)swap64(key_l);
 
 				char *key = calloc(size + 1, sizeof(char));
 				if (!key) {
@@ -463,7 +461,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 					return 0;
 				}
 
-				off_t value = (off_t)bswap_64(v_n);
+				off_t value = (off_t)swap64(v_n);
 				key[size] = '\0';
 				Node *newNode = calloc(1, sizeof(Node));
 				if (!newNode)
@@ -551,11 +549,11 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 			new_node->key.type = key_type;
 			if(size == 16)
-				new_node->key.k.n16 = ntohs(k16);
+				new_node->key.k.n16 = swap16(k16);
 			else
-				new_node->key.k.n = ntohl(k);
+				new_node->key.k.n = swap32(k);
 
-			new_node->value = (off_t)bswap_64(value);
+			new_node->value = (off_t)swap64(value);
 			new_node->next = NULL;
 			new_node->key.size = size;
 
@@ -690,7 +688,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		switch (rec->fields[i].type){
 		case TYPE_INT:
 		{
-			uint32_t i_ne = htonl(rec->fields[i].data.i);
+			uint32_t i_ne = swap32(rec->fields[i].data.i);
 			if (write(fd, &i_ne, sizeof(i_ne)) < 0){
 				perror("error in writing int type to file.\n");
 				return 0;
@@ -699,7 +697,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		}
 		case TYPE_LONG: 
 		{
-			uint64_t l_ne = bswap_64((uint64_t)rec->fields[i].data.l);
+			uint64_t l_ne = swap64((uint64_t)rec->fields[i].data.l);
 			if (write(fd, &l_ne, sizeof(l_ne)) < 0) {
 				perror("error in writing long type to file.\n");
 				return 0;
@@ -730,8 +728,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				strncpy(buff_w, rec->fields[i].data.s, lt - 1);
 
-				uint16_t bu_ne = htons((uint16_t)buff_update);
-				uint32_t str_loc_ne = htonl((uint32_t)str_loc);
+				uint16_t bu_ne = swap16((uint16_t)buff_update);
+				uint32_t str_loc_ne = swap32((uint32_t)str_loc);
 
 				if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
 					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
@@ -761,7 +759,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				str_loc = (off_t)ntohl(str_loc_ne);
+				str_loc = (off_t)swap32(str_loc_ne);
 
 				/*store record beginning pos*/
 				if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -777,7 +775,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				buff_update = (off_t)ntohs(bu_ne);
+				buff_update = (off_t)swap16(bu_ne);
 
 				/*save the end offset of the first string record */
 				if((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -814,7 +812,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					buff_update = (off_t)ntohs(bu_ne);
+					buff_update = (off_t)swap16(bu_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -825,8 +823,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * set the file pointer to th of the file
 					 * to write the new data
 					 * */
-					if ((eof = go_to_EOF(fd)) == STATUS_ERROR)
-					{
+					if ((eof = go_to_EOF(fd)) == STATUS_ERROR){
 						__er_file_pointer(F, L - 2);
 						return 0;
 					}
@@ -864,7 +861,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				 * write the data to file --
 				 * the file pointer is always pointing to the
 				 * right position at this point */
-				bu_ne = htons((uint16_t)buff_update);
+				bu_ne = swap16((uint16_t)buff_update);
 
 				if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 					write(fd, buff_w, buff_update) < 0){
@@ -888,7 +885,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*update new string position*/
-					uint32_t eof_ne = htons((uint32_t)eof);
+					uint32_t eof_ne = swap32((uint32_t)eof);
 					if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 					{
 						perror("write file: ");
@@ -929,7 +926,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		}
 		case TYPE_PACK:
 		{
-			uint32_t p_ne = htonl(rec->fields[i].data.p);
+			uint32_t p_ne = swap32(rec->fields[i].data.p);
 			if (write(fd, &p_ne, sizeof(p_ne)) < 0)
 			{
 				perror("error in writing type byte to file.\n");
@@ -939,7 +936,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		}
 		case TYPE_DOUBLE:
 		{
-			uint64_t d_ne = htond(rec->fields[i].data.d);
+			uint64_t d_ne = swap64(rec->fields[i].data.d);
 			if (write(fd, &d_ne, sizeof(d_ne)) < 0)
 			{
 				perror("error in writing double to file.\n");
@@ -952,14 +949,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			if (!update)
 			{
 				/*write the size of the array */
-				uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+				uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
 
-				uint32_t padding_ne = htonl(0);
+				uint32_t padding_ne = swap32(0);
 				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -971,7 +968,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (!rec->fields[i].data.v.elements.i[k])
 						continue;
 
-					uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
+					uint32_t num_ne = swap32(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
 					if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -1005,7 +1002,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					sz = (int)ntohl(sz_ne);
+					sz = (int)swap32(sz_ne);
 					if (rec->fields[i].data.v.size < sz ||
 						rec->fields[i].data.v.size == sz)
 						break;
@@ -1018,7 +1015,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					padding_value = (int)ntohl(pd_ne);
+					padding_value = (int)swap32(pd_ne);
 
 					if (step >= sz)
 					{
@@ -1045,7 +1042,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated size of the array */
-							uint32_t new_sz = htonl((uint32_t)sz);
+							uint32_t new_sz = swap32((uint32_t)sz);
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
@@ -1053,7 +1050,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated padding value */
-							uint32_t new_pd = htonl((uint32_t)padding_value);
+							uint32_t new_pd = swap32((uint32_t)padding_value);
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
@@ -1069,7 +1066,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (step < rec->fields[i].data.v.size)
 							{
-								uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
+								uint32_t num_ne = swap32(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -1083,7 +1080,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (exit)
 						{
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -1115,7 +1112,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/* write the updated size of the array */
-									uint32_t new_sz = htonl((uint32_t)sz);
+									uint32_t new_sz = swap32((uint32_t)sz);
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
@@ -1123,7 +1120,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*write padding */
-									uint32_t new_pd = htonl((uint32_t)padding_value);
+									uint32_t new_pd = swap32((uint32_t)padding_value);
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
@@ -1137,7 +1134,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.i[step])
 									continue;
 
-								uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
+								uint32_t num_ne = swap32(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -1160,7 +1157,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -1191,7 +1188,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -1202,14 +1199,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
 						{
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
-						uint32_t padding_ne = htonl(0);
+						uint32_t padding_ne = swap32(0);
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -1223,7 +1220,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.i[step])
 									continue;
 
-								uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
+								uint32_t num_ne = swap32(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -1234,7 +1231,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = bswap_64(0);
+						uint64_t empty_offset = swap64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -1247,7 +1244,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -1276,7 +1273,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 					{
 						perror("error in writing size array to file.\n");
@@ -1291,7 +1288,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					pd_he += (sz - rec->fields[i].data.v.size);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -1301,7 +1298,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/* write the padding to apply after the  array */
-					pad_ne = htonl((uint32_t)pd_he);
+					pad_ne = swap32((uint32_t)pd_he);
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
@@ -1313,7 +1310,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (!rec->fields[i].data.v.elements.i[k])
 							continue;
 
-						uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
+						uint32_t num_ne = swap32(*(uint32_t *)rec->fields[i].data.v.elements.i[k]);
 						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 						{
 							perror("failed write int array to file");
@@ -1331,7 +1328,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -1353,7 +1350,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t sz_ne = htonl((uint32_t)size_left);
+						uint32_t sz_ne = swap32((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -1369,7 +1366,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					for (int k = 0; k < rec->fields[i].data.v.size; k++)
 					{
 						if (step < rec->fields[i].data.v.size)
@@ -1377,7 +1374,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if (!rec->fields[i].data.v.elements.i[step])
 								continue;
 
-							uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
+							uint32_t num_ne = swap32(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
 							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 							{
 								perror("failed write int array to file");
@@ -1401,7 +1398,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -1426,14 +1423,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			if (!update)
 			{
 				/*write the size of the array */
-				uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+				uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
 
-				uint32_t padding_ne = htonl(0);
+				uint32_t padding_ne = swap32(0);
 				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -1445,7 +1442,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (!rec->fields[i].data.v.elements.l[k])
 						continue;
 
-					uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[k]);
+					uint64_t num_ne = swap64(*(uint64_t *)rec->fields[i].data.v.elements.l[k]);
 					if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -1453,7 +1450,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 				}
 
-				uint64_t upd_ne = bswap_64(0);
+				uint64_t upd_ne = swap64(0);
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -1479,7 +1476,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					sz = (int)ntohl(sz_ne);
+					sz = (int)swap32(sz_ne);
 					if (rec->fields[i].data.v.size < sz ||
 						rec->fields[i].data.v.size == sz)
 						break;
@@ -1492,7 +1489,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					padding_value = (int)ntohl(pd_ne);
+					padding_value = (int)swap32(pd_ne);
 
 					if (step >= sz)
 					{
@@ -1519,7 +1516,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated size of the array */
-							uint32_t new_sz = htonl((uint32_t)sz);
+							uint32_t new_sz = swap32((uint32_t)sz);
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
@@ -1527,7 +1524,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated padding value */
-							uint32_t new_pd = htonl((uint32_t)padding_value);
+							uint32_t new_pd = swap32((uint32_t)padding_value);
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
@@ -1543,7 +1540,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (step < rec->fields[i].data.v.size)
 							{
-								uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
+								uint64_t num_ne = swap64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -1557,7 +1554,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (exit)
 						{
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -1589,7 +1586,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/* write the updated size of the array */
-									uint32_t new_sz = htonl((uint32_t)sz);
+									uint32_t new_sz = swap32((uint32_t)sz);
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
@@ -1597,7 +1594,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*write padding */
-									uint32_t new_pd = htonl((uint32_t)padding_value);
+									uint32_t new_pd = swap32((uint32_t)padding_value);
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
@@ -1611,7 +1608,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.l[step])
 									continue;
 
-								uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
+								uint64_t num_ne = swap64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -1633,7 +1630,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -1663,7 +1660,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -1674,13 +1671,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1){
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
-						uint32_t padding_ne = htonl(0);
+						uint32_t padding_ne = swap32(0);
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -1694,7 +1691,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.l[step])
 									continue;
 
-								uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
+								uint64_t num_ne = swap64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -1705,7 +1702,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = bswap_64(0);
+						uint64_t empty_offset = swap64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -1718,7 +1715,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -1747,7 +1744,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 					{
 						perror("error in writing size array to file.\n");
@@ -1762,7 +1759,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					pd_he += (sz - rec->fields[i].data.v.size);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -1772,7 +1769,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/* write the padding to apply after the  array */
-					pad_ne = htonl((uint32_t)pd_he);
+					pad_ne = swap32((uint32_t)pd_he);
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
@@ -1784,7 +1781,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (!rec->fields[i].data.v.elements.l[k])
 							continue;
 
-						uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[k]);
+						uint64_t num_ne = swap64(*(uint64_t *)rec->fields[i].data.v.elements.l[k]);
 						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 						{
 							perror("failed write int array to file");
@@ -1802,7 +1799,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -1824,7 +1821,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t sz_ne = htonl((uint32_t)size_left);
+						uint32_t sz_ne = swap32((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -1840,7 +1837,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					for (int k = 0; k < rec->fields[i].data.v.size; k++)
 					{
 						if (step < rec->fields[i].data.v.size)
@@ -1848,7 +1845,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if (!rec->fields[i].data.v.elements.l[step])
 								continue;
 
-							uint64_t num_ne = bswap_64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
+							uint64_t num_ne = swap64(*(uint64_t *)rec->fields[i].data.v.elements.l[step]);
 							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 							{
 								perror("failed write int array to file");
@@ -1872,7 +1869,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -1896,14 +1893,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			if (!update)
 			{
 				/*write the size of the array */
-				uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+				uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
 
-				uint32_t padding_ne = htonl(0);
+				uint32_t padding_ne = swap32(0);
 				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -1923,7 +1920,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 				}
 
-				uint64_t upd_ne = bswap_64(0);
+				uint64_t upd_ne = swap64(0);
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -1949,7 +1946,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					sz = (int)ntohl(sz_ne);
+					sz = (int)swap32(sz_ne);
 					if (rec->fields[i].data.v.size < sz ||
 						rec->fields[i].data.v.size == sz)
 						break;
@@ -1962,7 +1959,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					padding_value = (int)ntohl(pd_ne);
+					padding_value = (int)swap32(pd_ne);
 
 					if (step >= sz)
 					{
@@ -1989,7 +1986,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated size of the array */
-							uint32_t new_sz = htonl((uint32_t)sz);
+							uint32_t new_sz = swap32((uint32_t)sz);
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
@@ -1997,7 +1994,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated padding value */
-							uint32_t new_pd = htonl((uint32_t)padding_value);
+							uint32_t new_pd = swap32((uint32_t)padding_value);
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
@@ -2027,7 +2024,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (exit)
 						{
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -2059,7 +2056,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/* write the updated size of the array */
-									uint32_t new_sz = htonl((uint32_t)sz);
+									uint32_t new_sz = swap32((uint32_t)sz);
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
@@ -2067,7 +2064,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*write padding */
-									uint32_t new_pd = htonl((uint32_t)padding_value);
+									uint32_t new_pd = swap32((uint32_t)padding_value);
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
@@ -2104,7 +2101,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -2135,7 +2132,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -2146,14 +2143,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
 						{
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
-						uint32_t padding_ne = htonl(0);
+						uint32_t padding_ne = swap32(0);
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -2178,7 +2175,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = bswap_64(0);
+						uint64_t empty_offset = swap64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -2191,7 +2188,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -2220,7 +2217,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 					{
 						perror("error in writing size array to file.\n");
@@ -2235,7 +2232,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					pd_he += (sz - rec->fields[i].data.v.size);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -2245,7 +2242,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/* write the padding to apply after the  array */
-					pad_ne = htonl((uint32_t)pd_he);
+					pad_ne = swap32((uint32_t)pd_he);
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
@@ -2275,7 +2272,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -2297,7 +2294,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t sz_ne = htonl((uint32_t)size_left);
+						uint32_t sz_ne = swap32((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -2313,7 +2310,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					for (int k = 0; k < rec->fields[i].data.v.size; k++)
 					{
 						if (step < rec->fields[i].data.v.size)
@@ -2321,7 +2318,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if (!rec->fields[i].data.v.elements.f[step])
 								continue;
 
-							uint32_t num_ne = htonl(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
+							uint32_t num_ne = swap32(*(uint32_t *)rec->fields[i].data.v.elements.i[step]);
 							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 							{
 								perror("failed write int array to file");
@@ -2345,7 +2342,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -2370,14 +2367,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			if (!update)
 			{
 				/*write the size of the array */
-				uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+				uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
 
-				uint32_t padding_ne = htonl(0);
+				uint32_t padding_ne = swap32(0);
 				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -2399,8 +2396,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					strncpy(buff_w, rec->fields[i].data.v.elements.s[k], lt - 1);
 
-					uint16_t bu_ne = htons((uint16_t)buff_update);
-					uint32_t str_loc_ne = htonl((uint32_t)str_loc);
+					uint16_t bu_ne = swap16((uint16_t)buff_update);
+					uint32_t str_loc_ne = swap32((uint32_t)str_loc);
 
 					if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
 						write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
@@ -2412,7 +2409,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				}
 
-				uint64_t upd_ne = bswap_64(0);
+				uint64_t upd_ne = swap64(0);
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -2438,7 +2435,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					sz = (int)ntohl(sz_ne);
+					sz = (int)swap32(sz_ne);
 					if (rec->fields[i].data.v.size < sz ||
 						rec->fields[i].data.v.size == sz)
 						break;
@@ -2451,7 +2448,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					padding_value = (int)ntohl(pd_ne);
+					padding_value = (int)swap32(pd_ne);
 
 					if (step >= sz)
 					{
@@ -2478,7 +2475,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated size of the array */
-							uint32_t new_sz = htonl((uint32_t)sz);
+							uint32_t new_sz = swap32((uint32_t)sz);
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
@@ -2486,7 +2483,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated padding value */
-							uint32_t new_pd = htonl((uint32_t)padding_value);
+							uint32_t new_pd = swap32((uint32_t)padding_value);
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
@@ -2518,7 +2515,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									printf(" %s:%d", F, L - 3);
 									return 0;
 								}
-								str_loc = (off_t)ntohl(str_loc_ne);
+								str_loc = (off_t)swap32(str_loc_ne);
 
 								/*store record  beginning pos*/
 								if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -2534,7 +2531,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								buff_update = (off_t)ntohs(bu_ne);
+								buff_update = (off_t)swap16(bu_ne);
 
 								/*save the end offset of the first string record */
 								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -2571,7 +2568,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 										return 0;
 									}
 
-									buff_update = (off_t)ntohs(bu_ne);
+									buff_update = (off_t)swap16(bu_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -2625,7 +2622,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								 * write the data to file --
 								 * the file pointer is always pointing to the
 								 * right position at this point */
-								bu_ne = htons((uint16_t)buff_update);
+								bu_ne = swap16((uint16_t)buff_update);
 
 								if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 									write(fd, buff_w, buff_update) < 0){
@@ -2649,7 +2646,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*update new string position*/
-									uint32_t eof_ne = htonl((uint32_t)eof);
+									uint32_t eof_ne = swap32((uint32_t)eof);
 									if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 									{
 										perror("write file: ");
@@ -2688,7 +2685,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						if (exit){
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -2720,7 +2717,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/* write the updated size of the array */
-									uint32_t new_sz = htonl((uint32_t)sz);
+									uint32_t new_sz = swap32((uint32_t)sz);
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
@@ -2728,7 +2725,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*write padding */
-									uint32_t new_pd = htonl((uint32_t)padding_value);
+									uint32_t new_pd = swap32((uint32_t)padding_value);
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
@@ -2758,7 +2755,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									printf(" %s:%d", F, L - 3);
 									return 0;
 								}
-								str_loc = (off_t)ntohl(str_loc_ne);
+								str_loc = (off_t)swap32(str_loc_ne);
 
 								/*store record  beginning pos*/
 								if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -2774,7 +2771,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								buff_update = (off_t)htons(bu_ne);
+								buff_update = (off_t)swap16(bu_ne);
 
 								/*save the end offset of the first string record */
 								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR){
@@ -2810,7 +2807,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 										return 0;
 									}
 
-									buff_update = (off_t)ntohs(bu_ne);
+									buff_update = (off_t)swap16(bu_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -2861,7 +2858,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								 * write the data to file --
 								 * the file pointer is always pointing to the
 								 * right position at this point */
-								bu_ne = htons((uint16_t) buff_update);
+								bu_ne = swap16((uint16_t) buff_update);
 
 								if (write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 									write(fd, buff_w, buff_update) < 0){
@@ -2885,7 +2882,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*update new string position*/
-									uint32_t eof_ne = htonl((uint32_t)eof);
+									uint32_t eof_ne = swap32((uint32_t)eof);
 									if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 									{
 										perror("write file: ");
@@ -2932,7 +2929,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1){
 								perror("error in writing size array to file.\n");
 								return 0;
@@ -2961,7 +2958,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)swap64(update_off_ne);
 					if (update_pos == 0){
 						/*go to EOF*/
 						if ((update_pos = go_to_EOF(fd)) == -1){
@@ -2970,13 +2967,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1){
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
-						uint32_t padding_ne = htonl(0);
+						uint32_t padding_ne = swap32(0);
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1){
 							perror("error in writing size array to file.\n");
 							return 0;
@@ -3000,8 +2997,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 								strncpy(buff_w, rec->fields[i].data.v.elements.s[step], lt - 1);
 
-								uint16_t bu_ne = htons((uint16_t)buff_update);
-								uint32_t str_loc_ne = htonl((uint32_t)str_loc);
+								uint16_t bu_ne = swap16((uint16_t)buff_update);
+								uint32_t str_loc_ne = swap32((uint32_t)str_loc);
 
 								if (write(fd, &str_loc_ne, sizeof(str_loc_ne)) < 0 ||
 									write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
@@ -3017,7 +3014,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = bswap_64(0);
+						uint64_t empty_offset = swap64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -3030,7 +3027,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -3059,7 +3056,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 					{
 						perror("error in writing size array to file.\n");
@@ -3074,7 +3071,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					pd_he += (sz - rec->fields[i].data.v.size);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -3084,7 +3081,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/* write the padding to apply after the  array */
-					pad_ne = htonl((uint32_t)pd_he);
+					pad_ne = swap32((uint32_t)pd_he);
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
@@ -3111,7 +3108,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							printf(" %s:%d", F, L - 3);
 							return 0;
 						}
-						str_loc = (off_t)ntohl(str_loc_ne);
+						str_loc = (off_t)swap32(str_loc_ne);
 
 						/*store record  beginning pos*/
 						if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -3127,7 +3124,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						buff_update = (off_t)ntohs(bu_ne);
+						buff_update = (off_t)swap16(bu_ne);
 
 						/*save the end offset of the first string record */
 						if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -3164,7 +3161,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 
-							buff_update = (off_t)ntohs(bu_ne);
+							buff_update = (off_t)swap16(bu_ne);
 						}
 
 						new_lt = strlen(rec->fields[i].data.v.elements.s[k]) + 1; /*get new str length*/
@@ -3217,7 +3214,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						 * write the data to file --
 						 * the file pointer is always pointing to the
 						 * right position at this point */
-						bu_ne = htons((uint16_t)buff_update);
+						bu_ne = swap16((uint16_t)buff_update);
 						if(write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 							write(fd, buff_w, buff_update) < 0){
 							perror("error in writing type string (char *)file.\n");
@@ -3238,7 +3235,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/*update new string position*/
-							uint32_t eof_ne = htonl((uint32_t)eof);
+							uint32_t eof_ne = swap32((uint32_t)eof);
 							if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 							{
 								perror("write file: ");
@@ -3280,7 +3277,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -3302,7 +3299,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t sz_ne = htonl((uint32_t)size_left);
+						uint32_t sz_ne = swap32((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -3318,7 +3315,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					for (int k = 0; k < rec->fields[i].data.v.size; k++)
 					{
 						if (step < rec->fields[i].data.v.size)
@@ -3341,7 +3338,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								printf(" %s:%d", F, L - 3);
 								return 0;
 							}
-							str_loc = (off_t)ntohl(str_loc_ne);
+							str_loc = (off_t)swap32(str_loc_ne);
 
 							/*store record  beginning pos*/
 							if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -3357,7 +3354,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 
-							buff_update = (off_t)ntohs(bu_ne);
+							buff_update = (off_t)swap16(bu_ne);
 
 							/*save the end offset of the first string record */
 							if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -3394,7 +3391,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								buff_update = (off_t)ntohs(bu_ne);
+								buff_update = (off_t)swap16(bu_ne);
 							}
 
 							new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -3448,7 +3445,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							 * write the data to file --
 							 * the file pointer is always pointing to the
 							 * right position at this point */
-							bu_ne = htons((uint16_t)buff_update);
+							bu_ne = swap16((uint16_t)buff_update);
 
 							if(write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 								write(fd, buff_w, buff_update) < 0){
@@ -3472,7 +3469,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 
 								/*update new string position*/
-								uint32_t eof_ne = htonl((uint32_t)eof);
+								uint32_t eof_ne = swap32((uint32_t)eof);
 								if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 								{
 									perror("write file: ");
@@ -3524,7 +3521,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -3549,14 +3546,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			if (!update)
 			{
 				/*write the size of the array */
-				uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+				uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
 
-				uint32_t padding_ne = htonl(0);
+				uint32_t padding_ne = swap32(0);
 				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -3568,7 +3565,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (!rec->fields[i].data.v.elements.b[k])
 						continue;
 
-					uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[k]);
+					uint8_t num_ne = *rec->fields[i].data.v.elements.b[k];
 					if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -3576,7 +3573,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 				}
 
-				uint64_t upd_ne = bswap_64(0);
+				uint64_t upd_ne = swap64(0);
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -3602,7 +3599,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					sz = (int)ntohl(sz_ne);
+					sz = (int)swap32(sz_ne);
 					if (rec->fields[i].data.v.size < sz ||
 						rec->fields[i].data.v.size == sz)
 						break;
@@ -3615,7 +3612,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					padding_value = (int)ntohl(pd_ne);
+					padding_value = (int)swap32(pd_ne);
 
 					if (step >= sz)
 					{
@@ -3642,7 +3639,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated size of the array */
-							uint32_t new_sz = htonl((uint32_t)sz);
+							uint32_t new_sz = swap32((uint32_t)sz);
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
@@ -3650,7 +3647,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated padding value */
-							uint32_t new_pd = htonl((uint32_t)padding_value);
+							uint32_t new_pd = swap32((uint32_t)padding_value);
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
@@ -3666,7 +3663,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						{
 							if (step < rec->fields[i].data.v.size)
 							{
-								uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[step]);
+								uint8_t num_ne = *rec->fields[i].data.v.elements.b[step];
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -3680,7 +3677,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (exit)
 						{
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -3712,7 +3709,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/* write the updated size of the array */
-									uint32_t new_sz = htonl((uint32_t)sz);
+									uint32_t new_sz = swap32((uint32_t)sz);
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
@@ -3720,7 +3717,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*write padding */
-									uint32_t new_pd = htonl((uint32_t)padding_value);
+									uint32_t new_pd = swap32((uint32_t)padding_value);
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
@@ -3734,7 +3731,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.b[step])
 									continue;
 
-								uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[step]);
+								uint8_t num_ne = *rec->fields[i].data.v.elements.b[step];
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -3756,7 +3753,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -3787,7 +3784,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -3798,14 +3795,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
 						{
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
-						uint32_t padding_ne = htonl(0);
+						uint32_t padding_ne = swap32(0);
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -3819,7 +3816,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								if (!rec->fields[i].data.v.elements.b[step])
 									continue;
 
-								uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[step]);
+								uint8_t num_ne = *rec->fields[i].data.v.elements.b[step];
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 								{
 									perror("failed write int array to file");
@@ -3830,7 +3827,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = bswap_64(0);
+						uint64_t empty_offset = swap64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -3843,7 +3840,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -3872,7 +3869,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 					{
 						perror("error in writing size array to file.\n");
@@ -3887,7 +3884,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					pd_he += (sz - rec->fields[i].data.v.size);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -3897,7 +3894,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/* write the padding to apply after the  array */
-					pad_ne = htonl((uint32_t)pd_he);
+					pad_ne = swap32((uint32_t)pd_he);
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
@@ -3909,7 +3906,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (!rec->fields[i].data.v.elements.b[k])
 							continue;
 
-						uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[k]);
+						uint8_t num_ne = *rec->fields[i].data.v.elements.b[k];
 						if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 						{
 							perror("failed write int array to file");
@@ -3927,7 +3924,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -3949,7 +3946,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t sz_ne = htonl((uint32_t)size_left);
+						uint32_t sz_ne = swap32((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -3965,7 +3962,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					for (int k = 0; k < rec->fields[i].data.v.size; k++)
 					{
 						if (step < rec->fields[i].data.v.size)
@@ -3973,7 +3970,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							if (!rec->fields[i].data.v.elements.b[step])
 								continue;
 
-							uint16_t num_ne = htonb(*rec->fields[i].data.v.elements.b[step]);
+							uint8_t num_ne = *rec->fields[i].data.v.elements.b[step];
 							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 							{
 								perror("failed write int array to file");
@@ -3997,7 +3994,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -4021,14 +4018,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			if (!update)
 			{
 				/*write the size of the array */
-				uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+				uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
 
-				uint32_t padding_ne = htonl(0);
+				uint32_t padding_ne = swap32(0);
 				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -4048,7 +4045,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 				}
 
-				uint64_t upd_ne = bswap_64(0);
+				uint64_t upd_ne = swap64(0);
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
@@ -4074,7 +4071,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					sz = (int)ntohl(sz_ne);
+					sz = (int)swap32(sz_ne);
 					if (rec->fields[i].data.v.size < sz ||
 						rec->fields[i].data.v.size == sz)
 						break;
@@ -4087,7 +4084,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					padding_value = (int)ntohl(pd_ne);
+					padding_value = (int)swap32(pd_ne);
 
 					if (step >= sz)
 					{
@@ -4114,7 +4111,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated size of the array */
-							uint32_t new_sz = htonl((uint32_t)sz);
+							uint32_t new_sz = swap32((uint32_t)sz);
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
@@ -4122,7 +4119,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated padding value */
-							uint32_t new_pd = htonl((uint32_t)padding_value);
+							uint32_t new_pd = swap32((uint32_t)padding_value);
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
@@ -4152,7 +4149,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						if (exit)
 						{
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -4184,7 +4181,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/* write the updated size of the array */
-									uint32_t new_sz = htonl((uint32_t)sz);
+									uint32_t new_sz = swap32((uint32_t)sz);
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
@@ -4192,7 +4189,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*write padding */
-									uint32_t new_pd = htonl((uint32_t)padding_value);
+									uint32_t new_pd = swap32((uint32_t)padding_value);
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
@@ -4228,7 +4225,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -4259,7 +4256,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -4270,14 +4267,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
 						{
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
-						uint32_t padding_ne = htonl(0);
+						uint32_t padding_ne = swap32(0);
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -4302,7 +4299,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = bswap_64(0);
+						uint64_t empty_offset = swap64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -4315,7 +4312,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -4344,7 +4341,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl((uint32_t)rec->fields[i].data.v.size);
+					uint32_t size_ne = swap32((uint32_t)rec->fields[i].data.v.size);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 					{
 						perror("error in writing size array to file.\n");
@@ -4359,7 +4356,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					pd_he += (sz - rec->fields[i].data.v.size);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -4369,7 +4366,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/* write the padding to apply after the  array */
-					pad_ne = htonl((uint32_t)pd_he);
+					pad_ne = swap32((uint32_t)pd_he);
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
@@ -4399,7 +4396,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -4421,7 +4418,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						int size_left = rec->fields[i].data.v.size - step;
-						uint32_t sz_ne = htonl((uint32_t)size_left);
+						uint32_t sz_ne = swap32((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -4437,7 +4434,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					for (int k = 0; k < rec->fields[i].data.v.size; k++)
 					{
 						if (step < rec->fields[i].data.v.size)
@@ -4469,7 +4466,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -4493,7 +4490,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			if (!update){	
 
 				/*write the size of the LIST */
-				uint32_t size_ne = htonl(rec->fields[i].data.file.count);
+				uint32_t size_ne = swap32(rec->fields[i].data.file.count);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)	{
 					perror("error in writing size array to file.\n");
 					return 0;
@@ -4569,7 +4566,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					sz = ntohl(sz_ne);
+					sz = swap32(sz_ne);
 					if (rec->fields[i].data.file.count < sz ||
 						rec->fields[i].data.file.count == sz)
 						break;
@@ -4581,7 +4578,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					padding_value = (int)ntohl(pd_ne);
+					padding_value = (int)swap32(pd_ne);
 
 					if (step >= sz)
 					{
@@ -4621,7 +4618,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						off_t up_he = (off_t) bswap_64(update_arr);
+						off_t up_he = (off_t) swap64(update_arr);
 						if(up_he == 0) array_last = 1;
 
 						if (rec->fields[i].data.file.count < (sz + step) && array_last)
@@ -4639,7 +4636,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated size of the array */
-							uint32_t new_sz = htonl((uint32_t)sz);
+							uint32_t new_sz = swap32((uint32_t)sz);
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
@@ -4647,7 +4644,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 
 							/* write the updated padding value */
-							uint32_t new_pd = htonl((uint32_t)padding_value);
+							uint32_t new_pd = swap32((uint32_t)padding_value);
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
@@ -4675,7 +4672,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						if (exit){
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -4707,7 +4704,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/* write the updated size of the array */
-									uint32_t new_sz = htonl((uint32_t)sz);
+									uint32_t new_sz = swap32((uint32_t)sz);
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
@@ -4715,7 +4712,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 
 									/*write padding */
-									uint32_t new_pd = htonl((uint32_t)padding_value);
+									uint32_t new_pd = swap32((uint32_t)padding_value);
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
@@ -4757,7 +4754,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = bswap_64(0);
+							uint64_t empty_offset = swap64(0);
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -4800,7 +4797,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)bswap_64(update_off_ne);
+					update_pos = (off_t)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -4811,13 +4808,13 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.file.count - step;
-						uint32_t size_left_ne = htonl((uint32_t)size_left);
+						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1) {
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
-						uint32_t padding_ne = htonl(0);
+						uint32_t padding_ne = swap32(0);
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -4835,7 +4832,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = bswap_64(0);
+						uint64_t empty_offset = swap64(0);
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -4848,7 +4845,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						update_off_ne = (uint64_t)bswap_64((uint64_t)update_pos);
+						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -4877,7 +4874,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/*write the size of the array */
-					uint32_t size_ne = htonl(rec->fields[i].data.file.count);
+					uint32_t size_ne = swap32(rec->fields[i].data.file.count);
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1){
 						perror("error in writing size array to file.\n");
 						return 0;
@@ -4890,7 +4887,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					pd_he += (sz - rec->fields[i].data.file.count);
 
 					if (move_in_file_bytes(fd, -sizeof(uint32_t)) == -1)
@@ -4900,7 +4897,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					/* write the padding to apply after the  array */
-					pad_ne = htonl((uint32_t)pd_he);
+					pad_ne = swap32((uint32_t)pd_he);
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
@@ -4937,7 +4934,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -4959,7 +4956,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						int size_left = rec->fields[i].data.file.count - step;
-						uint32_t sz_ne = htonl((uint32_t)size_left);
+						uint32_t sz_ne = swap32((uint32_t)size_left);
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -4975,7 +4972,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					int pd_he = (int)ntohl(pad_ne);
+					int pd_he = (int)swap32(pad_ne);
 					for (uint32_t k = 0; k < rec->fields[i].data.file.count; k++)
 					{
 						if (step < rec->fields[i].data.file.count){
@@ -5014,7 +5011,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					}
 
-					uint64_t update_arr_ne = bswap_64(0);
+					uint64_t update_arr_ne = swap64(0);
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -5045,7 +5042,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	
 	uint64_t uot_ne = 0;
 	if(update_off_t > 0) 
-		uot_ne = bswap_64((uint64_t)update_off_t);
+		uot_ne = swap64((uint64_t)update_off_t);
 
 	if (write(fd, &uot_ne, sizeof(uot_ne)) == STATUS_ERROR)
 	{
@@ -5067,7 +5064,7 @@ off_t get_update_offset(int fd)
 		return -1;
 	}
 
-	return (off_t)bswap_64(urec_ne);
+	return (off_t)swap64(urec_ne);
 }
 
 /*
@@ -5118,7 +5115,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
-			rec->fields[i].data.i = (int)ntohl(i_ne);
+			rec->fields[i].data.i = (int)swap32(i_ne);
 			break;
 		}
 		case TYPE_LONG: 
@@ -5130,7 +5127,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 
-			rec->fields[i].data.l = (long)bswap_64(l_ne);
+			rec->fields[i].data.l = (long)swap64(l_ne);
 			break;
 		}
 		case TYPE_FLOAT:
@@ -5154,7 +5151,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 
-			rec->fields[i].data.p = ntohl(p_ne);
+			rec->fields[i].data.p = swap32(p_ne);
 			break;
 		}
 		case TYPE_STRING:
@@ -5168,7 +5165,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
-			str_loc = (off_t)ntohl(str_loc_ne);
+			str_loc = (off_t)swap32(str_loc_ne);
 
 			uint16_t bu_up_ne = 0;
 			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0){
@@ -5178,7 +5175,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				return -1;
 			}
 
-			buff_update = (size_t)ntohs(bu_up_ne);
+			buff_update = (size_t)swap16(bu_up_ne);
 
 			if (str_loc > 0)
 			{
@@ -5200,7 +5197,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				buff_update = (off_t)ntohs(bu_up_ne);
+				buff_update = (off_t)swap16(bu_up_ne);
 			}
 
 			rec->fields[i].data.s = calloc(buff_update, sizeof(char));
@@ -5274,7 +5271,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 				uint32_t padding = 0;
 				if (read(fd, &padding, sizeof(padding)) == -1)
 				{
@@ -5283,7 +5280,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -5294,7 +5291,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						free_record(rec, rec->fields_num);
 						return -1;
 					}
-					int num = (int)ntohl(num_ne);
+					int num = (int)swap32(num_ne);
 					rec->fields[i].data.v.insert((void *)&num,
 						&rec->fields[i].data.v,
 						rec->fields[i].type);
@@ -5323,7 +5320,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					go_back_here = get_file_offset(fd);
 				}
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5363,7 +5360,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 				uint32_t padding = 0;
 				if (read(fd, &padding, sizeof(padding)) == -1)
 				{
@@ -5372,7 +5369,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -5383,7 +5380,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						free_record(rec, rec->fields_num);
 						return -1;
 					}
-					long num = (long)bswap_64(num_ne);
+					long num = (long)swap64(num_ne);
 					rec->fields[i].data.v.insert((void *)&num,
 												 &rec->fields[i].data.v,
 												 rec->fields[i].type);
@@ -5411,7 +5408,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5451,7 +5448,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 				uint32_t padding = 0;
 				if (read(fd, &padding, sizeof(padding)) == -1)
 				{
@@ -5460,7 +5457,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -5473,7 +5470,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						printf(" %s:%d", F, L - 3);
 						return -1;
 					}
-					str_loc = (size_t)ntohl(str_loc_ne);
+					str_loc = (size_t)swap32(str_loc_ne);
 
 					uint16_t bu_up_ne = 0;
 					if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
@@ -5484,7 +5481,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						return -1;
 					}
 
-					buff_update = (size_t)ntohs(bu_up_ne);
+					buff_update = (size_t)swap16(bu_up_ne);
 
 					if (str_loc > 0)
 					{
@@ -5507,7 +5504,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							return -1;
 						}
 
-						buff_update = (size_t)ntohs(bu_up_ne);
+						buff_update = (size_t)swap16(bu_up_ne);
 					}
 
 					char *all_buf = calloc(buff_update, sizeof(char));
@@ -5567,7 +5564,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5607,7 +5604,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 				uint32_t padding = 0;
 				if (read(fd, &padding, sizeof(padding)) == -1)
 				{
@@ -5616,7 +5613,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -5657,7 +5654,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					go_back_here = get_file_offset(fd);
 				}
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5697,7 +5694,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 				uint32_t padding = 0;
 				if (read(fd, &padding, sizeof(padding)) == -1)
 				{
@@ -5706,7 +5703,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -5745,7 +5742,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5785,7 +5782,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 				uint32_t padding = 0;
 				if (read(fd, &padding, sizeof(padding)) == -1)
 				{
@@ -5794,7 +5791,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++)
 				{
@@ -5834,7 +5831,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5893,7 +5890,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				uint32_t sz = ntohl(size_array);
+				uint32_t sz = swap32(size_array);
 				uint32_t padding = 0;
 				if (read(fd, &padding, sizeof(padding)) == -1){
 					perror("error readig array.");
@@ -5901,7 +5898,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 				uint8_t first = 0;
 				for(uint32_t j = 0; j < sz; j++){
 					if (!rec->fields[i].data.file.recs){
@@ -6086,7 +6083,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -6142,32 +6139,6 @@ int file_error_handler(int count, ...)
 
 	if(err > 0) return ENOENT;	
 	return j;
-}
-
-int padding_file(int fd, int bytes, size_t hd_st)
-{
-
-	unsigned short actual_pd = (short)(bytes - (int)hd_st);
-	double pd_intermediete = (double)actual_pd / (double)sizeof(uint16_t);
-
-	pd_intermediete = (pd_intermediete);
-	actual_pd = (unsigned short)pd_intermediete;
-
-	uint16_t padding[actual_pd];
-
-	short i = 0;
-	unsigned char c = '0';
-	uint16_t c_ne = htonb(c);
-	for (i = 0; i < actual_pd; i++)
-		padding[i] = c_ne;
-
-	if (write(fd, &padding, sizeof(padding)) == -1)
-	{
-		perror("padding file.\n");
-		return 0;
-	}
-
-	return 1; // succssed
 }
 
 off_t get_file_size(int fd, char *file_name)
@@ -6448,7 +6419,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			uint32_t n = 0;
 			memcpy(&n,p,sizeof(uint32_t));
 			p += sizeof(uint32_t);
-			rec->fields[indexes[i]].data.i = ntohl(n);
+			rec->fields[indexes[i]].data.i = swap32(n);
 			break;
 		}
 		case TYPE_LONG:
@@ -6456,7 +6427,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			uint64_t n = 0;
 			memcpy(&n,p,sizeof(uint64_t));
 			p += sizeof(uint64_t);
-			rec->fields[indexes[i]].data.l = bswap_64(n);
+			rec->fields[indexes[i]].data.l = swap64(n);
 			break;
 		}
 		case TYPE_BYTE:
@@ -6472,13 +6443,13 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			uint32_t str_loc_ne = 0;
 			memcpy(&str_loc_ne,p,sizeof(uint32_t));
 			p += sizeof(uint32_t);
-			off_t str_loc = (off_t)ntohl(str_loc_ne);
+			off_t str_loc = (off_t)swap32(str_loc_ne);
 
 
 			uint16_t buf_up_ne = 0;
 			memcpy(&buf_up_ne,p,sizeof(uint16_t));
 			p += sizeof(uint16_t);
-			size_t buf_up = bswap_64(buf_up_ne);
+			size_t buf_up = swap64(buf_up_ne);
 
 			off_t move_back_to = 0;
 			if(str_loc > 0){
@@ -6489,7 +6460,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				buf_up_ne = 0;
 				memcpy(&buf_up_ne,p,sizeof(uint16_t));
 				p += sizeof(uint16_t);
-				buf_up = ntohs(str_loc_ne);
+				buf_up = swap16(str_loc_ne);
 
 			}
 
@@ -6518,7 +6489,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			uint32_t n = 0;
 			memcpy(&n,p,sizeof(uint32_t));
 			p += sizeof(uint32_t);
-			rec->fields[indexes[i]].data.p = ntohl(n);
+			rec->fields[indexes[i]].data.p = swap32(n);
 			break;
 		}
 		case TYPE_DOUBLE:
@@ -6526,7 +6497,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			uint64_t n = 0;
 			memcpy(&n,p,sizeof(uint64_t));
 			p += sizeof(uint64_t);
-			rec->fields[indexes[i]].data.d = bswap_64(n);
+			rec->fields[indexes[i]].data.d = swap64(n);
 			break;
 		}
 		case TYPE_ARRAY_INT:
@@ -6543,19 +6514,19 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				uint32_t size_array = 0;
 				memcpy(&size_array,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
 				memcpy(&padding,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++){
 					uint32_t n = 0;
 					memcpy(&n,p,sizeof(uint32_t));
 					p += sizeof(uint32_t);
-					int num = (int)ntohl(n);
+					int num = (int)swap32(n);
 					rec->fields[indexes[i]].data.v.insert((void *)&num,
 						&rec->fields[indexes[i]].data.v,
 						rec->fields[indexes[i]].type);
@@ -6569,7 +6540,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 
 				if (go_back_here == 0) go_back_here = p - ram->mem;
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0) p = &ram->mem[array_upd];
 
 			} while (array_upd > 0);
@@ -6590,20 +6561,20 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				uint32_t size_array = 0;
 				memcpy(&size_array,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
 				memcpy(&padding,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++){
 					uint64_t n = 0;
 					memcpy(&n,p,sizeof(uint64_t));
 					p += sizeof(uint64_t);
 
-					long num = (long)bswap_64(n);
+					long num = (long)swap64(n);
 
 					rec->fields[indexes[i]].data.v.insert((void *)&num,
 						&rec->fields[indexes[i]].data.v,
@@ -6618,7 +6589,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 
 				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0) p = &ram->mem[array_upd];
 
 			} while (array_upd > 0);
@@ -6639,13 +6610,13 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				uint32_t size_array = 0;
 				memcpy(&size_array,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
 				memcpy(&padding,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++){
 					uint8_t n = 0;
@@ -6664,7 +6635,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 
 				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0) p = &ram->mem[array_upd];
 
 			} while (array_upd > 0);
@@ -6685,13 +6656,13 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				uint32_t size_array = 0;
 				memcpy(&size_array,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
 				memcpy(&padding,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++){
 					uint32_t n = 0;
@@ -6711,7 +6682,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 
 				if (go_back_here == 0) go_back_here = p - ram->mem;
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0) p = &ram->mem[array_upd];
 
 			} while (array_upd > 0);
@@ -6733,20 +6704,20 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				uint32_t size_array = 0;
 				memcpy(&size_array,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
 				memcpy(&padding,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++){
 					uint64_t n = 0;
 					memcpy(&n,p,sizeof(uint64_t));
 					p += sizeof(uint64_t);
 
-					double num = (double)bswap_64(n);
+					double num = (double)swap64(n);
 
 					rec->fields[indexes[i]].data.v.insert((void *)&num,
 						&rec->fields[indexes[i]].data.v,
@@ -6761,7 +6732,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 
 				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0) p = &ram->mem[array_upd];
 
 			} while(array_upd > 0);
@@ -6782,25 +6753,25 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				uint32_t size_array = 0;
 				memcpy(&size_array,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int sz = (int)ntohl(size_array);
+				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
 				memcpy(&padding,p,sizeof(uint32_t));
 				p += sizeof(uint32_t);
-				int padd = (int)ntohl(padding);
+				int padd = (int)swap32(padding);
 
 				for (int j = 0; j < sz; j++){
 					uint32_t str_loc_ne = 0;
 					memcpy(&str_loc_ne,p,sizeof(uint32_t));
 					p += sizeof(uint32_t);
-					off_t str_loc = (off_t)	ntohl(str_loc_ne);
+					off_t str_loc = (off_t)	swap32(str_loc_ne);
 
 
 					uint16_t buf_up_ne = 0;
 					memcpy(&buf_up_ne,p,sizeof(uint16_t));
 					p += sizeof(uint16_t);
-					size_t buf_up = (size_t)ntohs(str_loc_ne);
+					size_t buf_up = (size_t)swap16(str_loc_ne);
 
 					off_t move_back_to = 0;
 					if(str_loc > 0){
@@ -6811,7 +6782,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 						buf_up_ne = 0;
 						memcpy(&buf_up_ne,p,sizeof(uint16_t));
 						p += sizeof(uint16_t);
-						buf_up = (size_t)ntohs(str_loc_ne);
+						buf_up = (size_t)swap16(str_loc_ne);
 					}
 
 					char *string = calloc(buf_up,sizeof(char));
@@ -6837,7 +6808,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 						uint16_t buf_upn = 0;
 						memcpy(&buf_upn,p,sizeof(uint16_t));
 						p += sizeof(uint16_t);
-						size_t buf_up = ntohs(buf_upn);
+						size_t buf_up = swap16(buf_upn);
 						p += buf_up;
 					}
 				}
@@ -6848,7 +6819,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 
 				if (go_back_here == 0) go_back_here = p - ram->mem;
 
-				array_upd = (off_t)bswap_64(upd_ne);
+				array_upd = (off_t)swap64(upd_ne);
 				if (array_upd > 0) p = &ram->mem[array_upd];
 
 			} while (array_upd > 0);
@@ -6871,8 +6842,13 @@ static int move_ram_file_ptr(struct Ram_file *ram,size_t size, int update)
 		ram->size += size;
 		ram->offset = ram->size;
 		return 0;
-	}else{
-		return -1;
+
+	}	
+
+	if(update && (ram->size == ram->offset)){
+		ram->size += size;
+		ram->offset = ram->size;
+		return 0;
 	}
 
 	if(update && (ram->size == ram->offset)){
@@ -6895,7 +6871,7 @@ static int move_ram_file_ptr(struct Ram_file *ram,size_t size, int update)
  * if you pass init_ram_size as 0, in case the struct Ram_file memory is NULL
  * it will allocate the STD_RAM_FILE size to it (3 Mib)
  * */
-int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size)
+int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, off_t offset)
 {
 	if(ram->capacity == 0)
 		if(init_ram_file(ram, init_ram_size) == -1) return -1;
@@ -6947,7 +6923,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		switch(rec->fields[i].type){
 		case TYPE_INT:
 		{
-			uint32_t value = htonl((uint32_t)rec->fields[i].data.i);
+			uint32_t value = swap32((uint32_t)rec->fields[i].data.i);
 			memcpy(&ram->mem[ram->size], &value, sizeof(uint32_t));
 			if(move_ram_file_ptr(ram,sizeof(uint32_t),update) == -1){
 				fprintf(stderr,"move_ram_file_ptr failed, %s:%d",__FILE__,__LINE__-1);
@@ -6957,7 +6933,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_LONG:
 		{
-			uint64_t value = bswap_64((uint64_t)rec->fields[i].data.l);
+			uint64_t value = swap64((uint64_t)rec->fields[i].data.l);
 			memcpy(&ram->mem[ram->size], &value, sizeof(uint64_t));
 			if(move_ram_file_ptr(ram,sizeof(uint64_t),update) == -1){
 				fprintf(stderr,"move_ram_file_ptr failed, %s:%d",__FILE__,__LINE__-1);
@@ -6984,7 +6960,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_PACK:
 		{
-			uint32_t value = htonl((uint32_t)rec->fields[i].data.p);
+			uint32_t value = swap32((uint32_t)rec->fields[i].data.p);
 			memcpy(&ram->mem[ram->size], &value, sizeof(uint32_t));
 			if(move_ram_file_ptr(ram,sizeof(uint32_t),update) == -1){
 				fprintf(stderr,"move_ram_file_ptr failed, %s:%d",__FILE__,__LINE__-1);
@@ -6994,7 +6970,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_DOUBLE:
 		{
-			uint64_t value = bswap_64((uint64_t)rec->fields[i].data.d);
+			uint64_t value = swap64((uint64_t)rec->fields[i].data.d);
 			memcpy(&ram->mem[ram->size], &value, sizeof(uint64_t));
 			if(move_ram_file_ptr(ram,sizeof(uint64_t),update) == -1){
 				fprintf(stderr,"move_ram_file_ptr failed, %s:%d",__FILE__,__LINE__-1);
@@ -7006,7 +6982,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		{
 			if(!update){
 				uint16_t l = (uint16_t)strlen(rec->fields[i].data.s);
-				uint16_t buf_up_ne = htons((l*2)+1);	
+				uint16_t buf_up_ne = swap16((l*2)+1);	
 				uint32_t str_loc = 0;	
 
 				memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint32_t));
@@ -7046,7 +7022,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					return -1;
 				}
 
-				uint32_t str_loc = ntohl(str_loc_ne);
+				uint32_t str_loc = swap32(str_loc_ne);
 
 				/* save pos where the data starts*/
 				uint64_t af_str_loc_pos = ram->size;
@@ -7059,7 +7035,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					return -1;
 				}
 
-				uint16_t buff_update = ntohl(str_loc_ne);
+				uint16_t buff_update = swap32(str_loc_ne);
 				uint64_t pos_after_first_str_record = ram->offset + buff_update; 
 				if (str_loc > 0){
 					/*set the file pointer to str_loc*/
@@ -7075,7 +7051,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
 					ram->offset +=  sizeof(uint16_t);	
 
-					buff_update = (off_t)ntohs(bu_ne);
+					buff_update = (off_t)swap16(bu_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -7111,7 +7087,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				 * write the data to file --
 				 * the file pointer is always pointing to the
 				 * right position at this point */
-				bu_ne = htons((uint16_t)buff_update);
+				bu_ne = swap16((uint16_t)buff_update);
 
 				memcpy(&ram->mem[ram->offset],&bu_ne,sizeof(uint16_t));
 				if(move_ram_file_ptr(ram,sizeof(uint16_t),update) == -1){
@@ -7135,7 +7111,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					ram->offset = bg_pos;
 
 					/*update new string position*/
-					uint32_t eof_ne = htons((uint32_t)eof);
+					uint32_t eof_ne = swap16((uint32_t)eof);
 					memcpy(&ram->mem[ram->offset],&eof_ne,sizeof(uint32_t));
 					ram->offset += sizeof(uint32_t);
 
@@ -7155,7 +7131,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_ARRAY_INT:
 		{
-			uint32_t sz = htonl(rec->fields[i].data.v.size);
+			uint32_t sz = swap32(rec->fields[i].data.v.size);
 			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			ram->offset += sizeof(uint32_t);
@@ -7169,7 +7145,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			memset(arr,0,sizeof(uint32_t) * rec->fields[i].data.v.size);
 
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
-				arr[j] = htonl(*(uint32_t*)rec->fields[i].data.v.elements.i[j]);
+				arr[j] = swap32(*(uint32_t*)rec->fields[i].data.v.elements.i[j]);
 			} 
 
 			memcpy(&ram->mem[ram->size],arr,sizeof(uint32_t)*sz);
@@ -7183,7 +7159,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_ARRAY_LONG:
 		{
-			uint32_t sz = htonl(rec->fields[i].data.v.size);
+			uint32_t sz = swap32(rec->fields[i].data.v.size);
 			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			uint32_t pad = 0;
@@ -7193,7 +7169,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			uint64_t arr[rec->fields[i].data.v.size];
 			memset(arr,0,sizeof(uint64_t) * rec->fields[i].data.v.size);
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
-				arr[j] = bswap_64(*(uint64_t*)rec->fields[i].data.v.elements.l[j]);
+				arr[j] = swap64(*(uint64_t*)rec->fields[i].data.v.elements.l[j]);
 			} 
 
 			memcpy(&ram->mem[ram->size],arr,sizeof(uint64_t)*sz);
@@ -7207,7 +7183,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		case TYPE_ARRAY_FLOAT:
 		{
 
-			uint32_t sz = htonl(rec->fields[i].data.v.size);
+			uint32_t sz = swap32(rec->fields[i].data.v.size);
 			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			uint32_t pad = 0;
@@ -7230,7 +7206,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_ARRAY_DOUBLE:
 		{
-			uint32_t sz = htonl(rec->fields[i].data.v.size);
+			uint32_t sz = swap32(rec->fields[i].data.v.size);
 			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			uint32_t pad = 0;
@@ -7240,7 +7216,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			uint64_t arr[rec->fields[i].data.v.size];
 			memset(arr,0,sizeof(uint64_t) * rec->fields[i].data.v.size);
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
-				arr[j] = bswap_64(*(uint64_t*)rec->fields[i].data.v.elements.d[j]);
+				arr[j] = swap64(*(uint64_t*)rec->fields[i].data.v.elements.d[j]);
 			} 
 
 			memcpy(&ram->mem[ram->size],arr,sizeof(uint64_t)*sz);
@@ -7254,7 +7230,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		case TYPE_ARRAY_STRING:
 		{
 
-			uint32_t sz = htonl(rec->fields[i].data.v.size);
+			uint32_t sz = swap32(rec->fields[i].data.v.size);
 			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
 			uint32_t pad = 0;
@@ -7264,7 +7240,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
 
 				uint16_t l = (uint16_t)strlen(rec->fields[i].data.s);
-				uint16_t buf_up_ne = htons((l*2)+1);	
+				uint16_t buf_up_ne = swap16((l*2)+1);	
 				uint32_t str_loc = 0;	
 
 				memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint32_t));
@@ -7285,7 +7261,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			break;
 		}
 		case TYPE_FILE:
-			if(write_ram_record(ram,rec,update,init_ram_size) == -1){
+			if(write_ram_record(ram,rec,update,init_ram_size,offset) == -1){
 				fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
 				return -1;
 			}
@@ -7294,6 +7270,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 	} 
 
 	uint64_t upd_rec = 0;
+	if(offset) upd_rec = swap64(offset); 
+
 	memcpy(&ram->mem[ram->size],&upd_rec,sizeof(uint64_t));
 	ram->size += (sizeof(uint64_t));
 	return 0;
@@ -7336,13 +7314,13 @@ static int is_array_last_block(int fd, int element_nr, size_t bytes_each_element
 		return -1;
 	}
 
-	off_t update_pos = (off_t)bswap_64(update_off_ne);
+	off_t update_pos = (off_t)swap64(update_off_ne);
 
 	return update_pos == 0;
 }
 
 
-int buffered_write(int fd, struct Record_f *rec, int update)
+int buffered_write(int fd, struct Record_f *rec, int update, off_t offset)
 {
 	struct Ram_file ram = {0};
 	size_t rec_disk_size = get_disk_size_record(rec);
@@ -7351,13 +7329,15 @@ int buffered_write(int fd, struct Record_f *rec, int update)
 		return -1;
 	}
 
-	if(write_ram_record(&ram,rec,update,0) == -1){
-		fprintf(stderr,"write_ram_file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+	if(write_ram_record(&ram,rec,update,0,offset) == -1){
+		fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+		close_ram_file(&ram);
 		return -1;
 	}
 
 	if(write(fd,ram.mem,ram.size) == -1){
 		fprintf(stderr,"write failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+		close_ram_file(&ram);
 		return -1;
 	}
 
@@ -7372,7 +7352,7 @@ static size_t get_string_size(int fd)
 	uint16_t bu_ne = 0;
 	if(read(fd,&bu_ne,sizeof(bu_ne)) == -1) return -1;
    	 
-	size_t buffer_update = (size_t)ntohs(bu_ne);
+	size_t buffer_update = (size_t)swap16(bu_ne);
 
 	if(move_in_file_bytes(fd,buffer_update) == -1) return -1;
 
