@@ -300,7 +300,8 @@ int write_record(int *fds,void *key,
 		return STATUS_ERROR;
 	}
 
-	if(buffered_write(fds[1],rec,update,eof) == -1){
+/*int buffered_write(int fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)*/
+	if(buffered_write(&fds[1],rec,update,eof,0) == -1){
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
 		return -1;
 	}
@@ -474,29 +475,13 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 			if ((rec_old.count - i) > 1)
 				right_update_pos = recs[i+1]->offset;
 
-			/*this might need to be deleted*/
-#if 0
-			if (rec_old.count - i == 1 && check == SCHEMA_NW) {
-				right_update_pos = go_to_EOF(fds[1]);
-				if (find_record_position(fds[1], recs[i]->offset) == -1 || right_update_pos == -1){
-					printf("error file pointer, %s:%d.\n", F, L - 2);
-					goto clean_on_error;
-				}
-			}
-			/**********/
-#endif
 
 			/*the 1 is a flag that make the program know that is an update operation*/
-			if(buffered_write(fds[1], recs[i], 0,right_update_pos) == -1){
+			if(buffered_write(&fds[1], recs[i], 1,recs[i]->offset,right_update_pos) == -1){
 				printf("error write file, %s:%d.\n", F, L - 1);
 				goto clean_on_error;
 			}
 
-			/*if (!write_file(fds[1], recs[i], right_update_pos, 1)) {
-				printf("error write file, %s:%d.\n", F, L - 1);
-				goto clean_on_error;
-			}
-			*/
 		}
 
 		if((check == SCHEMA_CT  ||  check == SCHEMA_CT_NT) && !changed) {
@@ -551,14 +536,10 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 			goto clean_on_error;
 		}
 
+		/* buffered_write(int fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)*/
+
 		// write the updated record to the file
-		/*
-		if (!write_file(fds[1], recs[0], 0, 1)) {
-			printf("write to file failed, %s:%d.\n", F, L - 1);
-			goto clean_on_error;
-		}
-		*/
-		if(buffered_write(fds[1], recs[0], 0,0) == -1){
+		if(buffered_write(&fds[1], recs[0], 1,recs[0]->offset,0) == -1){
 			printf("error write file, %s:%d.\n", F, L - 1);
 			goto clean_on_error;
 		}

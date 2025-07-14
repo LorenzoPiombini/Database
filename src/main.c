@@ -500,6 +500,7 @@ int main(int argc, char *argv[])
 				goto clean_on_error_2;
 			}
 
+
 			int i = 0;
 			for (i = 0; i < index_num; i++) {
 				HashTable ht = {0};

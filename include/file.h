@@ -35,7 +35,7 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index);
 unsigned char read_index_file(int fd, HashTable *ht);
 size_t record_size_on_disk(void *rec_f);
 int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update);
-int buffered_write(int fd, struct Record_f *rec, int update,off_t offset);
+int buffered_write(int *fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset);
 off_t get_update_offset(int fd);
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch);
 int file_error_handler(int count, ...);
