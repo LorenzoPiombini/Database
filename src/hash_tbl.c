@@ -184,6 +184,7 @@ off_t get(void *key, HashTable *tbl, int key_type)
 	{
 		switch (key_type) {
 		case STR:
+			if(temp->key.type != key_type) return -1;
 			if(!temp->key.k.s)return -1;
 			if (strcmp(temp->key.k.s, (char *)key) == 0)
 				return temp->value;

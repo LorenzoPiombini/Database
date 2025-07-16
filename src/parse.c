@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <math.h>
+#include <limits.h>
 #include "record.h"
 #include "file.h"
 #include "str_op.h"
@@ -698,48 +699,54 @@ int read_header(int fd, struct Header_d *hd)
 	return 1; // successed
 }
 
-unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd)
+unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd)
 {
 	int fields_eq = 0;
 	int types_eq = 0;
 
-	char **copy_sch = calloc(hd.sch_d.fields_num, sizeof(char *));
+	char **copy_sch = calloc(hd->sch_d.fields_num, sizeof(char *));
 	if (!copy_sch) {
 		printf("calloc failed, %s:%d.\n",__FILE__, __LINE__ - 3);
 		return 0;
 	}
 
-	int types_cp[hd.sch_d.fields_num];
-	memset(types_cp,-1,hd.sch_d.fields_num);
+	int types_cp[hd->sch_d.fields_num];
+	memset(types_cp,-1,hd->sch_d.fields_num);
 
 	char *names_array_for_sort[MAX_FIELD_NR] = {0};
 
-	for (int i = 0; i < hd.sch_d.fields_num; i++) {
-		copy_sch[i] = hd.sch_d.fields_name[i];
-		types_cp[i] = hd.sch_d.types[i];
+	for (int i = 0; i < hd->sch_d.fields_num; i++) {
+		copy_sch[i] = hd->sch_d.fields_name[i];
+		types_cp[i] = hd->sch_d.types[i];
 		names_array_for_sort[i] = names[i];
 	}
 
 	/*sorting the name and type arrays  */
-	if (hd.sch_d.fields_num > 1) {
-		quick_sort(types_i, 0, hd.sch_d.fields_num - 1);
-		quick_sort(types_cp, 0, hd.sch_d.fields_num - 1);
-		quick_sort_str(names_array_for_sort, 0, hd.sch_d.fields_num - 1);
-		quick_sort_str(copy_sch, 0, hd.sch_d.fields_num - 1);
+	if (hd->sch_d.fields_num > 1) {
+		quick_sort(types_i, 0, hd->sch_d.fields_num - 1);
+		quick_sort(types_cp, 0, hd->sch_d.fields_num - 1);
+		quick_sort_str(names_array_for_sort, 0, hd->sch_d.fields_num - 1);
+		quick_sort_str(copy_sch, 0, hd->sch_d.fields_num - 1);
 	}
 
 	
-	for (int i = 0, j = 0; i < hd.sch_d.fields_num; i++, j++) {
+	for (int i = 0, j = 0; i < hd->sch_d.fields_num; i++, j++) {
 		// printf("%s == %s\n",copy_sch[i],names[j]);
 		if (strncmp(copy_sch[i], names_array_for_sort[j],strlen(names_array_for_sort[i])) == 0)
 			fields_eq++;
 
 		// printf("%d == %d\n",types_cp[i], types_i[j]);
-		if ((int)types_cp[i] == types_i[j])
+		if ((int)types_cp[i] == types_i[j]){
 			types_eq++;
+		}else{
+			if(hd->sch_d.types[i] == -1){
+				hd->sch_d.types[i] = types_i[j];
+				types_eq++;
+			}		
+		}
 	}
 
-	if (fields_eq != hd.sch_d.fields_num || types_eq != hd.sch_d.fields_num) {
+	if (fields_eq != hd->sch_d.fields_num || types_eq != hd->sch_d.fields_num) {
 		printf("Schema different than file definition.\n");
 		free(copy_sch);
 		return SCHEMA_ERR;
@@ -801,7 +808,7 @@ int check_schema_with_no_types(char names[][MAX_FILED_LT], struct Header_d hd, c
 
 }
 
-unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
+unsigned char check_schema(int fields_n, char *buffer, struct Header_d *hd)
 {
 	char *names_cs = strdup(buffer);
 	char *types_cs = strdup(buffer);
@@ -812,7 +819,7 @@ unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
 	get_value_types(types_cs, fields_n, 3,types_i);
 	get_fileds_name(names_cs, fields_n, 3,names);
 
-	if (hd.sch_d.fields_num == fields_n) {
+	if (hd->sch_d.fields_num == fields_n) {
 		unsigned char ck_rst = ck_input_schema_fields(names, types_i, hd);
 		switch (ck_rst) {
 		case SCHEMA_ERR:
@@ -829,9 +836,9 @@ unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
 			free(types_cs);
 			return 0;
 		}
-	} else if (fields_n > hd.sch_d.fields_num) {
+	} else if (fields_n > hd->sch_d.fields_num) {
 		/* case where the header needs to be updated */
-		if (((fields_n - hd.sch_d.fields_num) + hd.sch_d.fields_num) > MAX_FIELD_NR) {
+		if (((fields_n - hd->sch_d.fields_num) + hd->sch_d.fields_num) > MAX_FIELD_NR) {
 			printf("cannot add the new fileds, limit is %d fields.\n", MAX_FIELD_NR);
 			free(names_cs);
 			free(types_cs);
@@ -854,12 +861,12 @@ unsigned char check_schema(int fields_n, char *buffer, struct Header_d hd)
 			free(types_cs);
 			return 0;
 		}
-	} else if (hd.sch_d.fields_num > fields_n){ 
+	} else if (hd->sch_d.fields_num > fields_n){ 
 		/*case where the fileds are less than the schema */
 		// if they are in the schema and the types are correct, return SCHEMA_CT
 		// create a record with only the values provided and set the other values to 0;
 
-		int ck_rst = ck_schema_contain_input(names, types_i, &hd, fields_n);
+		int ck_rst = ck_schema_contain_input(names, types_i, hd, fields_n);
 
 		switch (ck_rst) {
 		case SCHEMA_ERR:
@@ -1397,6 +1404,23 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 								fprintf(stderr,"strdup() failed, %s:%d.\n",F,L-2);
 								return -1;
 							}
+							continue;
+						}else if(sch->types[j] == TYPE_BYTE){
+							char *endp;
+							long l = strtol((*values)[j],&endp,10);
+							if(errno == ERANGE || errno == EINVAL){
+								fprintf(stderr,"value: '%s' is not valid for TYPE_BYTE\n",(*values)[j]);
+								return -1;
+							}
+
+							if(l <= UCHAR_MAX){
+								types_i[j] = sch->types[j];
+								continue;
+							} 
+							
+							fprintf(stderr,"value: '%s' is not valid for TYPE_BYTE\n",(*values)[j]);
+							return -1;
+
 						}
 					}else if(is_number_array(sch->types[j])){
 						switch(sch->types[j]){
@@ -2101,7 +2125,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 		if (fields_count == -1) {
 			fields_count = count;
 		}
-		unsigned char check = check_schema(fields_count, buffer, *hd);
+		unsigned char check = check_schema(fields_count, buffer, hd);
 		// printf("check schema is %d",check);
 		switch (check){
 		case SCHEMA_EQ:

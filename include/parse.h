@@ -33,8 +33,8 @@ int create_header(struct Header_d *hd);
 int write_empty_header(int fd, struct Header_d *hd);
 int write_header(int fd, struct Header_d *hd);
 int read_header(int fd, struct Header_d *hd);
-unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d hd);
-unsigned char check_schema(int fields_n, char *buffer,struct Header_d hd);
+unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd);
+unsigned char check_schema(int fields_n, char *buffer,struct Header_d *hd);
 int check_schema_with_no_types(char names[][MAX_FIELD_LT], struct Header_d hd,char **sorted_names);
 int sort_input_like_header_schema(int schema_tp, 
 					int fields_num, 

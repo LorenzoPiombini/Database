@@ -32,7 +32,7 @@ static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","
 				"_xd9","_xda","_xdb","_xdc","_xdd","_xde","_xdf","_xe0","_xe1","_xe2","_xe3","_xe4","_xe5","_xe6","_xe7",
 				"_xe8","_xe9","_xea","_xeb","_xec","_xed","_xee","_xef","_xf0","_xf1","_xf2","_xf3","_xf4","_xf5","_xf6",
 				"_xf7","_xf8","_xf9","_xfa","_xfb","_xfc","_xfd","_xfe","_xff"};
-
+/*
 int is_number_type(int type)
 {
 	return type == TYPE_LONG || type == TYPE_FLOAT 
@@ -40,13 +40,16 @@ int is_number_type(int type)
 		|| type == TYPE_BYTE;
 
 }
+*/
 
+/*
 int is_number_array(int type)
 {
 	return type == TYPE_ARRAY_DOUBLE || type == TYPE_ARRAY_LONG 
 		|| type == TYPE_ARRAY_BYTE || type == TYPE_ARRAY_FLOAT
 		|| type == TYPE_ARRAY_INT;
 }
+*/
 
 char *get_sub_str(char *start_delim, char *end_delim, char *str)
 {
@@ -483,21 +486,23 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	strncpy(cpy,buffer,l);
 	
 
-	if(strstr(buffer,"@")) replace('@','^',cpy);
+	if(strstr(buffer,"@") && !strstr(buffer,"@@")) replace('@','^',cpy);
 
 	/*exclude file syntax*/
-	char *f_st = NULL;
-	char *f_en = NULL;
-	while((f_st = strstr(cpy,"[")) && (f_en = strstr(cpy,"]"))){
-		*f_st = '\n';
-		for(; *f_st != ']'; f_st++){
-			if(*f_st == ':') *f_st = '@';
+	if(!__IMPORT_EZ){
+		char *f_st = NULL;
+		char *f_en = NULL;
+		while((f_st = strstr(cpy,"[")) && (f_en = strstr(cpy,"]"))){
+			*f_st = '\n';
+			for(; *f_st != ']'; f_st++){
+				if(*f_st == ':') *f_st = '@';
+			}
+			*f_en = '\r';
 		}
-		*f_en = '\r';
-	}
 
-	if(strstr(cpy,"\n")) replace('\n','[',cpy);
-	if(strstr(cpy,"\r")) replace('\r',']',cpy);
+		if(strstr(cpy,"\n")) replace('\n','[',cpy);
+		if(strstr(cpy,"\r")) replace('\r',']',cpy);
+	}
 	
 
 	char *delim = ":";
@@ -1419,10 +1424,13 @@ void replace(const char c, const char with, char *str)
 		if (str[i] == c)
 			str[i] = with;
 }
+
+/*
 char return_first_char(char *str)
 {
 	return str[0];
 }
+*/
 
 char return_last_char(char *str)
 {
@@ -1480,16 +1488,11 @@ unsigned char is_floaintg_point(char *str)
 unsigned char is_integer(char *str)
 {
 	size_t l = strlen(str);
-	for (size_t i = 0; i < l; i++)
-	{
-		if (!isdigit(str[i]))
-		{
-			if (str[i] == '-' && i == 0)
-			{
+	for (size_t i = 0; i < l; i++){
+		if (!isdigit(str[i])){
+			if (str[i] == '-' && i == 0){
 				continue;
-			}
-			else
-			{
+			}else{
 				return 0;
 			}
 		}
@@ -1564,16 +1567,13 @@ unsigned char is_number_in_limits(char *value)
 	unsigned char negative = value[0] == '-';
 	int ascii_value = 0;
 
-	if (is_integer(value))
-	{
+	if (is_integer(value)){
 
 		for (size_t i = 0; i < l; i++)
 			ascii_value += (int)value[i];
 
-		if (negative)
-		{
-			if (-1 * ascii_value < -1 * ASCII_INT_MIN)
-			{
+		if (negative){
+			if (-1 * ascii_value < -1 * ASCII_INT_MIN){
 				if (-1 * ascii_value < -1 * ASCII_LONG_MIN)
 					return 0;
 				else
@@ -1583,8 +1583,7 @@ unsigned char is_number_in_limits(char *value)
 			return IN_INT;
 		}
 
-		if (ascii_value > ASCII_INT_MAX)
-		{
+		if (ascii_value > ASCII_INT_MAX){
 			if (ascii_value > ASCII_LONG_MAX)
 				return 0;
 			else
@@ -1594,15 +1593,12 @@ unsigned char is_number_in_limits(char *value)
 		return IN_INT;
 	}
 
-	if (is_floaintg_point(value))
-	{
+	if (is_floaintg_point(value)){
 		for (size_t i = 0; i < l; i++)
 			ascii_value += (int)value[i];
 
-		if (negative)
-		{
-			if (-1 * ascii_value < -1 * ASCII_FLT_MAX_NEGATIVE)
-			{
+		if (negative){
+			if (-1 * ascii_value < -1 * ASCII_FLT_MAX_NEGATIVE){
 				if (-1 * ascii_value < -1 * ASCII_DBL_MAX_NEGATIVE)
 					return 0;
 				else
@@ -1612,8 +1608,7 @@ unsigned char is_number_in_limits(char *value)
 			return IN_FLOAT;
 		}
 
-		if (ascii_value > ASCII_FLT_MAX)
-		{
+		if (ascii_value > ASCII_FLT_MAX){
 			if (ascii_value > ASCII_DBL_MAX)
 				return 0;
 			else
@@ -1629,8 +1624,7 @@ int find_last_char(const char c, char *src)
 {
 	size_t l = strlen(src);
 	int last = -1;
-	for (size_t i = 0; i < l; i++)
-	{
+	for (size_t i = 0; i < l; i++){
 		if (src[i] == c)
 			last = i;
 	}
@@ -1795,7 +1789,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	char *start = NULL;
 	while((start = strstr(buf,"TYPE_"))){
 		*start = '@';
-		while(*start != ':') start++;
+		while(*start != ':' && *start != '\0') start++;
 
 		if(*start == ':') *start = ' ';
 	}
@@ -1804,7 +1798,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		if(is_target_db_type(start) == -1)break;
 
 		*start = '@';
-		while(*start != ':') start++;
+		while(*start != ':' && *start != '\0') start++;
 
 		if(*start == ':') *start = ' ';
 	}
@@ -2006,11 +2000,4 @@ long long unpack(uint8_t *digits_index)
 	}
 
 	return unpacked;
-}
-
-long long unpack_external(char *str)
-{
-
-
-
 }

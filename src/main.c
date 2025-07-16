@@ -19,6 +19,7 @@
 #include "debug.h"
 #include "build.h"
 #include "crud.h"
+#include "dtype.h"
 
 
 char prog[] = "db";
@@ -53,11 +54,16 @@ int main(int argc, char *argv[])
 
 	/* parameters populated with the flag from getopt()*/
 	int c = 0;
-	char file_path[1024] = {0};
-	char data_to_add[1024] = {0};
-	char key[1024] = {0};
-	char schema_def[1024] = {0};
-	char txt_f[1024] = {0};
+	struct String file_path = {0};
+	init(&file_path,NULL);
+	struct String data_to_add = {0};
+	init(&data_to_add,NULL);
+	struct String key = {0};
+	init(&key,NULL);
+	struct String schema_def = {0};
+	init(&schema_def,NULL);
+	struct String txt_f= {0};
+	init(&txt_f,NULL);
 
 	char *option = NULL;
 	int bucket_ht = 0;
@@ -70,8 +76,7 @@ int main(int argc, char *argv[])
 		switch (c){
 		case 'a':
 		{
-			size_t l = strlen(optarg);
-			strncpy(data_to_add,optarg,l);
+			init(&data_to_add,optarg);
 			break;
 		}
 		case 'n':
@@ -79,21 +84,18 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 		{
-			size_t l = strlen(optarg);
-			strncpy(file_path,optarg,l);
+			init(&file_path,optarg);
 			break;
 		}
 		case 'F':
 		{
-			size_t l = strlen(optarg);
-			strncpy(file_path,optarg,l);
+			init(&file_path,optarg);
 			file_field = 1;
 			break;
 		}
 		case 'k':
 		{
-			size_t l = strlen(optarg);
-			strncpy(key,optarg,l);
+			init(&key,optarg);
 			break;
 		}
 		case 'D':
@@ -114,8 +116,7 @@ int main(int argc, char *argv[])
 			return 0;
 		case 'R':
 		{
-			size_t l = strlen(optarg);
-			strncpy(schema_def,optarg,l);
+			init(&schema_def,optarg);
 			break;
 		}
 		case 'u':
@@ -130,15 +131,13 @@ int main(int argc, char *argv[])
 		case 'b':
 		{
 			build = 1;
-			size_t l = strlen(optarg);
-			strncpy(txt_f,optarg,l);
+			init(&txt_f,optarg);
 			break;
 		}
 		case 'B':
 		{
 			import_from_data = 1;
-			size_t l = strlen(optarg);
-			strncpy(txt_f,optarg,l);
+			init(&txt_f,optarg);
 			break;
 		}
 		case 's':
@@ -168,8 +167,7 @@ int main(int argc, char *argv[])
 		case 'c':
 		{
 			create = 1;
-			size_t l = strlen(optarg);
-			strncpy(txt_f,optarg,l);
+			init(&txt_f,optarg);
 			break;
 		}
 		case 'i':
@@ -206,35 +204,101 @@ int main(int argc, char *argv[])
 	}
 
 	if (create){
-		if (!create_system_from_txt_file(txt_f)) {
-			return STATUS_ERROR;
+		if(txt_f.allocated){
+			if (!create_system_from_txt_file(txt_f.str)) {
+				txt_f.close(&txt_f);
+				return STATUS_ERROR;
+			}
+		}else{
+			if (!create_system_from_txt_file(txt_f.base)) {
+				txt_f.close(&txt_f);
+				return STATUS_ERROR;
+			}
+
 		}
 		printf("system created!\n");
+		txt_f.close(&txt_f);
 		return 0;
 	}
 
 	if (build) {
+		/*this is not valid as for now*/
+		/*
 		if (build_from_txt_file(file_path, txt_f)) {
 			return 0;
 		}
 
+		*/
+		txt_f.close(&txt_f);
 		return STATUS_ERROR;
 	}
 
 	if(import_from_data){
-		if(import_data_to_system(txt_f) == -1) {
-			fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f);
-			return -1;
+		if(txt_f.allocated){
+			if(import_data_to_system(txt_f.str) == -1) {
+				fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f.str);
+				txt_f.close(&txt_f);
+				return -1;
+			}
+		}else{
+			if(import_data_to_system(txt_f.base) == -1) {
+				fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f.base);
+				txt_f.close(&txt_f);
+				return -1;
+			}
 		}
+
+		txt_f.close(&txt_f);
 		return 0;
 	}
 
 	if (new_file) {
 		/*creates three name from the file_path  "str_op.h" */
+		char cpy_fp[file_path.size + 1];
+		memset(cpy_fp,0,file_path.size + 1);
+		if(file_path.allocated)
+			strncpy(cpy_fp,file_path.str,file_path.size);
+		else
+			strncpy(cpy_fp,file_path.base,file_path.size);
+
+		file_path.close(&file_path);
+
+		char cpy_sd[schema_def.size + 1];
+		memset(cpy_sd,0,schema_def.size + 1);
+		if(!schema_def.is_empty(&schema_def)){
+			if(schema_def.allocated)
+				strncpy(cpy_sd,schema_def.str,schema_def.size);
+			else
+				strncpy(cpy_sd,schema_def.base,schema_def.size);
+
+			schema_def.close(&schema_def);
+		}
+
+		char cpy_dta[data_to_add.size + 1];
+		memset(cpy_dta,0,data_to_add.size + 1);
+		if(!data_to_add.is_empty(&data_to_add)){
+			if(data_to_add.allocated)
+				strncpy(cpy_dta,data_to_add.str,data_to_add.size);
+			else
+				strncpy(cpy_dta,data_to_add.base,data_to_add.size);
+
+			data_to_add.close(&data_to_add);
+		}
+
+		char kcpy[key.size+1];
+		memset(kcpy,0,key.size+1);
+		if(!key.is_empty(&key)){
+			if(key.allocated)
+				strncpy(kcpy,key.str,key.size);
+			else
+				strncpy(kcpy,key.str,key.size);
+
+			key.close(&key);
+		}
 
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
-		if(three_file_path(file_path, files) == EFLENGTH){
-			fprintf(stderr,"(%s): file name or path '%s' too long",prog,file_path);
+		if(three_file_path(cpy_fp, files) == EFLENGTH){
+			fprintf(stderr,"(%s): file name or path '%s' too long",prog,cpy_fp);
 			return STATUS_ERROR;
 		}
 
@@ -265,10 +329,10 @@ int main(int argc, char *argv[])
 			if (file_error_handler(3, fd_index, fd_data, fd_schema) != 0) return STATUS_ERROR;
 		}
 
-		if (schema_def[0] != '\0' ) { 
+		if (cpy_sd[0] != '\0') { 
 			/* case when user creates a file with only file definition*/
 
-			int mode = check_handle_input_mode(schema_def, FCRT) | DF;
+			int mode = check_handle_input_mode(cpy_sd, FCRT) | DF;
 			if(mode == -1){
 				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
 				goto clean_on_error_1;
@@ -284,7 +348,7 @@ int main(int argc, char *argv[])
 			switch(mode){
 			case TYPE_DF:
 			{
-				fields_count = count_fields(schema_def,NULL);
+				fields_count = count_fields(cpy_sd,NULL);
 				if (fields_count == 0) {
 					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
 					goto clean_on_error_1;
@@ -296,8 +360,8 @@ int main(int argc, char *argv[])
 					goto clean_on_error_1;
 				}
 
-				buf_sdf = strdup(schema_def);
-				buf_t = strdup(schema_def);
+				buf_sdf = strdup(cpy_sd);
+				buf_t = strdup(cpy_sd);
 				if(!buf_t || !buf_sdf){
 					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__);
 					if(buf_sdf) free(buf_sdf);	
@@ -317,7 +381,7 @@ int main(int argc, char *argv[])
 			case HYB_DF:
 			case NO_TYPE_DF	:	
 			{
-				if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
+				if (!create_file_definition_with_no_value(mode,fields_count, cpy_sd,NULL, &sch)) {
 					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 					goto clean_on_error_1;
 				}
@@ -385,16 +449,18 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 		}
 
-		if (data_to_add[0] != '\0') { 
+		if (cpy_dta[0] != '\0') { 
 			/* creates a file with full definitons (fields and value)*/
-			int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
+			int mode = check_handle_input_mode(cpy_dta, FWRT) | WR;
+
 			if(mode == -1){
 				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
 				goto clean_on_error_2;
 			}
+
 			int fields_count = 0; 
 
-			/* init he Schema structure*/
+			/* init the Schema structure*/
 			struct Schema sch = {0};
 			struct Record_f rec = {0};
 			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
@@ -411,7 +477,7 @@ int main(int argc, char *argv[])
 				switch (mode){
 				case NO_TYPE_WR:			
 				{	
-					values = extract_fields_value_types_from_input(data_to_add,names,
+					values = extract_fields_value_types_from_input(cpy_dta,names,
 							types_i,
 							&fields_count);
 					if(!values){
@@ -423,10 +489,10 @@ int main(int argc, char *argv[])
 				}
 				case HYB_WR:			
 				{
-					if((fields_count = get_name_types_hybrid(mode,data_to_add
+					if((fields_count = get_name_types_hybrid(mode,cpy_dta
 								,names,
 								types_i)) == -1) goto clean_on_error_2;
-					if(get_values_hyb(data_to_add,
+					if(get_values_hyb(cpy_dta,
 							&values,
 							fields_count) == -1) goto clean_on_error_2;
 
@@ -440,7 +506,7 @@ int main(int argc, char *argv[])
 				}
 				set_schema(names,types_i,&sch,fields_count);	
 
-				if(parse_input_with_no_type(file_path,fields_count, names, 
+				if(parse_input_with_no_type(cpy_fp,fields_count, names, 
 							types_i, values,&sch,0,&rec) == -1){
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					free_strs(fields_count,1,values);
@@ -451,18 +517,18 @@ int main(int argc, char *argv[])
 			}
 			case TYPE_WR:			
 			{ 
-				fields_count = count_fields(data_to_add,NULL);
+				fields_count = count_fields(cpy_dta,NULL);
 				if (fields_count > MAX_FIELD_NR) {
 					fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
 					goto clean_on_error_2;
 				}
 
-				size_t l = strlen(data_to_add);
+				size_t l = strlen(cpy_dta);
 				char cpy[l + 1];
 				memset(cpy,0,l + 1);
-				strncpy(cpy,data_to_add,l);
+				strncpy(cpy,cpy_dta,l);
 					
-				if(parse_d_flag_input(file_path, fields_count,cpy, &sch, 0,&rec,NULL) == -1) {
+				if(parse_d_flag_input(cpy_fp, fields_count,cpy, &sch, 0,&rec,NULL) == -1) {
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					goto clean_on_error_2;
 				}
@@ -515,7 +581,7 @@ int main(int argc, char *argv[])
 					}
 
 					int key_type = 0;
-					void *key_conv = key_converter(key, &key_type);
+					void *key_conv = key_converter(kcpy, &key_type);
 					if (key_type == UINT && !key_conv) {
 						fprintf(stderr, "(%s): error to convert key.\n",prog);
 						goto clean_on_error_2;
@@ -529,7 +595,7 @@ int main(int argc, char *argv[])
 						}
 					} else if (key_type == STR) {
 						/*create a new key value pair in the hash table*/
-						if (!set((void *)key, key_type, offset, &ht)) {
+						if (!set((void *)kcpy, key_type, offset, &ht)) {
 							destroy_hasht(&ht);
 							goto clean_on_error_2;
 						}
@@ -563,8 +629,8 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 
 		}else {
-			fprintf(stderr,"(%s): no data to write to file %s.\n",prog, file_path);
-			fprintf(stderr,"(%s): %s has been created, you can add to the file using option -a.\n",prog, file_path);
+			fprintf(stderr,"(%s): no data to write to file %s.\n",prog,cpy_fp );
+			fprintf(stderr,"(%s): %s has been created, you can add to the file using option -a.\n",prog, cpy_fp);
 			print_usage(argv);
 
 			/* init the Schema structure*/
@@ -615,6 +681,49 @@ int main(int argc, char *argv[])
 
 	} else { /*file already exist. we can perform CRUD operation*/
 
+		/*freeing the String used for the input*/
+		char cpy_fp[file_path.size + 1];
+		memset(cpy_fp,0,file_path.size + 1);
+		if(file_path.allocated)
+			strncpy(cpy_fp,file_path.str,file_path.size);
+		else
+			strncpy(cpy_fp,file_path.base,file_path.size);
+
+		file_path.close(&file_path);
+
+		char kcpy[key.size+1];
+		memset(kcpy,0,key.size+1);
+		if(!key.is_empty(&key)){
+			if(key.allocated)
+				strncpy(kcpy,key.str,key.size);
+			else
+				strncpy(kcpy,key.base,key.size);
+
+			key.close(&key);
+		}
+
+		char cpy_sd[schema_def.size + 1];
+		memset(cpy_sd,0,schema_def.size + 1);
+		if(!schema_def.is_empty(&schema_def)){
+			if(schema_def.allocated)
+				strncpy(cpy_sd,schema_def.str,schema_def.size);
+			else
+				strncpy(cpy_sd,schema_def.base,schema_def.size);
+
+			schema_def.close(&schema_def);
+		}
+
+		char cpy_dta[data_to_add.size + 1];
+		memset(cpy_dta,0,data_to_add.size + 1);
+		if(!data_to_add.is_empty(&data_to_add)){
+			if(data_to_add.allocated)
+				strncpy(cpy_dta,data_to_add.str,data_to_add.size);
+			else
+				strncpy(cpy_dta,data_to_add.base,data_to_add.size);
+
+			data_to_add.close(&data_to_add);
+		}
+
 
 		/*open the file*/
 		int fds[3];
@@ -626,7 +735,7 @@ int main(int argc, char *argv[])
 		struct Header_d hd = {0, 0, sch};
 
 		if (list_def) {
-			if(open_files(file_path,fds,files,ONLY_SCHEMA) == -1) return STATUS_ERROR;
+			if(open_files(cpy_fp,fds,files,ONLY_SCHEMA) == -1) return STATUS_ERROR;
 
 			fd_schema = fds[2];
 			while((is_locked(1,fd_schema)) == LOCKED);
@@ -636,7 +745,7 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 		} else {
-			if(open_files(file_path,fds,files,0) == -1) return STATUS_ERROR;
+			if(open_files(cpy_fp,fds,files,0) == -1) return STATUS_ERROR;
 			fd_index = fds[0];
 			fd_data = fds[1];
 			fd_schema = fds[2]; 
@@ -673,7 +782,7 @@ int main(int argc, char *argv[])
 
 			lock_f = 1;
 			
-			if (add_index(index_num, file_path, bucket) == -1) {
+			if (add_index(index_num, cpy_fp, bucket) == -1) {
 				fprintf(stderr, "can't add index %s:%d",F, L - 2);
 				goto clean_on_error_4;
 			}
@@ -712,7 +821,7 @@ int main(int argc, char *argv[])
 				for both the index and the data file */
 			struct stat st;
 			if(fstat(fd_index,&st) != 0){
-				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,file_path);
+				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,cpy_fp);
 				while((r = lock(fd_index,UNLOCK)) == WTLK);
 				close_file(1, fd_index);
 				return STATUS_ERROR;
@@ -720,7 +829,7 @@ int main(int argc, char *argv[])
 			
 			close_file(1, fd_index);
 			delete_file(3, files[0], files[1],files[2]);
-			printf("file %s, deleted.\n", file_path);
+			printf("file %s, deleted.\n", cpy_fp);
 
 			/*release the lock*/
 			size_t l = number_of_digit(st.st_ino) + strlen(".lock") + 1;
@@ -736,11 +845,10 @@ int main(int argc, char *argv[])
 			return 0;
 		} /* end of delete file path*/
 
-		if (schema_def[0] != '\0' ){ 
+		if (cpy_sd[0] != '\0'){ 
 			/* add field to schema */
 			/* locks here are released that is why we do not have to release them if an error occurs*/
-			/*check if the fields are in limit*/
-			int mode = check_handle_input_mode(schema_def,FCRT) | WR;
+			int mode = check_handle_input_mode(cpy_sd,FCRT) | WR;
 			if(mode == -1){
 				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
 				goto clean_on_error_5;
@@ -748,20 +856,20 @@ int main(int argc, char *argv[])
 			int fields_count = 0; 
 			switch(mode){
 			case NO_TYPE_WR:
-				if (!add_fields_to_schema(mode, fields_count, schema_def, NULL, &hd.sch_d)) {
+				if (!add_fields_to_schema(mode, fields_count, cpy_sd, NULL, &hd.sch_d)) {
 					goto clean_on_error_5;
 				}
 				break;
 			case TYPE_WR:
-				fields_count = count_fields(schema_def,NULL);
+				fields_count = count_fields(cpy_sd,NULL);
 				if (fields_count > MAX_FIELD_NR || hd.sch_d.fields_num + fields_count > MAX_FIELD_NR) {
 					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 					goto clean_on_error_5;
 				}
 
 				/*add field provided to the schema*/
-				char *buffer = strdup(schema_def);
-				char *buff_t = strdup(schema_def);
+				char *buffer = strdup(cpy_sd);
+				char *buff_t = strdup(cpy_sd);
 			
 				if (!add_fields_to_schema(mode, fields_count, buffer, buff_t, &hd.sch_d)) {
 					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
@@ -773,7 +881,7 @@ int main(int argc, char *argv[])
 				free(buff_t);
 				break;
 			case HYB_WR:
-				if (!add_fields_to_schema(mode, fields_count, schema_def, NULL, &hd.sch_d)) {
+				if (!add_fields_to_schema(mode, fields_count,cpy_sd, NULL, &hd.sch_d)) {
 					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
@@ -897,7 +1005,7 @@ int main(int argc, char *argv[])
 
 						close_file(3,fd_index,fd_data,fd_schema);
 						free(ht);
-						printf("all record deleted from %s file.\n", file_path);
+						printf("all record deleted from %s file.\n", cpy_fp);
 						return 0;
 
 						option_clean_on_error:
@@ -936,22 +1044,29 @@ int main(int argc, char *argv[])
 				goto clean_on_error_6;
 			}
 
-			int key_type = 0;
-			void *key_conv = key_converter(key, &key_type);
+						int key_type = 0;
+			void *key_conv = key_converter(kcpy, &key_type);
+
 			Node *record_del = NULL;
 			if (key_conv) {
 				record_del = delete (key_conv, &ht[index_nr], key_type);
 				free(key_conv);
 			}else if (key_type == STR) {
-				record_del = delete ((void *)key, &ht[index_nr], key_type);
+					record_del = delete ((void *)kcpy, &ht[index_nr], key_type);
+
 			} else {
 				fprintf(stderr, "error key_converter().\n");
 				free_ht_array(ht, index);
 				goto clean_on_error_6;
 			}
 
+
 			if (!record_del) {
-				printf("record %s not found.\n", key);
+				if(key.allocated)
+					printf("record %s not found.\n", key.str);
+				else
+					printf("record %s not found.\n", key.base);
+
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
@@ -977,7 +1092,9 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			printf("record %s deleted!.\n", key);
+			printf("record %s deleted!.\n", kcpy);
+			
+
 			free_ht_node(record_del);
 			close_file(1, fd_index);
 			fd_index = open_file(files[0], 1); // opening with o_trunc
@@ -998,7 +1115,6 @@ int main(int argc, char *argv[])
 					free_ht_array(ht,index);
 					goto clean_on_error_6;
 				}
-
 				destroy_hasht(&ht[i]);
 			}
 
@@ -1014,15 +1130,14 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 		} /*end of del path (either del the all content or a record )*/
 
-		if (!update && (data_to_add[0] != '\0')) { 
+		if(!update && cpy_dta[0] != '\0') { 
 			/* append data to the specified file*/
-		
 			struct Record_f rec = {0};
 
 			int lock_f = 0;
 			int check = 0;
 			int r =0;
-			if(( check = check_data(file_path,data_to_add,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error_7;
+			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error_7;
 
 			if(!lock_f){
 				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
@@ -1034,14 +1149,15 @@ int main(int argc, char *argv[])
 				lock_f = 1;
 			}
 
-			if(write_record(fds,(void *)key, -1, &rec, update, files, &lock_f, -1)){
+
+			if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1)){
 				fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
 				goto clean_on_error_7;
 			}
 
 			free_record(&rec, rec.fields_num);
 			close_file(3, fd_index, fd_data, fd_schema);
-			printf("record %s wrote succesfully.\n", key);
+			printf("record %s wrote succesfully.\n", kcpy);
 			return 0;
 
 			clean_on_error_7:
@@ -1051,17 +1167,17 @@ int main(int argc, char *argv[])
 			return STATUS_ERROR;
 		}
 
-		if (update && (data_to_add[0] != '\0') && key[0] != '\0' ) { 
+		if (update && cpy_dta[0] != '\0' && kcpy[0] != '\0') { 
 			/* updating an existing record */
 			struct Record_f rec = {0};
 
 			int lock_f = 0;
 			int check = 0;
-			if((check = check_data(file_path,data_to_add,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error;
+			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error;
 
-			if(update_rec(file_path,fds,key,&rec,hd,check,&lock_f) == -1) goto clean_on_error;
+			if(update_rec(cpy_fp,fds,kcpy,&rec,hd,check,&lock_f) == -1) goto clean_on_error;
 
-			printf("record %s updated!\n", key);
+			printf("record %s updated!\n", kcpy);
 			while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3,fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
@@ -1076,6 +1192,7 @@ int main(int argc, char *argv[])
 		} /*end of update path*/
 				
 		/* reading the file to show data */
+
 		if (list_def) { /* show file definitions */
 			print_schema(hd.sch_d);
 			close_file(1, fd_schema);
@@ -1133,12 +1250,12 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		if (key[0] != '\0' ) { 
-			/*display record*/
+		if (kcpy[0] != '\0') { 
+						/*display record*/
 			while(is_locked(3,fd_index,fd_data,fd_schema) == LOCKED);
 
 			struct Record_f rec = {0};
-			if(get_record(-1,file_path,&rec,(void *)key, hd,fds) == -1){
+			if(get_record(-1,cpy_fp,&rec,(void *)kcpy, hd,fds) == -1){
 				free_record(&rec,rec.fields_num);
 				close_file(3, fd_schema,fd_index, fd_data);
 				return STATUS_ERROR;

@@ -46,9 +46,18 @@ the number in e.i (int or long)*/
 #define IN_DOUBLE 103
 
 
+#define is_number_type(type) (type == TYPE_LONG || type == TYPE_FLOAT \
+				|| type == TYPE_DOUBLE || type == TYPE_INT \
+				|| type == TYPE_BYTE) 
 
-int is_number_type(int type);
-int is_number_array(int type);
+#define is_number_array(type) (type == TYPE_ARRAY_DOUBLE || type == TYPE_ARRAY_LONG \
+				|| type == TYPE_ARRAY_BYTE || type == TYPE_ARRAY_FLOAT \
+				|| type == TYPE_ARRAY_INT)
+
+#define return_first_char(str) str[0]
+
+/*int is_number_type(int type);*/
+/*int is_number_array(int type);*/
 int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);
@@ -67,7 +76,7 @@ unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dt
 int is_file_name_valid(char *str);
 void strip(const char c, char *str);
 void replace(const char c, const char with, char *str);
-char return_first_char(char *str);
+/*char return_first_char(char *str);*/
 char return_last_char(char *str);
 size_t digits_with_decimal(float n);
 unsigned char is_floaintg_point(char *str);

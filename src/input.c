@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "input.h"
 #include "str_op.h"
+#include "dtype.h"
 
 void print_usage(char *argv[])
 {
@@ -46,15 +47,15 @@ void print_types(void)
                sizeof(double), 8 * sizeof(double));
 }
 
-int check_input_and_values(char *file_path, char *data_to_add, char *key, char *argv[],
+int check_input_and_values(struct String file_path, struct String data_to_add, struct String key, char *argv[],
                            unsigned char del, unsigned char list_def, unsigned char new_file,
                            unsigned char update, unsigned char del_file, unsigned char build,
                            unsigned char create, unsigned char options, unsigned char index_add,
 			   unsigned char file_field, unsigned char import_from_data)
 {
 
-        if (create && (file_path[0] != '\0' || del || update || del_file || list_def ||
-                       new_file || key[0] != '\0'  || (data_to_add[0] != '\0') || build || index_add || import_from_data))
+        if (create && (!file_path.is_empty(&file_path)  || del || update || del_file || list_def ||
+                       new_file || !key.is_empty(&key)  || !data_to_add.is_empty(&data_to_add) || build || index_add || import_from_data))
         {
                 printf("option -c must be used by itself.\n");
                 printf(" -c <txt-with-files-definitions>.\n");
@@ -62,45 +63,53 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
         }
 
         if (index_add && (del || update || del_file || list_def ||
-                          new_file || key[0] != '\0'  || data_to_add[0] != '\0' || build))
+                          new_file || !key.is_empty(&key)|| !data_to_add.is_empty(&data_to_add) || build))
         {
                 print_usage(argv);
                 fprintf(stderr, "\nyou can use option -A only with options -f -i and -x\n");
                 return 0;
         }
 
-        if (!file_path && (!create && !import_from_data))
+        if (!file_path.is_empty(&file_path) && (create || import_from_data))
         {
                 print_usage(argv);
                 return 0;
         }
 
-        if (build && file_path[0] != '\0'  &&
-            (del || update || del_file || list_def || new_file || key[0] != '\0'  || data_to_add[0] != '\0'))
+        if (build && !file_path.is_empty(&file_path)    &&
+            (del || update || del_file || list_def || new_file || !key.is_empty(&key) || !data_to_add.is_empty(&data_to_add)  ))
         {
                 printf("you must use options -b only with option -f:\n\t-f <filename> -b <filename[txt,csv,tab delimited]> \n");
                 print_usage(argv);
                 return 0;
         }
 
-	if(import_from_data && (file_path[0] != '\0'  || del || update || del_file || list_def ||
-                       new_file || key[0] != '\0'  || data_to_add[0] != '\0' || build || index_add || create)){
+	if(import_from_data && (!file_path.is_empty(&file_path)  || del || update || del_file || list_def ||
+                       new_file || !key.is_empty(&key)   || !data_to_add.is_empty(&key) || build || index_add || create)){
                 printf("option -B must be used by itself.\n");
                 printf(" -B <txt with files data to import>.\n");
 		fprintf(stderr,"!! the file system MUST exist already !!\n");
                 return 0;
 	}
 
-        if (file_path[0] != '\0'  || file_field){
-                if (!is_file_name_valid(file_path))
-                {
-                        printf("file name or path not valid.\n");
-                        return 0;
-                }
+        if (  !file_path.is_empty(&file_path)  || file_field){
+		if(file_path.allocated){
+			if(!is_file_name_valid(file_path.str)){
+				printf("file name or path not valid.\n");
+				return 0;
+			}
+		}else{
+			if(!is_file_name_valid(file_path.base)){
+				printf("file name or path not valid.\n");
+				return 0;
+			}
+
+		}
+		
         }
 
 
-        if (((data_to_add[0] != '\0') || update) && key[0] == '\0' )
+        if ((!data_to_add.is_empty(&data_to_add) || update) && key.is_empty(&key) )
         {
                 printf("option -k is required.\n\n");
                 print_usage(argv);
@@ -114,14 +123,14 @@ int check_input_and_values(char *file_path, char *data_to_add, char *key, char *
                 return 0;
         }
 
-        if (del_file && (new_file || list_def || (data_to_add[0] != '\0')|| update || key[0] != '\0' ))
+        if (del_file && (new_file || list_def || !data_to_add.is_empty(&data_to_add)|| update || !key.is_empty(&key) ))
         {
                 printf("you cannot use option -e with other options! Only -ef <fileName>.\n");
                 print_usage(argv);
                 return 0;
         }
 
-        if ((del && key[0] == '\0' ) && !options)
+        if ((del && key.is_empty(&key) ) && !options)
         {
                 printf("missing record key, option -k.\n");
                 print_usage(argv);

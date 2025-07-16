@@ -936,7 +936,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 		}
 		case TYPE_DOUBLE:
 		{
-			uint64_t d_ne = swap64(rec->fields[i].data.d);
+			uint64_t d_ne = htond(rec->fields[i].data.d);
 			if (write(fd, &d_ne, sizeof(d_ne)) < 0)
 			{
 				perror("error in writing double to file.\n");
@@ -5074,8 +5074,6 @@ off_t get_update_offset(int fd)
  * */
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 {
-
-
 	create_record(file_name, sch,rec);
 	/*read the count of the field written*/
 	uint8_t cvf_ne = 0;
@@ -5093,7 +5091,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			return 0;
 		}
 
-		rec->field_set[i] = i_ne;
+		rec->field_set[i_ne] = 1;
 	}
 
 	
@@ -5228,8 +5226,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_BYTE:
 		{
-			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) < 0)
-			{
+			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) == -1){
 				perror("could not read type byte: ");
 				printf(" %s:%d.\n", F, L - 2);
 				free_record(rec, rec->fields_num);
@@ -6892,9 +6889,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 	for(uint8_t i = 0; i < rec->fields_num; i++){
 		if(rec->field_set[i] == 0) continue;
 		if(ram->size == ram->capacity && ram->offset != ram->size)
-			memcpy(&ram->mem[ram->offset],&cnt,sizeof(uint8_t));
+			memcpy(&ram->mem[ram->offset],&i,sizeof(uint8_t));
 		else
-			memcpy(&ram->mem[ram->size],&cnt,sizeof(uint8_t));
+			memcpy(&ram->mem[ram->size],&i,sizeof(uint8_t));
 
 		move_ram_file_ptr(ram,sizeof(uint8_t));
 	}
@@ -6935,7 +6932,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			break;
 		case TYPE_FLOAT:
 		{
-			uint32_t value = htonf((uint32_t)rec->fields[i].data.f);
+			uint32_t value = htonf(rec->fields[i].data.f);
 			if(ram->size == ram->capacity && ram->offset != ram->size)
 				memcpy(&ram->mem[ram->offset],&value,sizeof(uint32_t));
 			else
@@ -6957,7 +6954,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_DOUBLE:
 		{
-			uint64_t value = swap64((uint64_t)rec->fields[i].data.d);
+			uint64_t value = htond(rec->fields[i].data.d);
 			if(ram->size == ram->capacity && ram->offset != ram->size)
 				memcpy(&ram->mem[ram->offset],&value,sizeof(uint64_t));
 			else
@@ -7373,27 +7370,31 @@ int buffered_write(int *fd, struct Record_f *rec, int update, off_t rec_ram_file
 	size_t l = strlen(rec->file_name) + strlen(".dat");
 	char buf[l+1];
 	memset(buf,0,l+1);
-	strncpy(buf,rec->file_name,strlen(rec->file_name));
-	strncat(buf,".dat",strlen(".dat")+1);		
+	if(update){
+		strncpy(buf,rec->file_name,strlen(rec->file_name));
+		strncat(buf,".dat",strlen(".dat")+1);		
 
-	close(*fd);
-	*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
-	if(file_error_handler(1,*fd) != 0) {
-		close_ram_file(&ram);
-		return -1;
+		close(*fd);
+		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
+		if(file_error_handler(1,*fd) != 0) {
+			close_ram_file(&ram);
+			return -1;
+		}
+	
 	}
-
 	if(write(*fd,ram.mem,ram.size) == -1){
 		fprintf(stderr,"write to file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 		close_ram_file(&ram);
 		return -1;
 	}
 
-	close(*fd);
-	*fd = open_file(buf,0); /*open the file in nirmal mode*/
-	if(file_error_handler(1,*fd) != 0) {
-		close_ram_file(&ram);
-		return -1;
+	if(update){
+		close(*fd);
+		*fd = open_file(buf,0); /*open the file in nirmal mode*/
+		if(file_error_handler(1,*fd) != 0) {
+			close_ram_file(&ram);
+			return -1;
+		}
 	}
 	close_ram_file(&ram);
 	return 0;

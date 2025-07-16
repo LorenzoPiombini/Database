@@ -494,35 +494,28 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 			}
 
 			/*writing the new part of the schema to the file*/
-			int write_op = 0;
-			if ((write_op = write_file(fds[1], rec, 0, 0)) == 0) {
+			if(buffered_write(&fds[1], rec, 0,0,0) == -1){
 				printf("write to file failed, %s:%d.\n", F, L - 1);
 				goto clean_on_error;
 			}
-
-			if(write_op == NTG_WR){
-				if(*lock_f)while(lock(fds[0],UNLOCK) == WTLK);
-				return 0;
-			}	
 
 			if(find_record_position(fds[1],recs[rec_old.count - 1]->offset) == -1){
 				__er_file_pointer(F, L - 1);
 				goto clean_on_error;
 			}
-
-			if(!write_file(fds[1],recs[rec_old.count-1],eof,1)){
-				__er_file_pointer(F, L - 1);
+			if(buffered_write(&fds[1], recs[rec_old.count-1], 1,recs[rec_old.count-1]->offset,eof) == -1){
+				printf("error write file, %s:%d.\n", F, L - 1);
 				goto clean_on_error;
 			}
+
 		}
 
 		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
-	} /*end of if(update_pos > 0) --AKA-- fragments*/
+	} /*end of if(update_pos > 0) */
 
 	/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
-
 	unsigned char comp_rr = compare_old_rec_update_rec(recs, rec, check);
 	if (comp_rr == 0) {
 		fprintf(stderr,"(%s):compare records failed, %s:%d.\n",prog, F, L -2);
@@ -551,10 +544,11 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 
 	/*updating the record but we need to write some data in another place in the file*/
 	if (rec_old.count == 1 && comp_rr == UPDATE_OLDN && 
-			( check == SCHEMA_EQ || check == SCHEMA_EQ_NT 
-					     || check == 1 || 
-					     	check == SCHEMA_CT ||
-						check == SCHEMA_CT_NT)) {
+			( check == SCHEMA_EQ || 
+			  check == SCHEMA_EQ_NT ||
+			  check == 1 || 
+			  check == SCHEMA_CT ||
+			  check == SCHEMA_CT_NT)) {
 
 		off_t eof = 0;
 		if ((eof = go_to_EOF(fds[1])) == -1) {
@@ -569,9 +563,9 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 		}
 
 		// update the old record :
-		if (!write_file(fds[1], recs[0], eof, 1)) {
-			printf("can't write record, %s:%d.\n", __FILE__, __LINE__ - 1);
-			goto clean_on_error;
+		if(buffered_write(&fds[1], recs[0], 1,recs[0]->offset,eof) == -1){
+				printf("error write file, %s:%d.\n", F, L - 1);
+				goto clean_on_error;
 		}
 
 		eof = go_to_EOF(fds[1]);
@@ -581,8 +575,8 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 		}
 
 		/*passing update as 0 becuase is a "new_rec", (right most paramaters) */
-		if (!write_file(fds[1], rec, 0, 0)) {
-			printf("can't write record, main.c l %d.\n", __LINE__ - 1);
+		if(buffered_write(&fds[1], rec, 0,0,0) == -1){
+			printf("error write file, %s:%d.\n", F, L - 1);
 			goto clean_on_error;
 		}
 

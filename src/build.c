@@ -204,10 +204,27 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		if (buffer[0] == '\0')
 			continue;
 
-		files_n[i] = strdup(strtok_r(buffer, "|", &save));
-		schemas[i] = strdup(strtok_r(NULL, "|", &save));
+		char *t = strtok_r(buffer, "|", &save); 
+		if(t){ 
+			files_n[i] = strdup(t);
+		}else{
+			free_strs(lines, 2, files_n, schemas);
+			fprintf(stderr,"wrong file or syntax error\n");
+			return 0;
+		}
+			
+		
+		t = strtok_r(NULL, "|", &save);
+		if(t){
+			schemas[i] = strdup(t);
+		}else{
+			free_strs(lines, 2, files_n, schemas);
+			fprintf(stderr,"wrong file or syntax error\n");
+			return 0;
+		}
+
 		char *endp;
-		char *t = strtok_r(NULL, "|",&save);
+		t = strtok_r(NULL, "|",&save);
 		long l = strtol(t,&endp,10);
 		if(*endp == '\0')
 			buckets[i] = (int) l; 
@@ -459,7 +476,7 @@ int import_data_to_system(char *data_file)
 		memset(key,0,key_sz);
 		strncpy(key,d,key_sz -1);
 		
-		/*printf("key: '%s' - '%s'\n",key,file_name);*/
+		printf("key: '%s' - '%s'\n",key,file_name);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
