@@ -15,7 +15,7 @@ struct Ram_file{
 	uint8_t *mem; /* memory */
 	uint64_t capacity; /*memory size*/
 	uint64_t size; /* size of the data written to memory*/
-	uint64_t offset; /* the place where we are in the file */
+	uint64_t offset; /* the place where we are in the file in memory */
 };
 
 /*API end points*/
