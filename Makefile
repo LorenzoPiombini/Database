@@ -4,8 +4,8 @@ OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 OBJ_PROD = $(patsubst src/%.c, obj/%_prod.o, $(SRC))
 OBJlibht = obj/debug.o  obj/hash_tbl.o
 OBJlibhtPR = obj/debug_prod.o  obj/hash_tbl_prod.o
-OBJlibf = obj/debug.o  obj/file.o  obj/float_endian.o 
-OBJlibfPR = obj/debug_prod.o  obj/file_prod.o  obj/float_endian_prod.o 
+OBJlibf = obj/debug.o  obj/file.o  obj/endian.o 
+OBJlibfPR = obj/debug_prod.o  obj/file_prod.o  obj/endian_prod.o 
 OBJlibs = obj/debug.o  obj/str_op.o
 OBJlibsPR = obj/debug_prod.o  obj/str_op_prod.o
 OBJlibr = obj/debug.o  obj/record.o
@@ -117,7 +117,7 @@ $(TARGET)_prod: $(OBJ_PROD)
 	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack
 
 obj/%_prod.o : src/%.c
-	sudo gcc -Wall -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC
+	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC
 
 
 
@@ -249,8 +249,19 @@ install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $
 	ldconfig
 	
 
+install_prod: $(TARGET)_prod $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
+	install -d $(INCLUDEDIR)
+	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h $(INCLUDEDIR)/
+	install -m 755 $(SHAREDLIBht) $(LIBDIR)
+	install -m 755 $(SHAREDLIBf) $(LIBDIR)
+	install -m 755 $(SHAREDLIBs) $(LIBDIR)
+	install -m 755 $(SHAREDLIBr) $(LIBDIR)
+	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
+	install -m 755 $(SHAREDLIBl) $(LIBDIR)
+	install -m 755 $(SHAREDLIBbst) $(LIBDIR)
+	ldconfig
 build: object-dir default library install
 
-build_prod: object-dir prod libraryPR install 
+build_prod: object-dir prod libraryPR install_prod 
 
-.PHONY: default test memory clean install library check-linker-path object-dir prod
+.PHONY: default test memory clean install library check-linker-path object-dir prod $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa

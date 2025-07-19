@@ -1,0 +1,5 @@
+#!/bin/bash
+isam.db_prod -nF orders -R date:amount:shipped
+isam.db_prod -nf t -R st:orders
+isam.db_prod -f t -a st:hello,howdy,welcome -k1
+isam.db_prod -f t -a orders:[date:05-23-25:amount:34.45:shipped:t_b:0] -uk1
