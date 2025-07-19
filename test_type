@@ -1,8 +1,0 @@
-#!/bin/bash
-
-isam.db -ef test
-FILE test name:t_s:address:t_s
-WRITE test name:t_s:Lorenzo 1
-GET test 1
-UPDATE test address:t_s:"122 somerville rd" 1
-
