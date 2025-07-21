@@ -7412,17 +7412,19 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					memcpy(&ram->mem[ram->offset],&p_ne,sizeof(uint32_t));
 					ram->offset += sizeof(uint32_t);
 
-					for(int k = step; k <rec->fields[i].data.v.size; k++){
+					for(int k = step; k < rec->fields[i].data.v.size; k++){
 						if(step < rec->fields[i].data.v.size){
 							if(!rec->fields[i].data.v.elements.i[k]) continue;
 
-							uint32_t num_ne = swap32((*(uint32_t *)rec->fields[i].data.v.elements.i[step]));
+							uint32_t num_ne = swap32((*(uint32_t *)rec->fields[i].data.v.elements.i[k]));
 							memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint32_t));
 							ram->offset += sizeof(uint32_t);
+							step++;
 						}
 					}
 					ram->offset += (padding * sizeof(int));
 					uint64_t up_pos_ne = 0;
+
 					memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
 
@@ -7438,6 +7440,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						uint32_t sz_ne = swap32((uint32_t)size_left);
 						memcpy(&ram->mem[ram->offset],&sz_ne,sizeof(uint32_t));
 						ram->offset += sizeof(uint32_t);
+					}
 
 						/* read padding value*/
 						uint32_t pd_ne = 0;
@@ -7445,7 +7448,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						ram->offset += sizeof(uint32_t);
 						padding = (int)swap32(pd_ne);
 						
-						for(int k = 0; k < 0; k++){
+						for(k = 0; k < rec->fields[i].data.v.size; k++){
 							if(step < rec->fields[i].data.v.size){
 								if(!rec->fields[i].data.v.elements.i[step]) continue;
 
@@ -7457,12 +7460,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						}
 
 						if(padding > 0)	ram->offset += (padding * sizeof(uint32_t));
-						ram->offset += sizeof(uint32_t);
+						//ram->offset += sizeof(uint32_t);
 
 						uint64_t up_pos_ne = 0;
 						memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
 						ram->offset += sizeof(uint64_t);
-					}
 				}
 
 				if(go_back_to_first_rec > 0) ram->offset = go_back_to_first_rec;
@@ -7471,30 +7473,325 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_ARRAY_LONG:
 		{
-			uint32_t sz = swap32(rec->fields[i].data.v.size);
-			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
-			ram->size += sizeof(uint32_t);
-			uint32_t pad = 0;
-			memcpy(&ram->mem[ram->size],&pad, sizeof(uint32_t));
-			ram->size += sizeof(uint32_t);
+			if(!update){
+				uint32_t sz = swap32(rec->fields[i].data.v.size);
+				memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
+				ram->size += sizeof(uint32_t);
+				ram->offset += sizeof(uint32_t);
 
-			uint64_t arr[rec->fields[i].data.v.size];
-			memset(arr,0,sizeof(uint64_t) * rec->fields[i].data.v.size);
-			for(int j = 0; j < rec->fields[i].data.v.size; j++){
-				arr[j] = swap64(*(uint64_t*)rec->fields[i].data.v.elements.l[j]);
-			} 
+				uint32_t pad = 0;
+				memcpy(&ram->mem[ram->size],&pad, sizeof(uint32_t));
+				ram->size += sizeof(uint32_t);
+				ram->offset += sizeof(uint32_t);
 
-			memcpy(&ram->mem[ram->size],arr,sizeof(uint64_t)*sz);
-			ram->size += (sizeof(uint64_t) *sz);
+				uint64_t arr[rec->fields[i].data.v.size];
+				memset(arr,0,sizeof(uint64_t) * rec->fields[i].data.v.size);
+				for(int j = 0; j < rec->fields[i].data.v.size; j++){
+					arr[j] = swap64(*(uint64_t*)rec->fields[i].data.v.elements.l[j]);
+				} 
 
-			uint64_t upd = 0;	
-			memcpy(&ram->mem[ram->size],&upd,sizeof(uint64_t));
-			ram->size += (sizeof(uint64_t));
+				memcpy(&ram->mem[ram->size],arr,sizeof(uint64_t) * rec->fields[i].data.v.size);
+				ram->size += (sizeof(uint64_t) * rec->fields[i].data.v.size);
+				ram->offset += (sizeof(uint64_t) * rec->fields[i].data.v.size);
+
+				uint64_t upd = 0;	
+				memcpy(&ram->mem[ram->size],&upd,sizeof(uint64_t));
+				ram->size += (sizeof(uint64_t));
+				ram->offset += sizeof(uint64_t);
+				break;
+			}else{
+				off_t update_pos = 0;
+				off_t go_back_to_first_rec = 0;
+				int sz = 0;
+				int k = 0;
+				int step = 0;
+				int padding = 0;
+
+				do{
+					/*check size of the array on file*/
+					uint32_t sz_ne = 0; 
+					memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+					ram->offset += sizeof(uint32_t);
+					sz = (int)swap32(sz_ne);
+
+					if(rec->fields[i].data.v.size < sz || rec->fields[i].data.v.size == sz) break;
+
+					/* 
+					 * the program reach this branch only if the size of 
+					 * the new array in the record is bigger than what we already have on file
+					 * so we need to extend the array on file.
+					 * */
+
+					/*read padding value*/
+					uint32_t pd_ne = 0;
+					memcpy(&pd_ne, &ram->mem[ram->offset],sizeof(uint32_t));
+					ram->offset += sizeof(uint32_t);
+					padding = (int)swap32(pd_ne);
+
+					/*
+					 * this is never true at the first iteration
+					 * */
+					if(step >= sz){
+
+						int exit = 0;
+						int array_last = 0;
+						if((array_last = is_array_last_block(-1,ram,sz,sizeof(long),TYPE_INT)) == -1){
+							fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
+							return -1;
+						}
+						
+						if(rec->fields[i].data.v.size < (sz + step) && array_last){
+							padding += (sz - (rec->fields[i].data.v.size - step));
+
+							sz = rec->fields[i].data.v.size - step;
+							exit = 1;
+							ram->offset -= (2*sizeof(uint32_t));
+							/*write the update size of the array*/
+							uint32_t new_sz_ne = swap32((uint32_t)sz);
+							memcpy(&ram->mem[ram->offset],&new_sz_ne,sizeof(uint32_t));
+							ram->offset += sizeof(uint32_t);
+
+							/*write the padding*/
+							uint32_t pd_ne = swap32((uint32_t)padding);
+							memcpy(&ram->mem[ram->offset],&pd_ne,sizeof(uint32_t));
+							ram->offset += sizeof(uint32_t);
+
+						}else if(rec->fields[i].data.v.size == (sz + step) && array_last){
+							exit = 1;
+						}
+
+						while(sz){
+							if(step < rec->fields[i].data.v.size){
+								uint64_t num_ne = swap64((*(uint64_t *)rec->fields[i].data.v.elements.l[step]));
+								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint64_t));
+								ram->offset += sizeof(uint64_t);
+								step++;
+							}
+							sz--;
+						}
+
+						if(exit){
+							uint64_t up_pos_ne = 0;
+							memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
+							ram->offset += sizeof(uint64_t);
+							break;	
+						}
+					} else {
+
+						/* 
+						 * in the first iteration in the 
+						 * do-while loop this will
+						 * overwrite the array on file
+						 * */
+
+						int exit = 0;
+						for(k=0;k < sz; k++){
+							if(step > 0 && k == 0 ){
+								if((step + sz) > rec->fields[i].data.v.size){
+									int array_last = 0;
+									if((array_last = is_array_last_block(-1,ram,sz,sizeof(long),TYPE_INT)) == -1){
+										fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
+										return -1;
+									}
+
+									if(rec->fields[i].data.v.size < (sz + step) && array_last){
+										padding += (sz - (rec->fields[i].data.v.size - step));
+
+										sz = rec->fields[i].data.v.size - step;
+										exit = 1;
+										ram->offset -= (2*sizeof(uint32_t));
+										/*write the update size of the array*/
+										uint32_t new_sz_ne = swap32((uint32_t)sz);
+										memcpy(&ram->mem[ram->offset],&new_sz_ne,sizeof(uint32_t));
+										ram->offset += sizeof(uint32_t);
+
+										/*write the padding*/
+										uint32_t pd_ne = swap32((uint32_t)padding);
+										memcpy(&ram->mem[ram->offset],&pd_ne,sizeof(uint32_t));
+										ram->offset += sizeof(uint32_t);
+									}
+								}
+							}
+
+							if(step < rec->fields[i].data.v.size){
+								if(!rec->fields[i].data.v.elements.l[step]) continue;
+
+								uint64_t num_ne = swap64((*(uint64_t *)rec->fields[i].data.v.elements.l[step]));
+								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint64_t));
+								ram->offset += sizeof(uint64_t);
+								step++;
+
+								if(!(step < rec->fields[i].data.v.size)) exit = 0;
+							}
+						}
+
+						if(exit){
+							if(padding > 0) ram->offset += (padding * sizeof(long));
+
+							uint64_t up_pos_ne = 0;
+							memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
+							ram->offset += sizeof(uint64_t);
+							break;/*from the main do-while loop*/
+						}
+					}
+
+					if(padding > 0) ram->offset += (sizeof(long) * padding);
+
+					uint64_t update_off_ne = 0;
+					off_t go_back_to = ram->offset;
+
+					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
+					ram->offset += sizeof(uint64_t);
+
+					if(go_back_to_first_rec == 0) go_back_to_first_rec = ram->offset;
+
+					update_pos = (off_t) swap64(update_off_ne);
+					/*
+					 * if the update_pos is == 0 it means 
+					 * we need to move at the end of the file and write the remaining 
+					 * element of the array
+					 *
+					 * */
+					if(update_pos == 0){
+						/*go to EOF*/	
+						update_pos = ram->size;
+						ram->offset = ram->size;
+
+						uint32_t size_left = rec->fields[i].data.v.size - step;
+						/*
+						 * compute the size that we need to write
+						 * remeber that each array record is:
+						 * 	- uint32_t sz;
+						 * 	- uint32_t padding;
+						 * 	- sizeof(each element) * sz;
+						 * 	- uint64_t update_pos;
+						 *
+						 * 	we account for 2 uint64_t due to the whole record structure
+						 * */
+						uint64_t remaining_write_size = ( (2 * sizeof(uint32_t)) + (size_left * sizeof(long)) + sizeof(uint64_t));
+						if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
+							/*you have to expand the capacity*/
+							uint8_t *n_mem = realloc(ram->mem, ram->capacity + (remaining_write_size + 1) * sizeof(uint8_t));
+							if(!n_mem){
+								fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+								return -1;
+							}
+							ram->mem = n_mem;
+							ram->capacity += (remaining_write_size + 1);
+							memset(&ram->mem[ram->offset],0,remaining_write_size +1);
+						}
+
+
+						uint32_t sz_left_ne = swap32(size_left);
+						memcpy(&ram->mem[ram->offset],&sz_left_ne,sizeof(uint32_t));
+						ram->size += sizeof(uint32_t);
+						ram->offset = ram->size;
+
+						uint32_t pd_ne = 0;
+						memcpy(&ram->mem[ram->offset],&pd_ne,sizeof(uint32_t));
+						ram->size += sizeof(uint32_t);
+						ram->offset = ram->size;
+
+						for(uint32_t j = 0; j < size_left; j++){
+							if(step < rec->fields[i].data.v.size){
+								if(!rec->fields[i].data.v.elements.l[step]) continue;
+
+								uint64_t num_ne = swap64((*(uint64_t *)rec->fields[i].data.v.elements.l[step]));
+								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint64_t));
+								ram->size += sizeof(uint64_t);
+								ram->offset = ram->size;
+
+								step++;
+							}
+						}
+						uint64_t up_pos_ne = 0;
+						memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
+						ram->size += sizeof(uint64_t);
+						ram->offset = ram->size;
+
+						/*we need to write this rec position in the old rec*/
+						ram->offset = go_back_to;
+						update_off_ne = swap64((uint64_t)update_pos);
+						memcpy(&ram->mem[ram->offset],&update_off_ne,sizeof(uint64_t));
+						ram->offset += sizeof(uint64_t);
+						
+						break;
+					}
+
+					ram->offset = update_pos;
+
+				}while(update_pos > 0);
+
+				if(rec->fields[i].data.v.size < sz){
+					ram->offset -= sizeof(uint32_t);
+
+					padding = sz - rec->fields[i].data.v.size;
+					uint32_t p_ne = swap32((uint32_t)padding);
+					uint32_t sz_ne = swap32(rec->fields[i].data.v.size);
+					memcpy(&ram->mem[ram->offset],&sz_ne,sizeof(uint32_t));
+					ram->offset += sizeof(uint32_t);
+
+					/*write the padding*/
+					memcpy(&ram->mem[ram->offset],&p_ne,sizeof(uint32_t));
+					ram->offset += sizeof(uint32_t);
+
+					for(int k = step; k <rec->fields[i].data.v.size; k++){
+						if(step < rec->fields[i].data.v.size){
+							if(!rec->fields[i].data.v.elements.l[k]) continue;
+
+							uint64_t num_ne = swap64((*(uint64_t *)rec->fields[i].data.v.elements.l[k]));
+							memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint64_t));
+							ram->offset += sizeof(uint64_t);
+							step++;
+						}
+					}
+					ram->offset += (padding * sizeof(long));
+
+					uint64_t up_pos_ne = 0;
+					memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
+					ram->offset += sizeof(uint64_t);
+				}else if(rec->fields[i].data.v.size == sz){
+
+					if(step > 0){
+
+						ram->offset -= sizeof(uint32_t);
+						int size_left = rec->fields[i].data.v.size - step;
+
+						uint32_t sz_ne = swap32((uint32_t)size_left);
+						memcpy(&ram->mem[ram->offset],&sz_ne,sizeof(uint32_t));
+						ram->offset += sizeof(uint32_t);
+					}
+						/* read padding value*/
+						uint32_t pd_ne = 0;
+						memcpy(&pd_ne, &ram->mem[ram->offset],sizeof(uint32_t));
+						ram->offset += sizeof(uint32_t);
+						padding = (int)swap32(pd_ne);
+						
+						for(int k = 0; k < rec->fields[i].data.v.size; k++){
+							if(step < rec->fields[i].data.v.size){
+								if(!rec->fields[i].data.v.elements.l[step]) continue;
+
+								uint64_t num_ne = swap64((*(uint64_t *)rec->fields[i].data.v.elements.l[step]));
+								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint64_t));
+								ram->offset += sizeof(uint64_t);
+								step++;
+							}
+						}
+
+						if(padding > 0)	ram->offset += (padding * sizeof(long));
+
+						uint64_t up_pos_ne = 0;
+						memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
+						ram->offset += sizeof(uint64_t);
+				}
+
+				if(go_back_to_first_rec > 0) ram->offset = go_back_to_first_rec;
+			}
 			break;
+
 		}
 		case TYPE_ARRAY_FLOAT:
 		{
-
 			uint32_t sz = swap32(rec->fields[i].data.v.size);
 			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
@@ -7508,12 +7805,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			for(int j = 0; j < rec->fields[i].data.v.size; j++){
 				arr[j] = htonf(*(uint32_t*)rec->fields[i].data.v.elements.f[j]);
 			} 
-			memcpy(&ram->mem[ram->size],arr,sizeof(uint32_t)*sz);
-			ram->size += (sizeof(uint32_t) *sz);
+
+			memcpy(&ram->mem[ram->size],arr,sizeof(uint32_t) * rec->fields[i].data.v.size);
+			ram->size += (sizeof(uint32_t) * rec->fields[i].data.v.size);
+			ram->offset += (sizeof(uint32_t) * rec->fields[i].data.v.size);
 
 			uint64_t upd = 0;	
 			memcpy(&ram->mem[ram->size],&upd,sizeof(uint64_t));
 			ram->size += (sizeof(uint64_t));
+			ram->offset += sizeof(uint64_t);
 			break;
 		}
 		case TYPE_ARRAY_DOUBLE:
@@ -7531,12 +7831,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				arr[j] = swap64(*(uint64_t*)rec->fields[i].data.v.elements.d[j]);
 			} 
 
-			memcpy(&ram->mem[ram->size],arr,sizeof(uint64_t)*sz);
-			ram->size += (sizeof(uint64_t) *sz);
+			memcpy(&ram->mem[ram->size],arr,sizeof(uint64_t) * rec->fields[i].data.v.size);
+			ram->size += (sizeof(uint64_t) * rec->fields[i].data.v.size);
+			ram->offset += (sizeof(uint64_t) * rec->fields[i].data.v.size);
 
 			uint64_t upd = 0;	
 			memcpy(&ram->mem[ram->size],&upd,sizeof(uint64_t));
 			ram->size += (sizeof(uint64_t));
+			ram->offset += sizeof(uint64_t);
 			break;
 		}
 		case TYPE_ARRAY_STRING:
@@ -7569,10 +7871,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			}
 			uint64_t upd = 0;	
 			memcpy(&ram->mem[ram->size],&upd,sizeof(uint64_t));
-			ram->size += (sizeof(uint64_t));
+			ram->size += sizeof(uint64_t);
+			ram->offset += sizeof(uint64_t);
 			break;
 		}
 		case TYPE_FILE:
+		/*TODO think about this one*/
 		if(write_ram_record(ram,rec,update,init_ram_size,offset) == -1){
 			fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
 			return -1;
