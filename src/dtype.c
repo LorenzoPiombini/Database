@@ -4,8 +4,6 @@
 #include <errno.h>
 #include "dtype.h"
 
-
-
 static char prog[] = "db";
 static void free_str(struct String *str);
 static uint8_t empty(struct String *str);
@@ -129,5 +127,4 @@ static void free_str(struct String *str)
 	memset(str->base,0,DEF_STR);
 	str->allocated |= SET_OFF;
 	str->size = 0;
-
 }

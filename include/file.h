@@ -9,7 +9,7 @@
 
 #if defined(__linux__)
 
-#define STD_RAM_FILE 3145728 /* 3 MiB */  
+#define STD_RAM_FILE 4096*1000 /* 4 MiB */  
 
 struct Ram_file{
 	uint8_t *mem; /* memory */
