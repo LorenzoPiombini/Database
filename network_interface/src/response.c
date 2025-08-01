@@ -4,7 +4,7 @@
 #include <time.h>
 #include "response.h"
 
-static char prog[] = "Wser";
+static char prog[] = "db_listener";
 static int set_up_headers(struct Header *headers, int status, size_t body_size);
 static void set_status_and_phrase(struct Header *headers, uint16_t status);
 static char *create_response_message(struct Response *res, int status, struct Content *cont, struct Request *req);
@@ -24,6 +24,22 @@ int generate_response(struct Response *res, int status, struct Content *cont, st
  	strncpy(res->header_str,h,strlen(h));
 	if(cont)
 		if(parse_body(cont,res) == -1) return -1;
+
+	return 0;
+}
+
+int resource_created_response(struct Response *res, int status, struct Request *req, char *body){
+	if(snprintf(res->header_str,STD_HD_L,"%s %d %s\r\n"\
+						"Content-Type: %s\r\n"\
+						"Location: %s\r\n"\
+						"Access-Control-Allow-Origin: %s\r\n"
+						"\r\n"\
+						"%s",
+						"HTTP/1.1",status,"created",req->cont_type,
+						req->host,ORIGIN_DEF,body) == -1){
+		fprintf(stderr,"(%s): snprintf() failed %s:%d",prog,__FILE__,__LINE__-7);
+		return -1;
+	}
 
 	return 0;
 }
@@ -56,7 +72,7 @@ static char *create_response_message(struct Response *res, int status, struct Co
 
 		return h;
 	}
-
+		
 	if(strncmp(res->headers.protocol_vs,DEFAULT,STD_LEN_PTC) == 0){
 		if(snprintf(h,1024,"%s %u %s\r\n"\
 					"%s: %s\r\n"\

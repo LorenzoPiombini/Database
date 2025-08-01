@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "str_op.h"
 #include "common.h"
+#include "globals.h"
 #include "debug.h"
 
 static char prog[] = "db";
@@ -32,25 +33,6 @@ static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","
 				"_xd9","_xda","_xdb","_xdc","_xdd","_xde","_xdf","_xe0","_xe1","_xe2","_xe3","_xe4","_xe5","_xe6","_xe7",
 				"_xe8","_xe9","_xea","_xeb","_xec","_xed","_xee","_xef","_xf0","_xf1","_xf2","_xf3","_xf4","_xf5","_xf6",
 				"_xf7","_xf8","_xf9","_xfa","_xfb","_xfc","_xfd","_xfe","_xff"};
-/*
-int is_number_type(int type)
-{
-	return type == TYPE_LONG || type == TYPE_FLOAT 
-		|| type == TYPE_DOUBLE || type == TYPE_INT 
-		|| type == TYPE_BYTE;
-
-}
-*/
-
-/*
-int is_number_array(int type)
-{
-	return type == TYPE_ARRAY_DOUBLE || type == TYPE_ARRAY_LONG 
-		|| type == TYPE_ARRAY_BYTE || type == TYPE_ARRAY_FLOAT
-		|| type == TYPE_ARRAY_INT;
-}
-*/
-
 char *get_sub_str(char *start_delim, char *end_delim, char *str)
 {
 	char *start_d = NULL;
@@ -700,7 +682,7 @@ int get_type(char *s){
 	{
 		return 4;
 	}
-	else if (strcmp(s, "t_p") == 0)
+	else if (strcmp(s, "t_pk") == 0)
 	{
 		return 5;
 	}

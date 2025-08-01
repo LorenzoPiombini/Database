@@ -5,13 +5,17 @@
 #include "monitor.h"
 #include "request.h"
 #include "response.h"
+#include "handlesig.h"
 
 int main()
 {
 
 	unsigned short port = 5043;
 	int con = -1;
-	if((con = listen_port_80(&port)) == -1) return -1;
+	if((con = listen_port_80(&port)) == -1){
+		fprintf(stderr,"can't connect to port '%d': %s.\n",port,strerror(errno));
+		return -1;
+	}
 	fprintf(stderr,"listening on %d\n",port);
 
 	if(start_monitor(con) == -1) {
@@ -20,6 +24,9 @@ int main()
 		return -1;
 	}
 	
+	hdl_sock  = con;
+	if(handle_sig() == -1) return -1;
+
 	int cli_sock = -1;
 	struct Response res = {0};
 	for(;;){
@@ -82,6 +89,7 @@ int main()
 						continue;
 
 					}
+
 					/*send a bed request response*/
 					if(generate_response(&res,400,NULL,&req) == -1) break;
 
@@ -96,13 +104,48 @@ int main()
 					clear_request(&req);
 					clear_response(&res);
 
-					stop_listening(cli_sock);
 					continue;
 				}
 				case GET:
-					break;
 				case POST:
+				{
+					char json_obj_response[STD_HD_L] = {0};
+					if(load_resource(&req,json_obj_response) == -1){
+						/*send a bed request response*/
+						if(generate_response(&res,400,NULL,&req) == -1) break;
+
+						int w = 0;
+						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
+						if(w == EAGAIN || w == EWOULDBLOCK) {
+							clear_request(&req);
+							continue;
+						}
+
+						clear_request(&req);
+						clear_response(&res);
+
+						continue;
+					}	
+					/*send a response to the client request*/
+					int status = 0;
+					if(req.method == GET) status = 200;
+					if(req.method == POST) status = 201;
+
+					if(resource_created_response(&res,status,&req,json_obj_response) == -1) break;
+
+					int w = 0;
+					if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
+					if(w == EAGAIN || w == EWOULDBLOCK) {
+						clear_request(&req);
+						continue;
+					}
+
+					clear_request(&req);
+					clear_response(&res);
+
+					stop_listening(cli_sock);
 					break;
+				}
 				case PUT:
 					break;
 				default:
@@ -116,10 +159,10 @@ int main()
 						continue;
 					}
 
-					stop_listening(cli_sock);
 
 					clear_request(&req);
 					clear_response(&res);
+					stop_listening(cli_sock);
 					continue;
 				}
 			}else{
@@ -164,6 +207,7 @@ int main()
 						/*send a response to the options request*/
 						if(generate_response(&res,200,NULL,&req) == -1) break;
 
+						printf("response is: \n%s\n",res.header_str);
 						int w = 0;
 						if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -178,17 +222,54 @@ int main()
 						continue;
 					}
 					case GET:
-						/* Load content */	
+					case POST:
+					{
+						char json_obj_response[STD_HD_L] = {0};
+						if(load_resource(&req,json_obj_response) == -1){
+							/*send a bed request response*/
+							if(generate_response(&res,400,NULL,&req) == -1) break;
 
-						break;
+							int w = 0;
+							if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
+							if(w == EAGAIN || w == EWOULDBLOCK) {
+								clear_request(&req);
+								continue;
+							}
+
+
+							clear_request(&req);
+							clear_response(&res);
+
+							continue;
+						}	
+						/*send a response*/
+						int status = 0;
+						if(req.method == POST) status = 201;
+						if(req.method == GET) status = 200;
+
+						if(resource_created_response(&res,status,&req,json_obj_response) == -1) break;
+
+						printf("response is: \n%s\n",res.header_str);
+						int w = 0;
+						if((w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
+						if(w == EAGAIN || w == EWOULDBLOCK) {
+							clear_request(&req);
+							continue;
+						}
+
+						clear_request(&req);
+						clear_response(&res);
+
+						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+						continue;
+					}
 					default:
-						/*send a bed request response*/
-
+						/*send a bad or not found request response*/
 						if(generate_response(&res,404,NULL,&req) == -1) break;
 
 						int w = 0;
 						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
-						if(w == EAGAIN || w == EWOULDBLOCK) {
+						if(w == EAGAIN || w == EWOULDBLOCK){
 							clear_request(&req);
 							clear_content(&cont);
 							continue;
@@ -199,7 +280,6 @@ int main()
 						clear_request(&req);
 						clear_response(&res);
 						continue;
-
 					}
 
 					/* send response */
@@ -209,18 +289,13 @@ int main()
 					if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 
 
-					printf("after writing to client.\n");
 					if(w == EAGAIN || w == EWOULDBLOCK) continue;
 
 					if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
-					if(req.d_req)
-						fprintf(stdout,"%s\n",req.d_req);
-					else
-						fprintf(stdout,"%s\n",req.req);
-
 					clear_response(&res);
 					clear_request(&req);
+
 				}else if(events[i].events == EPOLLOUT) {
 					int w = 0;
 					if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;

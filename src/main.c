@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "journal.h"
+#include "globals.h"
 #include "common.h"
 #include "file.h"
 #include "record.h"
@@ -1175,7 +1176,7 @@ int main(int argc, char *argv[])
 			int check = 0;
 			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error;
 
-			if(update_rec(cpy_fp,fds,kcpy,&rec,hd,check,&lock_f) == -1) goto clean_on_error;
+			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f) == -1) goto clean_on_error;
 
 			printf("record %s updated!\n", kcpy);
 			while(lock(fd_index,UNLOCK) == WTLK);
@@ -1255,7 +1256,7 @@ int main(int argc, char *argv[])
 			while(is_locked(3,fd_index,fd_data,fd_schema) == LOCKED);
 
 			struct Record_f rec = {0};
-			if(get_record(-1,cpy_fp,&rec,(void *)kcpy, hd,fds) == -1){
+			if(get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds) == -1){
 				free_record(&rec,rec.fields_num);
 				close_file(3, fd_schema,fd_index, fd_data);
 				return STATUS_ERROR;

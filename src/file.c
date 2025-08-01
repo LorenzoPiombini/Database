@@ -6329,7 +6329,14 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			size += (sizeof(uint64_t));
 			break;
 		case TYPE_FILE:
-			size += get_disk_size_record(rec);
+			size += (sizeof(uint32_t) * 2);
+			struct File *f = &rec->fields[i].data.file;
+			while(f){
+				if(f->recs)
+					size += get_disk_size_record(f->recs);
+				f = f->next;
+			}
+			size += (sizeof(uint64_t));
 			break;
 		default:
 			return -1;
@@ -7855,7 +7862,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						int exit = 0;
 						int array_last = 0;
-						if((array_last = is_array_last_block(-1,ram,sz,sizeof(float),TYPE_INT)) == -1){
+						if((array_last = is_array_last_block(-1,ram,sz,sizeof(float),TYPE_FLOAT)) == -1){
 							fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 							return -1;
 						}
@@ -7882,7 +7889,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						while(sz){
 							if(step < rec->fields[i].data.v.size){
-								uint32_t num_ne = swap32((*(uint32_t *)rec->fields[i].data.v.elements.f[step]));
+								uint32_t num_ne = htonf((*(uint32_t *)rec->fields[i].data.v.elements.f[step]));
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint32_t));
 								ram->offset += sizeof(uint32_t);
 								step++;
@@ -7936,7 +7943,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							if(step < rec->fields[i].data.v.size){
 								if(!rec->fields[i].data.v.elements.f[step]) continue;
 
-								uint32_t num_ne = htonf(rec->fields[i].data.v.elements.f[step]);
+								uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[step]);
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint32_t));
 								ram->offset += sizeof(uint32_t);
 
@@ -8016,7 +8023,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							if(step < rec->fields[i].data.v.size){
 								if(!rec->fields[i].data.v.elements.f[step]) continue;
 
-								uint32_t num_ne = htonf(rec->fields[i].data.v.elements.f[step]);
+								uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[step]);
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint32_t));
 								ram->size += sizeof(uint32_t);
 								ram->offset = ram->size;
@@ -8060,7 +8067,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						if(step < rec->fields[i].data.v.size){
 							if(!rec->fields[i].data.v.elements.f[k]) continue;
 
-							uint32_t num_ne = htonf(rec->fields[i].data.v.elements.f[k]);
+							uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[k]);
 							memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint32_t));
 							ram->offset += sizeof(uint32_t);
 							step++;
@@ -8096,7 +8103,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							if(step < rec->fields[i].data.v.size){
 								if(!rec->fields[i].data.v.elements.f[step]) continue;
 
-								uint32_t num_ne = htonf(rec->fields[i].data.v.elements.f[step]);
+								uint32_t num_ne = htonf(*rec->fields[i].data.v.elements.f[step]);
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint32_t));
 								ram->offset += sizeof(uint32_t);
 								step++;
@@ -8115,7 +8122,6 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			break;
 
 		}
-		}
 		case TYPE_ARRAY_DOUBLE:
 		{
 			if(!update){
@@ -8123,6 +8129,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 				ram->size += sizeof(uint32_t);
 				ram->offset += sizeof(uint32_t);
+
 				uint32_t pad = 0;
 				memcpy(&ram->mem[ram->size],&pad, sizeof(uint32_t));
 				ram->size += sizeof(uint32_t);
@@ -8131,7 +8138,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				uint64_t arr[rec->fields[i].data.v.size];
 				memset(arr,0,sizeof(uint64_t) * rec->fields[i].data.v.size);
 				for(int j = 0; j < rec->fields[i].data.v.size; j++){
-					arr[j] = swap64(*(uint64_t*)rec->fields[i].data.v.elements.d[j]);
+					arr[j] = htond(*rec->fields[i].data.v.elements.d[j]);
 				} 
 
 				memcpy(&ram->mem[ram->size],arr,sizeof(uint64_t) * rec->fields[i].data.v.size);
@@ -8469,12 +8476,39 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		}
 		case TYPE_FILE:
 		/*TODO think about this one*/
-		if(write_ram_record(ram,rec,update,init_ram_size,offset) == -1){
-			fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
-			return -1;
+		{
+			if(!update){
+				uint32_t size = swap32(rec->fields[i].data.file.count);
+				memcpy(&ram->mem[ram->size],&size,sizeof(uint32_t));
+				ram->size += sizeof(uint32_t);
+				ram->offset += sizeof(uint32_t);
+
+				/*pad*/
+				uint32_t pad = 0;
+				memcpy(&ram->mem[ram->size],&pad,sizeof(uint32_t));
+				ram->size += sizeof(uint32_t);
+				ram->offset += sizeof(uint32_t);
+			
+				struct File *f = &rec->fields[i].data.file;
+				while(f){
+					if(write_ram_record(ram,f->recs,update,init_ram_size,offset) == -1){
+						fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
+						return -1;
+					}
+					f = f->next;
+				}
+
+				uint64_t upd = 0;	
+				memcpy(&ram->mem[ram->size],&upd,sizeof(uint64_t));
+				ram->size += sizeof(uint64_t);
+				ram->offset += sizeof(uint64_t);
+			}
+			break;
 		}
-		break;
+		default:
+			break;
 		}
+
 	} 
 
 	uint64_t upd_rec = 0;

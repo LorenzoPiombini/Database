@@ -1,12 +1,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-/*global variable for importing*/
-extern int __IMPORT_EZ;
-
-/* global variable define when the program is running as a 
- * command-line utility program*/
-extern int __UTILITY;
 
 #define STATUS_ERROR -1
 #define SCHEMA_ERR 2

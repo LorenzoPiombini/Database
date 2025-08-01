@@ -41,5 +41,7 @@ struct Response{
 };
 
 int generate_response(struct Response *res, int status, struct Content *cont, struct Request *req);
+int resource_created_response(struct Response *res, int status, struct Request *req, char *body);
 void clear_response(struct Response *res);
+
 #endif

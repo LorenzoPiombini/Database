@@ -189,7 +189,7 @@ void stop_listening(int sock_fd)
 	close(sock_fd);
 }
 
-int get(char *URL)
+int __get(char *URL)
 {
 	/*process the url*/
 	struct Url url = {0};

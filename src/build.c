@@ -12,11 +12,11 @@
 #include "debug.h"
 #include "crud.h"
 #include "common.h"
+#include "globals.h"
 
 static char prog[] = "db";
 /*this functionality is not implemented yet*/
 
-int __IMPORT_EZ = 0;
 
 unsigned char build_from_txt_file(char *file_path, char *txt_f)
 {

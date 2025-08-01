@@ -2,8 +2,9 @@ TARGET = /usr/local/bin/isam.db
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 OBJ_PROD = $(patsubst src/%.c, obj/%_prod.o, $(SRC))
+
 OBJlibht = obj/debug.o  obj/hash_tbl.o
-OBJlibhtPR = obj/debug_prod.o  obj/hash_tbl_prod.o
+OBJlibhtPR = obj/debug_prod.o  obj/hash_tbl_prod.o 
 OBJlibf = obj/debug.o  obj/file.o  obj/endian.o 
 OBJlibfPR = obj/debug_prod.o  obj/file_prod.o  obj/endian_prod.o 
 OBJlibs = obj/debug.o  obj/str_op.o
@@ -16,6 +17,8 @@ OBJlibl = obj/debug.o  obj/lock.o
 OBJliblPR = obj/debug_prod.o  obj/lock_prod.o
 OBJlibbst = obj/debug.o  obj/bst.o obj/str_op.o
 OBJlibbstPR = obj/debug_prod.o  obj/bst_prod.o obj/str_op_prod.o
+OBJlibcrud = obj/crud.o obj/file.o  obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o
+
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
@@ -23,6 +26,11 @@ LIBNAMEht = ht
 LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBht = lib$(LIBNAMEht).so
+
+LIBNAMEcrud = crud
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBcrud = lib$(LIBNAMEcrud).so
 
 LIBNAMEf = file
 LIBDIR = /usr/local/lib
@@ -76,6 +84,7 @@ check-linker-path:
 
 library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBht) $(OBJlibht)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBcrud) $(OBJlibcrud)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBs) $(OBJlibs)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBr) $(OBJlibr)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
@@ -236,8 +245,9 @@ $(BINDIR)/DELa:
 
 install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h $(INCLUDEDIR)/
+	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
+	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
 	install -m 755 $(SHAREDLIBs) $(LIBDIR)
 	install -m 755 $(SHAREDLIBr) $(LIBDIR)
@@ -249,7 +259,7 @@ install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $
 
 install_prod: $(TARGET)_prod $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h $(INCLUDEDIR)/
+	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
 	install -m 755 $(SHAREDLIBs) $(LIBDIR)

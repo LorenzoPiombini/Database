@@ -1,0 +1,3 @@
+sales_orders_head|date:customer_id:price_level|0|0|0
+sales_orders_lines|head_id:TYPE_LONG:item:TYPE_STRING:uom:TYPE_STRING:qty:TYPE_DOUBLE:disc:TYPE_DOUBLE:unit_price:TYPE_DOUBLE:total:TYPE_DOUBLE|0|0|0
+customers|id:name:c_contat:c_street:c_city:c_zip_code:c_country:price_level:c_term:c_credit_hold:c_mail:c_phone|8|0|0

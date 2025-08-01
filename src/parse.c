@@ -1176,7 +1176,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "t_l") ||
 					strstr(names[i], "t_i") ||
 					strstr(names[i], "t_b") ||
-					strstr(names[i], "t_p") ||
+					strstr(names[i], "t_pk") ||
 					strstr(names[i], "t_f") ||
 					strstr(names[i], "t_d") ||
 					strstr(names[i], "t_ad") ||
@@ -1223,7 +1223,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "t_l") ||
 					strstr(names[i], "t_i") ||
 					strstr(names[i], "t_b") ||
-					strstr(names[i], "t_p") ||
+					strstr(names[i], "t_pk") ||
 					strstr(names[i], "t_f") ||
 					strstr(names[i], "t_d") ||
 					strstr(names[i], "t_ad") ||
@@ -1560,7 +1560,7 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 			}else{
 				if(sch->types[j] != types_i[i]) types_i[i] = sch->types[j];
 
-				counter++;
+				if(counter != SCHEMA_CT_NT)counter++;
 			}
 		}
 

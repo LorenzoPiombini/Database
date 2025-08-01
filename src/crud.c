@@ -6,24 +6,25 @@
 #include "file.h"
 #include "record.h"
 #include "lock.h"
+#include "globals.h"
 #include "str_op.h"
 #include "common.h"
 #include "debug.h"
 #include "hash_tbl.h"
+#include "parse.h"
 #include "crud.h"
 
 static char prog[] = "db";
-static off_t get_rec_position(struct HashTable *ht, char *key);
+static off_t get_rec_position(struct HashTable *ht, void *key, int key_type);
 static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type);
 
-int __UTILITY = 0;
 
 HashTable *g_ht = NULL;
 int g_index = 0;
 int *p_gi = &g_index;
 struct Ram_file ram = {0};
 
-int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct Header_d hd, int *fds)
+int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, int *fds)
 {
 	int e = 0;
 	if(mode == RAM_FILE){
@@ -43,7 +44,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, struct 
 	}
 
 	off_t offset = 0;
-	if((offset = get_rec_position(p_ht,(char *)key)) == -1) {
+	if((offset = get_rec_position(p_ht,key,key_type)) == -1) {
 		fprintf(stderr,"(%s): record not found.\n",prog);
 		destroy_hasht(p_ht);
 		return STATUS_ERROR;
@@ -306,7 +307,6 @@ int write_record(int *fds,void *key,
 		return -1;
 	}
 
-
 	if(write_index(fds,index,ht,files[0]) == -1) return -1;
 
 	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
@@ -325,7 +325,6 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 	}
 
 	for (int i = 0; i < index; i++) {
-
 		if (!write_index_body(fds[0], i, &ht[i])) {
 			printf("write to file failed. %s:%d.\n", F, L - 2);
 			free_ht_array(ht, index);
@@ -387,9 +386,8 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	fds[2] = fd_schema;
 	return 0;
 }
-int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct Header_d hd,int check,int *lock_f)
+int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *rec,struct Header_d hd,int check,int *lock_f)
 {
-
 	struct Record_f rec_old = {0};
 	int r = 0;
 
@@ -403,7 +401,7 @@ int update_rec(char *file_path,int *fds,void *key,struct Record_f *rec,struct He
 		*lock_f = 1;
 	}
 
-	if(get_record(-1,file_path,&rec_old, key,hd,fds) == -1){
+	if(get_record(-1,file_path,&rec_old,key,key_type,hd,fds) == -1){
 		if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		return -1;
 	}
@@ -622,21 +620,24 @@ static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 	}
 	return 0;
 }
-static off_t get_rec_position(struct HashTable *ht, char *key)
+static off_t get_rec_position(struct HashTable *ht, void *key, int key_type)
 {
 	off_t offset = 0;
-	int key_type = 0;
-	void *key_conv = key_converter(key, &key_type);
-	if (key_type == UINT && !key_conv) {
-		fprintf(stderr, "(%s): error to convert key",prog);
-		return STATUS_ERROR;
-	} else if (key_type == UINT) {
-		if (key_conv) {
-			offset = get(key_conv, ht, key_type); /*look for the key in the ht */
-			free(key_conv);
+	void *key_conv =NULL;
+	if(key_type == -1){
+		key_conv = key_converter(key, &key_type);
+		if (key_type == UINT && !key_conv) {
+			fprintf(stderr, "(%s): error to convert key",prog);
+			return STATUS_ERROR;
+		} else if (key_type == UINT) {
+			if (key_conv) {
+				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
+				free(key_conv);
+			}
+		} else if (key_type == STR) {
+			offset = get((void *)key, ht, key_type); /*look for the key in the ht */
 		}
-	} else if (key_type == STR) {
-		offset = get((void *)key, ht, key_type); /*look for the key in the ht */
 	}
+	offset = get((void *)key, ht, key_type); /*look for the key in the ht */
 	return offset;
 }
