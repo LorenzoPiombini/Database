@@ -374,14 +374,28 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 		case UINT:
 		{
 
-			if (current->key.k.n == *(uint32_t *)key)
-			{
-				if (previous == NULL)
-					tbl->data_map[index] = current->next;
-				else
-					previous->next = current->next;
+			if(current->key.size == 16){
+				if (current->key.k.n16 == *(uint16_t *)key)
+				{
+					if (previous == NULL)
+						tbl->data_map[index] = current->next;
+					else
+						previous->next = current->next;
 
-				return current;
+					return current;
+				}
+			}else{
+				if (current->key.k.n == *(uint32_t *)key)
+				{
+					if (previous == NULL)
+						tbl->data_map[index] = current->next;
+					else
+						previous->next = current->next;
+
+					return current;
+				}
+
+
 			}
 			previous = current;
 			current = current->next;
@@ -458,7 +472,7 @@ int keys(HashTable *ht, struct Keys_ht *all_keys)
 			if (temp->key.type == STR)
 			{
 
-				keys[index].k.s = (void *)strdup(temp->key.k.s);
+				keys[index].k.s = strdup(temp->key.k.s);
 				if (!keys[index].k.s)
 				{
 					fprintf(stderr, "strdup() failed.");
@@ -468,9 +482,18 @@ int keys(HashTable *ht, struct Keys_ht *all_keys)
 			}
 			else
 			{
-				keys[index].k.n = temp->key.k.n;
-				keys[index].type = UINT;
-				pack(keys[index].k.n,keys[index].paked_k);
+				if(temp->key.size == 16){
+					keys[index].k.n16 = temp->key.k.n16;
+					keys[index].type = UINT;
+					keys[index].size = 16;
+					pack(keys[index].k.n16,keys[index].paked_k);
+				}else{
+					keys[index].k.n = temp->key.k.n;
+					keys[index].type = UINT;
+					keys[index].size = 32;
+					pack(keys[index].k.n,keys[index].paked_k);
+					
+				}
 			}
 			temp = temp->next;
 			++index;
@@ -604,15 +627,28 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 			}
 			case UINT:
 			{
-				set((void *)&src->data_map[i]->key.k.n,
-					src->data_map[i]->key.type,
-					src->data_map[i]->value, dest);
+				if(src->data_map[i]->key.size == 16){
+					set((void *)&src->data_map[i]->key.k.n16,
+							src->data_map[i]->key.type,
+							src->data_map[i]->value, dest);
+				}else{
+					set((void *)&src->data_map[i]->key.k.n,
+							src->data_map[i]->key.type,
+							src->data_map[i]->value, dest);
+				}
+
 				Node *next = src->data_map[i]->next;
 				while (next)
 				{
-					set((void *)&next->key.k.n,
-						next->key.type,
-						next->value, dest);
+					if(src->data_map[i]->key.size == 16){
+						set((void *)&src->data_map[i]->key.k.n16,
+							src->data_map[i]->key.type,
+							src->data_map[i]->value, dest);
+					}else{
+						set((void *)&src->data_map[i]->key.k.n,
+								src->data_map[i]->key.type,
+								src->data_map[i]->value, dest);
+					}
 					next = next->next;
 				}
 				break;
