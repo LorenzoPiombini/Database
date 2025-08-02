@@ -44,7 +44,7 @@ struct Keys_ht{
  * I simply pick a prime number between 1 and 3000
  * this will be used along with a very large prime number ( 2^t - 1 )
  * the decison of using such a large number is mainly because i want to be able
- * to handle a very large system anbd the integer key for the hash table
+ * to handle a very large system and the integer key for the hash table
  * will be of type uint32_t wich give us more than 4 billions of key for each hash table
  * this hash table will be used as index file in a file db,
  * so you will have the possibility to store billions of records.

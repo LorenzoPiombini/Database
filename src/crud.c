@@ -44,7 +44,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	}
 
 	off_t offset = 0;
-	if((offset = get_rec_position(p_ht,key,key_type)) == -1) {
+	if((offset = get_rec_position(p_ht,key,key_type)) == -1){
 		fprintf(stderr,"(%s): record not found.\n",prog);
 		destroy_hasht(p_ht);
 		return STATUS_ERROR;
@@ -633,9 +633,11 @@ static off_t get_rec_position(struct HashTable *ht, void *key, int key_type)
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
 				free(key_conv);
+				return offset;
 			}
 		} else if (key_type == STR) {
 			offset = get((void *)key, ht, key_type); /*look for the key in the ht */
+			return offset;
 		}
 	}
 	offset = get((void *)key, ht, key_type); /*look for the key in the ht */

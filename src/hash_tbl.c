@@ -193,8 +193,14 @@ off_t get(void *key, HashTable *tbl, int key_type)
 			break;
 		case UINT:
 		{
-			if (temp->key.k.n == *(uint32_t *)key)
-				return temp->value;
+			if(temp->key.size == 16 && *(uint32_t*)key < USHRT_MAX){
+				if(temp->key.k.n16 == *(uint16_t *)key)
+					return temp->value;
+
+			}else if (temp->key.size == 32 *(uint32_t*)key < UINT_MAX){){
+				if(temp->key.k.n == *(uint32_t*)key)		
+					return temp->value;
+			}
 
 			temp = temp->next;
 			break;
@@ -407,7 +413,6 @@ void destroy_hasht(HashTable *tbl)
 			}
 		}
 	}
-
 }
 
 int keys(HashTable *ht, struct Keys_ht *all_keys)
