@@ -12,7 +12,7 @@ struct Content{
 	size_t size;
 };
 
-int load_resource(struct Request *req, char *json_obj_response);
+int load_resource(struct Request *req, struct Content *cont);
 void clear_content(struct Content *cont);
 
 #endif

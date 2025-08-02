@@ -4,12 +4,15 @@
 
 enum endp{
 	NEW_SORD,
-	CUSTOMER
+	CUSTOMER,
+	S_ORD
 };
 
 
 #define NEW_S_ORDER "/new_sales_order"
+#define UPDATE_S_ORDER "/update_sales_order"
 #define CUSTOMERS "/customers"
+#define SALES_ORDERS "/sales_orders"
 
 
 int map_end_point(char *end_point);

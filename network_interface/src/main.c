@@ -87,7 +87,6 @@ int main()
 
 						stop_listening(cli_sock);
 						continue;
-
 					}
 
 					/*send a bed request response*/
@@ -109,8 +108,7 @@ int main()
 				case GET:
 				case POST:
 				{
-					char json_obj_response[STD_HD_L] = {0};
-					if(load_resource(&req,json_obj_response) == -1){
+					if(load_resource(&req,&cont) == -1){
 						/*send a bed request response*/
 						if(generate_response(&res,400,NULL,&req) == -1) break;
 
@@ -122,6 +120,7 @@ int main()
 						}
 
 						clear_request(&req);
+						clear_content(&cont);
 						clear_response(&res);
 
 						continue;
@@ -131,8 +130,13 @@ int main()
 					if(req.method == GET) status = 200;
 					if(req.method == POST) status = 201;
 
-					if(resource_created_response(&res,status,&req,json_obj_response) == -1) break;
+					if(cont.cnt_dy){
+						if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
+					}else{
+						if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
+					}
 
+					clear_content(&cont);
 					int w = 0;
 					if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 					if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -224,8 +228,7 @@ int main()
 					case GET:
 					case POST:
 					{
-						char json_obj_response[STD_HD_L] = {0};
-						if(load_resource(&req,json_obj_response) == -1){
+						if(load_resource(&req,&cont) == -1){
 							/*send a bed request response*/
 							if(generate_response(&res,400,NULL,&req) == -1) break;
 
@@ -247,8 +250,14 @@ int main()
 						if(req.method == POST) status = 201;
 						if(req.method == GET) status = 200;
 
-						if(resource_created_response(&res,status,&req,json_obj_response) == -1) break;
+						if(cont.cnt_dy){
+							if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
+						}else{
+							if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
+						}
 
+						
+						clear_content(&cont);
 						printf("response is: \n%s\n",res.header_str);
 						int w = 0;
 						if((w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
@@ -282,9 +291,8 @@ int main()
 						continue;
 					}
 
+					/*since thne socket are NON BLOCKING this is needed*/
 					/* send response */
-
-					clear_content(&cont);
 					int w = 0;
 					if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 
