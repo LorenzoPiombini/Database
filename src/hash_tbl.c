@@ -193,11 +193,11 @@ off_t get(void *key, HashTable *tbl, int key_type)
 			break;
 		case UINT:
 		{
-			if(temp->key.size == 16 && *(uint32_t*)key < USHRT_MAX){
+			if(temp->key.size == 16 && *(uint16_t*)key < USHRT_MAX){
 				if(temp->key.k.n16 == *(uint16_t *)key)
 					return temp->value;
 
-			}else if (temp->key.size == 32 *(uint32_t*)key < UINT_MAX){){
+			}else if (temp->key.size == 32 && *(uint32_t*)key < UINT_MAX){
 				if(temp->key.k.n == *(uint32_t*)key)		
 					return temp->value;
 			}
@@ -330,7 +330,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 						return 0;
 					}
 				}else{
-					if (temp->key.k.n == temp->key.k.n) {
+					if (temp->key.k.n == new_node->key.k.n) {
 						printf("could not insert new node '%u'\n", new_node->key.k.n);
 						printf("key already exist. Choose another key value.\n");
 						free(new_node);
