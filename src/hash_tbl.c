@@ -226,7 +226,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 	switch (key_type){
 	case UINT:
 	{
-		if(*(uint32_t*)key < SHRT_MAX){ 
+		if(*(uint32_t*)key < USHRT_MAX){ 
 			new_node->key.k.n16 = *(uint16_t *)key;
 			new_node->key.size = 16;
 		}else{ 
@@ -301,22 +301,45 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		temp->next = new_node;
 	}
 	else if (key_type == UINT) {
-		if (tbl->data_map[index]->key.k.n == new_node->key.k.n) {
-			printf("could not insert new node \"%u\"\n", new_node->key.k.n);
-			printf("key already exist. Choose another key value.\n");
-			free(new_node);
-			return 0;
+		if (tbl->data_map[index]->key.size == new_node->key.size){
+			if(new_node->key.size == 16){
+				if(tbl->data_map[index]->key.k.n16 == new_node->key.k.n16) {
+					printf("could not insert new node '%u'\n", new_node->key.k.n16);
+					printf("key already exist. Choose another key value.\n");
+					free(new_node);
+					return 0;
+				}
+			}else{
+				if (tbl->data_map[index]->key.k.n == new_node->key.k.n) {
+					printf("could not insert new node '%u'\n", new_node->key.k.n);
+					printf("key already exist. Choose another key value.\n");
+					free(new_node);
+					return 0;
+				}
+			}
 		}
 
 		Node *temp = tbl->data_map[index];
 		while (temp->next) {
-			if (temp->next->key.k.n == new_node->key.k.n) {
-				printf("could not insert new node \"%u\"\n", new_node->key.k.n);
-				printf("key already exist. Choose another key value.\n");
-				free(new_node);
-				return 0;
+			if(temp->key.size == new_node->key.size){
+				if(new_node->key.size == 16){
+					if(temp->key.k.n16 == new_node->key.k.n16) {
+						printf("could not insert new node '%u'\n", new_node->key.k.n16);
+						printf("key already exist. Choose another key value.\n");
+						free(new_node);
+						return 0;
+					}
+				}else{
+					if (temp->key.k.n == temp->key.k.n) {
+						printf("could not insert new node '%u'\n", new_node->key.k.n);
+						printf("key already exist. Choose another key value.\n");
+						free(new_node);
+						return 0;
+					}
+				}
+
+				temp = temp->next;
 			}
-			temp = temp->next;
 		}
 		temp->next = new_node;
 	}
