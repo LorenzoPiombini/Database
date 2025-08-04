@@ -20,7 +20,6 @@
 #include "debug.h"
 #include "build.h"
 #include "crud.h"
-#include "dtype.h"
 
 
 char prog[] = "db";

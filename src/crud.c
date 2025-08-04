@@ -353,6 +353,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	int fd_schema = -1; 
 	switch(option){
 	case ONLY_SCHEMA:
+	{
 		fd_schema = open_file(files[2], 0);
 		if ((err = file_error_handler(1,fd_schema)) != 0) {
 			if(err == ENOENT)
@@ -364,6 +365,21 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		}
 
 		break;
+	}	
+	case ONLY_INDEX:
+	{
+		fd_index = open_file(files[0], 0);
+		if ((err = file_error_handler(1,fd_index)) != 0) {
+			if(err == ENOENT)
+				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+			else
+				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+
+			return STATUS_ERROR;
+		}
+
+		break;
+	}
 	default:
 		fd_index = open_file(files[0], 0);
 		fd_data = open_file(files[1], 0);

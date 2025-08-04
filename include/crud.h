@@ -2,6 +2,7 @@
 #define _CRUD_H_
 
 #define ONLY_SCHEMA 1
+#define ONLY_INDEX 2
 
 #define IMPORT 0
 #define RAM_FILE 1

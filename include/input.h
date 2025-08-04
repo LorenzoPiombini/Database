@@ -2,7 +2,7 @@
 #define INPUT_H
 
 #include "record.h"
-#include "dtype.h"
+#include "str_op.h"
 
 #define ALL_OP "all" /*use to delete the all file content*/
 #define ADD_AR_OP "aar" /* specificly append to the field array*/

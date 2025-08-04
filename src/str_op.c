@@ -16,6 +16,10 @@ static char prog[] = "db";
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
 static uint32_t power(uint32_t n, int pow);
+/*static functions to manage String struct*/
+static void free_str(struct String *str);
+static uint8_t empty(struct String *str);
+static int append(struct String *str, const char *str_to_appen);
 
 #define BASE 247
 
@@ -33,18 +37,20 @@ static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","
 				"_xd9","_xda","_xdb","_xdc","_xdd","_xde","_xdf","_xe0","_xe1","_xe2","_xe3","_xe4","_xe5","_xe6","_xe7",
 				"_xe8","_xe9","_xea","_xeb","_xec","_xed","_xee","_xef","_xf0","_xf1","_xf2","_xf3","_xf4","_xf5","_xf6",
 				"_xf7","_xf8","_xf9","_xfa","_xfb","_xfc","_xfd","_xfe","_xff"};
+
 char *get_sub_str(char *start_delim, char *end_delim, char *str)
 {
 	char *start_d = NULL;
 	char *end_d = NULL;
 	static char sub_str[1024] = {0};
+	memset(sub_str,0,1024);
 
 	if((start_d = strstr(str,start_delim))){
 		if((end_d = strstr(str,end_delim))){
 			int sx = start_d - str;
 			int size = ((--end_d - str) - sx)+1;
 
-			strncpy(sub_str,&str[sx +1],size);
+			strncpy(sub_str,&str[sx + 1],size-1);
 			return &sub_str[0];
 		}
 	}
@@ -1982,4 +1988,125 @@ long long unpack(uint8_t *digits_index)
 	}
 
 	return unpacked;
+}
+
+
+static int append(struct String *str, const char *str_to_appen)
+{
+	if(!str_to_appen) return -1;
+
+	size_t nl = strlen(str_to_appen);
+	if(str->size < DEF_STR){
+		if((str->size + nl) < DEF_STR){
+			strncat(str->base,str_to_appen,nl);	
+			str->size += nl;
+			return 0;
+		}
+		goto allocate_new_mem;
+	}
+
+allocate_new_mem:
+	if(str->str){
+		errno = 0;
+		char *n = realloc(str->str,(str->size + nl) * sizeof(char));
+		if(!n){
+			fprintf(stderr,"(%s): realloc failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
+			return -1;
+		}
+		str->str = n;
+		if(str->allocated != SET_OFF){
+			strncat(str->str,str_to_appen,nl);
+		}else{
+			strncpy(str->str,str->base,str->size);
+			strncat(str->str,str_to_appen,nl);
+			memset(str->base,0,DEF_STR);
+		}
+			
+		str->size += nl;
+		return 0;
+	}
+
+	errno = 0;
+	str->str =  calloc(str->size + nl,sizeof(char));
+	if(!str->str){
+		fprintf(stderr,"(%s): calloc failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
+		return -1;
+	}
+
+	if(str->allocated != SET_OFF){
+		strncat(str->str,str_to_appen,nl);
+	}else{
+		strncpy(str->str,str->base,str->size);
+		strncat(str->str,str_to_appen,nl);
+		memset(str->base,0,DEF_STR);
+	}
+
+	str->size += nl;
+
+	return 0;
+}
+
+int init(struct String *str,const char *val)
+{
+	if(!str) return -1;
+	if(str->base[0] != '\0' || str->str){
+		fprintf(stderr,"(%s): string has been a;ready initialized",prog);
+		return -1;
+	}
+	
+	if(!val){
+		memset(str->base,0,DEF_STR);
+		str->str = NULL;
+		str->append = append;
+		str->is_empty = empty;
+		str->close = free_str;
+		str->allocated |= SET_OFF;
+		str->size = 0;
+		return 0;
+	}
+
+	size_t l = strlen(val);
+	if(l >= DEF_STR){
+		errno = 0;
+		str->str = calloc(l+1,sizeof(char));
+		if(!str->str){
+			fprintf(stderr,"(%s): calloc failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
+			return -1;
+		}
+		strncpy(str->str,val,l);
+		str->append = append;
+		str->is_empty = empty;
+		str->allocated |= SET_ON;
+		str->size = l;
+		str->close = free_str;
+		memset(str->base,0,DEF_STR);
+		return 0;
+	}
+	strncpy(str->base,val,l);
+	str->allocated |= SET_OFF;
+	str->size = l;
+	str->append = append;
+	str->is_empty = empty;
+	str->close = free_str;
+	return 0;
+}
+
+static uint8_t empty(struct String *str)
+{
+	if(str->str) return *str->str == '\0';
+	return str->base[0] == '\0';
+}
+
+static void free_str(struct String *str)
+{
+	if(str->allocated){
+		free(str->str);
+		str->allocated |= SET_OFF;
+		str->append = NULL;
+		return;
+	}	
+
+	memset(str->base,0,DEF_STR);
+	str->allocated |= SET_OFF;
+	str->size = 0;
 }

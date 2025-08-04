@@ -4,7 +4,6 @@
 #include <ctype.h>
 #include "input.h"
 #include "str_op.h"
-#include "dtype.h"
 
 void print_usage(char *argv[])
 {

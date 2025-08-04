@@ -32,6 +32,21 @@ uint32_t generate_numeric_key(int *fds, int end_point)
 		destroy_hasht(p_ht);
 		break;
 	}
+	case NEW_SORD_LINES:
+	{
+		HashTable ht = {0};
+		HashTable *p_ht = &ht;
+		if(!read_index_nr(0,fds[0],&p_ht)){
+			/*log failure*/
+			return 0;
+		}
+
+		int elements = len(ht);
+		key = ++elements;
+
+		destroy_hasht(p_ht);
+		break;
+	}
 	default:
 		return 0;
 	}
@@ -41,11 +56,15 @@ uint32_t generate_numeric_key(int *fds, int end_point)
 
 char *get_all_keys_for_file(int *fds,int index)
 {
-	HashTable ht = {0};
+	HashTable ht;
+	memset(&ht,0,sizeof(HashTable));
 	HashTable *p_ht = &ht;
-	struct Keys_ht all_keys = {0};
+
+	struct Keys_ht all_keys;
+	memset(&all_keys,0,sizeof(struct Keys_ht));
+
 	if (index <= 0){
-		if(keys(&ht,&all_keys) == -1){
+		if(!read_index_nr(0,fds[0],&p_ht)){
 			/*log failure*/
 			return NULL;
 		}
@@ -54,6 +73,12 @@ char *get_all_keys_for_file(int *fds,int index)
 			/*log failure*/
 			return NULL;
 		}
+	}
+
+	if(keys(&ht,&all_keys)){
+		/*log failure*/
+		destroy_hasht(&ht);
+		return NULL;
 	}
 
 	destroy_hasht(&ht);
@@ -93,38 +118,55 @@ char *get_all_keys_for_file(int *fds,int index)
 		free_keys_data(&all_keys);
 		return NULL;
 	}
+	
+	uint32_t ind_str = 0;
+	strncpy(str_keys,"[",2);
 
-
-	str_keys[0] = '[';
-	str_keys++;
+	ind_str= 2 -1;
 	for(int i = 0; i < all_keys.length; i++){
 		switch(all_keys.keys[i].type){
 		case STR:
 		{
 			size_t l = strlen(all_keys.keys[i].k.s);
 			if(all_keys.keys[i].k.s){
-				strncpy(str_keys,all_keys.keys[i].k.s,l);
-				str_keys += l;
+				strncpy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
+				ind_str += l;
 				if(all_keys.length - i > 1){
-					*str_keys = ',';
-					str_keys++;
+					str_keys[ind_str] = ',';
+					ind_str++;
 				}
 			}
 			break;
 		}
 		case UINT:
 		{
-			size_t n = number_of_digit(all_keys.keys[i].k.n);
-			if(snprintf(str_keys,n,"%u",all_keys.keys[i].k.n) == -1){
-				/*log failure*/						
-				free(str_keys);
-				free_keys_data(&all_keys);
-				return NULL;
-			}
-			str_keys += n;
-			if(all_keys.length - i > 1){
-				*str_keys = ',';
-				str_keys++;
+			if(all_keys.keys[i].size == 16){
+				size_t n = number_of_digit(all_keys.keys[i].k.n16);
+				if(snprintf(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
+					/*log failure*/						
+					free(str_keys);
+					free_keys_data(&all_keys);
+					return NULL;
+				}
+				ind_str += n;
+				if(all_keys.length - i > 1){
+					str_keys[ind_str] = ',';
+					ind_str++;
+				}
+			}else{
+				size_t n = number_of_digit(all_keys.keys[i].k.n);
+				if(snprintf(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n) == -1){
+					/*log failure*/						
+					free(str_keys);
+					free_keys_data(&all_keys);
+					return NULL;
+				}
+				ind_str += n;
+				if(all_keys.length - i > 1){
+					str_keys[ind_str] = ',';
+					ind_str++;
+				}
+		
 			}
 			break;
 		}
@@ -135,7 +177,8 @@ char *get_all_keys_for_file(int *fds,int index)
 		}
 	}
 
-	*str_keys = ']';
+	strncpy(&str_keys[ind_str],"]",2);
+	ind_str += 1;
 	free_keys_data(&all_keys);
 	return str_keys;
 }

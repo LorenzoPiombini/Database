@@ -11,6 +11,7 @@
 #include <crud.h>
 #include <lock.h>
 #include <file.h>
+#include <str_op.h>
 #include "key.h"
 #include "load.h"
 #include "request.h"
@@ -58,7 +59,7 @@ int load_resource(struct Request *req, struct Content *cont)
 
 				printf("%s\n",db);
 
-				/*process the string and separate the two file  sintax*/
+				/*process the string and separate the two file sintax*/
 
 				char *lines_start = strstr(db,"sales_orders_lines");
 				if(!lines_start) return -1;
@@ -108,16 +109,41 @@ int load_resource(struct Request *req, struct Content *cont)
 			
 				if(open_files(SALES_ORDERS_L,fds, files, -1) == -1) goto post_exit_error;
 				if(is_db_file(&hd,fds) == -1) goto post_exit_error; 
-				if(check_data(SALES_ORDERS_L,orders_line,fds,files,&rec,&hd,&lock_f) == -1) goto post_exit_error;
-				if(write_record(fds,&key,UINT,&rec, 0,files,&lock_f,-1) == -1) goto post_exit_error;
-			
+				char *sub_str = NULL;
+				uint16_t count = 1;
+				while((sub_str = get_sub_str("[","]",orders_line))){
+					struct String cpy_str = {0};
+					init(&cpy_str,sub_str);
+
+					/*create the key for each line*/
+					size_t line_key_sz = number_of_digit(count) + number_of_digit(key) + 1;
+					struct String key_each_line = {0};
+					init(&key_each_line,NULL);
+					if(snprintf(key_each_line.base,++line_key_sz,"%u/%u",key,count) == -1)goto post_exit_error;
+
+					/* write each line */
+					if(check_data(SALES_ORDERS_L,&cpy_str.base[2],fds,files,&rec,&hd,&lock_f) == -1) goto post_exit_error;
+					cpy_str.close(&cpy_str);
+
+					if(write_record(fds,&key_each_line.base,STR,&rec,0,files,&lock_f,-1) == -1) goto post_exit_error;
+					free_record(&rec,rec.fields_num);
+					memset(&rec,0,sizeof(struct Record_f));
+					key_each_line.close(&key_each_line);
+
+					/*clear the order_line_array to make sure we get the right result*/
+					char *find = strstr(orders_line,"[");
+					if(find) *find = ' ';
+					find = strstr(orders_line,"]");
+					if(find) * find = ' ';
+					count++;
+				}
 			
 				if(lock_f) {
 					while(lock(fds[0],UNLOCK) == WTLK);
 					lock_f = 0;
 				}
+			
 
-				free_record(&rec,rec.fields_num);
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(snprintf(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1) exit(-1);
 				if(write(pipefd[1],cont->cnt_st,strlen(cont->cnt_st)) == -1) goto post_exit_error;
@@ -143,11 +169,13 @@ post_exit_error:
 					
 					if(read(pipefd[0],cont->cnt_st,4096) == -1){
 						/*log errors*/
+						close(pipefd[0]);
 						return -1;
 					}
 					close(pipefd[0]);
 					return 0;
 				}else{ 
+					/*log errors*/
 					close(pipefd[0]);
 					return -1;
 				}
@@ -171,8 +199,14 @@ post_exit_error:
 		switch(resource){
 		case S_ORD:
 		{
+			int pipefd[2];
 			int wstatus = 0;
 			pid_t w = -1;
+			if(pipe(pipefd) == -1){
+				/*log errors*/
+				return -1;
+			}
+
 			pid_t child = fork();
 			if(child == -1){
 				/*log errors*/
@@ -180,6 +214,7 @@ post_exit_error:
 			}
 
 			if(child == 0){
+				close(pipefd[0]);
 				/*get the all keys for the sales order file*/
 				int fds[3];
 				memset(fds,-1,sizeof(int)*3);
@@ -206,17 +241,36 @@ post_exit_error:
 				size_t l = strlen(keys);
 				if(l > MAX_CONT_SZ) {
 					cont->cnt_dy = keys;
+					cont->size = l;
 					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 					lock_f = 0;
+					close(fds[0]);
+					if(write(pipefd[1],cont->cnt_dy,cont->size) == -1) exit(-1);
+					close(pipefd[1]);
 					exit(0);
 				}else{
-					strncpy(cont->cnt_st,keys,l);
+					size_t mes_l = strlen("{\"message\" : ") + l + strlen(" }");
+					if(snprintf(cont->cnt_st,mes_l,"{ \"message\" : %s",keys) == -1){
+						free(keys);
+						if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+						lock_f = 0;
+						close(fds[0]);
+						close(pipefd[1]);
+						exit(-1);
+					}
+					strncpy(&cont->cnt_st[strlen(cont->cnt_st)]," }",strlen(" }")+1);
+					cont->size = mes_l;
 					free(keys);
 					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 					lock_f = 0;
+					close(fds[0]);
+
+					if(write(pipefd[1],cont->cnt_st,strlen(cont->cnt_st)) == -1) exit(-1);
+					close(pipefd[1]);
 					exit(0);
 				}
 			}else{
+				close(pipefd[1]);
 				do{
 					w = waitpid(child,&wstatus,0);
 					if(w == -1){
@@ -226,10 +280,19 @@ post_exit_error:
 
 				}while(!WIFEXITED(wstatus));
 
-				if(WEXITSTATUS(wstatus) == 0) 
+				if(WEXITSTATUS(wstatus) == 0){
+					if(read(pipefd[0],cont->cnt_st,4096) == -1){
+						/*log error*/
+						close(pipefd[0]);
+						return -1;
+					}
+					close(pipefd[0]);
 					return 0;
-				else 
+				} else {
+						/*log error*/
+					close(pipefd[0]);
 					return -1;
+				}
 			}
 			break;
 		}

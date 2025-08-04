@@ -56,8 +56,25 @@ the number in e.i (int or long)*/
 
 #define return_first_char(str) str[0]
 
-/*int is_number_type(int type);*/
-/*int is_number_array(int type);*/
+#include <stdint.h>
+
+#define DEF_STR 1024 /*1 kb*/
+#define SET_ON 1
+#define SET_OFF 0
+
+struct String{
+	uint8_t allocated : 1;
+	char base[DEF_STR];
+	char *str;	
+	size_t size;
+	int (*append)(struct String*,const char *);
+	uint8_t (*is_empty)(struct String*);
+	void (*close)(struct String*);
+};
+
+
+int init(struct String* str,const char *val);
+char *get_sub_str(char *start_delim, char *end_delim, char *str);
 int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);
