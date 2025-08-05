@@ -16,5 +16,7 @@ int add_socket_to_monitor(int sock, int event);
 int remove_socket_from_monitor(int sock);
 int modify_monitor_event(int sock, int event);
 void stop_monitor();
+int is_sock_in_monitor(int sock);
+
 #endif
 

@@ -6,7 +6,8 @@ enum endp{
 	NEW_SORD,
 	NEW_SORD_LINES,
 	CUSTOMER,
-	S_ORD
+	S_ORD,
+	S_ORD_GET
 };
 
 

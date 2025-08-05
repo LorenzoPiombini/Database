@@ -2,20 +2,23 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "handlesig.h"
 #include "monitor.h"
 #include "network.h"
 
-static char prog[] = "wser";
+static char prog[] = "net_interface";
 int hdl_sock = -1;
 static void handler(int signo);
 
 int handle_sig()
 {
 	/*set up signal handler*/
-	struct sigaction act = {0};
+	struct sigaction act;
+	memset(&act,0,sizeof (struct sigaction));
+
 	act.sa_handler = &handler;
-	if(/*sigaction(SIGSEGV, &act, NULL) == -1 ||*/
+	if(sigaction(SIGSEGV, &act, NULL) == -1 ||
 			sigaction(SIGINT,&act,NULL) == -1 || 
 			sigaction(SIGPIPE,&act,NULL) == -1 ){
 		fprintf(stderr,"(%s): cannot handle the signal.\n",prog);
@@ -27,7 +30,7 @@ int handle_sig()
 static void handler(int signo)
 {
 	switch(signo){
-	/*case SIGSEGV:*/
+	case SIGSEGV:
 	case SIGINT:
 	case SIGPIPE:
 		stop_monitor();	

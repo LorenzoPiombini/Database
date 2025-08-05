@@ -10,6 +10,7 @@
 #define DEFAULT "HTTP/1.1"
 #define HTTP2 "HTTP/2"
 #define ORIGIN_DEF "http://artech:8080"
+#define KEEP_ALIVE "keep-alive"
 
 enum method{
 	GET,
@@ -35,6 +36,7 @@ struct Request{
 	int method;
 	char host[MIN_HEAD_FIELD];
 	char resource[STD_LT_RESOURCE];
+	char connection[STD_LT_RESOURCE];
 	/*rapresentation header*/
 	char cont_type[MIN_HEAD_FIELD];
 	char cont_length[MIN_HEAD_FIELD];

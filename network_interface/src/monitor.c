@@ -93,7 +93,7 @@ int modify_monitor_event(int sock, int event)
 	ev.events = event;
 	ev.data.fd = sock;
 	if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sock, &ev) == -1) {
-               fprintf(stderr,"(%s): cannot add socket to monitor",prog);
+               fprintf(stderr,"(%s): cannot mod socket event in the monitor",prog);
                return -1;
 	}
 
@@ -111,6 +111,12 @@ void stop_monitor()
 	close(epollfd);
 }
 
+int is_sock_in_monitor(int sock){
+	for(int i = 0; i < MAX_SK_LIST; i++)
+		if(sock_list[i] == sock) return 1;
+
+	return 0;
+}
 static int look_for_free_index()
 {
 	for(int i = 0; i < MAX_SK_LIST; i++)

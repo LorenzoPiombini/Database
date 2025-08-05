@@ -17,8 +17,12 @@ int map_end_point(char *end_point)
 
 	s = strlen(end_point);
 	so_s = strlen(SALES_ORDERS);
-	if(s == so_s)
+	if(s == so_s){
 		if(strncmp(end_point,SALES_ORDERS,so_s) == 0) return S_ORD;
+	}else if(s > so_s){
+		/*if contains sales order reurn */
+		if(strncmp(end_point,SALES_ORDERS,so_s) == 0) return S_ORD_GET;
+	}
 
 	return -1;
 }

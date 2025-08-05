@@ -97,7 +97,7 @@ int write_cli_sock(int cli_sock, struct Response *res)
 		errno = 0;
 		if(write(cli_sock,res->header_str,strlen(res->header_str)) == -1){
 			if(errno == EAGAIN || errno == EWOULDBLOCK){
-				if(modify_monitor_event(cli_sock,EPOLLOUT | EPOLLET) == -1) return -1;
+				if(modify_monitor_event(cli_sock,EPOLLOUT) == -1) return -1;
 				return errno;
 			}
 
@@ -108,7 +108,7 @@ int write_cli_sock(int cli_sock, struct Response *res)
 		errno = 0;
 		if(write(cli_sock,buff,strlen(buff)) == -1){
 			if(errno == EAGAIN || errno == EWOULDBLOCK){	
-				if(modify_monitor_event(cli_sock,EPOLLOUT | EPOLLET) == -1) return -1;
+				if(modify_monitor_event(cli_sock,EPOLLOUT) == -1) return -1;
 				return errno;
 			}
 
@@ -124,10 +124,13 @@ int write_cli_sock(int cli_sock, struct Response *res)
 int read_cli_sock(int cli_sock,struct Request *req)
 {
 	ssize_t bread = 0;	
+	errno = 0;
 	if((bread = read(cli_sock,req->req,BASE)) == -1){
 		if(errno == EAGAIN || errno == EWOULDBLOCK) {
 			int e = errno;
-			if((add_socket_to_monitor(cli_sock,EPOLLIN | EPOLLET)) == -1) return -1;
+			int err = -1;
+			if(( err = add_socket_to_monitor(cli_sock,EPOLLIN)) == -1) return -1;
+
 			return e;
 		}
 
@@ -146,7 +149,8 @@ int read_cli_sock(int cli_sock,struct Request *req)
 			if((bread = read(cli_sock,req->d_req +  move,req->size)) == -1){
 				if(errno == EAGAIN || errno == EWOULDBLOCK) {
 					int e = errno;
-					if((add_socket_to_monitor(cli_sock,EPOLLIN | EPOLLET)) == -1) return -1;
+					if((add_socket_to_monitor(cli_sock,EPOLLIN)) == -1) return -1;
+
 					return e;
 				}
 				fprintf(stderr,"(%s): cannot read data from socket",prog);
@@ -163,15 +167,17 @@ int wait_for_connections(int sock_fd,int *cli_sock, struct Request *req)
 	struct sockaddr cli_info;
 	socklen_t len = sizeof(cli_info);
 	errno = 0;
-
 	if((*cli_sock = accept4(sock_fd,&cli_info,&len,SOCK_NONBLOCK)) == -1){
 		if(errno == EAGAIN || errno == EWOULDBLOCK) {
-			if((add_socket_to_monitor(*cli_sock,EPOLLIN | EPOLLET)) == -1) return -1;
+			if((add_socket_to_monitor(*cli_sock,EPOLLIN)) == -1) return -1;
 			return errno;
 		}
 		return -1;
 	}
 		
+
+	if((add_socket_to_monitor(*cli_sock,EPOLLIN)) == -1) return -1;
+
 
 	int e = 0;
 	if(( e = read_cli_sock(*cli_sock,req)) == -1){

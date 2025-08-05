@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include "network.h"
 #include "monitor.h"
 #include "request.h"
@@ -45,10 +47,42 @@ int main()
 
 				/*send response*/
 				if(r == BAD_REQ){
-											
-				}
+					if(generate_response(&res,400,NULL,&req) == -1) break;
 
-				printf("%s\n",req.req);
+					int w = 0;
+					if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
+					if(w == EAGAIN || w == EWOULDBLOCK) {
+						clear_request(&req);
+						continue;
+					}
+
+					clear_request(&req);
+					clear_response(&res);
+					stop_listening(cli_sock);
+					continue;
+				}
+				
+#if 0
+				if(strncmp(req.connection,KEEP_ALIVE,strlen(req.connection)) == 0){
+					/*set keep alive*/
+					int keep_al = 60;
+					if(setsockopt(cli_sock,SOL_SOCKET,SO_KEEPALIVE,&keep_al,sizeof(keep_al)) == -1){
+						/*log error*/	
+						clear_request(&req);
+						clear_response(&res);
+						continue;
+					}
+
+					/*check if cli_sock is in the monitor*/
+					if(!is_sock_in_monitor(cli_sock)){
+						if(add_socket_to_monitor(cli_sock,EPOLLIN) == -1){
+							clear_request(&req);
+							clear_response(&res);
+							continue;
+						}
+					}
+				}
+#endif	
 				struct Content cont = {0};
 				switch(req.method){
 				case OPTIONS:
@@ -68,8 +102,6 @@ int main()
 
 							clear_request(&req);
 							clear_response(&res);
-
-							stop_listening(cli_sock);
 							continue;
 						}
 						/*send a response to the options request*/
@@ -84,8 +116,8 @@ int main()
 
 						clear_request(&req);
 						clear_response(&res);
-
 						stop_listening(cli_sock);
+
 						continue;
 					}
 
@@ -102,6 +134,7 @@ int main()
 
 					clear_request(&req);
 					clear_response(&res);
+					stop_listening(cli_sock);
 
 					continue;
 				}
@@ -122,6 +155,7 @@ int main()
 						clear_request(&req);
 						clear_content(&cont);
 						clear_response(&res);
+						stop_listening(cli_sock);
 
 						continue;
 					}	
@@ -147,7 +181,6 @@ int main()
 					clear_request(&req);
 					clear_response(&res);
 
-					stop_listening(cli_sock);
 					break;
 				}
 				case PUT:
@@ -179,8 +212,37 @@ int main()
 					if(r == BAD_REQ) {
 						/*send a bed request response*/
 					}
+#if 0
+					if(strncmp(req.connection,KEEP_ALIVE,strlen(req.connection)) == 0){
+						/*check keep alive*/
+						int is_alive = 0;
+						socklen_t optlen = sizeof(is_alive);
+						if(getsockopt(events[i].data.fd,
+									SOL_SOCKET, 
+									SO_KEEPALIVE,
+									&is_alive,
+									&optlen) == 1){
+							/*log error*/	
+							clear_request(&req);
+							clear_response(&res);
+							continue;
+						}
 
-					printf("%s\n",req.req);
+						if(!is_alive){
+							int keep_al = 1;
+							if(setsockopt(events[i].data.fd,
+										SOL_SOCKET,
+										SO_KEEPALIVE,
+										&keep_al,
+										sizeof(keep_al)) == -1){
+								/*log error*/	
+								clear_request(&req);
+								clear_response(&res);
+								continue;
+							}
+						}
+					}
+#endif
 					struct Content cont= {0};
 					switch(req.method){
 					case OPTIONS:
@@ -203,26 +265,26 @@ int main()
 
 							clear_request(&req);
 							clear_response(&res);
-
 							if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+
 							continue;
 						}
 
 						/*send a response to the options request*/
 						if(generate_response(&res,200,NULL,&req) == -1) break;
 
-						printf("response is: \n%s\n",res.header_str);
+
 						int w = 0;
 						if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
-						if(w == EAGAIN || w == EWOULDBLOCK) {
+						if(w == EAGAIN || w == EWOULDBLOCK){
 							clear_request(&req);
 							continue;
 						}
 
 						clear_request(&req);
 						clear_response(&res);
-
 						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+
 						continue;
 					}
 					case GET:
@@ -242,6 +304,7 @@ int main()
 
 							clear_request(&req);
 							clear_response(&res);
+							if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
 							continue;
 						}	
@@ -258,7 +321,6 @@ int main()
 
 						
 						clear_content(&cont);
-						printf("response is: \n%s\n",res.header_str);
 						int w = 0;
 						if((w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -268,8 +330,8 @@ int main()
 
 						clear_request(&req);
 						clear_response(&res);
-
 						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+
 						continue;
 					}
 					default:
@@ -277,17 +339,17 @@ int main()
 						if(generate_response(&res,404,NULL,&req) == -1) break;
 
 						int w = 0;
-						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
+						if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK){
 							clear_request(&req);
 							clear_content(&cont);
 							continue;
 						}
 
-						stop_listening(cli_sock);
 
 						clear_request(&req);
 						clear_response(&res);
+						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 						continue;
 					}
 
@@ -313,9 +375,9 @@ int main()
 						continue;
 					}
 
-					if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 					clear_request(&req);
 					clear_response(&res);
+					if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 				}
 			}
 		}

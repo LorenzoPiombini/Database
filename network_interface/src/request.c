@@ -119,6 +119,14 @@ static int parse_header(char *head, struct Request *req)
 				start = end + 2;
 				continue;
 			}
+
+			if((b = strstr(t,"Connection:"))){
+				b += strlen("Connection: ");
+				strncpy(req->connection,b,strlen(b));
+				*crlf = ' ';
+				start = end + 2;
+				continue;
+			}
 			*crlf = ' ';
 			start = end + 2;
 			continue;
@@ -134,7 +142,7 @@ static int parse_header(char *head, struct Request *req)
 		tok = strtok(NULL, " ");
 		size_t tok_l = strlen(tok);
 		if(strlen(tok) > STD_LT_RESOURCE){
-			/* handle this case*/
+			/* TODO handle this case*/
 		}else{
 			strncpy(req->resource,tok,tok_l);
 		}
