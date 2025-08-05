@@ -13,6 +13,7 @@
 #include "hash_tbl.h"
 #include "parse.h"
 #include "crud.h"
+#include "types.h"
 
 static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, void *key, int key_type);
@@ -176,15 +177,7 @@ int check_data(char *file_path,char *data_to_add,
 			return STATUS_ERROR;
 		}
 
-
-		char *buffer = strdup(data_to_add);
-		if(!buffer){
-			fprintf(stderr,"(%s): strdup() failed, %s:%d.\n",prog,F,L-5);
-			return STATUS_ERROR;
-		}
-
-		check = perform_checks_on_schema(mode,buffer, fields_count,file_path, rec, hd,pos);
-		free(buffer);
+		check = perform_checks_on_schema(mode,data_to_add, fields_count,file_path, rec, hd,pos);
 
 	} else {
 			
@@ -316,7 +309,7 @@ int write_record(int *fds,void *key,
 int write_index(int *fds, int index, HashTable *ht, char *file_name)
 {
 	close_file(1, fds[0]);
-	fds[0] = open_file(file_name, 1); // opening with o_trunc
+	fds[0] = open_file(file_name, 1); /*opening with o_trunc*/
 
 	/* write the new indexes to file */
 	if (!write_index_file_head(fds[0], index)) {
@@ -324,7 +317,8 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 		return -1;	
 	}
 
-	for (int i = 0; i < index; i++) {
+	int i;
+	for (i = 0; i < index; i++) {
 		if (!write_index_body(fds[0], i, &ht[i])) {
 			printf("write to file failed. %s:%d.\n", F, L - 2);
 			free_ht_array(ht, index);
@@ -336,7 +330,7 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 	free(ht);
 
 	close_file(1, fds[0]);
-	fds[0] = open_file(file_name, 0); // opening in regular mode
+	fds[0] = open_file(file_name, 0); /* opening in regular mode */
 	return 0;
 }
 
@@ -469,7 +463,8 @@ int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *
 		int changed = 0;
 		int no_updates = 0;
 		uint16_t updates = 0; /* bool value if 0 no updates*/
-		for (uint32_t i = 0; i < rec_old.count; i++) {
+		uint32_t i;
+		for (i = 0; i < rec_old.count; i++) {
 			if (positions[i] == 'n') continue;
 
 			if (positions[i] == 'e'){
@@ -537,7 +532,7 @@ int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *
 	}
 
 	if (rec_old.count == 1 && comp_rr == UPDATE_OLD) {
-		// set the position back to the record
+		/* set the position back to the record */
 		if (find_record_position(fds[1], recs[0]->offset) == -1) {
 			__er_file_pointer(F, L - 1);
 			goto clean_on_error;
@@ -545,7 +540,7 @@ int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *
 
 		/* buffered_write(int fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)*/
 
-		// write the updated record to the file
+		/* write the updated record to the file*/
 		if(buffered_write(&fds[1], recs[0], 1,recs[0]->offset,0) == -1){
 			printf("error write file, %s:%d.\n", F, L - 1);
 			goto clean_on_error;
@@ -570,13 +565,13 @@ int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *
 			goto clean_on_error;
 		}
 
-		// put the position back to the record
+		/* put the position back to the record */
 		if (find_record_position(fds[1], recs[0]->offset) == -1) {
 			__er_file_pointer(F, L - 1);
 			goto clean_on_error;
 		}
 
-		// update the old record :
+		/* update the old record */
 		if(buffered_write(&fds[1], recs[0], 1,recs[0]->offset,eof) == -1){
 				printf("error write file, %s:%d.\n", F, L - 1);
 				goto clean_on_error;
@@ -606,6 +601,7 @@ clean_on_error:
 	return STATUS_ERROR;
 
 }
+
 static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 {
 	if(key_type == UINT){

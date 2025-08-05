@@ -3,11 +3,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include <stdint.h>
-#include <limits.h>
 #include <errno.h>
 #include <assert.h>
 #include "str_op.h"
+#include "types.h"
 #include "common.h"
 #include "globals.h"
 #include "debug.h"
@@ -377,15 +376,15 @@ int get_array_values(char *src, char ***values)
 		return -1;
 	}
 
-	char *t = strtok(src, ",");
+	char *t = tok(src, ",");
 	if (!t)
 	{
-		fprintf(stderr, "strtok() failed, %s:%d.\n", F, L - 2);
+		fprintf(stderr, "tok() failed, %s:%d.\n", F, L - 2);
 		free(*values);
 		return -1;
 	}
 
-	(*values)[0] = strdup(t);
+	(*values)[0] = duplicate_str(t);
 	if (!(*values)[0])
 	{
 		fprintf(stderr, "strdup() failed, %s:%d.\n", F, L - 2);
@@ -393,9 +392,9 @@ int get_array_values(char *src, char ***values)
 		return -1;
 	}
 
-	for (int i = 1; ((t = strtok(NULL, ",")) != NULL) && (i < items); i++)
+	for (int i = 1; ((t = tok(NULL, ",")) != NULL) && (i < items); i++)
 	{
-		(*values)[i] = strdup(t);
+		(*values)[i] = duplicate_str(t);
 		if (!(*values)[i])
 		{
 			fprintf(stderr, "strdup() failed, %s:%d.\n", F, L - 2);
@@ -800,16 +799,15 @@ int get_fileds_name(char *fields_name, int fields_count, int steps, char names[]
 	int j = 0;
 	char *s = NULL;
 
-	char *cp_fv = fields_name;
-	while ((s = strtok_r(cp_fv, ":", &cp_fv)) != NULL && j < fields_count) {
+	while ((s = tok(fields_name, ":")) != NULL && j < fields_count) {
 		strncpy(names[j],s,strlen(s));
 
 		j++;
 
-		strtok_r(NULL, ":", &cp_fv);
+		tok(NULL, ":");
 
 		if (steps == 3 && j < fields_count)
-			strtok_r(NULL, ":", &cp_fv);
+			tok(NULL, ":");
 	}
 
 	return 0;
@@ -948,14 +946,11 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 	int j = 0;
 
 	char *s = NULL;
-	char *copy_fv = NULL;
+	s = tok(fields_input, ":");
 
-	s = strtok_r(fields_input, ":", &copy_fv);
+	s = tok(NULL, ":");
 
-	s = strtok_r(NULL, ":", &copy_fv);
-
-	if (s)
-	{
+	if (s){
 		int result = get_type(s);
 		if (result == -1) return -1;
 		types[j] = result;
@@ -968,7 +963,7 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 		return 0;
 	}
 
-	while ((s = strtok_r(NULL, ":", &copy_fv)) != NULL) {
+	while ((s = tok(NULL, ":")) != NULL) {
 		if ((i % 3 == 0) && (j < fields_count - 1)) {
 			j++;
 			int r  = get_type(s);
@@ -1301,16 +1296,13 @@ char **get_values(char *fields_input, int fields_count)
 	}
 
 	char *s = NULL;
-	char *cp_fv = NULL;
-	strtok_r(fields_input, ":", &cp_fv);
-	strtok_r(NULL, ":", &cp_fv);
-	s = strtok_r(NULL, ":", &cp_fv);
+	tok(fields_input, ":");
+	tok(NULL, ":");
+	s = tok(NULL,":");
 
-	if (s)
-	{
-		values[j] = strdup(s);
-		if (!values[j])
-		{
+	if (s){
+		values[j] = duplicate_str(s);
+		if (!values[j]){
 			free(values);
 			return NULL;
 		}
@@ -1323,10 +1315,13 @@ char **get_values(char *fields_input, int fields_count)
 		return NULL;
 	}
 
-	while ((s = strtok_r(NULL, ":", &cp_fv)) != NULL)
+	while ((s = tok(NULL, ":")) != NULL)
 	{
-		if ((i % 3 == 0) && (fields_count - j >= 1))
-			j++, values[j] = strdup(s);
+		if ((i % 3 == 0) && (fields_count - j >= 1)){
+			j++;
+			values[j] = duplicate_str(s);
+		}
+	
 
 		if (!values[j])
 		{
@@ -1342,21 +1337,6 @@ char **get_values(char *fields_input, int fields_count)
 	}
 
 	return values;
-}
-
-unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dta_blocks[][500])
-{
-
-	for (int i = 0; i < fields; i++)
-	{
-		char *t = strtok(dta_src[i], "!");
-		if (t)
-		{
-			strncpy(dta_blocks[i], t, strlen(t));
-		}
-	}
-
-	return 1;
 }
 
 void free_strs(int fields_num, int count, ...)
@@ -2109,4 +2089,82 @@ static void free_str(struct String *str)
 	memset(str->base,0,DEF_STR);
 	str->allocated |= SET_OFF;
 	str->size = 0;
+}
+
+static struct tok_handler{
+	char *original_tok;
+	char *last;
+	char delim[300];
+	char result[1024];
+	uint8_t finish;
+}tok_handler;
+
+static struct tok_handler t_hndl;
+
+char *tok(char *str, char *delim)
+{
+
+        if(t_hndl.finish){
+		t_hndl.finish = 0;
+		return NULL;
+	}
+
+	if(!t_hndl.original_tok && !str) return NULL;
+
+	size_t len = 0;
+	if(str) len = strlen(str);	
+
+	if(!t_hndl.original_tok){
+		memset(&t_hndl,0,sizeof(struct tok_handler));
+		t_hndl.original_tok = calloc(len + 1,sizeof(char));		
+		if(!t_hndl.original_tok){
+			fprintf(stderr,"calloc failed, %s:%d.\n",__FILE__,__LINE__-2);
+			return NULL;
+		}
+		strncpy(t_hndl.original_tok,str,len);
+		strncpy(t_hndl.delim,delim,strlen(delim));
+		t_hndl.last = t_hndl.original_tok;
+	}
+	
+	if(strncmp(t_hndl.delim,delim,strlen(t_hndl.delim)) != 0) return NULL;
+
+	char *found = NULL;
+	if((found = strstr(t_hndl.original_tok,t_hndl.delim))){
+		if(*(found + 1) == '\0'){
+			memset(t_hndl.result,0,1024);
+			strncpy(t_hndl.result,t_hndl.last,strlen(t_hndl.last)-1);				
+			free(t_hndl.original_tok);
+			t_hndl.original_tok = NULL;
+			t_hndl.finish =  1;
+			return &t_hndl.result[0];
+		}
+		uint32_t end = found - t_hndl.original_tok;
+		uint32_t start = t_hndl.last - t_hndl.original_tok;
+		memset(t_hndl.result,0,1024);
+		strncpy(t_hndl.result,t_hndl.last,end - start);				
+		*found = '\n';
+		t_hndl.last += (end - start) + 1;
+	} else {
+		memset(t_hndl.result,0,1024);
+		strncpy(t_hndl.result,t_hndl.last,strlen(t_hndl.last));				
+		free(t_hndl.original_tok);
+		t_hndl.original_tok = NULL;
+		t_hndl.finish =  1;
+		return &t_hndl.result[0];
+	}
+
+	return &t_hndl.result[0];
+}
+
+char *duplicate_str(char *str)
+{
+	char *dup = calloc(strlen(str)+1,sizeof (char));
+	if(!dup){
+		errno = 0;
+		fprintf(stderr,"calloc failed with error '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-2);
+		return NULL;
+	}
+
+	strncpy(dup,str,strlen(str));
+	return dup;
 }

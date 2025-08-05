@@ -16,8 +16,7 @@
 
 static char prog[] = "db";
 /*this functionality is not implemented yet*/
-
-
+#if 0
 unsigned char build_from_txt_file(char *file_path, char *txt_f)
 {
 	FILE *fp = fopen(txt_f, "r");
@@ -48,7 +47,7 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 	printf("position in text file is %ld\n.", ftell(fp));
 	while (fgets(buf, sizeof(buf), fp)){
 		buf[strcspn(buf, "\n")] = '\0';
-		lines[i] = strdup(buf);
+		lines[i] = duplicate_str(buf);
 		i++;
 	}
 
@@ -140,12 +139,13 @@ unsigned char build_from_txt_file(char *file_path, char *txt_f)
 	return 1;
 }
 
+#endif
 int get_number_value_from_txt_file(FILE *fp)
 {
 
 	char buffer[250];
-	unsigned short i = 0;
-	unsigned char is_num = 1;
+	uint16_t i = 0;
+	uint8_t is_num = 1;
 	if (fgets(buffer, sizeof(buffer), fp))
 	{
 		buffer[strcspn(buffer, "\n")] = '\0';
@@ -166,7 +166,12 @@ int get_number_value_from_txt_file(FILE *fp)
 		return 0;
 	}
 
-	return atoi(buffer);
+	char *endp;
+	long l = strtol(buffer,&endp,10);
+	if(*endp == '\0') 
+		return l;
+	else 
+		return 0;
 }
 
 unsigned char create_system_from_txt_file(char *txt_f)
@@ -177,10 +182,10 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		printf("failed to open %s. %s:%d.", txt_f, F, L - 3);
 		return 0;
 	}
-	int lines = 0, i = 0;
+	int lines = 0;
+	int i = 0;
 	int size = return_bigger_buffer(fp, &lines);
 	char buffer[size];
-	char *save = NULL;
 	char **files_n = calloc(lines, sizeof(char *));
 	char **schemas = calloc(lines, sizeof(char *));
 	if(!files_n || !schemas){
@@ -204,9 +209,14 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		if (buffer[0] == '\0')
 			continue;
 
-		char *t = strtok_r(buffer, "|", &save); 
+		char *t = tok(buffer, "|"); 
 		if(t){ 
-			files_n[i] = strdup(t);
+			files_n[i] = duplicate_str(t);
+			if(!files_n[i]){
+				free_strs(lines, 2, files_n, schemas);
+				fprintf(stderr,"wrong file or syntax error\n");
+				return 0;
+			}
 		}else{
 			free_strs(lines, 2, files_n, schemas);
 			fprintf(stderr,"wrong file or syntax error\n");
@@ -214,9 +224,14 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		}
 			
 		
-		t = strtok_r(NULL, "|", &save);
+		t = tok(NULL, "|");
 		if(t){
-			schemas[i] = strdup(t);
+			schemas[i] = duplicate_str(t);
+			if(!schemas[i]){
+				free_strs(lines, 2, files_n, schemas);
+				fprintf(stderr,"wrong file or syntax error\n");
+				return 0;
+			}
 		}else{
 			free_strs(lines, 2, files_n, schemas);
 			fprintf(stderr,"wrong file or syntax error\n");
@@ -224,7 +239,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		}
 
 		char *endp;
-		t = strtok_r(NULL, "|",&save);
+		t = tok(NULL,"|");
 		long l = strtol(t,&endp,10);
 		if(*endp == '\0')
 			buckets[i] = (int) l; 
@@ -232,14 +247,14 @@ unsigned char create_system_from_txt_file(char *txt_f)
 			buckets[i] = 0;
 
 
-		t = strtok_r(NULL, "|",&save);
+		t = tok(NULL, "|");
 		l = strtol(t,&endp,10);
 		if(*endp == '\0')
 			indexes[i] = (int) l; 
 		else 
 			indexes[i] = 0; 
 
-		t = strtok_r(NULL, "|",&save);
+		t = tok(NULL,"|");
 		l = strtol(t,&endp,10);
 		if(*endp == '\0')
 			file_field[i] = (int) l; 
@@ -247,7 +262,6 @@ unsigned char create_system_from_txt_file(char *txt_f)
 			file_field[i] = 0; 
 
 		i++;
-		save = NULL;
 	}
 
 	fclose(fp);

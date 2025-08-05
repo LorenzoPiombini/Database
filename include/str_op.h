@@ -114,5 +114,7 @@ char *find_field_to_reset_delim(int *pos, char *buffer);
 void pack(uint32_t n, uint8_t *digits_indexes);
 long long unpack(uint8_t *digits_index);
 void print_pack_str(uint8_t *digits_index);
+char *tok(char *str, char *delim);
+char *duplicate_str(char *str);
 
 #endif /* STR_OP_H */
