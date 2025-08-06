@@ -2906,3 +2906,236 @@ static void clean_input(char *value)
 	strip('[',value);
 	strip(']',value);
 }
+
+int parse_record_to_json(struct Record_f *rec,char **buffer)
+{
+
+	size_t buffer_lenght = 1024*4;
+	size_t bwritten = strlen(*buffer);
+	int i;
+	for(i = 0; i < rec->fields_num; i++){
+		if(rec->field_set[i] == 0) continue;	
+
+		switch(rec->fields[i].type){
+		case TYPE_INT:
+		{
+			size_t field_tot_length = strlen(rec->fields[i].field_name) + 	   \
+						  number_of_digit(rec->fields[i].data.i) + \
+						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
+			if(bwritten == 0){
+				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%d\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.i
+					   ) == -1){
+					/*log error*/
+					return -1;
+				}
+			}else{
+				if((bwritten + field_tot_length) >= buffer_lenght){
+					/* reallocate memory*/
+					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					if(!n_buff){
+						/*log error*/
+						return -1;
+					}
+					*buffer = n_buff;
+				}
+
+				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%d\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.i
+					   ) == -1){
+					return -1;
+				}
+			}
+
+			bwritten += field_tot_length;
+			break;
+		}
+		case TYPE_LONG:
+		{
+			size_t field_tot_length = strlen(rec->fields[i].field_name) + 	   \
+						  number_of_digit(rec->fields[i].data.l) + \
+						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
+			if(bwritten == 0){
+				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%ld\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.l
+					   ) == -1){
+					/*log error*/
+					return -1;
+				}
+			}else{
+				if((bwritten + field_tot_length) >= buffer_lenght){
+					/* reallocate memory*/
+					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					if(!n_buff){
+						/*log error*/
+						return -1;
+					}
+					*buffer = n_buff;
+				}
+
+				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%ld\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.l
+					   ) == -1){
+					return -1;
+				}
+			}
+
+			bwritten += field_tot_length;
+			break;
+		}
+		case TYPE_BYTE:
+		{
+			size_t field_tot_length = strlen(rec->fields[i].field_name) + 	   \
+						  number_of_digit(rec->fields[i].data.b) + \
+						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
+			if(bwritten == 0){
+				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%d\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.b
+					   ) == -1){
+					/*log error*/
+					return -1;
+				}
+			}else{
+				if((bwritten + field_tot_length) >= buffer_lenght){
+					/* reallocate memory*/
+					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					if(!n_buff){
+						/*log error*/
+						return -1;
+					}
+					*buffer = n_buff;
+				}
+
+				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%d\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.b
+					   ) == -1){
+					return -1;
+				}
+			}
+
+			bwritten += field_tot_length;
+			break;
+		}
+		case TYPE_FLOAT:
+		{
+			size_t field_tot_length = strlen(rec->fields[i].field_name) + 	   \
+						  digits_with_decimal(rec->fields[i].data.f) + \
+						  4 + 2 + 2; /* 4 '"',  1 ':', 1 ',', 2 '00' decimal pleces */
+			if(bwritten == 0){
+				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%.2f\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.f
+					   ) == -1){
+					/*log error*/
+					return -1;
+				}
+			}else{
+				if((bwritten + field_tot_length) >= buffer_lenght){
+					/* reallocate memory*/
+					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					if(!n_buff){
+						/*log error*/
+						return -1;
+					}
+					*buffer = n_buff;
+				}
+
+				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%.2f\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.f
+					   ) == -1){
+					return -1;
+				}
+			}
+
+			bwritten += field_tot_length;
+			break;
+		}
+		case TYPE_DOUBLE:
+		{
+			size_t field_tot_length = strlen(rec->fields[i].field_name) + 	   \
+						  digits_with_decimal(rec->fields[i].data.d) + \
+						  4 + 2 + 2; /* 4 '"',  1 ':', 1 ',', 2 '00' decimal pleces */
+			if(bwritten == 0){
+				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%.2f\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.d
+					   ) == -1){
+					/*log error*/
+					return -1;
+				}
+			}else{
+				if((bwritten + field_tot_length) >= buffer_lenght){
+					/* reallocate memory*/
+					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					if(!n_buff){
+						/*log error*/
+						return -1;
+					}
+					*buffer = n_buff;
+				}
+
+				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%.2f\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.d
+					   ) == -1){
+					return -1;
+				}
+			}
+
+			bwritten += field_tot_length;
+			break;
+		}
+		case TYPE_STRING:
+		{
+			size_t field_tot_length = strlen(rec->fields[i].field_name) + 	   \
+						  strlen(rec->fields[i].data.s) + \
+						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
+			if(bwritten == 0){
+				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%s\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.s
+					   ) == -1){
+					/*log error*/
+					return -1;
+				}
+			}else{
+				if((bwritten + field_tot_length) >= buffer_lenght){
+					/* reallocate memory*/
+					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					if(!n_buff){
+						/*log error*/
+						return -1;
+					}
+					*buffer = n_buff;
+				}
+
+				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%s\",",
+							rec->fields[i].field_name,
+							rec->fields[i].data.s
+					   ) == -1){
+					return -1;
+				}
+			}
+			bwritten += field_tot_length;
+			break;
+		}
+		case TYPE_ARRAY_INT:
+		case TYPE_ARRAY_LONG:
+		case TYPE_ARRAY_BYTE:
+		case TYPE_ARRAY_FLOAT:
+		case TYPE_ARRAY_DOUBLE:
+		case TYPE_FILE:
+		default:
+			break;
+		}
+	}
+	if((*buffer)[bwritten-1] == ',') (*buffer)[bwritten-1] = '}';
+	return 0;
+}

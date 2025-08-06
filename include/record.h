@@ -135,5 +135,6 @@ int schema_has_type(struct Header_d *hd);
 int compare_rec(struct Record_f *src, struct Record_f *dest);
 void set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);
 void free_type_file(struct Record_f *rec,int optimized);
+int parse_record_to_json(struct Record_f *rec,char **buffer);
 
 #endif /*record.h*/

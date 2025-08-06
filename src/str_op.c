@@ -2105,10 +2105,41 @@ char *tok(char *str, char *delim)
 {
 
         if(t_hndl.finish){
+		if(!str){
+			free(t_hndl.original_tok);
+			t_hndl.original_tok = NULL;
+			t_hndl.finish = 0;
+			return NULL;
+		}
+
+		
+		size_t string_size = strlen(str);	
+		if(string_size != strlen(t_hndl.original_tok)){
+			free(t_hndl.original_tok);
+			t_hndl.original_tok = NULL;
+			t_hndl.finish = 0;
+			goto tok_process;
+		}else{
+			replace('\n',*delim,t_hndl.original_tok);	
+			if(strncmp(str,t_hndl.original_tok,string_size) == 0){
+				free(t_hndl.original_tok);
+				t_hndl.original_tok = NULL;
+				t_hndl.finish = 0;
+				return NULL;
+			} else {
+				free(t_hndl.original_tok);
+				t_hndl.original_tok = NULL;
+				t_hndl.finish = 0;
+				goto tok_process;
+			}
+		}
 		t_hndl.finish = 0;
+		if(!t_hndl.original_tok)goto tok_process;
+
 		return NULL;
 	}
 
+tok_process:
 	if(!t_hndl.original_tok && !str) return NULL;
 
 	size_t len = 0;
@@ -2126,15 +2157,17 @@ char *tok(char *str, char *delim)
 		t_hndl.last = t_hndl.original_tok;
 	}
 	
-	if(strncmp(t_hndl.delim,delim,strlen(t_hndl.delim)) != 0) return NULL;
+	if(strncmp(t_hndl.delim,delim,strlen(t_hndl.delim)) != 0) {
+		free(t_hndl.original_tok);
+		t_hndl.original_tok = NULL;
+		return NULL;
+	}
 
 	char *found = NULL;
 	if((found = strstr(t_hndl.original_tok,t_hndl.delim))){
 		if(*(found + 1) == '\0'){
 			memset(t_hndl.result,0,1024);
 			strncpy(t_hndl.result,t_hndl.last,strlen(t_hndl.last)-1);				
-			free(t_hndl.original_tok);
-			t_hndl.original_tok = NULL;
 			t_hndl.finish =  1;
 			return &t_hndl.result[0];
 		}
@@ -2147,8 +2180,6 @@ char *tok(char *str, char *delim)
 	} else {
 		memset(t_hndl.result,0,1024);
 		strncpy(t_hndl.result,t_hndl.last,strlen(t_hndl.last));				
-		free(t_hndl.original_tok);
-		t_hndl.original_tok = NULL;
 		t_hndl.finish =  1;
 		return &t_hndl.result[0];
 	}

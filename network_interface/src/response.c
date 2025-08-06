@@ -73,33 +73,113 @@ static char *create_response_message(struct Response *res, int status, struct Co
 		return h;
 	}
 		
-	if(strncmp(res->headers.protocol_vs,DEFAULT,STD_LEN_PTC) == 0){
-		if(snprintf(h,1024,"%s %u %s\r\n"\
-					"%s: %s\r\n"\
-					"%s: %s\r\n"\
-					"%s: %ld\r\n"\
-					"%s: %s\r\n"\
-					"\r\n",res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-					"Date", res->headers.date,
-					"Content-Type",req->cont_type,
-					"Content-Length",cont->size,
-					"Connection",res->headers.connection) == -1){
+	if(cont){
+		if(cont->size > 0){
+			if(strncmp(res->headers.protocol_vs,DEFAULT,STD_LEN_PTC) == 0){
 
-			return NULL;
+				if(req->origin[0] != '\0'){
+								
+					if(snprintf(h,1024,"%s %u %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %ld\r\n"\
+							"%s: %s\r\n"\
+							"%s: %s\r\n"\
+							"\r\n"\
+							"%s",res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
+							"Date", res->headers.date,
+							"Content-Type","application-json",
+							"Content-Length",cont->size,
+							"Connection",res->headers.connection,
+							"Access-control-allow-origin",req->origin,
+							cont->size < MAX_CONT_SZ ? cont->cnt_st : cont->cnt_dy) == -1){
+
+						return NULL;
+					}
+				}else{
+					if(snprintf(h,1024,"%s %u %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %ld\r\n"\
+							"%s: %s\r\n"\
+							"\r\n"\
+							"%s",res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
+							"Date", res->headers.date,
+							"Content-Type",req->cont_type,
+							"Content-Length",cont->size,
+							"Connection",res->headers.connection,
+							cont->size < MAX_CONT_SZ ? cont->cnt_st : cont->cnt_dy) == -1){
+
+					return NULL;
+					}
+
+				}
+			}else if(strncmp(res->headers.protocol_vs,HTTP2,STD_LEN_HTTP2) == 0){
+				if(snprintf(h,1024,"%s %u %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %ld\r\n"\
+							"%s: %s\r\n"\
+							"\r\n"\
+							"%s", res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
+							"Date", res->headers.date,
+							"Content-Length",cont->size,
+							"Content-Type",req->cont_type,
+							cont->size < MAX_CONT_SZ ? cont->cnt_st : cont->cnt_dy) == -1){
+					return NULL;
+				}
+			}
 		}
-	}else if(strncmp(res->headers.protocol_vs,HTTP2,STD_LEN_HTTP2) == 0){
-		if(snprintf(h,1024,"%s %u %s\r\n"\
-					"%s: %s\r\n"\
-					"%s: %ld\r\n"\
-					"%s: %s\r\n"\
-					"\r\n", res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-					"Date", res->headers.date,
-					"Content-Length",cont->size,
-					"Content-Type",req->cont_type) == -1){
-			return NULL;
-		}
+	}else{
+		if(strncmp(res->headers.protocol_vs,DEFAULT,STD_LEN_PTC) == 0){
+
+				if(req->origin[0] != '\0'){
+								
+					if(snprintf(h,1024,"%s %u %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %ld\r\n"\
+							"%s: %s\r\n"\
+							"%s: %s\r\n"\
+							"\r\n",res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
+							"Date", res->headers.date,
+							"Content-Type",req->cont_type,
+							"Content-Length",cont->size,
+							"Access-control-allow-origin",req->origin,
+							"Connection",res->headers.connection) == -1){
+
+						return NULL;
+					}
+				}else{
+					if(snprintf(h,1024,"%s %u %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %ld\r\n"\
+							"%s: %s\r\n"\
+							"\r\n"
+							,res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
+							"Date", res->headers.date,
+							"Content-Type",req->cont_type,
+							"Content-Length",cont->size,
+							"Connection",res->headers.connection) == -1){
+
+					return NULL;
+				}
+
+				}
+			}else if(strncmp(res->headers.protocol_vs,HTTP2,STD_LEN_HTTP2) == 0){
+				if(snprintf(h,1024,"%s %u %s\r\n"\
+							"%s: %s\r\n"\
+							"%s: %ld\r\n"\
+							"%s: %s\r\n"\
+							"\r\n", res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
+							"Date", res->headers.date,
+							"Content-Length",cont->size,
+							"Connection",res->headers.connection) == -1){
+					return NULL;
+				}
+			}
+
 	}
-
 	return h;
 }
 

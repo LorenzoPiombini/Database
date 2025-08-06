@@ -89,7 +89,6 @@ void free_strs(int fields_num, int count, ...);
 int get_values_hyb(char *buff,char ***values,  int fields_count);
 char ** get_values_with_no_types(char *buff,int fields_count);
 char **get_values(char *fields_input, int fields_count);
-unsigned char create_blocks_data_to_add(int fields, char dta_src[][500], char dta_blocks[][500]);
 int is_file_name_valid(char *str);
 void strip(const char c, char *str);
 void replace(const char c, const char with, char *str);

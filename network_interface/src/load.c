@@ -20,8 +20,7 @@
 
 static char prog[] = "net_interface";
 static char *convert_json(char* body);
-static char *orders_head_to_str(struct Record_f *rec);
-static char *orders_lines_to_str(struct Record_f *rec);
+static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
 int load_resource(struct Request *req, struct Content *cont)
 {
@@ -138,7 +137,7 @@ int load_resource(struct Request *req, struct Content *cont)
 					char *find = strstr(orders_line,"[");
 					if(find) *find = ' ';
 					find = strstr(orders_line,"]");
-					if(find) * find = ' ';
+					if(find) *find = ' ';
 					count++;
 				}
 			
@@ -230,7 +229,7 @@ post_exit_error:
 				while((is_locked(1,fds[0])) == LOCKED);
 				while((r = lock(fds[0],WLOCK)) == WTLK);
 				if(r == -1){
-					/*change file*/
+					/*log errors*/
 					fprintf(stderr,"can't acquire or release proper lock.\n");
 					close(fds[0]);
 					exit(-1);
@@ -324,20 +323,24 @@ post_exit_error:
 				uint32_t k = 0;
 				uint8_t type = is_num(p);
 
+				char key[1024];
+				memset(key,0,1024);
 				switch(type){
 				case UINT:
 				{
 					/*convert to number */	
 					char *endp;
 					long l = strtol(p,&endp,10);
-					if(*endp == '\0')
+					if(*endp == '\0'){
 						k = (uint32_t) l;
-					else 
+					}else{
+						/*log error*/
+						close(pipefd[1]);
 						exit(-1);
+					}
 
 					int fds[3];
 					memset(fds,-1,sizeof(int)*3);
-					int lock_f = 0;
 					char files[3][1024] = {0};
 					struct Record_f rec = {0};
 					struct Schema sch = {0};
@@ -347,21 +350,45 @@ post_exit_error:
 					if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) exit(-1);
 					if(is_db_file(&hd,fds) == -1) goto s_ord_get_exit_error; 
 					
-					if(get_record(-1,SALES_ORDERS_H,&rec,(void *)k,type, hd,fds) == -1) goto s_ord_get_exit_error; 
+					if(get_record(-1,SALES_ORDERS_H,&rec,(void *)&k,type, hd,fds) == -1) goto s_ord_get_exit_error; 
 					
-					int16_t i;
 					int field_ix = 0;
 					int rec_index = 0;
-					if(!get_index_rec_field("lines_nr", &rec,1, &field_ix, &rec_index)) goto s_ord_get_exit_error;
+					struct Record_f *r = &rec;
+					if(!get_index_rec_field("lines_nr", &r,1, &field_ix, &rec_index)) goto s_ord_get_exit_error;
 
-
+					long lines = rec.fields[field_ix].data.l;
 					/*stringfy the orders head here*/
-					char *ord_h = orders_head_to_str(&rec);
-					long lines = rec->fields[field_ix].data.l;
+					char *message = calloc(1024*4,sizeof(char));
+					if(!message){
+						/*log error*/	
+						goto s_ord_get_exit_error;
+					}
 
-					free_record(&rec,rec->fields_num);
+					/*message formatting*/
+					size_t position_in_the_message = strlen("{ ");
+					strncpy(message,"{ ",strlen("{ ")+1);
+					strncpy(&message[position_in_the_message],"\"message\" : { ",strlen("\"message\" : { ") + 1);
+					position_in_the_message += strlen("\"message\" : { ");
+
+					strncpy(&message[position_in_the_message],"\"sales_orders_head\"",strlen("\"sales_orders_head\"") + 1);
+					position_in_the_message += strlen("\"sales_orders_head\"");
+					strncpy(&message[position_in_the_message]," : { ",strlen(" : { ")+1);
+					position_in_the_message += strlen(" : { ");
+
+					if(data_to_json(&message,&rec,S_ORD_GET) == -1) goto s_ord_get_exit_error;
+
+					position_in_the_message = strlen(message);
+					strncpy(&message[position_in_the_message],", ",3);
+					position_in_the_message += 2;
+
+					strncpy(&message[position_in_the_message],"\"sales_orders_lines\"",strlen("\"sales_orders_lines\"")+1);
+					position_in_the_message += strlen("\"sales_orders_lines\"");
+					strncpy(&message[position_in_the_message]," : { ",strlen(" : { ")+1);
+					position_in_the_message += strlen(" : { ");
+
+					free_record(&rec,rec.fields_num);
 					close_file(3,fds[0],fds[1],fds[2]);
-					memset(&rec,0,sizeof(struct Record_f));
 					memset(&rec,0,sizeof(struct Record_f));
 					memset(&sch,0,sizeof(struct Schema));
 					memset(&hd,0,sizeof(struct Header_d));
@@ -373,35 +400,101 @@ post_exit_error:
 					if(open_files(SALES_ORDERS_L,fds, files, -1) == -1) goto s_ord_get_exit_error;
 					if(is_db_file(&hd,fds) == -1) goto s_ord_get_exit_error;
 					
-					int i;	
+					long i;	
 					for(i = 0;i < lines;i++){
-						size_t l = number_of_digit(k) + number_of_digit(i)+1;
-						char key[l+2];
-						memset(key,0,l+2);
 
-						if(snprintf(key,l+1,"%d/%d",k,i) == -1) goto s_ord_get_exit_error;
+						size_t l = number_of_digit(k) + number_of_digit(i+1)+1;
+						if(l >= 1024){
+							/*allocate memory*/
+						}
+
+						if(snprintf(key,l+1,"%d/%ld",k,i+1) == -1) goto s_ord_get_exit_error;
 
 						if(get_record(-1,SALES_ORDERS_L,&rec,
 									(void *)key,STR, hd,fds) == -1) goto s_ord_get_exit_error; 
 
-						/*stringfy each line*/		
-						char *line = orders_lines_to_str(rec);
-
 						/*put the line in the bigger string */
+						if(data_to_json(&message,&rec,S_ORD_GET) == -1) goto s_ord_get_exit_error;
+						
 
+						free_record(&rec,rec.fields_num);
+						memset(&rec,0,sizeof(struct Record_f));
+						memset(key,0,sizeof(char));
 
 					}
 
+					close_file(3,fds[0],fds[1],fds[2]);
+					/*close the message*/
+					position_in_the_message = strlen(message);
+					strncpy(&message[position_in_the_message],"}}",3);
+					position_in_the_message+=2;
+					
+					printf("%s\n",message);
+					/*write to pipe*/
+					if(write(pipefd[1],message,strlen(message)) == -1){
+						/*log*/
+						close(pipefd[1]);
+						free(message);
+						exit(-1);
+					}
+
+							
+					close(pipefd[1]);
+					free(message);
+					exit(0);
 					break;
+s_ord_get_exit_error:
+					free_record(&rec,rec.fields_num);
+					if(message) free(message);
+					close_file(4,fds[0],fds[1],fds[2],pipefd[1]);
+					exit(-1);
 				}
 				default:
 					exit(-1);
 				}	
 
 				exit(0);
-s_ord_get_exit_error:
 
-			}else{}
+			}else{
+				/*Parent process*/
+				close(pipefd[1]);
+				do{
+					w = waitpid(child,&wstatus,0);
+					if(w == -1){
+						/*log errors*/
+						return -1;
+					}
+
+				}while(!WIFEXITED(wstatus));
+
+				if(WEXITSTATUS(wstatus) == 0){
+
+					ssize_t bread = 0;
+					uint8_t read_step = 0;
+					do{
+						if(read_step == 2){
+							/*allocate memory for the dynamic content*/
+							/*copy the static content to the new memory*/
+							/*read the pipe again*/
+						}else{
+							if((bread = read(pipefd[0],&cont->cnt_st[bread],4096)) == -1){
+								/*log error*/
+								close(pipefd[0]);
+								return -1;
+							}
+							cont->size += bread;
+							read_step++;
+						}
+					}while(bread == 4096);
+
+					close(pipefd[0]);
+					return 0;
+				} else {
+						/*log error*/
+					close(pipefd[0]);
+					return -1;
+				}
+			}
 
 			break;
 		}
@@ -523,150 +616,17 @@ static char *convert_json(char* body)
 
 	return &db_entry[0];
 }
-/* 
- *
- * sales_orders_head 
- * 	Field Name           Type
- *	__________________________
- *	date           string.
- *	customer_id    
- *	price_level    
- *	lines_nr       long.
- *
- * */
-static char *orders_head_to_str(struct Record_f *rec)
+
+static int data_to_json(char **buffer, struct Record_f *rec,int end_point)
 {
-	
-	size_t numbers_length = number_of_digit(rec->fields[3].data.l) + \
-		   		number_of_digit(rec->fields[1].data.l); 
-
-	size_t strings_length = 0;
-	if(rec->fields[0].data.s){
-		strings_length = strlen(rec->fields[0].data.s) + \
-				 strlen(rec->fields[0].fields_name);
+	switch(end_point){	
+	case S_ORD_GET: 
+	{
+		if(parse_record_to_json(rec,buffer) == -1) return -1;
+		break;
 	}
-
-	if(rec->fields[2].data.s){
-		  strings_length += strlen(rec->fields[2].data.s) + \
-				    strlen(rec->fields[2].fields_name);
+	default:
+		return -1;
 	}
-	
-	strings_length += strlen(rec->fields[1].fields_name) + \	
-			  strlen(rec->fields[4].fields_name);
-
-	size_t names_length = strlen(SALES_ORDERS_H);
-
-	/*
-	 * accounting for
-	 * 	 { and }
-	 * 	 , x 3
-	 * 	 : x 5
-	 * 	 ' ' x 5
-	 * 	 '"' x 18
-	 * */
-	size_t other_char = 2 + 5 + 3 + 18 + 5 +1;
-
-	size_t tot = names_length + other_char + strings_length + 1;
-	char *str_ord_h = calloc(tot, sizeof (char));
-	if(!str_ord_h){
-		/*log the error*/
-		return NULL;
-	}
-
-	if(snprintf(str_ord_h,tot - 1,"\"orders_sales_header\": { \"%s\":\"%s\", "\
-							     "\"%s\":\"%d\", "\
-							     "\"%s\":\"%s\", "\
-							     "\"%s\":\"%d\"}",
-							     rec->fields[0].fields_name,
-							     rec->fields[0].data.s,
-							     rec->fields[1].fields_name,
-							     rec->fields[1].data.l,
-							     rec->fields[2].fields_name,
-							     rec->fields[2].data.s,
-							     rec->fields[3].fields_name,
-							     rec->fields[3].data.l,
-							     ) == -1){
-		free(str_ord_h);
-		return NULL;
-	}
-
-	return str_ord_h;
-}
-
-/*
- * sales_orders_lines:
- *    	Field Name           Type
- *   	 __________________________
- *	head_id        long.
- *	item           string.
- *	uom            string.
- *	qty            double.
- *	disc           double.
- *	unit_price     double.
- *	total          double.
- * */
-static char *orders_lines_to_str(struct Record_f *rec){
-	
-	size_t numbers_length = digits_with_decimal(rec->fields[3].data.d)  + \
-		   		digits_with_decimal(rec->fields[4].data.d)  + \ 
-		   		digits_with_decimal(rec->fields[5].data.d)  + \ 
-		   		digits_with_decimal(rec->fields[6].data.d);
-
-	size_t strings_length = 0;
-	if(rec->fields[1].data.s){
-		strings_length = strlen(rec->fields[1].data.s) + \
-				 strlen(rec->fields[1].fields_name);
-	}
-
-	if(rec->fields[2].data.s){
-		strings_length = strlen(rec->fields[2].data.s) + \
-				 strlen(rec->fields[2].fields_name);
-	}
-
-	strings_length += strlen(rec->fields[3].fields_name) + \	
-			  strlen(rec->fields[4].fields_name) + \	
-			  strlen(rec->fields[5].fields_name) + \	
-			  strlen(rec->fields[6].fields_name);	
-
-	size_t names_length = strlen(SALES_ORDERS_L);
-
-	/*
-	 * accounting for
-	 * 	 { and }
-	 * 	 , x 5
-	 * 	 : x 6
-	 * 	 ' ' x 7
-	 * 	 '"' x 28
-	 * 	 '\0' x 1
-	 * */
-	size_t other_char = 2 + 5 + 6 + 7 + 28 +1;
-
-	size_t tot = names_length + other_char + strings_length;
-	char *str_ord_l = calloc(tot, sizeof (char));
-	if(!str_ord_l){
-		/*log the error*/
-		return NULL;
-	}
-
-	if(snprintf(str_ord_l,tot - 1,"\"orders_sales_lines\": { \"%s\":\"%s\", "\
-							     "\"%s\":\"%s\", "\
-							     "\"%s\":\"%.2f\", "\
-							     "\"%s\":\"%.2f\", "\
-							     "\"%s\":\"%.2f\", "\
-							     "\"%s\":\"%.2f\"}",
-							     rec->fields[1].fields_name,
-							     rec->fields[1].data.s,
-							     rec->fields[2].fields_name,
-							     rec->fields[2].data.s,
-							     rec->fields[3].fields_name,
-							     rec->fields[3].data.d,
-							     rec->fields[4].fields_name,
-							     rec->fields[4].data.d,
-							     rec->fields[5].fields_name,
-							     rec->fields[5].data.d,
-							     rec->fields[6].fields_name,
-							     rec->fields[6].data.d,
-							     ) == -1){
-		free(str_ord_l);
-		return NULL;
+	return 0;
 }

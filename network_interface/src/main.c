@@ -161,13 +161,17 @@ int main()
 					}	
 					/*send a response to the client request*/
 					int status = 0;
-					if(req.method == GET) status = 200;
-					if(req.method == POST) status = 201;
 
-					if(cont.cnt_dy){
-						if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
-					}else{
-						if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
+					if(req.method == GET){
+						status = 200;
+						if(generate_response(&res,status,&cont,&req) == -1) break;
+					}else if((req.method == POST)){
+						status = 201;
+						if(cont.cnt_dy){
+							if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
+						}else{
+							if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
+						}
 					}
 
 					clear_content(&cont);
@@ -180,6 +184,7 @@ int main()
 
 					clear_request(&req);
 					clear_response(&res);
+					stop_listening(cli_sock);
 
 					break;
 				}
@@ -310,15 +315,17 @@ int main()
 						}	
 						/*send a response*/
 						int status = 0;
-						if(req.method == POST) status = 201;
-						if(req.method == GET) status = 200;
-
-						if(cont.cnt_dy){
-							if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
-						}else{
-							if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
+						if(req.method == GET){
+							status = 200;
+							if(generate_response(&res,status,&cont,&req) == -1) break;
+						}else if((req.method == POST)){
+							status = 201;
+							if(cont.cnt_dy){
+								if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
+							}else{
+								if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
+							}
 						}
-
 						
 						clear_content(&cont);
 						int w = 0;
