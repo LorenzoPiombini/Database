@@ -56,33 +56,13 @@ int main()
 						continue;
 					}
 
+					stop_listening(cli_sock);
+
 					clear_request(&req);
 					clear_response(&res);
-					stop_listening(cli_sock);
 					continue;
 				}
 				
-#if 0
-				if(strncmp(req.connection,KEEP_ALIVE,strlen(req.connection)) == 0){
-					/*set keep alive*/
-					int keep_al = 60;
-					if(setsockopt(cli_sock,SOL_SOCKET,SO_KEEPALIVE,&keep_al,sizeof(keep_al)) == -1){
-						/*log error*/	
-						clear_request(&req);
-						clear_response(&res);
-						continue;
-					}
-
-					/*check if cli_sock is in the monitor*/
-					if(!is_sock_in_monitor(cli_sock)){
-						if(add_socket_to_monitor(cli_sock,EPOLLIN) == -1){
-							clear_request(&req);
-							clear_response(&res);
-							continue;
-						}
-					}
-				}
-#endif	
 				struct Content cont = {0};
 				switch(req.method){
 				case OPTIONS:
@@ -102,6 +82,8 @@ int main()
 
 							clear_request(&req);
 							clear_response(&res);
+
+							stop_listening(cli_sock);
 							continue;
 						}
 						/*send a response to the options request*/
@@ -114,9 +96,10 @@ int main()
 							continue;
 						}
 
+						stop_listening(cli_sock);
+
 						clear_request(&req);
 						clear_response(&res);
-						stop_listening(cli_sock);
 
 						continue;
 					}
@@ -132,9 +115,10 @@ int main()
 					}
 
 
+					stop_listening(cli_sock);
+
 					clear_request(&req);
 					clear_response(&res);
-					stop_listening(cli_sock);
 
 					continue;
 				}
@@ -152,10 +136,11 @@ int main()
 							continue;
 						}
 
+						stop_listening(cli_sock);
+
 						clear_request(&req);
 						clear_content(&cont);
 						clear_response(&res);
-						stop_listening(cli_sock);
 
 						continue;
 					}	
@@ -167,11 +152,7 @@ int main()
 						if(generate_response(&res,status,&cont,&req) == -1) break;
 					}else if((req.method == POST)){
 						status = 201;
-						if(cont.cnt_dy){
-							if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
-						}else{
-							if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
-						}
+						if(generate_response(&res,status,&cont,&req) == -1) break;
 					}
 
 					clear_content(&cont);
@@ -182,10 +163,9 @@ int main()
 						continue;
 					}
 
+					stop_listening(cli_sock);
 					clear_request(&req);
 					clear_response(&res);
-					stop_listening(cli_sock);
-
 					break;
 				}
 				case PUT:
@@ -196,15 +176,15 @@ int main()
 					int w = 0;
 					if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 					if(w == EAGAIN || w == EWOULDBLOCK) {
-						clear_request(&req);
 						clear_content(&cont);
 						continue;
 					}
 
 
+					stop_listening(cli_sock);
 					clear_request(&req);
 					clear_response(&res);
-					stop_listening(cli_sock);
+
 					continue;
 				}
 			}else{
@@ -217,37 +197,7 @@ int main()
 					if(r == BAD_REQ) {
 						/*send a bed request response*/
 					}
-#if 0
-					if(strncmp(req.connection,KEEP_ALIVE,strlen(req.connection)) == 0){
-						/*check keep alive*/
-						int is_alive = 0;
-						socklen_t optlen = sizeof(is_alive);
-						if(getsockopt(events[i].data.fd,
-									SOL_SOCKET, 
-									SO_KEEPALIVE,
-									&is_alive,
-									&optlen) == 1){
-							/*log error*/	
-							clear_request(&req);
-							clear_response(&res);
-							continue;
-						}
 
-						if(!is_alive){
-							int keep_al = 1;
-							if(setsockopt(events[i].data.fd,
-										SOL_SOCKET,
-										SO_KEEPALIVE,
-										&keep_al,
-										sizeof(keep_al)) == -1){
-								/*log error*/	
-								clear_request(&req);
-								clear_response(&res);
-								continue;
-							}
-						}
-					}
-#endif
 					struct Content cont= {0};
 					switch(req.method){
 					case OPTIONS:
@@ -264,13 +214,13 @@ int main()
 							int w = 0;
 							if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 							if(w == EAGAIN || w == EWOULDBLOCK) {
-								clear_request(&req);
 								continue;
 							}
 
+							if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+
 							clear_request(&req);
 							clear_response(&res);
-							if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
 							continue;
 						}
@@ -282,13 +232,13 @@ int main()
 						int w = 0;
 						if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK){
-							clear_request(&req);
 							continue;
 						}
 
+						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+
 						clear_request(&req);
 						clear_response(&res);
-						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
 						continue;
 					}
@@ -302,14 +252,13 @@ int main()
 							int w = 0;
 							if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 							if(w == EAGAIN || w == EWOULDBLOCK) {
-								clear_request(&req);
 								continue;
 							}
 
+							if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
 							clear_request(&req);
 							clear_response(&res);
-							if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
 							continue;
 						}	
@@ -320,25 +269,20 @@ int main()
 							if(generate_response(&res,status,&cont,&req) == -1) break;
 						}else if((req.method == POST)){
 							status = 201;
-							if(cont.cnt_dy){
-								if(resource_created_response(&res,status,&req,cont.cnt_dy) == -1) break;
-							}else{
-								if(resource_created_response(&res,status,&req,cont.cnt_st) == -1) break;
-							}
+							if(generate_response(&res,status,&cont,&req) == -1) break;
 						}
 						
 						clear_content(&cont);
 						int w = 0;
 						if((w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK) {
-							clear_request(&req);
 							continue;
 						}
 
-						clear_request(&req);
-						clear_response(&res);
 						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
+						clear_request(&req);
+						clear_response(&res);
 						continue;
 					}
 					default:
@@ -348,15 +292,15 @@ int main()
 						int w = 0;
 						if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK){
-							clear_request(&req);
 							clear_content(&cont);
 							continue;
 						}
 
 
+						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+
 						clear_request(&req);
 						clear_response(&res);
-						if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 						continue;
 					}
 
@@ -370,21 +314,21 @@ int main()
 
 					if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 
-					clear_response(&res);
 					clear_request(&req);
+					clear_response(&res);
 
 				}else if(events[i].events == EPOLLOUT) {
 					int w = 0;
 					if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 
 					if(w == EAGAIN || w == EWOULDBLOCK) {
-						clear_request(&req);
 						continue;
 					}
 
+					if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
+
 					clear_request(&req);
 					clear_response(&res);
-					if(remove_socket_from_monitor(events[i].data.fd) == -1) break;
 				}
 			}
 		}

@@ -112,6 +112,14 @@ static int parse_header(char *head, struct Request *req)
 				continue;
 			}
 
+			if((b = strstr(t,"Access-Control-Request-Headers:"))){
+				b += strlen("Access-Control-Request-Headers: ");
+				strncpy(req->access_control_request_headers,b,strlen(b));
+				*crlf = ' ';
+				start = end + 2;
+				continue;
+			}
+
 			if((b = strstr(t,"Origin:"))){
 				b += strlen("Origin: ");
 				strncpy(req->origin,b,strlen(b));
@@ -123,6 +131,14 @@ static int parse_header(char *head, struct Request *req)
 			if((b = strstr(t,"Connection:"))){
 				b += strlen("Connection: ");
 				strncpy(req->connection,b,strlen(b));
+				*crlf = ' ';
+				start = end + 2;
+				continue;
+			}
+
+			if((b = strstr(t,"Content-Type:"))){
+				b += strlen("Content-Type: ");
+				strncpy(req->cont_type,b,strlen(b));
 				*crlf = ' ';
 				start = end + 2;
 				continue;
@@ -149,7 +165,11 @@ static int parse_header(char *head, struct Request *req)
 		tok = strtok(NULL," ");
 		tok_l = strlen(tok);
 		if (strncmp(tok,DEFAULT,tok_l) == 0){
+			strncpy(req->protocol,tok,tok_l);
 			if(strstr(head,"Host:") == NULL) return BAD_REQ;
+		}else{
+			/*as for now we support only HTTP/1.1*/
+			return BAD_REQ;
 		}	
 		*crlf = ' ';
 		start = end + 2;

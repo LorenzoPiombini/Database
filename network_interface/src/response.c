@@ -4,18 +4,16 @@
 #include <time.h>
 #include "response.h"
 
-static char prog[] = "db_listener";
-static int set_up_headers(struct Header *headers, int status, size_t body_size);
+static char prog[] = "net_interface";
+static int set_up_headers(struct Header *headers, int status, size_t body_size, struct Request *req);
 static void set_status_and_phrase(struct Header *headers, uint16_t status);
 static char *create_response_message(struct Response *res, int status, struct Content *cont, struct Request *req);
 static int parse_body(struct Content *cont, struct Response *res);
-static int not_found_header(char *header, struct Request *req, struct Response *res);
-static int bad_request_header(char *header);
-static int options_response_header(char *header,int status);
 static char *month_parser(int month);
 static char *day_parser(int day);
 static char *second_parser(int second);
 static char *date_formatter();
+static int map_method_and_status(int method,int status,int body);
 
 int generate_response(struct Response *res, int status, struct Content *cont, struct Request *req){
 	char *h = create_response_message(res,status,cont,req);
@@ -24,22 +22,6 @@ int generate_response(struct Response *res, int status, struct Content *cont, st
  	strncpy(res->header_str,h,strlen(h));
 	if(cont)
 		if(parse_body(cont,res) == -1) return -1;
-
-	return 0;
-}
-
-int resource_created_response(struct Response *res, int status, struct Request *req, char *body){
-	if(snprintf(res->header_str,STD_HD_L,"%s %d %s\r\n"\
-						"Content-Type: %s\r\n"\
-						"Location: %s\r\n"\
-						"Access-Control-Allow-Origin: %s\r\n"
-						"\r\n"\
-						"%s",
-						"HTTP/1.1",status,"created",req->cont_type,
-						req->host,ORIGIN_DEF,body) == -1){
-		fprintf(stderr,"(%s): snprintf() failed %s:%d",prog,__FILE__,__LINE__-7);
-		return -1;
-	}
 
 	return 0;
 }
@@ -53,149 +35,142 @@ void clear_response(struct Response *res)
 
 static char *create_response_message(struct Response *res, int status, struct Content *cont, struct Request *req)
 {
-	if(set_up_headers(&res->headers,status,cont == NULL ? 0 :cont->size) == -1) return NULL;
 	static char h[STD_HD_L] = {0};
 
-	if(status == 404){
-		if(not_found_header(h,req,res) == -1) return NULL;
+	if(set_up_headers(&res->headers,status,cont == NULL ? 0 : cont->size,req) == -1) return NULL;
 
-		return h;
-	}
-
-	if(status == 400){
-		if(bad_request_header(h) == -1) return NULL;
-		
-		return h;
-	}
-	if(req->method == OPTIONS){
-		if(options_response_header(h,status) == -1) return NULL;
-
-		return h;
-	}
-		
-	if(cont){
-		if(cont->size > 0){
-			if(strncmp(res->headers.protocol_vs,DEFAULT,STD_LEN_PTC) == 0){
-
-				if(req->origin[0] != '\0'){
-								
-					if(snprintf(h,1024,"%s %u %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %ld\r\n"\
-							"%s: %s\r\n"\
-							"%s: %s\r\n"\
-							"\r\n"\
-							"%s",res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-							"Date", res->headers.date,
-							"Content-Type","application-json",
-							"Content-Length",cont->size,
-							"Connection",res->headers.connection,
-							"Access-control-allow-origin",req->origin,
-							cont->size < MAX_CONT_SZ ? cont->cnt_st : cont->cnt_dy) == -1){
-
-						return NULL;
-					}
-				}else{
-					if(snprintf(h,1024,"%s %u %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %ld\r\n"\
-							"%s: %s\r\n"\
-							"\r\n"\
-							"%s",res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-							"Date", res->headers.date,
-							"Content-Type",req->cont_type,
-							"Content-Length",cont->size,
-							"Connection",res->headers.connection,
-							cont->size < MAX_CONT_SZ ? cont->cnt_st : cont->cnt_dy) == -1){
-
-					return NULL;
-					}
-
-				}
-			}else if(strncmp(res->headers.protocol_vs,HTTP2,STD_LEN_HTTP2) == 0){
-				if(snprintf(h,1024,"%s %u %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %ld\r\n"\
-							"%s: %s\r\n"\
-							"\r\n"\
-							"%s", res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-							"Date", res->headers.date,
-							"Content-Length",cont->size,
-							"Content-Type",req->cont_type,
-							cont->size < MAX_CONT_SZ ? cont->cnt_st : cont->cnt_dy) == -1){
-					return NULL;
-				}
-			}
+	/* string the header*/
+	int response_type = map_method_and_status(req->method,status,cont != NULL ? cont->size > 0 : 0);
+	switch(response_type)
+	{
+	case BAD_REQ_RESPONSE:
+		if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
+				"Content-Type: %s\r\n"\
+				"Content-lenght: %ld\r\n\r\n%s","HTTP/1.1", 400, "Bad request",
+				"application/json",strlen(BAD_REQ_MES),BAD_REQ_MES) == -1){
+			fprintf(stderr,"(%s): cannot form BAD RESPONSE.",prog);
+			return NULL;
 		}
-	}else{
-		if(strncmp(res->headers.protocol_vs,DEFAULT,STD_LEN_PTC) == 0){
+		break;
+	case NOT_FOUND_RESPONSE:
+		if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
+					"Date: %s\r\n"\
+					"Content-Type: %s\r\n"\
+					"Connection: %s\r\n"\
+					"\r\n",res->headers.protocol_vs, 404, "Not Found",res->headers.date,
+					req->cont_type,res->headers.connection) == -1){
 
-				if(req->origin[0] != '\0'){
-								
-					if(snprintf(h,1024,"%s %u %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %ld\r\n"\
-							"%s: %s\r\n"\
-							"%s: %s\r\n"\
-							"\r\n",res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-							"Date", res->headers.date,
-							"Content-Type",req->cont_type,
-							"Content-Length",cont->size,
-							"Access-control-allow-origin",req->origin,
-							"Connection",res->headers.connection) == -1){
-
-						return NULL;
-					}
-				}else{
-					if(snprintf(h,1024,"%s %u %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %ld\r\n"\
-							"%s: %s\r\n"\
-							"\r\n"
-							,res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-							"Date", res->headers.date,
-							"Content-Type",req->cont_type,
-							"Content-Length",cont->size,
-							"Connection",res->headers.connection) == -1){
-
-					return NULL;
-				}
-
-				}
-			}else if(strncmp(res->headers.protocol_vs,HTTP2,STD_LEN_HTTP2) == 0){
-				if(snprintf(h,1024,"%s %u %s\r\n"\
-							"%s: %s\r\n"\
-							"%s: %ld\r\n"\
-							"%s: %s\r\n"\
-							"\r\n", res->headers.protocol_vs, res->headers.status, res->headers.reason_phrase,
-							"Date", res->headers.date,
-							"Content-Length",cont->size,
-							"Connection",res->headers.connection) == -1){
-					return NULL;
-				}
+			return NULL;
+		}
+		break;
+	case OK_POST_RESPONSE:/*TODO*/
+	case OK_CREATED_POST_RESPONSE:
+			if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
+						"Content-Type: %s\r\n"\
+						"Location: %s\r\n"\
+						"Access-Control-Allow-Origin: %s\r\n"
+						"Keep-Alive: %s\r\n"
+						"\r\n",
+						res->headers.protocol_vs,
+						status,
+						res->headers.reason_phrase,
+						req->cont_type,
+						req->host,ORIGIN_DEF,
+						res->headers.keep_alive) == -1){
+				fprintf(stderr,"(%s): snprintf() failed %s:%d",prog,__FILE__,__LINE__-7);
+				return NULL;
 			}
 
+		break;
+	case OK_GET_RESPONSE:
+		if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
+						"Content-Type: %s\r\n"\
+						"Location: %s\r\n"\
+						"Access-Control-Allow-Origin: %s\r\n"
+						"Keep-Alive: %s\r\n"
+						"\r\n",
+						res->headers.protocol_vs,
+						status,
+						res->headers.reason_phrase,
+						req->cont_type,
+						req->host,
+						ORIGIN_DEF,
+						res->headers.keep_alive) == -1){
+			fprintf(stderr,"(%s): snprintf() failed %s:%d",prog,__FILE__,__LINE__-7);
+			return NULL;
+		}
+
+		break;
+	case OK_GET_RESPONSE_BODY:
+		if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
+						"Content-Type: %s\r\n"\
+						"Location: %s\r\n"\
+						"Access-Control-Allow-Origin: %s\r\n"
+						"Keep-Alive: %s\r\n"
+						"\r\n",
+						res->headers.protocol_vs,
+						status,
+						res->headers.reason_phrase,
+						req->cont_type,
+						req->host,
+						ORIGIN_DEF,
+						res->headers.keep_alive) == -1){
+			fprintf(stderr,"(%s): snprintf() failed %s:%d",prog,__FILE__,__LINE__-7);
+			return NULL;
+		}
+		break;
+	case OPTIONS_RESPONSE:
+			if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
+				"Access-Control-Allow-Origin: %s\r\n"\
+				"Access-Control-Allow-Methods: %s,\r\n"\
+				"Access-Control-Allow-Headers: %s,\r\n"\
+				"Access-Control-Max-Age: %u\r\n\r\n",
+				res->headers.protocol_vs,
+				status,
+				res->headers.reason_phrase,
+				ORIGIN_DEF,
+				ALLOWED_METHODS,
+				res->headers.access_control_allow_headers,
+				res->headers.access_control_max_age) == -1){
+				fprintf(stderr,"(%s): cannot form BAD RESPONSE.",prog);
+				return NULL;
+			}
+
+		break;
+	default:
+		break;
 	}
-	return h;
+	return &h[0];
 }
 
 
-static int set_up_headers(struct Header *headers, int status, size_t body_size)
+static int set_up_headers(struct Header *headers, int status, size_t body_size, struct Request *req)
 {
 	set_status_and_phrase(headers,(uint16_t)status);
-	strncpy(headers->protocol_vs,STD_PTC,STD_LEN_PTC);
+		
+	if(strncmp(req->protocol,STD_PTC,STD_LEN_PTC) == 0)
+		strncpy(headers->protocol_vs,STD_PTC,STD_LEN_PTC);
+	else
+		strncpy(headers->protocol_vs,req->protocol,strlen(req->protocol));
 
-	if(status != 400){ 
-		char *date = date_formatter();
-		if(!date) return -1;
-		strncpy(headers->date,date,50); 
-		strncpy(headers->connection,"keep-alive",50);
+	char *date = date_formatter();
+	if(!date) return -1;
+	strncpy(headers->date,date,50); 
+	if(strncmp(req->connection,KEEP_ALIVE,strlen(KEEP_ALIVE)) == 0){
+		strncpy(headers->connection,req->connection,50);
+		strncpy(headers->keep_alive,"timeout=3600, max=200",strlen("timeout=3600, max=200")+1);
 	}
 
+	if(status != 400 || status != 404)
+		strncpy(headers->cont_type,req->cont_type,strlen(req->cont_type));
+
+	if(req->method == OPTIONS){
+		strncpy(headers->access_control_allow_methods,ALLOWED_METHODS,strlen(ALLOWED_METHODS)+1);
+		strncpy(headers->access_control_allow_headers,req->access_control_request_headers,strlen(req->access_control_request_headers));
+		strncpy(headers->access_control_allow_origin,req->origin,strlen(req->origin));
+		headers->access_control_max_age = SECONDS_IN_A_DAY;
+	}
+	
 	if (body_size > 0) headers->content_lenght = body_size;
 
 	return 0;
@@ -425,52 +400,6 @@ static int parse_body(struct Content *cont, struct Response *res)
 
 	return 0;
 }
-static int not_found_header(char *header, struct Request *req, struct Response *res)
-{
-
-	if(snprintf(header,1024,"%s %d %s\r\n"\
-					"Date: %s\r\n"\
-					"Content-Type: %s\r\n"\
-					"Connection: %s\r\n"\
-					"\r\n",res->headers.protocol_vs, 404, "Not Found",res->headers.date,
-					req->cont_type,res->headers.connection) == -1){
-
-			return -1;
-	}
-	return 0;
-
-}
-
-static int bad_request_header(char *header)
-{
-	if(snprintf(header,1024,"%s %d %s\r\n"\
-				"Content-Type: %s\r\n"\
-				"Content-lenght: %ld\r\n\r\n%s","HTTP/1.1", 400, "Bad request",
-				"application/json",strlen(BAD_REQ_MES),BAD_REQ_MES) == -1){
-		fprintf(stderr,"(%s): cannot form BAD RESPONSE.",prog);
-		return -1;
-	}
-	return 0;
-}
-
-
-static int options_response_header(char *header, int status)
-{
-	char *mess = NULL;
-	if(status == 200) mess = "OK";
-	if(snprintf(header,1024,"%s %d %s\r\n"\
-				"Access-Control-Allow-Origin: %s\r\n"\
-				"Access-Control-Allow-Methods: %s, %s, %s\r\n"\
-				"Access-Control-Allow-Headers: %s\r\n"\
-				"Access-Control-Max-Age: %u\r\n",
-				"HTTP/1.1", status,mess,
-				ORIGIN_DEF,"GET","OPTIONS","POST",
-				"Content-type",SECONDS_IN_A_DAY) == -1){
-		fprintf(stderr,"(%s): cannot form BAD RESPONSE.",prog);
-		return -1;
-	}
-	return 0;
-}
 
 static char *date_formatter()
 {
@@ -542,4 +471,16 @@ static char *second_parser(int second)
 		return num;
 	}
 	}
+}
+static int map_method_and_status(int method,int status, int body)
+{
+	if(status == 400) return BAD_REQ_RESPONSE;
+	if(status == 404) return NOT_FOUND_RESPONSE;
+	if(method == OPTIONS && status == 200) return OPTIONS_RESPONSE;
+	if(method == GET && status == 200 && body) return OK_GET_RESPONSE_BODY;
+	if(method == GET && status == 200) return OK_GET_RESPONSE;
+	if(method == POST && status == 200 && body) return OK_POST_RESPONSE;
+	if(method == POST && status == 201 && body) return OK_CREATED_POST_RESPONSE;
+
+	return BAD_REQ_RESPONSE;
 }

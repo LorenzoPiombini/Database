@@ -122,7 +122,7 @@ int load_resource(struct Request *req, struct Content *cont)
 					size_t line_key_sz = number_of_digit(count) + number_of_digit(key) + 1;
 					struct String key_each_line = {0};
 					init(&key_each_line,NULL);
-					if(snprintf(key_each_line.base,++line_key_sz,"%u/%u",key,count) == -1)goto post_exit_error;
+					if(snprintf(key_each_line.base,line_key_sz+1,"%u/%u",key,count) == -1)goto post_exit_error;
 
 					/* write each line */
 					if(check_data(SALES_ORDERS_L,&cpy_str.base[2],fds,files,&rec,&hd,&lock_f) == -1) goto post_exit_error;
@@ -230,7 +230,7 @@ post_exit_error:
 				while((r = lock(fds[0],WLOCK)) == WTLK);
 				if(r == -1){
 					/*log errors*/
-					fprintf(stderr,"can't acquire or release proper lock.\n");
+					fprintf(stderr,"(%s): can't acquire or release proper lock.\n",prog);
 					close(fds[0]);
 					exit(-1);
 				}
@@ -289,6 +289,7 @@ post_exit_error:
 						close(pipefd[0]);
 						return -1;
 					}
+					cont->size = strlen(cont->cnt_st);
 					close(pipefd[0]);
 					return 0;
 				} else {
@@ -426,10 +427,10 @@ post_exit_error:
 					close_file(3,fds[0],fds[1],fds[2]);
 					/*close the message*/
 					position_in_the_message = strlen(message);
-					strncpy(&message[position_in_the_message],"}}",3);
+					strncpy(&message[position_in_the_message],"}}",strlen("}}")+1);
 					position_in_the_message+=2;
-					
-					printf("%s\n",message);
+					memset(&message[strlen(message)],0,(1024*4) - strlen(message));	
+					printf("%s\nsize is %ld\nlast char is '%c'\n",message,strlen(message),message[strlen(message)-1]);
 					/*write to pipe*/
 					if(write(pipefd[1],message,strlen(message)) == -1){
 						/*log*/

@@ -18,7 +18,7 @@ int handle_sig()
 	memset(&act,0,sizeof (struct sigaction));
 
 	act.sa_handler = &handler;
-	if(sigaction(SIGSEGV, &act, NULL) == -1 ||
+	if(/*sigaction(SIGSEGV, &act, NULL) == -1 ||*/
 			sigaction(SIGINT,&act,NULL) == -1 || 
 			sigaction(SIGPIPE,&act,NULL) == -1 ){
 		fprintf(stderr,"(%s): cannot handle the signal.\n",prog);
@@ -30,7 +30,7 @@ int handle_sig()
 static void handler(int signo)
 {
 	switch(signo){
-	case SIGSEGV:
+	/*case SIGSEGV:*/
 	case SIGINT:
 	case SIGPIPE:
 		stop_monitor();	
