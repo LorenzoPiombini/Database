@@ -286,7 +286,7 @@ int write_record(int *fds,void *key,
 	/* load al indexes in memory */
 	if (!read_all_index_file(fds[0], &ht, p_index)) {
 		fprintf(stderr,"read index file failed. %s:%d.\n", F, L - 2);
-		return 1;
+		return STATUS_ERROR;
 	}
 
 	if(set_rec(ht,key,eof,key_type) == -1){
@@ -297,7 +297,7 @@ int write_record(int *fds,void *key,
 /*int buffered_write(int fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)*/
 	if(buffered_write(&fds[1],rec,update,eof,0) == -1){
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
-		return -1;
+		return STATUS_ERROR;
 	}
 
 	if(write_index(fds,index,ht,files[0]) == -1) return -1;

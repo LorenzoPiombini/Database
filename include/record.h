@@ -19,14 +19,14 @@ struct Schema {
 	unsigned short fields_num;
 	char fields_name[MAX_FIELD_NR][MAX_FIELD_LT];
 	int types[MAX_FIELD_NR];
-};
+};/*7200 bytes*/
 
 struct Header_d
 {
 	unsigned int id_n;
 	unsigned short version;
 	struct Schema sch_d;
-};
+};/*7206*/
 
 
 
@@ -98,27 +98,6 @@ struct Record_f {
 	struct Record_f *next;
 };
 
-
-/* --------------- this is not in use anymore ----------*/
-/* --------------- 	  July 6 2025	      ----------*/
-/*
- * used to update records
- * this will optimize the process,
- * the effort here is to avoid unneccesary memory allocations
- * so here the memory will be allocated on the heap only if the Record
- * is in more than 100 different locations in the file.
- * */
-struct Recs_old	{
-	struct Record_f recs[MAX_RECS_OLD_CAP];
-	off_t pos_u[MAX_RECS_OLD_CAP];
-	int capacity;
-	struct Record_f *recs_r;
-	off_t *pos_u_r;
-	int dynamic_capacity;
-};
-int insert_rec(struct Recs_old *buffer, struct Record_f *rec, off_t pos);
-void free_recs_old(struct Recs_old *buffer);
-/*------------------------------------------------------*/
 
 int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);

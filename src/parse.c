@@ -2931,7 +2931,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 	}
 }	
 
-
+/*NOT IN USE */
+#if 0
 int create_new_fields_from_schema(struct Recs_old *recs_old, 
 							struct Record_f *rec,
 							struct Schema *sch, 
@@ -3150,6 +3151,7 @@ int create_new_fields_from_schema(struct Recs_old *recs_old,
 
 	return 0;
 }
+#endif
 
 void print_schema(struct Schema sch)
 {
