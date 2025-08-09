@@ -10,6 +10,7 @@
 #include "common.h"
 #include "globals.h"
 #include "debug.h"
+#include "memory.h"
 
 static char prog[] = "db";
 static char *strstr_last(char *src, char delim);
@@ -1348,7 +1349,7 @@ void free_strs(int fields_num, int count, ...)
 		char **str = va_arg(args, char **);
 		for (int j = 0; j < fields_num; j++){
 			if (str[j]){
-				free(str[j]);
+				return_mem(str[j],strlen(str[j])+1);
 			}
 		}
 		free(str);
@@ -2189,11 +2190,14 @@ tok_process:
 
 char *duplicate_str(char *str)
 {
-	char *dup = calloc(strlen(str)+1,sizeof (char));
+	char *dup = (char*)ask_mem(strlen(str)+1);
 	if(!dup){
-		errno = 0;
-		fprintf(stderr,"calloc failed with error '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-2);
-		return NULL;
+		dup = calloc(strlen(str)+1,sizeof (char));
+		if(!dup){
+			errno = 0;
+			fprintf(stderr,"calloc failed with error '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-2);
+			return NULL;
+		}
 	}
 
 	strncpy(dup,str,strlen(str));

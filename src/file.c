@@ -29,7 +29,7 @@ int open_file(char *fileName, int use_trunc)
 	if (!use_trunc) {
 		fd = open(fileName, O_RDWR , S_IRWXU);
 	} else {
-		fd = open(fileName, O_WRONLY, S_IRWXU);
+		fd = open(fileName, O_WRONLY | O_TRUNC, S_IRWXU);
 	}
 
 	if ( errno != 0) return errno;			
@@ -165,7 +165,7 @@ unsigned char write_index_file_head(int fd, int index_num)
 	int i = 0;
 	off_t pos = 0;
 
-	uint32_t in = swap32((uint32_t)index_num);
+	uint32_t in = swap32(index_num);
 	if (write(fd, &in, sizeof(in)) == -1)
 	{
 		printf("write to file failed. %s:%d.\n", F, L - 2);

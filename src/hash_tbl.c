@@ -1,17 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <byteswap.h>
-#include <arpa/inet.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
 #include <math.h>
-#include <limits.h>
 #include "hash_tbl.h"
 #include "str_op.h"
 #include "debug.h"
+#include "endian.h"
+#include "memory.h"
 
 
 void print_hash_table(HashTable tbl)
@@ -57,13 +56,13 @@ int write_ht(int fd, HashTable *ht)
 {
 	int i = 0;
 
-	uint32_t sz_n = htonl(ht->size);
+	uint32_t sz_n = swap32(ht->size);
 	if (write(fd, &sz_n, sizeof(sz_n)) == -1) {
 		perror("writing index file");
 		return 0;
 	}
 
-	uint32_t ht_ln = htonl((uint32_t)len(*ht));
+	uint32_t ht_ln = swap32(len(*ht));
 	if (write(fd, &ht_ln, sizeof(ht_ln)) == -1) {
 		perror("write ht length");
 		return 0;
@@ -83,9 +82,9 @@ int write_ht(int fd, HashTable *ht)
 			{
 			case STR:
 			{
-				uint32_t type = htonl((uint32_t)current->key.type);
-				uint64_t key_l = bswap_64((uint64_t)strlen(current->key.k.s));
-				uint64_t value = bswap_64((uint64_t)current->value);
+				uint32_t type = swap32(current->key.type);
+				uint64_t key_l = swap64(strlen(current->key.k.s));
+				uint64_t value = swap64(current->value);
 
 				if (write(fd, &type, sizeof(type)) == -1 ||
 					write(fd, &key_l, sizeof(key_l)) == -1 ||
@@ -99,16 +98,16 @@ int write_ht(int fd, HashTable *ht)
 			}
 			case UINT:
 			{
-				uint32_t type = htonl((uint32_t)current->key.type);
+				uint32_t type = swap32(current->key.type);
 				uint8_t size = (uint8_t)current->key.size;
-				uint64_t value = bswap_64((uint64_t)current->value);
+				uint64_t value = swap64(current->value);
 				
 				uint32_t k = 0;
 				uint16_t k16 = 0;
 				if(current->key.size == 32)
-					k = htonl(current->key.k.n);
+					k = swap32(current->key.k.n);
 				else
-					k16 = htons(current->key.k.n16);
+					k16 = swap16(current->key.k.n16);
 
 				if (write(fd, &type, sizeof(type)) == -1 ||
 						write(fd, &size, sizeof(size)) == -1) {
@@ -432,7 +431,7 @@ void destroy_hasht(HashTable *tbl)
 			case STR:
 			{
 				Node *next = current->next;
-				free(current->key.k.s);
+				return_mem(current->key.k.s,strlen(current->key.k.s)+1);
 				free(current);
 				current = next;
 				break;

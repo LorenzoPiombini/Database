@@ -19,13 +19,13 @@ struct Key{
 		char *s;
 	}k;
 	uint8_t paked_k[5];
-};
+};/* 25 bytes*/
 
 typedef struct Node {
 	struct Key key;
 	off_t value;
 	struct Node *next;
-} Node;
+}Node;
 
 typedef struct HashTable {
 	int size;

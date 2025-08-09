@@ -94,7 +94,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 
 	/*push the node ont the stack*/	
 	node.timestamp = time(NULL);
-	if(push(&index,node) == -1){
+	if(push_journal(&index,node) == -1){
 		error("failed to push on journal stack",__LINE__-1);
 		close(fd);
 		return -1;
@@ -112,7 +112,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 }
 
  
-int push(struct stack *index, struct Node_stack node)
+int push_journal(struct stack *index, struct Node_stack node)
 {
 	if(index->capacity < MAX_STACK_CAP ){
 		index->elements[index->capacity] = node; 
@@ -172,7 +172,7 @@ int push(struct stack *index, struct Node_stack node)
 	return 0;
 }
 
-int pop(struct stack *index)
+int pop_journal(struct stack *index)
 {
 	if(index->capacity <= MAX_STACK_CAP && index->dynamic_capacty == 0){
 		memset(&index->elements[index->capacity - 1],0,sizeof(struct Node_stack));
@@ -197,7 +197,7 @@ int pop(struct stack *index)
 	return 0;
 }
 
-int peek(struct stack *index, struct Node_stack *node)
+int peek_journal(struct stack *index, struct Node_stack *node)
 {
 	if(index->capacity < MAX_STACK_CAP){
 		*node = index->elements[index->capacity-1];
@@ -242,7 +242,7 @@ void free_stack(struct stack *index)
 	memset(index,0,sizeof(*index));
 	if(index->dynamic_capacty == 0 ) return;
 	
-	while(index->dynamic_capacty > 0) pop(index);
+	while(index->dynamic_capacty > 0) pop_journal(index);
 }
 
 int write_journal_index(int *fd,struct stack *index)

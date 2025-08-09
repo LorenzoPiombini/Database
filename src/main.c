@@ -20,6 +20,8 @@
 #include "debug.h"
 #include "build.h"
 #include "crud.h"
+#include "memory.h"
+
 
 
 char prog[] = "db";
@@ -30,6 +32,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	init_prog_memory();
 	__UTILITY = 1;
 	/* file descriptors */
 	int fd_index = -1; 
@@ -107,12 +110,14 @@ int main(int argc, char *argv[])
 				index_nr = (int) l;
 			}else{
 				fprintf(stderr,"option -D value is not a valid number.\n");
+				close_prog_memory();
 				return -1;
 			}
 			break;
 		}
 		case 't':
 			print_types();
+			close_prog_memory();
 			return 0;
 		case 'R':
 		{
@@ -148,6 +153,7 @@ int main(int argc, char *argv[])
 				bucket_ht = (int)l;
 			}else{
 				fprintf(stderr,"option -s value is not a valid number.\n");
+				close_prog_memory();
 				return -1;
 			}
 			break;
@@ -161,6 +167,7 @@ int main(int argc, char *argv[])
 				index_nr = (int)l;
 			}else{
 				fprintf(stderr,"option -x value is not a valid number.\n");
+				close_prog_memory();
 				return -1;
 			}
 			break;
@@ -178,6 +185,7 @@ int main(int argc, char *argv[])
 				indexes = (int)l;
 			}else{
 				fprintf(stderr,"option -i value is not a valid number.\n");
+				close_prog_memory();
 				return -1;
 			}
 			break;
@@ -193,6 +201,7 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			printf("Unknow option -%c\n", c);
+			close_prog_memory();
 			return 1;
 		}
 	}
@@ -200,24 +209,28 @@ int main(int argc, char *argv[])
 	if (!check_input_and_values(file_path, data_to_add, key,
 			argv, del, list_def, new_file, update, del_file,	
 			build, create, options, index_add, file_field,import_from_data)) {
-		return 1;
+		close_prog_memory();
+		return -1;
 	}
 
 	if (create){
 		if(txt_f.allocated){
 			if (!create_system_from_txt_file(txt_f.str)) {
 				txt_f.close(&txt_f);
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 		}else{
 			if (!create_system_from_txt_file(txt_f.base)) {
 				txt_f.close(&txt_f);
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 
 		}
 		printf("system created!\n");
 		txt_f.close(&txt_f);
+		close_prog_memory();
 		return 0;
 	}
 
@@ -230,6 +243,7 @@ int main(int argc, char *argv[])
 
 		*/
 		txt_f.close(&txt_f);
+		close_prog_memory();
 		return STATUS_ERROR;
 	}
 
@@ -238,17 +252,20 @@ int main(int argc, char *argv[])
 			if(import_data_to_system(txt_f.str) == -1) {
 				fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f.str);
 				txt_f.close(&txt_f);
+				close_prog_memory();
 				return -1;
 			}
 		}else{
 			if(import_data_to_system(txt_f.base) == -1) {
 				fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f.base);
 				txt_f.close(&txt_f);
+				close_prog_memory();
 				return -1;
 			}
 		}
 
 		txt_f.close(&txt_f);
+		close_prog_memory();
 		return 0;
 	}
 
@@ -299,6 +316,7 @@ int main(int argc, char *argv[])
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 		if(three_file_path(cpy_fp, files) == EFLENGTH){
 			fprintf(stderr,"(%s): file name or path '%s' too long",prog,cpy_fp);
+			close_prog_memory();
 			return STATUS_ERROR;
 		}
 
@@ -309,7 +327,10 @@ int main(int argc, char *argv[])
 			 * file_error_handler will close the file descriptors if there are issues
 			 *  and print error messages to the console
 			 *  */
-			if (file_error_handler(2, fd_data, fd_schema) != 0) return STATUS_ERROR;
+			if (file_error_handler(2, fd_data, fd_schema) != 0) {
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
 		
 		}else if(file_field){
 			fd_schema = create_file(files[2]);
@@ -317,7 +338,10 @@ int main(int argc, char *argv[])
 			 * file_error_handler will close the file descriptors if there are issues
 			 *  and print error messages to the console
 			 *  */
-			if (file_error_handler(1, fd_schema) != 0) return STATUS_ERROR;
+			if (file_error_handler(1, fd_schema) != 0) {
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
 		}else{
 			fd_index = create_file(files[0]);
 			fd_data = create_file(files[1]);
@@ -326,7 +350,10 @@ int main(int argc, char *argv[])
 			 * file_error_handler will close the file descriptors if there are issues
 			 *  and print error messages to the console
 			 *  */
-			if (file_error_handler(3, fd_index, fd_data, fd_schema) != 0) return STATUS_ERROR;
+			if (file_error_handler(3, fd_index, fd_data, fd_schema) != 0) {
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
 		}
 
 		if (cpy_sd[0] != '\0') { 
@@ -404,6 +431,7 @@ int main(int argc, char *argv[])
 
 			if (only_dat) {
 				fprintf(stdout,"(%s): File created successfully!\n",prog);
+				close_prog_memory();
 				close_file(2, fd_data, fd_schema);
 				return 0;
 			}
@@ -411,6 +439,7 @@ int main(int argc, char *argv[])
 			if(file_field){
 				fprintf(stdout,"(%s): File created successfully!\n",prog);
 				close_file(1, fd_schema);
+				close_prog_memory();
 				return 0;
 			}
 
@@ -441,11 +470,13 @@ int main(int argc, char *argv[])
 			fprintf(stdout,"(%s): File created successfully!\n",prog);
 
 			close_file(3, fd_index, fd_data,fd_schema);
+			close_prog_memory();
 			return 0;
 
 			clean_on_error_1:
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
+			close_prog_memory();
 			return STATUS_ERROR;
 		}
 
@@ -554,6 +585,7 @@ int main(int argc, char *argv[])
 				printf("File created successfully!\n");
 				free_record(&rec, fields_count);
 				close_file(2, fd_data,fd_schema);
+				close_prog_memory();
 				return 0;
 			}
 
@@ -620,12 +652,14 @@ int main(int argc, char *argv[])
 			fprintf(stdout,"(%s): File created successfully.\n",prog);
 			free_record(&rec, fields_count); // this free the memory allocated for the record
 			close_file(3, fd_index, fd_data,fd_schema);
+			close_prog_memory();
 			return 0;
 			
 			clean_on_error_2:
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
 			free_record(&rec, fields_count);
+			close_prog_memory();
 			return STATUS_ERROR;
 
 		}else {
@@ -670,11 +704,13 @@ int main(int argc, char *argv[])
 			printf("File created successfully.\n");
 
 			close_file(3, fd_index, fd_data,fd_schema);
+			close_prog_memory();
 			return 0;
 
 			clean_on_error_3:
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
+			close_prog_memory();
 			return STATUS_ERROR;
 
 		}
@@ -735,17 +771,24 @@ int main(int argc, char *argv[])
 		struct Header_d hd = {0, 0, sch};
 
 		if (list_def) {
-			if(open_files(cpy_fp,fds,files,ONLY_SCHEMA) == -1) return STATUS_ERROR;
+			if(open_files(cpy_fp,fds,files,ONLY_SCHEMA) == -1) {
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
 
 			fd_schema = fds[2];
 			while((is_locked(1,fd_schema)) == LOCKED);
 			/* ensure the file is a db file */
 			if (is_db_file(&hd, fds) == -1) {
+				close_prog_memory();
 				close_file(1,fd_schema);
 				return STATUS_ERROR;
 			}
 		} else {
-			if(open_files(cpy_fp,fds,files,0) == -1) return STATUS_ERROR;
+			if(open_files(cpy_fp,fds,files,0) == -1) {
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
 			fd_index = fds[0];
 			fd_data = fds[1];
 			fd_schema = fds[2]; 
@@ -754,6 +797,7 @@ int main(int argc, char *argv[])
 			while((is_locked(3,fd_schema,fd_data,fd_index)) == LOCKED);
 			/* ensure the file is a db file */
 			if (is_db_file(&hd, fds) == -1) {
+				close_prog_memory();
 				close_file(3,fd_schema,fd_data,fd_index);
 				return STATUS_ERROR;
 			}
@@ -797,10 +841,12 @@ int main(int argc, char *argv[])
 				goto clean_on_error_4;
 			}	
 
+			close_prog_memory();
 			return 0;
 			clean_on_error_4:
 			if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
 			close_file(1,fd_index);
+			close_prog_memory();
 			return STATUS_ERROR;
 		}
 
@@ -814,6 +860,7 @@ int main(int argc, char *argv[])
 			while((r = lock(fd_index,WLOCK)) == WTLK);
 			if(r == -1){
 				fprintf(stderr,"can't acquire or release proper lock.\n");
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 
@@ -824,6 +871,7 @@ int main(int argc, char *argv[])
 				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,cpy_fp);
 				while((r = lock(fd_index,UNLOCK)) == WTLK);
 				close_file(1, fd_index);
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 			
@@ -838,10 +886,12 @@ int main(int argc, char *argv[])
 			
 			if(snprintf(buf,l,"%ld.lock",st.st_ino) < 0){
 				fprintf(stderr,"cannot release the lock");
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 
 			unlink(buf);
+			close_prog_memory();
 			return 0;
 		} /* end of delete file path*/
 
@@ -928,11 +978,13 @@ int main(int argc, char *argv[])
 			printf("data added to schema!\n");
 			close_file(3, fd_index, fd_data, fd_schema);
 			
+			close_prog_memory();
 			return 0;
 
 			clean_on_error_5:
 			if(lock_f) while((r = lock(fd_schema,UNLOCK)) == WTLK);
 			close_file(3, fd_index, fd_data,fd_schema);
+			close_prog_memory();
 			return STATUS_ERROR;
 			
 		} /* end of add new fields to schema path*/
@@ -1006,17 +1058,20 @@ int main(int argc, char *argv[])
 						close_file(3,fd_index,fd_data,fd_schema);
 						free(ht);
 						printf("all record deleted from %s file.\n", cpy_fp);
+						close_prog_memory();
 						return 0;
 
 						option_clean_on_error:
 						if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
 						close_file(3,fd_index,fd_data,fd_schema);
+						close_prog_memory();
 						return STATUS_ERROR;
 					}
 					default:
 						printf("options not valid.\n");
 						if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
 						close_file(3,fd_index,fd_data,fd_schema);
+						close_prog_memory();
 						return STATUS_ERROR;
 					}
 				}
@@ -1122,11 +1177,13 @@ int main(int argc, char *argv[])
 			lock_f = 0;
 			close_file(3, fd_index, fd_data,fd_schema);
 			free(ht);
+			close_prog_memory();
 			return 0;
 			
 			clean_on_error_6:
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_index, fd_data, fd_schema);
+			close_prog_memory();
 			return STATUS_ERROR;
 		} /*end of del path (either del the all content or a record )*/
 
@@ -1158,12 +1215,14 @@ int main(int argc, char *argv[])
 			free_record(&rec, rec.fields_num);
 			close_file(3, fd_index, fd_data, fd_schema);
 			printf("record %s wrote succesfully.\n", kcpy);
+			close_prog_memory();
 			return 0;
 
 			clean_on_error_7:
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3,fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
+			close_prog_memory();
 			return STATUS_ERROR;
 		}
 
@@ -1181,12 +1240,14 @@ int main(int argc, char *argv[])
 			while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3,fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
+			close_prog_memory();
 			return 0;
 
 			clean_on_error:
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
+			close_prog_memory();
 			return STATUS_ERROR;
 
 		} /*end of update path*/
@@ -1196,6 +1257,7 @@ int main(int argc, char *argv[])
 		if (list_def) { /* show file definitions */
 			print_schema(hd.sch_d);
 			close_file(1, fd_schema);
+			close_prog_memory();
 			return 0;
 		}
 
@@ -1208,6 +1270,7 @@ int main(int argc, char *argv[])
 			HashTable *p_ht = &ht;
 			if (!read_index_nr(index_nr, fd_index, &p_ht)) {
 				close_file(3,fd_schema, fd_index, fd_data);
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 
@@ -1215,6 +1278,7 @@ int main(int argc, char *argv[])
 			if(keys(p_ht,&keys_data) == -1){
 				fprintf(stderr,"(%s): cannot get all keys from index file.\n",prog);
 				close_file(3,fd_schema, fd_index, fd_data);
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 			char keyboard = '0';
@@ -1247,6 +1311,7 @@ int main(int argc, char *argv[])
 			destroy_hasht(p_ht);
 			close_file(3,fd_schema, fd_index, fd_data);
 			free_keys_data(&keys_data);
+			close_prog_memory();
 			return 0;
 		}
 
@@ -1258,6 +1323,7 @@ int main(int argc, char *argv[])
 			if(get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds) == -1){
 				free_record(&rec,rec.fields_num);
 				close_file(3, fd_schema,fd_index, fd_data);
+				close_prog_memory();
 				return STATUS_ERROR;
 			}
 
@@ -1271,9 +1337,11 @@ int main(int argc, char *argv[])
 
 			if(ram.mem) close_ram_file(&ram);
 			close_file(3, fd_schema,fd_index, fd_data);
+			close_prog_memory();
 			return 0;
 		}
 	}
 
+	close_prog_memory();
 	return 0;
 } /*-- program end --*/

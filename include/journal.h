@@ -50,9 +50,9 @@ struct stack{
 };
 
 
-int push(struct stack *index, struct Node_stack node);
-int pop(struct stack *index);
-int peek(struct stack *index, struct Node_stack *node);
+int push_journal(struct stack *index, struct Node_stack node);
+int pop_journal(struct stack *index);
+int peek_journal(struct stack *index, struct Node_stack *node);
 int is_empty(struct stack *index);
 
 int journal(int caller_fd, off_t offset, void *key, int key_type, int operation);
