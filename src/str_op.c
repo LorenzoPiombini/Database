@@ -2107,7 +2107,9 @@ char *tok(char *str, char *delim)
 
         if(t_hndl.finish){
 		if(!str){
-			free(t_hndl.original_tok);
+			if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+				/*log the error*/
+			}
 			t_hndl.original_tok = NULL;
 			t_hndl.finish = 0;
 			return NULL;
@@ -2116,19 +2118,25 @@ char *tok(char *str, char *delim)
 		
 		size_t string_size = strlen(str);	
 		if(string_size != strlen(t_hndl.original_tok)){
-			free(t_hndl.original_tok);
+			if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+				/*log the error*/
+			}
 			t_hndl.original_tok = NULL;
 			t_hndl.finish = 0;
 			goto tok_process;
 		}else{
 			replace('\n',*delim,t_hndl.original_tok);	
 			if(strncmp(str,t_hndl.original_tok,string_size) == 0){
-				free(t_hndl.original_tok);
+				if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+					/*log the error*/
+				}
 				t_hndl.original_tok = NULL;
 				t_hndl.finish = 0;
 				return NULL;
 			} else {
-				free(t_hndl.original_tok);
+				if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+					/*log the error*/
+				}
 				t_hndl.original_tok = NULL;
 				t_hndl.finish = 0;
 				goto tok_process;
@@ -2148,18 +2156,21 @@ tok_process:
 
 	if(!t_hndl.original_tok){
 		memset(&t_hndl,0,sizeof(struct tok_handler));
-		t_hndl.original_tok = calloc(len + 1,sizeof(char));		
+		t_hndl.original_tok = (char*)ask_mem(len + 1);		
+		memset(t_hndl.original_tok,0,len+1);
+
 		if(!t_hndl.original_tok){
-			fprintf(stderr,"calloc failed, %s:%d.\n",__FILE__,__LINE__-2);
-			return NULL;
+				fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
+				return NULL;
 		}
+		
 		strncpy(t_hndl.original_tok,str,len);
 		strncpy(t_hndl.delim,delim,strlen(delim));
 		t_hndl.last = t_hndl.original_tok;
 	}
 	
 	if(strncmp(t_hndl.delim,delim,strlen(t_hndl.delim)) != 0) {
-		free(t_hndl.original_tok);
+		return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok));
 		t_hndl.original_tok = NULL;
 		return NULL;
 	}
@@ -2192,14 +2203,11 @@ char *duplicate_str(char *str)
 {
 	char *dup = (char*)ask_mem(strlen(str)+1);
 	if(!dup){
-		dup = calloc(strlen(str)+1,sizeof (char));
-		if(!dup){
-			errno = 0;
-			fprintf(stderr,"calloc failed with error '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-2);
-			return NULL;
-		}
+		fprintf(stderr,"calloc failed with error '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-2);
+		return NULL;
 	}
 
+	memset(dup,0,strlen(str)+1);
 	strncpy(dup,str,strlen(str));
 	return dup;
 }

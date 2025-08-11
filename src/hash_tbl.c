@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "endian.h"
 #include "memory.h"
+#include "types.h"
 
 
 void print_hash_table(HashTable tbl)
