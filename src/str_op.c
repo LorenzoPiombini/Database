@@ -367,6 +367,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	return i;
 }
 
+/*this is not in use*/
 int get_array_values(char *src, char ***values)
 {
 	int items = count_fields(src, ",");
@@ -436,7 +437,7 @@ void *key_converter(char *key, int *key_type)
 			return NULL;
 		}
 
-		converted = calloc(1, sizeof(uint32_t));
+		converted = (uint32_t*)ask_mem(sizeof(uint32_t));
 		if (!converted) {
 			__er_calloc(F, L - 2);
 			return NULL;
@@ -993,7 +994,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 	memset(cbuff,0,size);
 	strncpy(cbuff,buff,size);
 
-	*values = calloc(fields_count, sizeof(char *));
+	*values = (char**)ask_mem(fields_count * sizeof(char *));
 	if (!(*values)) {
 		perror("memory get values");
 		return -1;
@@ -1053,11 +1054,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 					/*clean the value*/
 					replace('@',':',end_t);
 				}
-				(*values)[i] = strdup(end_t);
+				(*values)[i] = duplicate_str(end_t);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						free(*values);
+						return_mem(*values,sizeof(char*)*fields_count);
 					else
 						free_strs(i,1,values);
 
@@ -1076,11 +1077,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				/*clean the value*/
 				replace('@',':',cpy);
 			}
-			(*values)[i] = strdup(cpy);
+			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
-					free(*values);
+					return_mem(*values,sizeof(char*)*fields_count);
 				else
 					free_strs(i,1,values);
 				return -1;
@@ -1112,11 +1113,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 					/*clean the value*/
 					replace('@',':',end_T);
 				}
-				(*values)[i] = strdup(end_T);
+				(*values)[i] = duplicate_str(end_T);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						free(*values);
+						return_mem(*values,sizeof(char*)*fields_count);
 					else
 						free_strs(i,1,values);
 
@@ -1136,11 +1137,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				/*clean the value*/
 				replace('@',':',cpy);
 			}
-			(*values)[i] = strdup(cpy);
+			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
-					free(*values);
+					return_mem(*values,sizeof(char*)*fields_count);
 				else
 					free_strs(i,1,values);
 
@@ -1163,11 +1164,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 					/*clean the value*/
 					replace('@',':',pos_d);
 				}
-				(*values)[i] = strdup(pos_d);
+				(*values)[i] = duplicate_str(pos_d);
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						free(*values);
+						return_mem(*values,sizeof(char*)*fields_count);
 					else
 						free_strs(i,1,values);
 
@@ -1186,9 +1187,9 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				/*clean the value*/
 				replace('@',':',cpy);
 			}
-			(*values)[i] = strdup(cpy);
+			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
-				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				free_strs(i,1,values);
 				return -1;
 			}
@@ -1209,7 +1210,7 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 	char *first = NULL;
 	char *last = NULL;
 	
-	char **values = calloc(fields_count, sizeof(char *));
+	char **values = (char**)ask_mem(fields_count * sizeof(char *));
 	if (!values) {
 		perror("memory get values");
 		return NULL;
@@ -1290,7 +1291,7 @@ char **get_values(char *fields_input, int fields_count)
 {
 	int i = 0, j = 0;
 
-	char **values = calloc(fields_count, sizeof(char *));
+	char **values = (char**)ask_mem(fields_count * sizeof(char *));
 	if (!values) {
 		perror("memory get values");
 		return NULL;
@@ -1304,7 +1305,7 @@ char **get_values(char *fields_input, int fields_count)
 	if (s){
 		values[j] = duplicate_str(s);
 		if (!values[j]){
-			free(values);
+			return_mem(values,fields_count * sizeof(char*));
 			return NULL;
 		}
 		i++;
@@ -1312,7 +1313,7 @@ char **get_values(char *fields_input, int fields_count)
 	else
 	{
 		perror("value token not found in get_values();");
-		free(values);
+		return_mem(values,fields_count * sizeof(char*));
 		return NULL;
 	}
 
@@ -1324,13 +1325,8 @@ char **get_values(char *fields_input, int fields_count)
 		}
 	
 
-		if (!values[j])
-		{
-			while (j-- > 0)
-			{
-				free(values[j]);
-			}
-			free(values);
+		if (!values[j]){
+			free_strs(j,i,values);
 			return NULL;
 		}
 		i++;
@@ -1352,7 +1348,7 @@ void free_strs(int fields_num, int count, ...)
 				return_mem(str[j],strlen(str[j])+1);
 			}
 		}
-		free(str);
+		return_mem(str,sizeof(char*)*fields_num);
 	}
 }
 
@@ -2008,9 +2004,9 @@ allocate_new_mem:
 	}
 
 	errno = 0;
-	str->str =  calloc(str->size + nl,sizeof(char));
+	str->str = (char*)ask_mem((str->size + nl) * sizeof(char));
 	if(!str->str){
-		fprintf(stderr,"(%s): calloc failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
+		fprintf(stderr,"(%s): ask_mem failed, %s:%d\n",prog,__FILE__,__LINE__-2);	
 		return -1;
 	}
 
@@ -2049,9 +2045,9 @@ int init(struct String *str,const char *val)
 	size_t l = strlen(val);
 	if(l >= DEF_STR){
 		errno = 0;
-		str->str = calloc(l+1,sizeof(char));
+		str->str = (char*)ask_mem((l+1)*sizeof(char));
 		if(!str->str){
-			fprintf(stderr,"(%s): calloc failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
+			fprintf(stderr,"(%s): ask_mem failed, %s:%d\n",prog, __FILE__,__LINE__-2);	
 			return -1;
 		}
 		strncpy(str->str,val,l);
@@ -2081,7 +2077,7 @@ static uint8_t empty(struct String *str)
 static void free_str(struct String *str)
 {
 	if(str->allocated){
-		free(str->str);
+		return_mem(str->str,strlen(str->str)+1);
 		str->allocated |= SET_OFF;
 		str->append = NULL;
 		return;
@@ -2203,7 +2199,7 @@ char *duplicate_str(char *str)
 {
 	char *dup = (char*)ask_mem(strlen(str)+1);
 	if(!dup){
-		fprintf(stderr,"calloc failed with error '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-2);
+		fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
 		return NULL;
 	}
 

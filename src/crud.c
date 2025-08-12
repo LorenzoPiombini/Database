@@ -14,6 +14,7 @@
 #include "parse.h"
 #include "crud.h"
 #include "types.h"
+#include "memory.h"
 
 static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, void *key, int key_type);
@@ -624,7 +625,7 @@ static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 				free(key_conv);
 				return -1;
 			}
-			free(key_conv);
+			return_mem(key_conv,sizeof(uint32_t));
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
@@ -644,7 +645,7 @@ static off_t get_rec_position(struct HashTable *ht, void *key, int key_type)
 		} else if (key_type == UINT) {
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
-				free(key_conv);
+				return_mem(key_conv,sizeof(uint32_t));
 				return offset;
 			}
 		} else if (key_type == STR) {
