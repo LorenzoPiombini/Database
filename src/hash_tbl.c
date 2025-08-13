@@ -217,9 +217,9 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 {
 
 	int index = hash(key, tbl->size, key_type);
-	Node *new_node = calloc(1, sizeof(Node));
+	Node *new_node = (Node*)ask_mem(sizeof(Node));
 	if (!new_node){
-		__er_calloc(F, L - 2);
+		fprintf(stderr,"ask_mem() failed, %s:%d.\n",F, L - 2);
 		return 0;
 	}
 
@@ -237,9 +237,9 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 	}
 	case STR:
 	{
-		new_node->key.k.s = strdup((char *)key);
+		new_node->key.k.s = duplicate_str((char *)key);
 		if (!new_node->key.k.s) {
-			fprintf(stderr, "strdup() failed");
+			fprintf(stderr, "duplicate_str() failed, %s:%d",F,L-2);
 			return 0;
 		}
 		break;
@@ -267,8 +267,8 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 			if (strncmp(tbl->data_map[index]->key.k.s, new_node->key.k.s, ++key_len) == 0)
 			{
 				printf("key %s, already exist.\n", new_node->key.k.s);
-				free(new_node->key.k.s);
-				free(new_node);
+				return_mem(new_node->key.k.s,strlen(new_node->key.k.s)+1);
+				return_mem(new_node,sizeof(Node));
 				return 0;
 			}
 		}
@@ -287,8 +287,8 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 				if (strncmp(temp->next->key.k.s, new_node->key.k.s, ++key_len) == 0) {
 					printf("could not insert new node \"%s\"\n", new_node->key.k.s);
 					printf("key already exist. Choose another key value.\n");
-					free(new_node->key.k.s);
-					free(new_node);
+					return_mem(new_node->key.k.s,strlen(new_node->key.k.s)+1);
+					return_mem(new_node,sizeof(Node));
 					return 0;
 				}
 			}
@@ -306,14 +306,14 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 				if(tbl->data_map[index]->key.k.n16 == new_node->key.k.n16) {
 					printf("could not insert new node '%u'\n", new_node->key.k.n16);
 					printf("key already exist. Choose another key value.\n");
-					free(new_node);
+					return_mem(new_node,sizeof(Node));
 					return 0;
 				}
 			}else{
 				if (tbl->data_map[index]->key.k.n == new_node->key.k.n) {
 					printf("could not insert new node '%u'\n", new_node->key.k.n);
 					printf("key already exist. Choose another key value.\n");
-					free(new_node);
+					return_mem(new_node,sizeof(Node));
 					return 0;
 				}
 			}
@@ -326,14 +326,14 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 					if(temp->key.k.n16 == new_node->key.k.n16) {
 						printf("could not insert new node '%u'\n", new_node->key.k.n16);
 						printf("key already exist. Choose another key value.\n");
-						free(new_node);
+						return_mem(new_node,sizeof(Node));
 						return 0;
 					}
 				}else{
 					if (temp->key.k.n == new_node->key.k.n) {
 						printf("could not insert new node '%u'\n", new_node->key.k.n);
 						printf("key already exist. Choose another key value.\n");
-						free(new_node);
+						return_mem(new_node,sizeof(Node));
 						return 0;
 					}
 				}
@@ -433,14 +433,14 @@ void destroy_hasht(HashTable *tbl)
 			{
 				Node *next = current->next;
 				return_mem(current->key.k.s,strlen(current->key.k.s)+1);
-				free(current);
+				return_mem(current,sizeof(Node));
 				current = next;
 				break;
 			}
 			case UINT:
 			{
 				Node *next = current->next;
-				free(current);
+				return_mem(current,sizeof(Node));
 				current = next;
 				break;
 			}
@@ -456,9 +456,9 @@ int keys(HashTable *ht, struct Keys_ht *all_keys)
 {
 	int elements = len(*ht);
 
-	struct Key *keys = calloc(elements, sizeof(struct Key));
+	struct Key *keys = (struct Key*)ask_mem(elements * sizeof(struct Key));
 	if (!keys){
-		__er_calloc(F, L - 2);
+		fprintf(stderr,"ask_mem() failed, %s:%d.\n",F, L - 2);
 		return -1;
 	}
 
@@ -472,10 +472,9 @@ int keys(HashTable *ht, struct Keys_ht *all_keys)
 			if (temp->key.type == STR)
 			{
 
-				keys[index].k.s = strdup(temp->key.k.s);
-				if (!keys[index].k.s)
-				{
-					fprintf(stderr, "strdup() failed.");
+				keys[index].k.s = duplicate_str(temp->key.k.s);
+				if (!keys[index].k.s){
+					fprintf(stderr, "duplicate_str() failed, %s:%d",F,L-2);
 					return -1;
 				}
 				keys[index].type = STR;
@@ -536,15 +535,15 @@ void free_nodes(Node **data_map, int size)
 			case STR:
 			{
 				Node *next = current->next;
-				free(current->key.k.s);
-				free(current);
+				return_mem(current->key.k.s,strlen(current->key.k.s)+1);
+				return_mem(current,sizeof(Node));
 				current = next;
 				break;
 			}
 			case UINT:
 			{
 				Node *next = current->next;
-				free(current);
+				return_mem(current,sizeof(Node));
 				current = next;
 				break;
 			}
@@ -565,7 +564,7 @@ void free_ht_node(Node *node)
 	switch (node->key.type)
 	{
 	case STR:
-		free(node->key.k.s);
+		return_mem(current->key.k.s,strlen(current->key.k.s)+1);
 		break;
 	case UINT:
 		break;
@@ -574,7 +573,7 @@ void free_ht_node(Node *node)
 		return;
 	}
 
-	free(node);
+	return_mem(current,sizeof(Node));
 }
 
 void free_keys_data(struct Keys_ht *data)
@@ -582,10 +581,10 @@ void free_keys_data(struct Keys_ht *data)
 	for (int i = 0; i < data->length; i++)
 	{
 		if (data->keys[i].type == STR)
-			free(data->keys[i].k.s);
+			return_mem(data->keys[i].k.s,strlen(data->keys[i].k.s)+1);
 	}
 
-	free(data->keys);
+	return_mem(data->keys,data->length * sizeof(struct Key));
 }
 
 /*if mode is set to 1 it will overwrite the content of dest

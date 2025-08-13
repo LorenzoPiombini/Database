@@ -367,46 +367,6 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	return i;
 }
 
-/*this is not in use*/
-int get_array_values(char *src, char ***values)
-{
-	int items = count_fields(src, ",");
-	*values = calloc(items, sizeof(char *));
-	if (!(*values))
-	{
-		__er_calloc(F, L - 2);
-		return -1;
-	}
-
-	char *t = tok(src, ",");
-	if (!t)
-	{
-		fprintf(stderr, "tok() failed, %s:%d.\n", F, L - 2);
-		free(*values);
-		return -1;
-	}
-
-	(*values)[0] = duplicate_str(t);
-	if (!(*values)[0])
-	{
-		fprintf(stderr, "strdup() failed, %s:%d.\n", F, L - 2);
-		free(*values);
-		return -1;
-	}
-
-	for (int i = 1; ((t = tok(NULL, ",")) != NULL) && (i < items); i++)
-	{
-		(*values)[i] = duplicate_str(t);
-		if (!(*values)[i])
-		{
-			fprintf(stderr, "strdup() failed, %s:%d.\n", F, L - 2);
-			free(*values);
-			return -1;
-		}
-	}
-
-	return 0;
-}
 
 int is_num(char *key)
 {
@@ -439,7 +399,7 @@ void *key_converter(char *key, int *key_type)
 
 		converted = (uint32_t*)ask_mem(sizeof(uint32_t));
 		if (!converted) {
-			__er_calloc(F, L - 2);
+			fprintf(stderr,"ask_mem() failed.\n",F, L - 2);
 			return NULL;
 		}
 
@@ -996,7 +956,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 
 	*values = (char**)ask_mem(fields_count * sizeof(char *));
 	if (!(*values)) {
-		perror("memory get values");
+		fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
 		return -1;
 	}
 

@@ -1,4 +1,5 @@
 #if defined(__linux__)
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -13,7 +14,7 @@
 #include "common.h"
 #include "endian.h"
 #include "debug.h"
-#include <stdio.h>
+#include "memory.h"
 
 static char prog[] = "db";
 static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);
@@ -365,9 +366,9 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 
 	*p_index = array_size;
 
-	*ht = calloc(array_size, sizeof(HashTable));
+	*ht = (HashTable*)ask_mem(array_size * sizeof(HashTable));
 	if (!*ht) {
-		printf("calloc failed. %s:%d.\n", F, L - 3);
+		printf("ask_mem failed. %s:%d.\n", F, L - 3);
 		return 0;
 	}
 	int i = 0;
@@ -444,9 +445,9 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			if (read(fd, &key_l, sizeof(key_l)) > 0) {
 				size_t size = (size_t)swap64(key_l);
 
-				char *key = calloc(size + 1, sizeof(char));
+				char *key = (char*)ask_mem((size + 1)*sizeof(char));
 				if (!key) {
-					perror("memory for key");
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",F,L-2);		
 					free_nodes(ht->data_map, ht->size);
 					return 0;
 				}
@@ -455,20 +456,20 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				if (read(fd, key, size + 1) == -1 ||
 					read(fd, &v_n, sizeof(v_n)) == -1) {
 
-					perror("reading index file");
+					fprintf(stderr,"(%s): read key failed, %s:%d.\n",prog,F,L-2);		
 					free_nodes(ht->data_map, ht->size);
-					free(key);
+					return_mem(key,(size+1)*sizeof(char));
 					return 0;
 				}
 
 				off_t value = (off_t)swap64(v_n);
 				key[size] = '\0';
-				Node *newNode = calloc(1, sizeof(Node));
+				Node *newNode = (Node*)ask_mem(1*sizeof(Node));
 				if (!newNode)
 				{
 					perror("memory for node");
 					free_nodes(ht->data_map, ht->size);
-					free(key);
+					return_mem(key,(size+1)*sizeof(char));
 					return 0;
 				}
 
@@ -476,10 +477,10 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				if (!newNode->key.k.s){
 					fprintf(stderr,"strdup() failed, %s:%d.\n",F, L - 3);
 					free_nodes(ht->data_map, ht->size);
-					free(key);
+					return_mem(key,(size+1)*sizeof(char));
 					return 0;
 				}
-				free(key);
+				return_mem(key,(size+1)*sizeof(char));
 				newNode->value = value;
 				newNode->next = NULL;
 				newNode->key.type = key_type;
@@ -539,10 +540,9 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				return 0;
 			}
 
-			Node *new_node = calloc(1, sizeof(Node));
-			if (!new_node)
-			{
-				__er_calloc(F, L - 2);
+			Node *new_node = (Node*)ask_mem(sizeof(Node));
+			if (!new_node){
+				fpritnf(stderr,"ask_mem failed, %s:%d.\n",F,L-2);
 				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
@@ -5233,9 +5233,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				buff_update = (off_t)swap16(bu_up_ne);
 			}
 
-			rec->fields[i].data.s = calloc(buff_update, sizeof(char));
+			rec->fields[i].data.s = (char*)ask_mem(buff_update*sizeof(char));
 			if (!rec->fields[i].data.s){
-				printf("calloc failed: %s:%d.\n", F, L - 3);
+				fprintf(stderr,"ask_mem failed: %s:%d.\n", F, L - 3);
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
@@ -5542,17 +5542,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						buff_update = (size_t)swap16(bu_up_ne);
 					}
 
-					char *all_buf = calloc(buff_update, sizeof(char));
-					if (!all_buf)
-					{
-						printf("calloc failed file.c l 532.\n");
+					char *all_buf = (char*)ask_mem(buff_update*sizeof(char));
+					if (!all_buf){
+						printf("ask_mem() failed, %s:%d.\n",F,L-2);
 						free_record(rec, rec->fields_num);
 						return -1;
 					}
 
 					/*read the actual string*/
-					if (read(fd, all_buf, buff_update) < 0)
-					{
+					if (read(fd, all_buf, buff_update) < 0){
 						perror("could not read buffer string, file.c l 539.\n");
 						free_record(rec, rec->fields_num);
 						return -1;
@@ -5561,7 +5559,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					rec->fields[i].data.v.insert((void *)all_buf,
 							 &rec->fields[i].data.v,
 							 rec->fields[i].type);
-					free(all_buf);
+					return_mem(all_buf,buff_update);
 
 					/*set file pointer back at the end of the original str record*/
 					if (str_loc > 0)
@@ -5942,10 +5940,10 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				uint32_t j;
 				for(j = 0; j < sz; j++){
 					if (!rec->fields[i].data.file.recs){
-						rec->fields[i].data.file.recs = calloc(1,sizeof(struct Record_f));
+						rec->fields[i].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 						rec->fields[i].data.file.count = sz;
 						if(!rec->fields[i].data.file.recs){
-							__er_calloc(F,L-2);
+							fprintf(stderr,"ask_mem() failed %s:%d.\n",F,L-3);
 							free_record(rec, rec->fields_num);
 							return -1;
 						}
@@ -5964,10 +5962,10 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						first = 0;	
 						struct File *temp = &rec->fields[i].data.file;
 						while(temp->next)temp = temp->next;
-						temp->next = calloc(1,sizeof(struct File));
-						temp->next->recs = calloc(1,sizeof(struct Record_f));
+						temp->next = (struct File*)ask_mem(sizeof(struct File));
+						temp->next->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 						if (!temp->next || !temp->next->recs){
-							__er_calloc(F,L-3);
+							fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-3);
 							free_record(rec, rec->fields_num);
 							return -1;
 						}
@@ -5990,7 +5988,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							struct Record_f * temp = rec->fields[i].data.file.recs->next;
 							while(temp->next) temp = temp->next;
 
-							temp->next= calloc(1,sizeof(struct Record_f));
+							temp->next= (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							if (!temp->next) {
 								__er_realloc(F,L-4);
 								free_record(rec, rec->fields_num);
@@ -6011,9 +6009,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						}else{
 							struct File *temp = &rec->fields[i].data.file;
 							while(temp->next)temp = temp->next;
-							temp->recs = calloc(1,sizeof(struct Record_f));
+							temp->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							if (!temp->recs) {
-								__er_calloc(F,L-3);
+								fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
 								free_record(rec, rec->fields_num);
 								return -1;
 							}
@@ -6397,9 +6395,9 @@ static size_t get_disk_size_record(struct Record_f *rec)
 static int init_ram_file(struct Ram_file *ram, size_t size)
 {
 	if(size <= 0){
-		ram->mem = calloc(STD_RAM_FILE,sizeof(uint8_t)); 
+		ram->mem = (uint8_t*)ask_mem(STD_RAM_FILE*sizeof(uint8_t)); 
 		if(!ram->mem){
-			fprintf(stderr,"cannot init ram file.\n");
+			fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
 		ram->size = 0;
@@ -6408,9 +6406,9 @@ static int init_ram_file(struct Ram_file *ram, size_t size)
 		return 0;
 	}
 
-	ram->mem = calloc(size,sizeof(uint8_t));
+	ram->mem = (uint8_t*)ask_mem(size*sizeof(uint8_t));
 	if(!ram->mem){
-		fprintf(stderr,"cannot init ram file.\n");
+		fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
 		return -1;
 	}
 	ram->size = 0;
@@ -6427,7 +6425,7 @@ void clear_ram_file(struct Ram_file *ram)
 
 void close_ram_file(struct Ram_file *ram)
 {
-	free(ram->mem);
+	return_mem(ram->mem,ram->capacity);
 	ram->size = 0;
 	ram->capacity = 0;
 }
@@ -6518,9 +6516,9 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 
 			}
 
-			rec->fields[indexes[i]].data.s = calloc(buf_up,sizeof(char));
+			rec->fields[indexes[i]].data.s = (char*)ask_mem(buf_up*sizeof(char));
 			if(!rec->fields[indexes[i]].data.s){
-				fprintf(stderr,"calloc failed.\n");
+				fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
 				return -1;
 			}
 
@@ -6845,9 +6843,9 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 						buf_up = (size_t)swap16(str_loc_ne);
 					}
 
-					char *string = calloc(buf_up,sizeof(char));
+					char *string = (char*)ask_mem(buf_up*sizeof(char));
 					if(!string){
-						fprintf(stderr,"calloc failed.\n");
+						fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
 						return -1;
 					}
 
