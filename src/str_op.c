@@ -1018,7 +1018,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						return_mem(*values,sizeof(char*)*fields_count);
+						cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 					else
 						free_strs(i,1,values);
 
@@ -1041,7 +1041,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
-					return_mem(*values,sizeof(char*)*fields_count);
+					cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 				else
 					free_strs(i,1,values);
 				return -1;
@@ -1077,7 +1077,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						return_mem(*values,sizeof(char*)*fields_count);
+						cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 					else
 						free_strs(i,1,values);
 
@@ -1101,7 +1101,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			if(!(*values)[i]){
 				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
-					return_mem(*values,sizeof(char*)*fields_count);
+					cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 				else
 					free_strs(i,1,values);
 
@@ -1128,7 +1128,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				if(!(*values)[i]){
 					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						return_mem(*values,sizeof(char*)*fields_count);
+						cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 					else
 						free_strs(i,1,values);
 
@@ -1265,7 +1265,7 @@ char **get_values(char *fields_input, int fields_count)
 	if (s){
 		values[j] = duplicate_str(s);
 		if (!values[j]){
-			return_mem(values,fields_count * sizeof(char*));
+			cancel_memory(NULL,values,fields_count * sizeof(char*));
 			return NULL;
 		}
 		i++;
@@ -1273,7 +1273,7 @@ char **get_values(char *fields_input, int fields_count)
 	else
 	{
 		perror("value token not found in get_values();");
-		return_mem(values,fields_count * sizeof(char*));
+		cancel_memory(NULL,values,fields_count * sizeof(char*));
 		return NULL;
 	}
 
@@ -1305,10 +1305,10 @@ void free_strs(int fields_num, int count, ...)
 		char **str = va_arg(args, char **);
 		for (int j = 0; j < fields_num; j++){
 			if (str[j]){
-				return_mem(str[j],strlen(str[j])+1);
+				cancel_memory(NULL,str[j],strlen(str[j])+1);
 			}
 		}
-		return_mem(str,sizeof(char*)*fields_num);
+		cancel_memory(NULL,str,sizeof(char*)*fields_num);
 	}
 }
 
@@ -1987,7 +1987,7 @@ int init(struct String *str,const char *val)
 {
 	if(!str) return -1;
 	if(str->base[0] != '\0' || str->str){
-		fprintf(stderr,"(%s): string has been a;ready initialized",prog);
+		fprintf(stderr,"(%s): string has been already initialized",prog);
 		return -1;
 	}
 	
@@ -2010,6 +2010,7 @@ int init(struct String *str,const char *val)
 			fprintf(stderr,"(%s): ask_mem failed, %s:%d\n",prog, __FILE__,__LINE__-2);	
 			return -1;
 		}
+		memset(str->str,0,l+1);
 		strncpy(str->str,val,l);
 		str->append = append;
 		str->is_empty = empty;
@@ -2037,7 +2038,7 @@ static uint8_t empty(struct String *str)
 static void free_str(struct String *str)
 {
 	if(str->allocated){
-		return_mem(str->str,strlen(str->str)+1);
+		cancel_memory(NULL,str->str,strlen(str->str)+1);
 		str->allocated |= SET_OFF;
 		str->append = NULL;
 		return;
@@ -2063,7 +2064,7 @@ char *tok(char *str, char *delim)
 
         if(t_hndl.finish){
 		if(!str){
-			if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+			if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
 				/*log the error*/
 			}
 			t_hndl.original_tok = NULL;
@@ -2074,7 +2075,7 @@ char *tok(char *str, char *delim)
 		
 		size_t string_size = strlen(str);	
 		if(string_size != strlen(t_hndl.original_tok)){
-			if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+			if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
 				/*log the error*/
 			}
 			t_hndl.original_tok = NULL;
@@ -2083,14 +2084,14 @@ char *tok(char *str, char *delim)
 		}else{
 			replace('\n',*delim,t_hndl.original_tok);	
 			if(strncmp(str,t_hndl.original_tok,string_size) == 0){
-				if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+				if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
 					/*log the error*/
 				}
 				t_hndl.original_tok = NULL;
 				t_hndl.finish = 0;
 				return NULL;
 			} else {
-				if(return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+				if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
 					/*log the error*/
 				}
 				t_hndl.original_tok = NULL;
@@ -2126,7 +2127,7 @@ tok_process:
 	}
 	
 	if(strncmp(t_hndl.delim,delim,strlen(t_hndl.delim)) != 0) {
-		return_mem(t_hndl.original_tok,strlen(t_hndl.original_tok));
+		cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok));
 		t_hndl.original_tok = NULL;
 		return NULL;
 	}

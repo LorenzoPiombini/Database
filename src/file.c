@@ -447,7 +447,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 				char *key = (char*)ask_mem((size + 1)*sizeof(char));
 				if (!key) {
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",F,L-2);		
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",prog,F,L-2);		
 					free_nodes(ht->data_map, ht->size);
 					return 0;
 				}
@@ -458,7 +458,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 					fprintf(stderr,"(%s): read key failed, %s:%d.\n",prog,F,L-2);		
 					free_nodes(ht->data_map, ht->size);
-					return_mem(key,(size+1)*sizeof(char));
+					cancel_memory(NULL,key,(size+1)*sizeof(char));
 					return 0;
 				}
 
@@ -469,7 +469,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				{
 					perror("memory for node");
 					free_nodes(ht->data_map, ht->size);
-					return_mem(key,(size+1)*sizeof(char));
+					cancel_memory(NULL,key,(size+1)*sizeof(char));
 					return 0;
 				}
 
@@ -477,10 +477,10 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				if (!newNode->key.k.s){
 					fprintf(stderr,"strdup() failed, %s:%d.\n",F, L - 3);
 					free_nodes(ht->data_map, ht->size);
-					return_mem(key,(size+1)*sizeof(char));
+					cancel_memory(NULL,key,(size+1)*sizeof(char));
 					return 0;
 				}
-				return_mem(key,(size+1)*sizeof(char));
+				cancel_memory(NULL,key,(size+1)*sizeof(char));
 				newNode->value = value;
 				newNode->next = NULL;
 				newNode->key.type = key_type;
@@ -542,7 +542,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 
 			Node *new_node = (Node*)ask_mem(sizeof(Node));
 			if (!new_node){
-				fpritnf(stderr,"ask_mem failed, %s:%d.\n",F,L-2);
+				fprintf(stderr,"ask_mem failed, %s:%d.\n",F,L-2);
 				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
@@ -4569,8 +4569,9 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 				int fd_schema = open_file(sch_file,0);
 				if(file_error_handler(1,fd_schema) != 0) return 0;			
 
-				struct Schema sch = {0};
-				struct Header_d hd = {0,0,sch};	
+				struct Schema sch;
+				memset(&sch,0,sizeof(struct Schema));
+				struct Header_d hd = {0,0,&sch};	
 
 				if (!read_header(fd_schema, &hd)) {
 					close(fd_schema);
@@ -4624,7 +4625,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						uint32_t y;
 						for(y = 0; y < sz;y++){
 							struct Record_f dummy ={0};
-							if(read_file(fd, rec->fields[i].field_name, &dummy, hd.sch_d) == -1){
+							if(read_file(fd, rec->fields[i].field_name, &dummy, *hd.sch_d) == -1){
 								fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 								return -1;
 							}
@@ -4770,7 +4771,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								for(y = 0; y < padding_value;y++){
 									struct Record_f dummy ={0};
 									if(read_file(fd, rec->fields[i].field_name,
-												&dummy, hd.sch_d) == -1){
+												&dummy, *hd.sch_d) == -1){
 										fprintf(stderr,"cannot read type file %s:%d.\n"
 												,F,L-1);
 										return -1;
@@ -4801,7 +4802,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						for(y = 0; y < padding_value;y++){
 							struct Record_f dummy ={0};
 							if(read_file(fd, rec->fields[i].field_name,
-										&dummy, hd.sch_d) == -1){
+										&dummy, *hd.sch_d) == -1){
 								fprintf(stderr,"cannot read type file %s:%d.\n"
 										,F,L-1);
 								return -1;
@@ -4955,7 +4956,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					for(y = 0; y < pd_he;y++){
 						struct Record_f dummy ={0};
 						if(read_file(fd, rec->fields[i].field_name,
-									&dummy, hd.sch_d) == -1){
+									&dummy, *hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n"
 									,F,L-1);
 							return -1;
@@ -5032,7 +5033,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						for(y = 0; y < padding_value;y++){
 							struct Record_f dummy ={0};
 							if(read_file(fd, rec->fields[i].field_name,
-										&dummy, hd.sch_d) == -1){
+										&dummy, *hd.sch_d) == -1){
 								fprintf(stderr,"cannot read type file %s:%d.\n"
 										,F,L-1);
 								return -1;
@@ -5559,7 +5560,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					rec->fields[i].data.v.insert((void *)all_buf,
 							 &rec->fields[i].data.v,
 							 rec->fields[i].type);
-					return_mem(all_buf,buff_update);
+					cancel_memory(NULL,all_buf,buff_update);
 
 					/*set file pointer back at the end of the original str record*/
 					if (str_loc > 0)
@@ -5903,8 +5904,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			int fd_schema = open_file(sch_file,0);
 			if(file_error_handler(1,fd_schema) != 0) return 0;			
 
-			struct Schema sch = {0};
-			struct Header_d hd = {0,0,sch};	
+			struct Schema sch;
+			memset(&sch,0,sizeof(struct Schema));
+			struct Header_d hd = {0,0,&sch};	
 
 			if (!read_header(fd_schema, &hd)) {
 				close(fd_schema);
@@ -5953,7 +5955,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 						if(read_file(fd, rec->fields[i].field_name, 
 									rec->fields[i].data.file.recs,
-									hd.sch_d) == -1){
+									*hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 							return -1;
 						}
@@ -5970,7 +5972,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							return -1;
 						}
 
-						if(read_file(fd, rec->fields[i].field_name, temp->next->recs,hd.sch_d) == -1){
+						if(read_file(fd, rec->fields[i].field_name, temp->next->recs,*hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
 							return -1;
@@ -6001,7 +6003,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 								return -1;
 							}
 
-							if(read_file(fd, rec->fields[i].field_name,temp,hd.sch_d) == -1) {
+							if(read_file(fd, rec->fields[i].field_name,temp,*hd.sch_d) == -1) {
 								fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
 								free_record(rec, rec->fields_num);
 								return -1;
@@ -6022,7 +6024,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 								return -1;
 							}
 
-							if(read_file(fd, rec->fields[i].field_name,temp->recs,hd.sch_d) == -1) {
+							if(read_file(fd, rec->fields[i].field_name,temp->recs,*hd.sch_d) == -1) {
 								fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
 								free_record(rec, rec->fields_num);
 								return -1;
@@ -6425,7 +6427,7 @@ void clear_ram_file(struct Ram_file *ram)
 
 void close_ram_file(struct Ram_file *ram)
 {
-	return_mem(ram->mem,ram->capacity);
+	cancel_memory(NULL,ram->mem,ram->capacity);
 	ram->size = 0;
 	ram->capacity = 0;
 }

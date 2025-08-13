@@ -14,6 +14,7 @@
 #include "parse.h"
 #include "lock.h"
 #include "common.h"
+#include "memory.h"
 
   
  
@@ -28,19 +29,41 @@ void create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	strncpy(rec->file_name,file_name,strlen(file_name));
 	rec->fields_num = sch.fields_num;
 	rec->count = 1;
-	for(int i = 0; i < sch.fields_num;i++){
+	rec->fields = (struct Field*)ask_mem((sizeof(struct Filed)*sch->fields_num));
+	if(rec->fields){
+		fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+		return -1;
+	}
+
+	uint16_t i;
+	for(i = 0; i < sch.fields_num;i++){
 		strncpy(rec->fields[i].field_name,sch.fields_name[i],strlen(sch.fields_name[i]));
 		rec->fields[i].type = sch.types[i];
 	}
 }
 
-void set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c){
+int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c){
+	sch->types = (int*)ask_mem(sizeof(int)*fields_c);
+	if(sch->types){
+		fprintf(stderr,"ask_mem() failed.\n",F,L-2);
+		return -1;
+	}
+
+	sch->fields_name = (char*)ask_mem((sizeof(char)*MAX_FIELD_LT)*fields_c);
+	if(sch->fields_name){
+		fprintf(stderr,"ask_mem() failed.\n",F,L-2);
+		return -1;
+	}
+		
 	for(int i = 0; i < fields_c; i++){
 		strncpy(sch->fields_name[i],names[i],strlen(names[i]));
 		sch->types[i] = types_i[i];
 	}
-	sch->fields_num = fields_c;
+
+	sch->fields_num = (uint16_t)fields_c;
+	return 0;
 }
+
 unsigned char set_field(struct Record_f *rec, 
 				int index, 
 				char *field_name, 
@@ -142,8 +165,8 @@ unsigned char set_field(struct Record_f *rec,
 		}
 
 
-		struct Schema sch = {0};
-		memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
+		struct Schema sch;
+		memset(&sch,0,sizeof(struct Schema));
 		
 		/* 
 		 * we need to guarantee that the file field gets created
@@ -200,7 +223,8 @@ unsigned char set_field(struct Record_f *rec,
 					mode = check_handle_input_mode(&value[2], FCRT) | WR;
 				/*you can implement other modes*/
 			}else{
-				for(int i = 0; i < count;i++)
+				int i;
+				for(i = 0; i < count;i++)
 					if(values[i][0] == 'w')
 						mode = check_handle_input_mode(&values[0][2], FCRT) | WR;
 				
@@ -241,7 +265,8 @@ unsigned char set_field(struct Record_f *rec,
 							return 0;
 						}
 							
-						for(int j = 0; j < fields_count; j++){
+						int j;
+						for(j = 0; j < fields_count; j++){
 							if(types_i[j] == -1) types_i[j] = assign_type(values_in[j]);		
 						}
 
@@ -298,8 +323,8 @@ unsigned char set_field(struct Record_f *rec,
 								close_file(1,fd_schema);	
 								return 0;
 							}
-
-							for(int j = 0; j < fields_count; j++){
+							int j;
+							for(j = 0; j < fields_count; j++){
 								if(types_i[j] == -1) types_i[j] = assign_type(values_in[j]);		
 							}
 							break;
@@ -360,13 +385,7 @@ unsigned char set_field(struct Record_f *rec,
 				char *buffer = NULL;
 				int f_count = 0; 
 				if(count == 1){		
-					buffer = strdup(value);
 					f_count = count_fields(value,NULL);
-					if(!buffer){
-					fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
-					close_file(1,fd_schema);	
-					return 0;
-					}
 
 					if (f_count == 0) {
 						fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
@@ -379,39 +398,32 @@ unsigned char set_field(struct Record_f *rec,
 						close_file(1,fd_schema);	
 						return 0;
 					}
-					rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+					rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 					rec->fields[index].data.file.count = 1;
 					if(!rec->fields[index].data.file.recs){
-						__er_calloc(F,L-2);
-						close_file(1,fd_schema);	
+						fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+						close_file(1,fd_schema);
 						return 0;
 					}
 
 					if(parse_d_flag_input(rec->fields[index].field_name, 
 								f_count,
-								buffer,
+								value,
 								&sch, 
 								0,
 								rec->fields[index].data.file.recs,
 								NULL) == -1) {
-						fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+						fprintf(stderr,"(%s): error creating the record, %s:%d.\n",ERR_MSG_PAR- 1);
 						close_file(1,fd_schema);	
 						return 0;
 					}
-					free(buffer); 
 
 				}else{
-					for(int i = 0; i < count;i++){
+					int i;
+					for(i = 0; i < count;i++){
 
 					
-						buffer = strdup(values[i]);
 						f_count = count_fields(values[i],NULL);
-
-						if(!buffer){
-							fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__ -5);
-							close_file(1,fd_schema);	
-							return 0;
-						}
 
 						if (f_count == 0) {
 							fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
@@ -426,34 +438,33 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							rec->fields[index].data.file.count = 1;
 							if(!rec->fields[index].data.file.recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
 							if(parse_d_flag_input(rec->fields[index].field_name, 
 										f_count,
-										buffer,
+										values[i],
 										&sch, 
 										0,
 										rec->fields[index].data.file.recs,
 										NULL) == -1) {
-								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",ERR_MSG_PAR- 1);
 								close_file(1,fd_schema);	
 								return 0;
 							}
-							free(buffer); 
 						}else{
 							struct File *temp = &rec->fields[index].data.file;
 							while(temp->next) temp = temp->next;	
-							temp->next = calloc(1,sizeof(struct File));
-							temp->next->recs = calloc(1,sizeof(struct Record_f));
+							temp->next = (struct File*)ask_mem(sizeof(struct File));
+							temp->next->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!temp->next || !temp->next->recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
@@ -461,7 +472,7 @@ unsigned char set_field(struct Record_f *rec,
 
 							if(parse_d_flag_input(rec->fields[index].field_name, 
 										f_count,
-										buffer,
+										values[i],
 										&sch, 
 										0,
 										temp->next->recs,
@@ -470,13 +481,8 @@ unsigned char set_field(struct Record_f *rec,
 								close_file(1,fd_schema);	
 								return 0;
 							}
-							free(buffer); 
-						
 						}
-
 					}
-
-
 				}
 				break;
 			}
@@ -487,7 +493,7 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			//write the schema to the file
-			struct Header_d hd = {0, 0, sch};
+			struct Header_d hd = {0, 0, &sch};
 
 			hd.id_n = HEADER_ID_SYS;
 			hd.version = VS;
@@ -497,15 +503,15 @@ unsigned char set_field(struct Record_f *rec,
 					return 0;
 			}
 
-			close_file(1,fd_schema);	
+			close_file(1,fd_schema);
 
 
 		}else {
 			/*file exist*/
 			/* init the Schema structure*/
-			struct Schema sch = {0};
-			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-			struct Header_d hd = {0, 0, sch};
+			struct Schema sch;
+			memset(&sch,0,sizeof(struct Schema));
+			struct Header_d hd = {0, 0, &sch};
 
 			/* ensure the file is a db file */
 			if (!read_header(fd_schema, &hd)) {
@@ -515,11 +521,12 @@ unsigned char set_field(struct Record_f *rec,
 
 			int fields_count = 0;
 			unsigned char check = 0;
-					int mode = 0; 
+			int mode = 0; 
 			if(count == 1){
 				mode = check_handle_input_mode(value, FWRT) | WR;
 			}else{
-				for(int i = 0; i < count; i++){
+				int i;
+				for(i = 0; i < count; i++){
 					mode = check_handle_input_mode(values[i], FWRT) | WR;
 
 					if(mode == TYPE_WR){
@@ -537,11 +544,6 @@ unsigned char set_field(struct Record_f *rec,
 							return 0;
 						}
 
-						size_t l = strlen(&values[i][2]);
-						char buffer[l+1];
-						memset(buffer,0,l+1);
-						strncpy(buffer,values[i],l);
-
 						if(!rec->fields[index].data.file.recs){
 							rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
@@ -549,7 +551,7 @@ unsigned char set_field(struct Record_f *rec,
 								__er_calloc(F,L-2);
 								return 0;
 							}
-							check = perform_checks_on_schema(mode,buffer, fields_count,
+							check = perform_checks_on_schema(mode,values[i][2], fields_count,
 								rec->fields[index].field_name,
 								rec->fields[index].data.file.recs,
 								&hd,NULL);
@@ -588,11 +590,11 @@ unsigned char set_field(struct Record_f *rec,
 						}else{
 							struct File *temp = &rec->fields[index].data.file;
 							while(temp->next) temp = temp->next;	
-							temp->next = calloc(1,sizeof(struct File));
-							temp->next->recs = calloc(1,sizeof(struct Record_f));
+							temp->next = (struct File*)ask_mem(sizeof(struct File));
+							temp->next->recs = (struct Record_f*)(sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!temp->next || !temp->next->recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
 								return 0;
 							}
@@ -669,29 +671,24 @@ unsigned char set_field(struct Record_f *rec,
 						return 0;
 					}
 
-					size_t l = strlen(&values[i][2]);
-					char buffer[l+1];
-					memset(buffer,0,l+1);
-					strncpy(buffer,values[i],l);
-
 					if(!rec->fields[index].data.file.recs){
-						rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+						rec->fields[index].data.file.recs = (struct Record_f*) ask_mem(count*sizeof(struct Record_f));
 						rec->fields[index].data.file.count = count;
 						if(!rec->fields[index].data.file.recs){
 							__er_calloc(F,L-2);
 							return 0;
 						}
-						check = perform_checks_on_schema(mode,buffer, fields_count,
+						check = perform_checks_on_schema(mode,&values[2], fields_count,
 								rec->fields[index].field_name,
 								rec->fields[index].data.file.recs,
 								&hd,NULL);
 					}
 				} else {
 					if(!rec->fields[index].data.file.recs){
-						rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+						rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(count*sizeof(struct Record_f));
 						rec->fields[index].data.file.count = count;
 						if(!rec->fields[index].data.file.recs){
-							__er_calloc(F,L-2);
+							fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 							return 0;
 						}
 						check = perform_checks_on_schema(mode,&value[2], -1,rec->fields[index].field_name,
@@ -760,7 +757,7 @@ unsigned char set_field(struct Record_f *rec,
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
-			char *t = strtok(value, ",");
+			char *t = tok(value, ",");
 			while (t)
 			{
 
@@ -794,7 +791,7 @@ unsigned char set_field(struct Record_f *rec,
 					return 0;
 				}
 
-				t = strtok(NULL, ",");
+				t = tok(NULL, ",");
 			}
 		} else {
 
@@ -837,7 +834,7 @@ unsigned char set_field(struct Record_f *rec,
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
-			char *t = strtok(value, ",");
+			char *t = tok(value, ",");
 			while (t){
 				if (!is_integer(t)){
 					fprintf(stderr,"(%s): invalid value for long integer type: %s. Field: '%s'\n",prog, value,rec->fields[index].field_name);
@@ -860,7 +857,7 @@ unsigned char set_field(struct Record_f *rec,
 					rec->fields[index].data.v.insert((void *)&n,
 								 &rec->fields[index].data.v,type);
 				}
-				t = strtok(NULL, ",");
+				t = tok(NULL, ",");
 			}
 		} else {
 
@@ -897,7 +894,7 @@ unsigned char set_field(struct Record_f *rec,
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
-			char *t = strtok(value, ",");
+			char *t = tok(value, ",");
 			while (t){
 				if (!is_floaintg_point(t)) {
 					if(is_integer(t)){
@@ -1025,15 +1022,15 @@ unsigned char set_field(struct Record_f *rec,
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
-			char *t = strtok(value, ",");
+			char *t = tok(value, ",");
 			while (t) {
 				rec->fields[index].data.v.insert((void *)t,&rec->fields[index].data.v,type);
 				t = strtok(NULL, ",");
 			}
 		} else {
-			rec->fields[index].data.s = strdup(value);
+			rec->fields[index].data.s = duplicate_str(value);
 			if (!rec->fields[index].data.s) {
-				fprintf(stderr,"strdup() failed %s:%d.\n",F, L - 4);
+				fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2)
 				return 0;
 			}
 		}
@@ -1050,7 +1047,7 @@ unsigned char set_field(struct Record_f *rec,
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
-			char *t = strtok(value, ",");
+			char *t = tok(value, ",");
 			while (t)
 			{
 
@@ -1219,7 +1216,7 @@ unsigned char set_field(struct Record_f *rec,
 								type);
 				}
 
-				t = strtok(NULL, ",");
+				t = tok(NULL, ",");
 			}
 		}
 		else
@@ -1389,7 +1386,7 @@ void free_record(struct Record_f *rec, int fields_num)
 			break;
 		case TYPE_STRING:
 			if(rec->fields[i].data.s)
-				free(rec->fields[i].data.s);
+				cancel_memory(NULL,rec->fields[i].data.s,strlen(rec-fields[i].data.s)+1);
 			break;
 		case TYPE_FILE:
 			free_type_file(rec,0);
@@ -1678,7 +1675,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 	dest->fields_num = src->fields_num;
 
 	char data[30];
-	for (int i = 0; i < src->fields_num; i++)
+	uint16_t i;
+	for (i = 0; i < src->fields_num; i++)
 	{
 		switch (src->fields[i].type)
 		{
@@ -1788,7 +1786,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				return 0;
 			}
 
-			for (int j = 1; j < src->fields[i].data.v.size; j++) {
+			int j;
+			for (j = 1; j < src->fields[i].data.v.size; j++) {
 				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.i[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
@@ -1810,7 +1809,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				return 0;
 			}
 
-			for (int j = 1; j < src->fields[i].data.v.size; j++) {
+			int j;
+			for (j = 1; j < src->fields[i].data.v.size; j++) {
 				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.b[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
@@ -1831,7 +1831,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				return 0;
 			}
 
-			for (int j = 1; j < src->fields[i].data.v.size; j++) {
+			int j;
+			for (j = 1; j < src->fields[i].data.v.size; j++) {
 				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.l[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
@@ -1852,7 +1853,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				return 0;
 			}
 
-			for (int j = 1; j < src->fields[i].data.v.size; j++)
+			int j;
+			for (j = 1; j < src->fields[i].data.v.size; j++) {
 			{
 				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.d[j],
 												 &dest->fields[i].data.v,
@@ -1875,7 +1877,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				return 0;
 			}
 
-			for (int j = 1; j < src->fields[i].data.v.size; j++) {
+			int j;
+			for (j = 1; j < src->fields[i].data.v.size; j++) {
 				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.f[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
@@ -1891,7 +1894,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				return 0;
 			}
 
-			for (int j = 1; j < src->fields[i].data.v.size; j++) {
+			int j;
+			for (j = 1; j < src->fields[i].data.v.size; j++) {
 				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.s[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
@@ -1925,7 +1929,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 					}
 				}
 			}
-			for (uint32_t j = 0; j < src->fields[i].data.file.count; j++) {
+			uint32_t j;
+			for (j = 0; j < src->fields[i].data.file.count; j++) {
 				if(!copy_rec(&src->fields[i].data.file.recs[j],&dest->fields[i].data.file.recs[j],sch)){
 					fprintf(stderr,"copy_rec() failed, %s:%d.\n",F,L-1);
 					free_record(dest, dest->fields_num);
@@ -1947,9 +1952,11 @@ unsigned char get_index_rec_field(char *field_name, struct Record_f **recs,
 								  int recs_len, int *field_i_r, int *rec_index)
 {
 	size_t field_name_len = strlen(field_name);
-	for (int i = 0; i < recs_len; i++)
+	int i;
+	for (i = 0; i < recs_len; i++)
 	{
-		for (int j = 0; j < recs[i]->fields_num; j++)
+		int j;
+		for (j = 0; j < recs[i]->fields_num; j++)
 		{
 			if (strncmp(field_name, recs[i]->fields[j].field_name, field_name_len) == 0)
 			{
@@ -1969,10 +1976,9 @@ int init_array(struct array **v, enum ValueType type)
 	switch (type){
 	case TYPE_ARRAY_INT:
 	{
-		(*(*v)).elements.i = calloc(DEF_SIZE, sizeof(int *));
-		if (!(*(*v)).elements.i)
-		{
-			__er_calloc(F, L - 2);
+		(*(*v)).elements.i = (int**)ask_mem(DEF_SIZE*sizeof(int *));
+		if (!(*(*v)).elements.i){
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
@@ -1980,50 +1986,49 @@ int init_array(struct array **v, enum ValueType type)
 	}
 	case TYPE_ARRAY_LONG:
 	{
-		(*(*v)).elements.l = calloc(DEF_SIZE, sizeof(long *));
+		(*(*v)).elements.l = (long**)ask_mem(DEF_SIZE*sizeof(long *));
 		if (!(*(*v)).elements.l)
 		{
-			__er_calloc(F, L - 2);
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 		break;
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
-		(*(*v)).elements.f = calloc(DEF_SIZE, sizeof(float *));
-		if (!(*(*v)).elements.f)
-		{
-			__er_calloc(F, L - 2);
+		(*(*v)).elements.f = (float**)ask_mem(DEF_SIZE*sizeof(float *));
+		if (!(*(*v)).elements.f){
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 		break;
 	}
 	case TYPE_ARRAY_STRING:
 	{
-		(*(*v)).elements.s = calloc(DEF_SIZE, sizeof(char *));
+		(*(*v)).elements.s = (char**)ask_mem(DEF_SIZE*sizeof(char *));
 		if (!(*(*v)).elements.s)
 		{
-			__er_calloc(F, L - 2);
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 		break;
 	}
 	case TYPE_ARRAY_BYTE:
 	{
-		(*(*v)).elements.b = calloc(DEF_SIZE, sizeof(unsigned char *));
+		(*(*v)).elements.b = (unsigned char**)ask_mem(DEF_SIZE*sizeof(unsigned char *));
 		if (!(*(*v)).elements.b)
 		{
-			__er_calloc(F, L - 2);
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 		break;
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
-		(*(*v)).elements.d = calloc(DEF_SIZE, sizeof(double *));
+		(*(*v)).elements.d = (double**)ask_mem(DEF_SIZE*sizeof(double *));
 		if (!(*(*v)).elements.d)
 		{
-			__er_calloc(F, L - 2);
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 		break;
@@ -2060,10 +2065,9 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.i[i])
 					continue;
 
-				(*v).elements.i[i] = malloc(sizeof(int));
-				if (!(*v).elements.i[i])
-				{
-					__er_malloc(F, L - 2);
+				(*v).elements.i[i] = (int*)ask_mem(sizeof(int));
+				if (!(*v).elements.i[i]){
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
 				*((*v).elements.i[i]) = *(int *)element;
@@ -2072,17 +2076,16 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 
 		/*not enough space, increase the size */
-		int **elements_new = realloc((*v).elements.i, ++(*v).size * sizeof(int *));
+		int **elements_new = (int**)reask_mem((*v).elements.i,(*v).size*sizeof(int*),++(*v).size * sizeof(int *));
 		if (!elements_new)
 		{
-			__er_realloc(F, L - 2);
+			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
 		(*v).elements.i = elements_new;
-		(*v).elements.i[(*v).size - 1] = malloc(sizeof(int));
-		if (!(*v).elements.i[(*v).size - 1])
-		{
+		(*v).elements.i[(*v).size - 1] = (int*)ask_mem(sizeof(int));
+		if (!(*v).elements.i[(*v).size - 1]){
 			__er_malloc(F, L - 2);
 			return -1;
 		}
@@ -2110,10 +2113,9 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.l[i])
 					continue;
 
-				(*v).elements.l[i] = malloc(sizeof(long));
-				if (!(*v).elements.l[i])
-				{
-					__er_malloc(F, L - 2);
+				(*v).elements.l[i] = (long*)ask_mem(sizeof(long));
+				if (!(*v).elements.l[i]){
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
 				*((*v).elements.l[i]) = *(long *)element;
@@ -2121,18 +2123,17 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			}
 		}
 		/*not enough space, increase the size */
-		long **elements_new = realloc((*v).elements.l, ++(*v).size * sizeof(long *));
-		if (!elements_new)
-		{
-			__er_realloc(F, L - 2);
+		long **elements_new = (long**)reask_mem((*v).elements.l,(*v).size*sizeof(long*),++(*v).size * sizeof(long *));
+		if (!elements_new){
+			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
 		(*v).elements.l = elements_new;
-		(*v).elements.l[(*v).size - 1] = malloc(sizeof(long));
+		(*v).elements.l[(*v).size - 1] = (long*)ask_mem(sizeof(long));
 		if (!(*v).elements.l[(*v).size - 1])
 		{
-			__er_malloc(F, L - 2);
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
@@ -2159,10 +2160,9 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.f[i])
 					continue;
 
-				(*v).elements.f[i] = malloc(sizeof(float));
-				if (!(*v).elements.f[i])
-				{
-					__er_malloc(F, L - 2);
+				(*v).elements.f[i] = (float*)ask_mem(sizeof(float));
+				if (!(*v).elements.f[i]){
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
 				*((*v).elements.f[i]) = *(float *)element;
@@ -2170,15 +2170,15 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			}
 		}
 		/*not enough space, increase the size */
-		float **elements_new = realloc((*v).elements.f, ++(*v).size * sizeof(float *));
+		float **elements_new = (float**)reask_mem((*v).elements.f,(*v).size*sizeof(float*),++(*v).size * sizeof(float *));
 		if (!elements_new)
 		{
-			__er_realloc(F, L - 2);
+			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
 		(*v).elements.f = elements_new;
-		(*v).elements.f[(*v).size - 1] = malloc(sizeof(float));
+		(*v).elements.f[(*v).size - 1] = (float*)ask_mem(sizeof(float));
 		if (!(*v).elements.f[(*v).size - 1])
 		{
 			__er_malloc(F, L - 2);
@@ -2210,10 +2210,10 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 				size_t l = strlen((char *)element) + 1;
 
-				(*v).elements.s[i] = malloc(l * sizeof(char));
+				(*v).elements.s[i] = (char*)ask_mem(l * sizeof(char));
 				if (!(*v).elements.s[(*v).size - 1])
 				{
-					__er_malloc(F, L - 2);
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
 
@@ -2224,20 +2224,20 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 
 		/*not enough space, increase the size */
-		char **elements_new = realloc((*v).elements.s, ++(*v).size * sizeof(char *));
+		char **elements_new = realloc((*v).elements.s,(*v).size*sizeof(char*), ++(*v).size * sizeof(char *));
 		if (!elements_new)
 		{
-			__er_realloc(F, L - 2);
+			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
 		(*v).elements.s = elements_new;
 
 		size_t l = strlen((char *)element) + 1;
-		(*v).elements.s[(*v).size - 1] = malloc(l * sizeof(char));
+		(*v).elements.s[(*v).size - 1] = (char*)ask_mem(l * sizeof(char));
 		if (!(*v).elements.s[(*v).size - 1])
 		{
-			__er_malloc(F, L - 2);
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
@@ -2264,10 +2264,10 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.b[i])
 					continue;
 
-				(*v).elements.b[i] = malloc(sizeof(unsigned char));
+				(*v).elements.b[i] = (unsigned char*)ask_mem(sizeof(unsigned char));
 				if (!(*v).elements.b[i])
 				{
-					__er_malloc(F, L - 2);
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
 				*((*v).elements.b[i]) = *(unsigned char *)element;
@@ -2314,10 +2314,9 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.d[i])
 					continue;
 
-				(*v).elements.d[i] = malloc(sizeof(double));
-				if (!(*v).elements.d[i])
-				{
-					__er_malloc(F, L - 2);
+				(*v).elements.d[i] = (double*)ask_mem(sizeof(double));
+				if (!(*v).elements.d[i]){
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
 				*((*v).elements.d[i]) = *(double *)element;
@@ -2326,18 +2325,18 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 
 		/*not enough space, increase the size */
-		double **elements_new = realloc((*v).elements.d, ++(*v).size * sizeof(double *));
+		double **elements_new = (double**)reask_mem((*v).elements.d,(*v).size*sizeof(double*) ,++(*v).size * sizeof(double *));
 		if (!elements_new)
 		{
-			__er_realloc(F, L - 2);
+			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
 		(*v).elements.d = elements_new;
-		(*v).elements.d[(*v).size - 1] = malloc(sizeof(double));
+		(*v).elements.d[(*v).size - 1] = (double*)ask_mem(sizeof(double));
 		if (!(*v).elements.d[(*v).size - 1])
 		{
-			__er_malloc(F, L - 2);
+			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
@@ -2361,9 +2360,9 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.i[i])
-				free(v->elements.i[i]);
+				cancel_memory(NULL,v->elements.i[i],sizeof(int*));
 		}
-		free(v->elements.i);
+		cancel_memory(NULL,v->elements.i,v->size*sizeof(int*));
 		v->elements.i = NULL;
 		break;
 	}
@@ -2372,9 +2371,9 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.l[i])
-				free(v->elements.l[i]);
+				cancel_memory(NULL,v->elements.i[i],sizeof(long*));
 		}
-		free(v->elements.l);
+		cancel_memory(NULL,v->elements.i,v->size*sizeof(long*));
 		v->elements.l = NULL;
 		break;
 	}
@@ -2383,9 +2382,9 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.f[i])
-				free(v->elements.f[i]);
+				cancel_memory(NULL,v->elements.i[i],sizeof(float*));
 		}
-		free(v->elements.f);
+		cancel_memory(NULL,v->elements.i,v->size*sizeof(float*));
 		v->elements.f = NULL;
 		break;
 	}
@@ -2394,9 +2393,9 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.s[i])
-				free(v->elements.s[i]);
+				cancel_memory(NULL,v->elements.i[i],sizeof(char*));
 		}
-		free(v->elements.s);
+		cancel_memory(NULL,v->elements.i,v->size*sizeof(char*));
 		v->elements.s = NULL;
 		break;
 	}
@@ -2405,9 +2404,9 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.b[i])
-				free(v->elements.b[i]);
+				cancel_memory(NULL,v->elements.i[i],sizeof(unsigned char*));
 		}
-		free(v->elements.b);
+		cancel_memory(NULL,v->elements.i,v->size*sizeof(unsigned char*));
 		v->elements.s = NULL;
 		break;
 	}
@@ -2416,9 +2415,9 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (int i = 0; i < v->size; i++)
 		{
 			if (v->elements.d[i])
-				free(v->elements.d[i]);
+				cancel_memory(NULL,v->elements.i[i],sizeof(double*));
 		}
-		free(v->elements.d);
+		cancel_memory(NULL,v->elements.i,v->size*sizeof(double*));
 		v->elements.d = NULL;
 		break;
 	}
@@ -2431,8 +2430,8 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 
 int schema_has_type(struct Header_d *hd)
 {
-	for(short int i = 0;i < hd->sch_d.fields_num;i++)
-		if(hd->sch_d.types[i] == -1) return 0;
+	for(short int i = 0;i < hd->sch_d->fields_num;i++)
+		if(hd->sch_d->types[i] == -1) return 0;
 
 	return 1;
 }
@@ -2714,9 +2713,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 			}else{
 				if((bwritten + field_tot_length) >= buffer_lenght){
 					/* reallocate memory*/
-					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),(buffer_lenght += buffer_lenght) * sizeof(char));
 					if(!n_buff){
 						/*log error*/
+						fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
 						return -1;
 					}
 					*buffer = n_buff;
@@ -2749,9 +2749,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 			}else{
 				if((bwritten + field_tot_length) >= buffer_lenght){
 					/* reallocate memory*/
-					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),(buffer_lenght += buffer_lenght) * sizeof(char));
 					if(!n_buff){
 						/*log error*/
+						fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
 						return -1;
 					}
 					*buffer = n_buff;
@@ -2784,9 +2785,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 			}else{
 				if((bwritten + field_tot_length) >= buffer_lenght){
 					/* reallocate memory*/
-					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),(buffer_lenght += buffer_lenght) * sizeof(char));
 					if(!n_buff){
 						/*log error*/
+						fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
 						return -1;
 					}
 					*buffer = n_buff;
@@ -2819,9 +2821,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 			}else{
 				if((bwritten + field_tot_length) >= buffer_lenght){
 					/* reallocate memory*/
-					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),(buffer_lenght += buffer_lenght) * sizeof(char));
 					if(!n_buff){
 						/*log error*/
+						fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
 						return -1;
 					}
 					*buffer = n_buff;
@@ -2854,9 +2857,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 			}else{
 				if((bwritten + field_tot_length) >= buffer_lenght){
 					/* reallocate memory*/
-					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),(buffer_lenght += buffer_lenght) * sizeof(char));
 					if(!n_buff){
 						/*log error*/
+						fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
 						return -1;
 					}
 					*buffer = n_buff;
@@ -2889,9 +2893,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 			}else{
 				if((bwritten + field_tot_length) >= buffer_lenght){
 					/* reallocate memory*/
-					char *n_buff = realloc(*buffer,(buffer_lenght += buffer_lenght) * sizeof(char));
+					char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),(buffer_lenght += buffer_lenght) * sizeof(char));
 					if(!n_buff){
 						/*log error*/
+						fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
 						return -1;
 					}
 					*buffer = n_buff;

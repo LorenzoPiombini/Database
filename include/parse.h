@@ -45,7 +45,7 @@ int sort_input_like_header_schema(int schema_tp,
 
 unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd, int fields_num);
 unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char *buf_t, struct Schema *sch);
-int create_file_definition_with_no_value(int mode,int fields_num, char *buffer, char *buf_t, struct Schema *sch);
+int create_file_definition_with_no_value(int mode, int fields_num, char *buffer, struct Schema *sch);
 unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec,unsigned char check);
 
 void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec);
@@ -59,6 +59,5 @@ int create_new_fields_from_schema(struct Recs_old *recs_old,
 void print_schema(struct Schema sch);
 void print_header(struct Header_d hd);
 size_t compute_size_header(void *header);
-unsigned char create_data_to_add(struct Schema *sch, char data_to_add[][500]);
 char **extract_fields_value_types_from_input(char *buffer, char names[][MAX_FIELD_LT], int *types_i, int *count);
 #endif

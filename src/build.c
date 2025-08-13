@@ -379,10 +379,11 @@ int import_data_to_system(char *data_file)
 	memset(fds,-1,sizeof(int)*3);
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 	/* init the Schema structure*/
-	struct Schema sch = {0};
-	struct Record_f rec = {0};
-	memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-	struct Header_d hd = {0, 0, sch};
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Record_f rec;
+	memset(&rec,-1,sizeof(struct Record_f));
+	struct Header_d hd = {0, 0, &sch};
 
 
 	char *delim = NULL;
@@ -453,7 +454,6 @@ int import_data_to_system(char *data_file)
 			g_index = 0;
 			g_ht = NULL;
 			memset(&sch,0,sizeof(struct Schema));
-			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);	
 			clear_ram_file(&ram);
 			if(lock_f) {
 				while(lock(fds[0],UNLOCK) == WTLK);

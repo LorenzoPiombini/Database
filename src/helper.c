@@ -14,8 +14,9 @@ static char prog[] = "db";
 unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 {
 
-	struct Schema sch = {0};
-	struct Header_d hd = {HEADER_ID_SYS, VS, sch};
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {HEADER_ID_SYS, VS, &sch};
 
 	if (!write_empty_header(fd_schema, &hd)) {
 		printf("helper.c l %d.\n", __LINE__ - 1);
@@ -40,9 +41,11 @@ unsigned char append_to_file(int *fds, char *file_path, char *key,
 		char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
 {
 
-	struct Record_f rec ={0};
-	struct Schema sch = {0};
-	struct Header_d hd = {0, 0, sch};
+	struct Record_f rec;
+	memset(&rec,0,sizeof(struct Record_f));
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {0, 0, &sch};
 	int lock_f = 0;
 	if(check_data(file_path,data_to_add,fds,files, &rec,&hd,&lock_f) == -1) return -1;
 
@@ -77,10 +80,8 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 	char *buf_sdf = NULL; 
 	char *buf_t = NULL;
 	/* init the Schema structure*/
-	struct Schema sch = {0};
-	sch.fields_num = fields_count;
-	memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
 	switch(mode){
 	case TYPE_DF:
 	{
@@ -97,28 +98,16 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 			return -1;
 		}
 
-		buf_sdf = strdup(schema_def);
-		buf_t = strdup(schema_def);
-		if(!buf_t || !buf_sdf){
-			fprintf(stderr,"(%s): strdup failed, %s:%d.\n",prog,__FILE__,__LINE__);
-			if(buf_sdf) free(buf_sdf);	
-			if(buf_t) free(buf_t);	
-			return -1;
-		}
-		if (!create_file_definition_with_no_value(mode,fields_count, buf_sdf, buf_t, &sch)) {
+		if (!create_file_definition_with_no_value(mode,fields_count, schema_def, &sch)) {
 			fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
-			free(buf_sdf);
-			free(buf_t);
 			return -1;
 		}
-		free(buf_sdf);
-		free(buf_t);
 		break;
 	}
 	case HYB_DF:
 	case NO_TYPE_DF	:	
 	{
-		if (!create_file_definition_with_no_value(mode,fields_count, schema_def,NULL, &sch)) {
+		if (!create_file_definition_with_no_value(mode,fields_count, schema_def, &sch)) {
 			fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 			return -1;
 		}
@@ -129,7 +118,7 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 		return -1;
 	}
 
-	struct Header_d hd = {0, 0, sch};
+	struct Header_d hd = {0, 0, &sch};
 
 	if (!create_header(&hd)) return -1;
 
@@ -152,7 +141,8 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 	int i = 0;
 	for (i = 0; i < index_num; i++)
 	{
-		HashTable ht = {0}; 
+		HashTable ht; 
+		memset(&ht,0,sizeof(HashTable));
 		ht.size = bucket;
 		ht.write = write_ht;
 

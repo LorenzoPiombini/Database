@@ -60,7 +60,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			return STATUS_ERROR;
 		}
 
-		if(read_file(fds[1], file_name, rec, hd.sch_d) == -1) {
+		if(read_file(fds[1], file_name, rec, (*hd.sch_d)) == -1) {
 			printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 			return STATUS_ERROR;
 		}
@@ -81,7 +81,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			}
 
 			n->offset = update_rec_pos;
-			if(read_file(fds[1], file_name,n,hd.sch_d) == -1) {
+			if(read_file(fds[1], file_name,n,*hd.sch_d) == -1) {
 				printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 2);
 				return STATUS_ERROR;
 			}
@@ -97,7 +97,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	} else{
 
 		off_t pos_after_read = 0;
-		if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)offset, rec,hd.sch_d)) == -1){
+		if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)offset, rec,*(hd.sch_d))) == -1){
 			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
 			clear_ram_file(&ram);
 			return STATUS_ERROR;
@@ -119,7 +119,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 
 			off_t update_rec_pos = bswap_64(up_r_pos_ne);
 			n->offset = update_rec_pos;
-			if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)update_rec_pos, n,hd.sch_d)) == -1){
+			if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)update_rec_pos, n,*(hd.sch_d))) == -1){
 				fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
 				clear_ram_file(&ram);
 				return STATUS_ERROR;
@@ -157,7 +157,7 @@ int check_data(char *file_path,char *data_to_add,
 	int pos[200];
 	memset(pos,-1,sizeof(int)*200);
 
-	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields(":",data_to_add,pos,hd->sch_d); 
+	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields(":",data_to_add,pos,*(hd->sch_d)); 
 
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 
@@ -625,7 +625,7 @@ static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 				free(key_conv);
 				return -1;
 			}
-			return_mem(key_conv,sizeof(uint32_t));
+			cancel_memory(NULL,key_conv,sizeof(uint32_t));
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
@@ -645,7 +645,7 @@ static off_t get_rec_position(struct HashTable *ht, void *key, int key_type)
 		} else if (key_type == UINT) {
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
-				return_mem(key_conv,sizeof(uint32_t));
+				cancel_memory(NULL,key_conv,sizeof(uint32_t));
 				return offset;
 			}
 		} else if (key_type == STR) {

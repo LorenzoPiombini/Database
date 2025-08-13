@@ -992,7 +992,7 @@ unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, 
 	return SCHEMA_ERR;
 }
 
-unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char *buf_t, struct Schema *sch)
+unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struct Schema *sch)
 {
 
 	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
@@ -1002,7 +1002,7 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char 
 	switch(mode){
 	case TYPE_WR:
 		if(get_fileds_name(buffer, fields_num, 2, names) == -1) return 0;
-		if(get_value_types(buf_t, fields_num, 2,types_i) == -1) return 0;
+		if(get_value_types(buffer, fields_num, 2,types_i) == -1) return 0;
 		break;
 	case NO_TYPE_WR:
 		if((fields_num=get_fields_name_with_no_type(buffer, names)) == 0 ) return 0;
@@ -1057,7 +1057,7 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, char 
 	return 1;
 }
 
-int create_file_definition_with_no_value(int mode, int fields_num, char *buffer, char *buf_t, struct Schema *sch)
+int create_file_definition_with_no_value(int mode, int fields_num, char *buffer, struct Schema *sch)
 {
 
 
@@ -1088,7 +1088,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 		break;
 	case TYPE_DF:
 		get_fileds_name(buffer, fields_num, 2,names);
-		get_value_types(buf_t, fields_num, 2,types_i);
+		get_value_types(buffer, fields_num, 2,types_i);
 		for (int i = 0; i < fields_num; i++) {
 			if (types_i[i] != TYPE_INT &&
 					types_i[i] != TYPE_FLOAT &&
@@ -3183,7 +3183,7 @@ void print_header(struct Header_d hd)
 	printf("Header: \n");
 	printf("id: %x,\nversion: %d", hd.id_n, hd.version);
 	printf("\n");
-	print_schema(hd.sch_d);
+	print_schema(hd->sch_d);
 }
 
 size_t compute_size_header(void *header)
@@ -3195,86 +3195,13 @@ size_t compute_size_header(void *header)
 	sum += sizeof(hd->id_n) + sizeof(hd->version) + sizeof(hd->sch_d.fields_num) + sizeof(hd->sch_d);
 	int i = 0;
 
-	for (i = 0; i < hd->sch_d.fields_num; i++) {
-		sum += strlen(hd->sch_d.fields_name[i]);
+	for (i = 0; i < hd->sch_d->fields_num; i++) {
+		sum += strlen(hd->sch_d->fields_name[i]);
 
-		sum += sizeof(hd->sch_d.types[i]);
+		sum += sizeof(hd->sch_d->types[i]);
 	}
 
-	sum += hd->sch_d.fields_num; // acounting for n '\0'
+	sum += hd->sch_d->fields_num; // acounting for n '\0'
 	return sum;
 }
 
-unsigned char create_data_to_add(struct Schema *sch, char data_to_add[][500])
-{
-	for (int i = 0; i < sch->fields_num; i++)
-	{
-		size_t l = strlen(sch->fields_name[i]);
-
-		strncpy(data_to_add[i], sch->fields_name[i], l);
-
-		switch (sch->types[i])
-		{
-		case TYPE_INT:
-		{
-			char *t_i = (sch->fields_num - i) > 1 ? ":t_i:!:" : ":t_i:";
-			size_t len = strlen(t_i);
-			size_t lc = strlen(data_to_add[i]);
-			strncpy(&data_to_add[i][lc], t_i, len + 1);
-			replace(' ', '_', data_to_add[i]);
-			break;
-		}
-		case TYPE_LONG:
-		{
-			char *t_l = (sch->fields_num - i) > 1 ? ":t_l:!:" : ":t_l:";
-			size_t len = strlen(t_l);
-			size_t lc = strlen(data_to_add[i]);
-			strncpy(&data_to_add[i][lc], t_l, len + 1);
-			replace(' ', '_', data_to_add[i]);
-			break;
-		}
-		case TYPE_BYTE:
-		{
-			char *t_b = (sch->fields_num - i) > 1 ? ":t_b:!:" : ":t_b:";
-			size_t len = strlen(t_b);
-			size_t lc = strlen(data_to_add[i]);
-			strncpy(&data_to_add[i][lc], t_b, len + 1);
-			replace(' ', '_', data_to_add[i]);
-			break;
-		}
-		case TYPE_STRING:
-		{
-			char *t_s = (sch->fields_num - i) > 1 ? ":t_s:!:" : ":t_s:";
-			size_t len = strlen(t_s);
-			size_t lc = strlen(data_to_add[i]);
-			strncpy(&data_to_add[i][lc], t_s, len + 1);
-			replace(' ', '_', data_to_add[i]);
-
-			break;
-		}
-		case TYPE_DOUBLE:
-		{
-			char *t_d = (sch->fields_num - i) > 1 ? ":t_d:!:" : ":t_d:";
-			size_t len = strlen(t_d);
-			size_t lc = strlen(data_to_add[i]);
-			strncpy(&data_to_add[i][lc], t_d, len + 1);
-			replace(' ', '_', data_to_add[i]);
-			break;
-		}
-		case TYPE_FLOAT:
-		{
-			char *t_f = (sch->fields_num - i) > 1 ? ":t_f:!:" : ":t_f:";
-			size_t len = strlen(t_f);
-			size_t lc = strlen(data_to_add[i]);
-			strncpy(&data_to_add[i][lc], t_f, len + 1);
-			replace(' ', '_', data_to_add[i]);
-			break;
-		}
-		default:
-			printf("unkown type!\n");
-			return 0;
-		}
-	}
-
-	return 1;
-}

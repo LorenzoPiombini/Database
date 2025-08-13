@@ -2,7 +2,7 @@
 #define RECORD_H
 
 #include <sys/types.h>
-#include <stdint.h>
+#include "types.h"
 #define MAX_FILE_NAME_LEN 1024
 
 /*default dynamic array size*/
@@ -13,20 +13,19 @@
 #define MAX_HD_SIZE 7232
 #define MAX_FIELD_NR 200 /*max field nr in a file */
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
-#define MAX_RECS_OLD_CAP 100/*maximum capacity for recs old array */
 
 struct Schema {
-	unsigned short fields_num;
-	char fields_name[MAX_FIELD_NR][MAX_FIELD_LT];
-	int types[MAX_FIELD_NR];
-};/*7200 bytes*/
+	uint16_t fields_num;
+	char **fields_name;
+	int *types;
+};/*20 b*/
 
 struct Header_d
 {
-	unsigned int id_n;
-	unsigned short version;
-	struct Schema sch_d;
-};/*7206*/
+	uint32_t id_n;
+	uint16_t version;
+	struct Schema *sch_d;
+};/*16 b*/
 
 
 
@@ -62,14 +61,14 @@ struct array
 	int size;
 	int (*insert)(void *, struct array *, enum ValueType);
 	void (*destroy)(struct array *, enum ValueType);
-};
+};/*28 b*/
 
 
 struct File {
 	struct Record_f *recs;
 	uint32_t count;	
 	struct File *next;
-};
+};/*20 bytes*/
 	
 struct Field {
 	char field_name[MAX_FIELD_LT];
@@ -86,14 +85,14 @@ struct Field {
 		struct array v;
 		struct File file;
 	}data;
-};
+};/*64 b*/
 
 struct Record_f {
 	char file_name[MAX_FILE_NAME_LEN];
 	off_t offset;
 	int fields_num;
-	uint8_t field_set[MAX_FIELD_NR];
-	struct Field fields[MAX_FIELD_NR];
+	uint8_t *field_set;
+	struct Field *fields;
 	uint32_t count;
 	struct Record_f *next;
 };
@@ -112,7 +111,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 unsigned char get_index_rec_field(char *field_name, struct Record_f **recs, int recs_len,int *field_i_r, int *rec_index);
 int schema_has_type(struct Header_d *hd);
 int compare_rec(struct Record_f *src, struct Record_f *dest);
-void set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);
+int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);
 void free_type_file(struct Record_f *rec,int optimized);
 int parse_record_to_json(struct Record_f *rec,char **buffer);
 
