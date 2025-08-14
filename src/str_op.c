@@ -399,7 +399,7 @@ void *key_converter(char *key, int *key_type)
 
 		converted = (uint32_t*)ask_mem(sizeof(uint32_t));
 		if (!converted) {
-			fprintf(stderr,"ask_mem() failed.\n",F, L - 2);
+			fprintf(stderr,"ask_mem() failed, %s:%d.\n",F, L - 2);
 			return NULL;
 		}
 

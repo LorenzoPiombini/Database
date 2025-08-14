@@ -77,8 +77,6 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 {
 	int mode = check_handle_input_mode(schema_def, FCRT) | DF;
 	int fields_count = 0; 
-	char *buf_sdf = NULL; 
-	char *buf_t = NULL;
 	/* init the Schema structure*/
 	struct Schema sch;
 	memset(&sch,0,sizeof(struct Schema));

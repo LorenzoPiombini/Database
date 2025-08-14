@@ -31,6 +31,9 @@ typedef 	 long		int32_t;
 #  define INT_MIN	(-INT_MAX - 1)
 #  define INT_MAX	2147483647
 
+/* unsigned char max (minimum is 0*/
+#  define UCHAR_MAX 	255	
+
 /* unsigned int' max  (Minimum is 0.)  */
 #  define UINT_MAX	4294967295
 

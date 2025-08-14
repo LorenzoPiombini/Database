@@ -368,7 +368,6 @@ int main(int argc, char *argv[])
 			/* init he Schema structure*/
 			struct Schema sch;
 			memset(&sch,0,sizeof(struct Schema));
-			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
 			switch(mode){
 			case TYPE_DF:
@@ -516,7 +515,8 @@ int main(int argc, char *argv[])
 							&values,
 							fields_count) == -1) goto clean_on_error_2;
 
-					for(int i = 0; i < fields_count; i++){
+					int i;
+					for(i = 0; i < fields_count; i++){
 						if(types_i[i] == -1) types_i[i] = assign_type(values[i]);		
 					}
 					break;
@@ -892,7 +892,7 @@ int main(int argc, char *argv[])
 			int fields_count = 0; 
 			switch(mode){
 			case NO_TYPE_WR:
-				if (!add_fields_to_schema(mode, fields_count, cpy_sd, NULL, hd.sch_d)) {
+				if (!add_fields_to_schema(mode, fields_count, cpy_sd,hd.sch_d)) {
 					goto clean_on_error_5;
 				}
 				break;
@@ -904,14 +904,14 @@ int main(int argc, char *argv[])
 				}
 
 				/*add field provided to the schema*/
-				if (!add_fields_to_schema(mode, fields_count, cpy_sd, NULL, hd.sch_d)) {
+				if (!add_fields_to_schema(mode, fields_count, cpy_sd, hd.sch_d)) {
 					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
 
 				break;
 			case HYB_WR:
-				if (!add_fields_to_schema(mode, fields_count,cpy_sd, NULL, hd.sch_d)) {
+				if (!add_fields_to_schema(mode, fields_count,cpy_sd, hd.sch_d)) {
 					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
