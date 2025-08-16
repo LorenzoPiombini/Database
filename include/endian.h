@@ -1,7 +1,7 @@
 #ifndef ENDIAN_H
 #define ENDIAN_H
 
-#include <stdint.h>
+#include "types.h"
 /*assign a value to the double to get the corrisponding value int*/
 typedef union
 {
@@ -23,7 +23,6 @@ typedef union
 } one_byte_interpreter;
 
 uint16_t htonb(unsigned char c);
-unsigned char ntohb(uint16_t ui);
 uint32_t htonf(float f);
 float ntohf(uint32_t u_i);
 uint64_t htond(double d);

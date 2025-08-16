@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
 #include "build.h"
@@ -13,6 +12,7 @@
 #include "crud.h"
 #include "common.h"
 #include "globals.h"
+#include "memory.h"
 
 static char prog[] = "db";
 int get_number_value_from_txt_file(FILE *fp)
@@ -41,12 +41,12 @@ int get_number_value_from_txt_file(FILE *fp)
 		return 0;
 	}
 
-	char *endp;
-	long l = strtol(buffer,&endp,10);
-	if(*endp == '\0') 
-		return l;
-	else 
+	errno = 0;
+	long l = string_to_long(buffer);
+	if(errno == EINVAL) 
 		return 0;
+	else 
+		return l;
 }
 
 unsigned char create_system_from_txt_file(char *txt_f)
@@ -61,12 +61,12 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	int i = 0;
 	int size = return_bigger_buffer(fp, &lines);
 	char buffer[size];
-	char **files_n = calloc(lines, sizeof(char *));
-	char **schemas = calloc(lines, sizeof(char *));
+	char **files_n = (char**)ask_mem(lines * sizeof(char *));
+	char **schemas = (char**)ask_mem(lines * sizeof(char *));
 	if(!files_n || !schemas){
-		__er_calloc(F,L-3);
-		if(files_n) free(files_n);
-		if(schemas) free(schemas);
+		fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
+		if(files_n)cancel_memory(NULL,files_n,sizeof(char*)*lines);
+		if(schemas)cancel_memory(NULL,schemas,sizeof(char*)*lines);
 		return 0;
 	}
 
@@ -113,28 +113,32 @@ unsigned char create_system_from_txt_file(char *txt_f)
 			return 0;
 		}
 
-		char *endp;
 		t = tok(NULL,"|");
-		long l = strtol(t,&endp,10);
-		if(*endp == '\0')
+		errno = 0;
+		long l = string_to_long(t);
+		if(errno == EINVAL)
 			buckets[i] = (int) l; 
 		else 
 			buckets[i] = 0;
 
 
 		t = tok(NULL, "|");
-		l = strtol(t,&endp,10);
-		if(*endp == '\0')
+
+		errno = 0;
+		l = string_to_long(t);
+		if(errno == EINVAL)
 			indexes[i] = (int) l; 
 		else 
 			indexes[i] = 0; 
 
 		t = tok(NULL,"|");
-		l = strtol(t,&endp,10);
-		if(*endp == '\0')
-			file_field[i] = (int) l; 
-		else 
+
+		errno = 0;
+		l = string_to_long(t);
+		if(errno == EINVAL)
 			file_field[i] = 0; 
+		else 
+			file_field[i] = (int) l; 
 
 		i++;
 	}
@@ -225,20 +229,16 @@ int import_data_to_system(char *data_file)
 	off_t size = ftell(fp);
 	rewind(fp);	
 
-	errno = 0;
-	char *content = calloc(size+1, sizeof(char));
+	char *content = (char*)ask_mem((size+1)*sizeof(char));
 	if(!content){
-		if(errno == ENOMEM)
-			fprintf(stderr,"(%s): not enough memory.\n",prog);
-		else
-			fprintf(stderr,"(%s): calloc failed.\n",prog);
-
+		fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
 		return -1;
 	}
 
+	memset(content,0,size+1);
 	if(fread(content,size,1,fp) != 1){
 		fprintf(stderr,"fread() failed, %s:%d.\n",F,L-1);
-		free(content);
+		cancel_memory(NULL,content,sizeof(char)*(size+1));
 		fclose(fp);
 		return -1;
 	}
@@ -284,11 +284,11 @@ int import_data_to_system(char *data_file)
 		if(buf[0] == '@'){
 			memset(file_name,0,MAX_FILE_PATH_LENGTH);
 			if(open_files(&buf[1],fds,files,0) == -1){
-				free(content);
+				cancel_memory(NULL,content,sizeof(char)*(size+1));
 				return STATUS_ERROR;
 			}
 			if(is_db_file(&hd,fds) == -1){
-				free(content);
+				cancel_memory(NULL,content,sizeof(char)*(size+1));
 				return STATUS_ERROR;
 			}
 			strncpy(file_name,&buf[1],strlen(&buf[1]));
@@ -305,7 +305,7 @@ int import_data_to_system(char *data_file)
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);
 				close_ram_file(&ram);
-				free(content);
+				cancel_memory(NULL,content,sizeof(char)*(size+1));
 				return STATUS_ERROR;
 			}
 
@@ -315,14 +315,14 @@ int import_data_to_system(char *data_file)
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);
 				close_ram_file(&ram);
-				free(content);
+				cancel_memory(NULL,content,sizeof(char)*(size+1));
 				return STATUS_ERROR;
 			}
 
 			if(write_index(fds,g_index,g_ht,files[0]) == -1){
 				close_file(3,fds[0],fds[1],fds[2]);
 				close_ram_file(&ram);
-				free(content);
+				cancel_memory(NULL,content,sizeof(char)*(size+1));
 				return STATUS_ERROR;
 			}
 
@@ -345,7 +345,7 @@ int import_data_to_system(char *data_file)
 		if(!d){
 			fprintf(stderr,"(%s): delim ':{@' not found, import of '%s' aborted.\n",prog,file_name);
 			close_file(3,fds[0],fds[1],fds[2]);
-			free(content);
+			cancel_memory(NULL,content,sizeof(char)*(size+1));
 			close_ram_file(&ram);
 			return -1;
 		}
@@ -370,7 +370,7 @@ int import_data_to_system(char *data_file)
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);
-			free(content);
+			cancel_memory(NULL,content,sizeof(char)*(size+1));
 			close_ram_file(&ram);
 			if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 			close_file(3,fds[0],fds[1],fds[2]);
@@ -389,7 +389,7 @@ int import_data_to_system(char *data_file)
 		free_record(&rec,rec.fields_num);
 		memset(&rec,0,sizeof(struct Record_f));
 	}
-	free(content);
+	cancel_memory(NULL,content,sizeof(char)*(size+1));
 	close_ram_file(&ram);
 	__IMPORT_EZ = 0;
 	if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);

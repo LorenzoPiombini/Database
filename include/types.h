@@ -2,7 +2,6 @@
 #define __TYPES_H_
 
 
-# if __WORDSIZE == 64
 typedef unsigned char		uint8_t;
 typedef unsigned short		uint16_t;
 typedef 	 short		int16_t;
@@ -10,15 +9,6 @@ typedef unsigned int		uint32_t;
 typedef 	 int		int32_t;
 typedef unsigned long		uint64_t;
 typedef 	 long		int64_t;
-# else
-typedef unsigned char		uint8_t;
-typedef unsigned short		uint16_t;
-typedef 	 short		int16_t;
-typedef unsigned int		uint32_t;
-typedef 	 int		int32_t;
-typedef unsigned long		uint32_t;
-typedef 	 long		int32_t;
-#endif
 
 /*signed short max and min*/
 #  define SHRT_MIN	(-32768)

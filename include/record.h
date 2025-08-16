@@ -2,6 +2,7 @@
 #define RECORD_H
 
 #include "types.h"
+#include <sys/types.h>
 #define MAX_FILE_NAME_LEN 1024
 
 /*default dynamic array size*/

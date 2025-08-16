@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdint.h>
 #include "endian.h"
 
 uint32_t htonf(float f)

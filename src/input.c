@@ -141,7 +141,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 int convert_options(char *options)
 {
         size_t l = strlen(options);
-        for (size_t i = 0; i < l; i++)
+	size_t i;
+        for (i = 0; i < l; i++)
                 options[i] = tolower(options[i]);
 
         if (strcmp(options, ALL_OP) == 0) return ALL;

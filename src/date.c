@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include "date.h"
@@ -158,16 +157,16 @@ int create_string_date(long time, char* date_str)
 
 	if(number_of_digit(date_t->tm_mday) < 2)
 	{
-		if(snprintf(day,3,"%d%d",0,date_t->tm_mday) < 0)
+		if(copy_to_string(day,3,"%d%d",0,date_t->tm_mday) < 0)
 		{
-			printf("snprintf failed, %s:%d.\n",F,L-2);
+			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
 	}else
 	{
-		if(snprintf(day,3,"%d",date_t->tm_mday) < 0)
+		if(copy_to_string(day,3,"%d",date_t->tm_mday) < 0)
                 {
-                        printf("snprintf failed, %s:%d.\n",F,L-2);
+                        printf("copy_to_string failed, %s:%d.\n",F,L-2);
                         return -1;
                 }
 	}
@@ -176,17 +175,17 @@ int create_string_date(long time, char* date_str)
 	if(number_of_digit(date_t->tm_mon) < 2)
 	{
 		unsigned char mon = date_t->tm_mon + 1;
-		if(snprintf(month,3,"%d%d",0,mon) < 0)
+		if(copy_to_string(month,3,"%d%d",0,mon) < 0)
 		{
-			printf("snprintf failed, %s:%d.\n",F,L-2);
+			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
 	}else
 	{
 		unsigned char mon = date_t->tm_mon + 1;
-		if(snprintf(month,3,"%d",mon) < 0)
+		if(copy_to_string(month,3,"%d",mon) < 0)
                 {
-                        printf("snprintf failed, %s:%d.\n",F,L-2);
+                        printf("copy_to_string failed, %s:%d.\n",F,L-2);
                         return -1;
                 }
 	}
@@ -195,9 +194,9 @@ int create_string_date(long time, char* date_str)
 	if(number_of_digit(date_t->tm_year) == 3)
 	{
 		unsigned char y = date_t->tm_year > 200 ? date_t->tm_year - 200 : date_t->tm_year - 100;
-		if(snprintf(year,3,"%d",y) < 0)
+		if(copy_to_string(year,3,"%d",y) < 0)
 		{
-			printf("snprintf failed, %s:%d.\n",F,L-2);
+			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
 	}else
@@ -206,8 +205,8 @@ int create_string_date(long time, char* date_str)
 		return -1;
 	}
 
-	if(snprintf(date_str,9,"%s-%s-%s",month,day,year) < 0) {
-		printf("snprintf failed, %s:%d.\n",F,L-2);
+	if(copy_to_string(date_str,9,"%s-%s-%s",month,day,year) < 0) {
+		printf("copy_to_string failed, %s:%d.\n",F,L-2);
 		return -1;
 	}
 

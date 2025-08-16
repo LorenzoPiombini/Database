@@ -92,7 +92,7 @@ int write_ht(int fd, HashTable *ht)
 					write(fd, current->key.k.s, strlen(current->key.k.s) + 1) == -1 ||
 					write(fd, &value, sizeof(value)) < 0){
 					perror("write index:");
-					return 0; // false
+					return 0; /*false*/
 				}
 				current = current->next;
 				break;
@@ -113,24 +113,24 @@ int write_ht(int fd, HashTable *ht)
 				if (write(fd, &type, sizeof(type)) == -1 ||
 						write(fd, &size, sizeof(size)) == -1) {
 					perror("write index:");
-					return 0; // false
+					return 0; /*false*/
 				}
 
 				if(current->key.size == 16){
 					if (write(fd, &k16, sizeof(k16)) == -1) {
 						perror("write index:");
-						return 0; // false
+						return 0; /*false*/
 					}
 				}else{
 					if (write(fd, &k, sizeof(k)) == -1) {
 						perror("write index:");
-						return 0; // false
+						return 0; /*false*/
 
 					}
 				}
 				if (write(fd, &value, sizeof(value)) == -1) {
 					perror("write index:");
-					return 0; // false
+					return 0; /*false*/
 				}
 				current = current->next;
 				break;
@@ -344,7 +344,7 @@ int set(void *key, int key_type, off_t value, HashTable *tbl)
 		temp->next = new_node;
 	}
 
-	return 1; // succseed!
+	return 1; /* succseed!*/
 }
 
 Node *delete(void *key, HashTable *tbl, int key_type)
@@ -511,8 +511,8 @@ int len(HashTable tbl)
 
 	if (tbl.size == 0) return 0;
 
-	for (int i = 0; i < tbl.size; i++)
-	{
+	int i;
+	for (i = 0; i < tbl.size; i++){
 		Node *temp = tbl.data_map[i];
 		while (temp != NULL)
 		{
@@ -578,7 +578,8 @@ void free_ht_node(Node *node)
 
 void free_keys_data(struct Keys_ht *data)
 {
-	for (int i = 0; i < data->length; i++)
+	int i;
+	for (i = 0; i < data->length; i++)
 	{
 		if (data->keys[i].type == STR)
 			cancel_memory(NULL,data->keys[i].k.s,strlen(data->keys[i].k.s)+1);
@@ -605,7 +606,8 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 		memset((*dest).data_map,0,sizeof(Node*)*MAX_HT_BUCKET);
 	}
 
-	for (register int i = 0; i < src->size; i++)
+	int i;
+	for (i = 0; i < src->size; i++)
 	{
 		if (src->data_map[i])
 		{

@@ -5833,7 +5833,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				int j;
 				for (j = 0; j < sz; j++)
 				{
-					uint16_t num_ne = 0;
+					uint8_t num_ne = 0;
 					if (read(fd, &num_ne, sizeof(num_ne)) == -1)
 					{
 						perror("can't read int array from file.\n");
@@ -5841,10 +5841,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 					}
 
-					unsigned char num = ntohb(num_ne);
-					rec->fields[i].data.v.insert((void *)&num,
-												 &rec->fields[i].data.v,
-												 rec->fields[i].type);
+					rec->fields[i].data.v.insert((void *)&num_ne,
+									 &rec->fields[i].data.v,
+									 rec->fields[i].type);
 				}
 
 				if (padd > 0)
@@ -6218,9 +6217,9 @@ int add_index(int index_nr, char *file_name, int bucket)
 	char buff[l];
 	memset(buff, 0, l);
 
-	if (snprintf(buff, l, "%s%s", file_name, ".inx") < 0) {
+	if (copy_to_string(buff, l, "%s%s", file_name, ".inx") < 0) {
 		fprintf(stderr,
-				"snprintf() failed. %s:%d.\n",
+				"copy_to_string() failed. %s:%d.\n",
 				F, L - 3);
 		return -1;
 	}
