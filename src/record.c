@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -309,10 +308,10 @@ unsigned char set_field(struct Record_f *rec,
 					}
 					set_schema(names,types_i,&sch,fields_count);	
 
-					rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+					rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 					rec->fields[index].data.file.count = 1;
 					if(!rec->fields[index].data.file.recs){
-						__er_calloc(F,L-2);
+						fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 						free_strs(fields_count,1,values_in);
 						close_file(1,fd_schema);	
 						return 0;
@@ -368,10 +367,10 @@ unsigned char set_field(struct Record_f *rec,
 						set_schema(names,types_i,&sch,fields_count);	
 
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							rec->fields[index].data.file.count = 1;
 							if(!rec->fields[index].data.file.recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
@@ -388,11 +387,11 @@ unsigned char set_field(struct Record_f *rec,
 						}else{
 							struct File *temp = &rec->fields[index].data.file;
 							while(temp->next) temp = temp->next;	
-							temp->next = calloc(1,sizeof(struct File));
-							temp->next->recs = calloc(1,sizeof(struct Record_f));
+							temp->next = (struct File*)ask_mem(sizeof(struct File));
+							temp->next->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!temp->next || !temp->next->recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
@@ -574,10 +573,10 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = calloc(1,sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!rec->fields[index].data.file.recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 								return 0;
 							}
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
@@ -588,11 +587,11 @@ unsigned char set_field(struct Record_f *rec,
 						}else{
 							struct File *temp = &rec->fields[index].data.file;
 							while(temp->next) temp = temp->next;	
-							temp->next = calloc(1,sizeof(struct File));
-							temp->next->recs = calloc(1,sizeof(struct Record_f));
+							temp->next =(struct File*) ask_mem(sizeof(struct File));
+							temp->next->recs = (struct Record_f*) ask_mem(sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!temp->next || !temp->next->recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 								close_file(1,fd_schema);	
 								return 0;
 							}
@@ -605,10 +604,10 @@ unsigned char set_field(struct Record_f *rec,
 						}
 					}else{
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = calloc(count ,sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(count *sizeof(struct Record_f));
 							rec->fields[index].data.file.count = count;
 							if(!rec->fields[index].data.file.recs){
-								__er_calloc(F,L-2);
+								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 								return 0;
 							}
 							check = perform_checks_on_schema(mode,&values[i][2], -1,
@@ -704,7 +703,7 @@ unsigned char set_field(struct Record_f *rec,
 						rec->fields[index].data.file.recs = (struct Record_f*) ask_mem(count*sizeof(struct Record_f));
 						rec->fields[index].data.file.count = count;
 						if(!rec->fields[index].data.file.recs){
-							__er_calloc(F,L-2);
+							fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 							return 0;
 						}
 						check = perform_checks_on_schema(mode,&value[2], fields_count,
@@ -1062,7 +1061,7 @@ unsigned char set_field(struct Record_f *rec,
 		} else {
 			rec->fields[index].data.s = duplicate_str(value);
 			if (!rec->fields[index].data.s) {
-				fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+				fprintf(stderr,"(%s): duplicate_str() failed, %s:%d.\n",ERR_MSG_PAR-2);
 				return 0;
 			}
 		}
@@ -1343,7 +1342,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 			temp->next = NULL;
 			free_record(temp,temp->fields_num);
 			if(!optimized) 
-				free(temp);
+				cancel_memory(NULL,temp,sizeof(struct Record_f));
 			else
 				memset(temp,0,sizeof(struct Record_f));
 
@@ -1353,7 +1352,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 
 		free_record(rec->fields[index].data.file.recs,rec->fields[index].data.file.recs->fields_num);
 		if(!optimized) 
-			free(rec->fields[index].data.file.recs);
+			cancel_memory(NULL,rec->fields[index].data.file.recs,sizeof(struct Record_f));
 		else
 			memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 
@@ -1368,7 +1367,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 			t->next = NULL;
 			free_record(t,t->fields_num);
 			if(!optimized)
-				free(t);
+				cancel_memory(NULL,t,sizeof(struct Record_f));
 			else
 				memset(t,0,sizeof(struct Record_f));
 			t= NULL;
@@ -1378,7 +1377,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 		struct File *f = temp;		
 		temp = temp->next;
 		if(!optimized)
-			free(f);
+			cancel_memory(NULL,f,sizeof(struct File));
 		else
 			memset(f,0,sizeof(struct File));
 	}	
@@ -1389,7 +1388,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 		tem->next = NULL;
 		free_record(tem,tem->fields_num);
 		if(!optimized) 
-			free(tem);
+			cancel_memory(NULL,tem,sizeof(struct Record_f));
 		else
 			memset(tem,0,sizeof(struct Record_f));
 
@@ -1399,7 +1398,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 
 	free_record(rec->fields[index].data.file.recs,rec->fields[index].data.file.recs->fields_num);
 	if(!optimized) 
-		free(rec->fields[index].data.file.recs);
+		cancel_memory(NULL,rec->fields[index].data.file.recs,sizeof(struct Record_f));
 	else
 		memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 }
@@ -1449,7 +1448,7 @@ void free_record(struct Record_f *rec, int fields_num)
 				rec->next = temp->next;
 				temp->next = NULL;
 				free_record(temp,temp->fields_num);
-				free(temp);
+				cancel_memory(NULL,temp,sizeof(struct Record_f));
 				temp = rec->next;  
 				rec->count--;
 				if(!temp)break; 
@@ -1666,6 +1665,7 @@ void free_record_array(int len, struct Record_f **recs)
 	- int* len_ia => length inner array,  an array that keeps track of all the found records array sizes
 	- int size_ia => the actual size of len_ia,
 */
+#if 0
 void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int size_ia)
 {
 	if (!*array)
@@ -1673,7 +1673,7 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 
 	if (!size_ia)
 	{
-		free(*array);
+		cancel_memory(NULL,*array);
 		return;
 	}
 
@@ -1689,15 +1689,16 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 			}
 			else
 			{
-				free((*array)[i]);
+				cancel_memory(NULL,(*array)[i]);
 				return;
 			}
 		}
 	}
 
-	free(*array);
+	cancel_memory(NULL,*array);
 }
 
+#endif
 unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schema *sch)
 {
 	if(sch)
@@ -1956,10 +1957,10 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 			if(!dest->fields[i].data.file.recs){
 				if(src->fields[i].data.file.count == 1){
-					dest->fields[i].data.file.recs = calloc(1,sizeof(struct Record_f));
+					dest->fields[i].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 
 					if(!dest->fields[i].data.file.recs){
-						__er_calloc(F,L-2);
+						fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 						free_record(dest, dest->fields_num);
 						return 0;
 					}	
@@ -1967,11 +1968,11 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 					struct File *f = &src->fields[i].data.file;
 					while(f->next) f = f->next;
-					f->next = calloc(1,sizeof(struct File));
-					f->next->recs = calloc(1,sizeof(struct Record_f));
+					f->next = (struct File*) ask_mem(sizeof(struct File));
+					f->next->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 					dest->fields[i].data.file.count++;
 					if(!f->next || !f->next->recs){
-						__er_calloc(F,L-2);
+						fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 						free_record(dest, dest->fields_num);
 						return 0;
 					}
