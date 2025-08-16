@@ -29,7 +29,8 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	rec->fields_num = sch.fields_num;
 	rec->count = 1;
 	rec->fields = (struct Field*)ask_mem((sizeof(struct Field)*sch.fields_num));
-	if(rec->fields){
+	rec->field_set = (uint8_t*)ask_mem(sizeof(uint8_t)*sch.fields_num);
+	if(!rec->fields){
 		fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 		return -1;
 	}
@@ -71,6 +72,27 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 	return 0;
 }
 
+int free_schema(struct Schema *sch){
+	uint16_t i;
+	for(i = 0; i < sch->fields_num;i++){
+		if(cancel_memory(NULL,sch->fields_name[i],strlen(sch->fields_name[i]))){
+			fprintf(stderr,"cancel_memory() failed, %s:%d.\n",__FILE__,__LINE__-1);
+			return -1;
+		}
+	}
+
+	if(cancel_memory(NULL,sch->types,sizeof(int) * sch->fields_num)){
+		fprintf(stderr,"cancel_memory() failed, %s:%d.\n",__FILE__,__LINE__-1);
+		return -1;
+	}
+
+	if(cancel_memory(NULL,sch->fields_name,sizeof(char*) * sch->fields_num)){
+		fprintf(stderr,"cancel_memory() failed, %s:%d.\n",__FILE__,__LINE__-1);
+		return -1;
+	}
+
+	return 0;
+}
 unsigned char set_field(struct Record_f *rec, 
 				int index, 
 				char *field_name, 

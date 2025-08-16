@@ -68,15 +68,15 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 		struct Record_f *temp = NULL;
 		temp = rec;
 		while ((update_rec_pos = get_update_offset(fds[1])) > 0) {
-			struct Record_f *n = calloc(1, sizeof(struct Record_f));
+			struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 			if(!n){		
-				__er_calloc(F,L-2);
+				fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return STATUS_ERROR;
 			}
 
 			if (find_record_position(fds[1], update_rec_pos) == -1) {
 				__er_file_pointer(F, L - 1);
-				free(n);
+				cancel_memory(NULL,n,sizeof(struct Record_f));
 				return STATUS_ERROR;
 			}
 
@@ -110,9 +110,9 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(uint64_t));
 			if(up_r_pos_ne == 0) break;
 
-			struct Record_f *n = calloc(1, sizeof(struct Record_f));
+			struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 			if(!n){		
-				__er_calloc(F,L-2);
+				fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				clear_ram_file(&ram);
 				return STATUS_ERROR;
 			}
@@ -303,6 +303,7 @@ int write_record(int *fds,void *key,
 
 	if(write_index(fds,index,ht,files[0]) == -1) return -1;
 
+	cancel_memory(NULL,ht,sizeof(HashTable));
 	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	return 0;
 }
@@ -328,7 +329,6 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 		destroy_hasht(&ht[i]);
 	}
 
-	free(ht);
 
 	close_file(1, fds[0]);
 	fds[0] = open_file(file_name, 0); /* opening in regular mode */
@@ -622,7 +622,7 @@ static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 	} else if (key_type == UINT) {
 		if (key_conv) {
 			if (!set(key_conv, key_type, offset, &ht[0])){
-				free(key_conv);
+				cancel_memory(NULL,key_conv,sizeof(uint32_t));
 				return -1;
 			}
 			cancel_memory(NULL,key_conv,sizeof(uint32_t));

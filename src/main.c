@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <getopt.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
@@ -21,7 +20,6 @@
 #include "build.h"
 #include "crud.h"
 #include "memory.h"
-
 
 
 char prog[] = "db";
@@ -104,15 +102,14 @@ int main(int argc, char *argv[])
 		case 'D':
 		{
 			del = 1;
-			char *endptr;
-			long l = strtol(optarg,&endptr,10);
-			if(*endptr == '\0'){
-				index_nr = (int) l;
-			}else{
-				fprintf(stderr,"option -D value is not a valid number.\n");
+			errno = 0;
+			long l = string_to_long(optarg);
+			if(errno == EINVAL && l < 0){
+				fprintf(stderr,"option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
+			index_nr = (int) l;
 			break;
 		}
 		case 't':
@@ -147,30 +144,30 @@ int main(int argc, char *argv[])
 		}
 		case 's':
 		{
-			char *endptr;
-			long l = strtol(optarg,&endptr,10);
-			if(*endptr == '\0'){
-				bucket_ht = (int)l;
-			}else{
-				fprintf(stderr,"option -s value is not a valid number.\n");
+			errno = 0;
+			long l = string_to_long(optarg);
+			if(errno == EINVAL){
+				fprintf(stderr,"option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
+			bucket_ht = (int)l;
 			break;
 
 		}
 		case 'x':
+		{
 			list_keys = 1;
-			char *endptr;
-			long l = strtol(optarg,&endptr,10);
-			if(*endptr == '\0'){
-				index_nr = (int)l;
-			}else{
-				fprintf(stderr,"option -x value is not a valid number.\n");
+			errno = 0;
+			long l = string_to_long(optarg);
+			if(errno == EINVAL){
+				fprintf(stderr,"option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
+			index_nr = (int)l;
 			break;
+		}
 		case 'c':
 		{
 			create = 1;
@@ -179,15 +176,14 @@ int main(int argc, char *argv[])
 		}
 		case 'i':
 		{
-			char *endptr;
-			long l = strtol(optarg,&endptr,10);
-			if(*endptr == '\0'){
-				indexes = (int)l;
-			}else{
+			errno = 0;
+			long l = string_to_long(optarg);
+			if(errno == EINVAL){
 				fprintf(stderr,"option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
+			indexes = (int)l;
 			break;
 		}
 		case 'o':
@@ -416,6 +412,7 @@ int main(int argc, char *argv[])
 
 			if (only_dat) {
 				fprintf(stdout,"(%s): File created successfully!\n",prog);
+				free_schema(&sch);
 				close_prog_memory();
 				close_file(2, fd_data, fd_schema);
 				return 0;
@@ -424,6 +421,7 @@ int main(int argc, char *argv[])
 			if(file_field){
 				fprintf(stdout,"(%s): File created successfully!\n",prog);
 				close_file(1, fd_schema);
+				free_schema(&sch);
 				close_prog_memory();
 				return 0;
 			}
@@ -455,12 +453,18 @@ int main(int argc, char *argv[])
 			fprintf(stdout,"(%s): File created successfully!\n",prog);
 
 			close_file(3, fd_index, fd_data,fd_schema);
+			if(free_schema(&sch) == -1){
+				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+			}
 			close_prog_memory();
 			return 0;
 
 			clean_on_error_1:
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
+			if(free_schema(&sch) == -1){
+				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+			}
 			close_prog_memory();
 			return STATUS_ERROR;
 		}
@@ -479,7 +483,6 @@ int main(int argc, char *argv[])
 			/* init the Schema structure*/
 			struct Schema sch;
 			memset(&sch,0,sizeof(struct Schema));
-			memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 
 			struct Record_f rec;
 			memset(&rec,0,sizeof(struct Record_f));
@@ -569,6 +572,9 @@ int main(int argc, char *argv[])
 				printf("File created successfully!\n");
 				free_record(&rec, fields_count);
 				close_file(2, fd_data,fd_schema);
+				if(free_schema(&sch) == -1){
+					fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+				}
 				close_prog_memory();
 				return 0;
 			}
@@ -585,7 +591,8 @@ int main(int argc, char *argv[])
 
 			int i = 0;
 			for (i = 0; i < index_num; i++) {
-				HashTable ht = {0};
+				HashTable ht;
+				memset(&ht,0,sizeof(ht));
 				ht.size = bucket;
 				ht.write = write_ht;
 
@@ -636,6 +643,9 @@ int main(int argc, char *argv[])
 			fprintf(stdout,"(%s): File created successfully.\n",prog);
 			free_record(&rec, fields_count); // this free the memory allocated for the record
 			close_file(3, fd_index, fd_data,fd_schema);
+			if(free_schema(&sch) == -1){
+				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+			}
 			close_prog_memory();
 			return 0;
 			
@@ -643,6 +653,9 @@ int main(int argc, char *argv[])
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
 			free_record(&rec, fields_count);
+			if(free_schema(&sch) == -1){
+				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+			}
 			close_prog_memory();
 			return STATUS_ERROR;
 
@@ -827,7 +840,6 @@ int main(int argc, char *argv[])
 			}	
 
 			close_prog_memory();
-			fprintf(stderr,"index added.\n");
 			return 0;
 			clean_on_error_4:
 			if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
@@ -870,7 +882,7 @@ int main(int argc, char *argv[])
 			char buf[l];
 			memset(buf,0,l);
 			
-			if(snprintf(buf,l,"%ld.lock",st.st_ino) < 0){
+			if(copy_to_string(buf,l,"%ld.lock",st.st_ino) < 0){
 				fprintf(stderr,"cannot release the lock");
 				close_prog_memory();
 				return STATUS_ERROR;
@@ -1000,13 +1012,15 @@ int main(int argc, char *argv[])
 							goto option_clean_on_error;
 						}
 						/* create *p_i_nr of ht and write them to file*/
-						HashTable *ht = calloc(*p_i_nr, sizeof(HashTable));
+						HashTable *ht = (HashTable*)ask_mem(*p_i_nr * sizeof(HashTable));
 						if (!ht) {
-							__er_calloc(F, L - 4);
+							fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 							goto option_clean_on_error;
 						}
-						for (int i = 0; i < *p_i_nr; i++) {
-							HashTable ht_n = {0};
+						int i;
+						for (i = 0; i < *p_i_nr; i++) {
+							HashTable ht_n;
+							memset(&ht_n,0,sizeof(HashTable));
 							ht_n.size = *pbuck;
 							ht_n.write = write_ht;
 
@@ -1021,14 +1035,14 @@ int main(int argc, char *argv[])
 
 						if (!write_index_file_head(fd_index, *p_i_nr)) {
 							printf("write to file failed,%s:%d",F, L - 2);
-							free(ht);
+							cancel_memory(NULL,ht,sizeof(HashTable)* *p_i_nr);
 							goto option_clean_on_error;
 						}
 
-						for (int i = 0; i < *p_i_nr; i++) {
+						for (i = 0; i < *p_i_nr; i++) {
 							if (!write_index_body(fd_index, i, &ht[i])) {
 								printf("write to file failed. %s:%d.\n", F, L - 2);
-								free(ht);
+								cancel_memory(NULL,ht,sizeof(HashTable)* *p_i_nr);
 								goto option_clean_on_error;
 							}
 						}
@@ -1036,7 +1050,7 @@ int main(int argc, char *argv[])
 						while((r = lock(fd_index,UNLOCK)) == WTLK);
 
 						close_file(3,fd_index,fd_data,fd_schema);
-						free(ht);
+						cancel_memory(NULL,ht,sizeof(HashTable) * *p_i_nr);
 						printf("all record deleted from %s file.\n", cpy_fp);
 						close_prog_memory();
 						return 0;
@@ -1152,7 +1166,7 @@ int main(int argc, char *argv[])
 			while(lock(fd_index,UNLOCK) == WTLK);
 			lock_f = 0;
 			close_file(3, fd_index, fd_data,fd_schema);
-			free(ht);
+			cancel_memory(NULL,ht,sizeof(HashTable) * index);
 			close_prog_memory();
 			return 0;
 			

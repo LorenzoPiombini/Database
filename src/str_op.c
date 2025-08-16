@@ -22,7 +22,6 @@ static uint8_t empty(struct String *str);
 static int append(struct String *str, const char *str_to_appen);
 
 #define BASE 247
-
 static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
 				"_V","_W","_X","_Y","_Z","_[","_\\","_]","_^","__"," ","!","\"","#","$","%","&","'","(",")","*","+",
 				",","-",".","0","1","2","3","4","5","6","7","8","9",":",";","<","=","?","@","A","B","C","D","E","F",
@@ -1234,9 +1233,9 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 
 	if(first){
 		if(*(first + 1) != '\0') {
-			values[i] = strdup(&first[1]);
+			values[i] = duplicate_str(&first[1]);
 			if(!values[i]){
-				fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
 				return NULL;
 			}
 			if(strstr(values[i],"@")) replace('@',':',values[i]);
@@ -1366,9 +1365,9 @@ char return_last_char(char *str)
 size_t digits_with_decimal(float n)
 {
 	char buf[20];
-	if (snprintf(buf, 20, "%.2f", n) < 0)
+	if (copy_to_string(buf, 20, "%.2f", n) < 0)
 	{
-		printf("snprintf failed %s:%d.\n", F, L - 2);
+		printf("copy_to_string failed %s:%d.\n", F, L - 2);
 		return -1;
 	}
 
@@ -1466,7 +1465,7 @@ size_t number_of_digit(int n)
 float __round_alt(float n)
 {
 	char buff[20];
-	if (snprintf(buff, 20, "%f", n) < 0)
+	if (copy_to_string(buff, 20,"%f", n) < 0)
 		return -1;
 
 	size_t digit = 0;
@@ -1474,9 +1473,8 @@ float __round_alt(float n)
 	if ((digit = digits_with_decimal(n) + 2) > 20)
 		return -1;
 
-	int num = buff[digit];
-	if (num > 5)
-	{
+	int num = (int)((int)buff[digit] - '0');
+	if (num > 5){
 		n += 0.01;
 	}
 
@@ -1549,7 +1547,8 @@ int find_last_char(const char c, char *src)
 {
 	size_t l = strlen(src);
 	int last = -1;
-	for (size_t i = 0; i < l; i++){
+	size_t i;
+	for (i = 0; i < l; i++){
 		if (src[i] == c)
 			last = i;
 	}
@@ -1574,6 +1573,7 @@ int count_delim(char *delim, char *str)
 
 	return c;
 }
+
 int find_double_delim(char *delim, char *str, int *pos, struct Schema sch)
 {
 
@@ -1906,7 +1906,8 @@ static uint32_t power(uint32_t n, int pow)
 	uint32_t a = n;
 	if(pow == 0) return 1;
 	
-	for(int i = 1; i < pow; i++){
+	int i;
+	for(i = 1; i < pow; i++){
 		a *= n;
 	}
 
@@ -1918,7 +1919,8 @@ long long unpack(uint8_t *digits_index)
 {
 	long long unpacked = 0;
 	int pow = 0;
-	for(int i = 4; i >= 0; i--){
+	int i;
+	for(i = 4; i >= 0; i--){
 		if(digits_index[i] == 255) break;
 		unpacked += (digits_index[i] * power(BASE,pow));
 		pow++;
@@ -2167,4 +2169,221 @@ char *duplicate_str(char *str)
 	memset(dup,0,strlen(str)+1);
 	strncpy(dup,str,strlen(str));
 	return dup;
+}
+
+long string_to_long(char *str)
+{
+	size_t l = strlen(str);
+	int at_the_power_of = l - 1;	
+	long converted = 0;
+	int negative = 0;
+	for(; *str != '\0';str++){
+		if(*str == '-'){
+			at_the_power_of--;
+			negative = 1;
+			continue;
+		}
+		if(isalpha(*str)){
+			errno = EINVAL;
+			return 0;
+		}
+		long n = (long)*str - '0';
+		if(at_the_power_of >= 0)
+			converted += (long)((int)power(10.00,at_the_power_of))*n;
+		at_the_power_of--;
+	}
+
+	return negative == 0 ? converted : converted * (-1);
+}
+double string_to_double(char *str)
+{
+	int comma = 0;
+	int position = 0;
+	char num_buff[30];
+	memset(num_buff,0,30);
+
+	int i;
+	for(i = 0; *str != '\0';str++){
+		if (i == 30) break;
+		if(*str == '.') {
+			comma = 1;
+			continue;
+		}
+
+		if(isalpha(*str)){
+			errno = EINVAL;
+			return 0;
+		}
+
+		if(i < 30)
+			num_buff[i] = *str;
+
+		if(comma) position++;
+		i++;
+	}
+
+	long l = string_to_long(num_buff);
+	if(comma){
+		return ((double)l / power(10,position));
+	}else{
+		return (double) l;
+	}
+}
+
+
+int long_to_string(long n, char *buff){
+	
+	int pos = 0;
+	if(n < 0){
+		pos++;
+		buff[0] = '-';
+		n *= -1;
+	}
+	pos += number_of_digit(n)-1;
+	while(n > 0){
+		int m = n % 10;
+		if(pos >= 0)
+			buff[pos] = (char)(m + (int)'0');
+
+		n /= 10;	
+		pos--;
+	}
+	return 0;
+}
+
+int double_to_string(double d, char *buff){
+	
+	long integer = (long)d;
+	double fraction = d - (double)integer;
+
+	long_to_string(integer,buff);
+
+	buff[strlen(buff)] = '.';
+
+	if (d < 0){
+		fraction *= -1;
+		integer *= -1;
+	}
+
+	int i;
+	int j = strlen(buff);
+	for(i = 0; i < 15; i++){
+		fraction *= 10;
+		buff[j] =  ((int)fraction + '0');
+		fraction = (double)(fraction - (int)fraction);
+		j++;
+	}
+
+	return 0;
+}
+
+int copy_to_string(char *buff,size_t size,char *format,...)
+{
+	if(strlen(format) > size){
+		fprintf(stderr,"buffer is not big enough %s:%d.\n",__FILE__,__LINE__);
+		return -1;
+	}
+
+	va_list list; 
+	long l = 0;
+	char *string = NULL;
+	int precision = 0;
+	double d = 0;
+
+	va_start(list,format);
+	size_t j;
+	for(j = 0; *format != '\0';format++){
+		if(*format == '%'){
+			format++;
+			
+			for(;;){
+				switch(*format){
+				case 's':
+				{
+					string = va_arg(list,char*);
+					for(; *string != '\0'; string++){
+						if(j < size)
+							buff[j] = *string;
+						j++;
+					}
+					break;
+				}
+				case 'l':
+					continue;
+				case 'd':
+				{
+					l = va_arg(list,int);
+					size_t sz = number_of_digit(l);
+					char num_str[sz+1];
+					memset(num_str,0,sz+1);
+					long_to_string(l,num_str);	
+					int i;
+					for(i = 0; num_str[i] != '\0'; i++){
+						if(j < size)
+							buff[j] = num_str[i];
+						j++;
+					}
+					break;
+				}
+				case 'f':
+				{
+					d = va_arg(list,double);
+					size_t sz = number_of_digit((int)d);
+					/* 1 for the sign 15 digits after the . ,the . and '\0'  at the end*/
+					char num_str[sz+18];
+					memset(num_str,0,sz+18);
+					double_to_string(d,num_str);	
+					int i,pc,com;
+					for(i = 0, pc = 0, com = 0; num_str[i] != '\0'; i++){
+						if(precision == pc){
+							if(((int)num_str[i] - '0') > 5){
+								if(((int)buff[j-1] - '0') == 9){
+									buff[j-1] = '0';
+								}else{
+									int n = buff[j-1] - '0';
+									buff[j-1] = (char)++n + '0';
+								}
+							}
+							break;
+						}
+						if(com) pc++;
+						if(num_str[i] == '.') com = 1;
+
+						if(j < size)
+							buff[j] = num_str[i];
+						j++;
+					}
+					break;
+				}
+				case '.':
+				{
+					char num[4];
+					memset(num,0,4);
+					int k = 0;
+					while(isdigit(*(++format))){
+						num[k] = *format;	
+						k++;
+					}	
+					errno = 0;
+					precision = string_to_long(num);
+					if(errno == EINVAL){
+						va_end(list);
+						return -1;
+					}
+
+					continue;
+				}
+				default:
+					break;
+				}
+				format++;
+				break;
+			}
+		}	
+		if(j < size)
+			buff[j] = *format;
+		j++;
+	}
+	va_end(list);
+	return 0;
 }

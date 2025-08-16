@@ -115,5 +115,10 @@ long long unpack(uint8_t *digits_index);
 void print_pack_str(uint8_t *digits_index);
 char *tok(char *str, char *delim);
 char *duplicate_str(char *str);
+long string_to_long(char *str);
+double string_to_double(char *str);
+int long_to_string(long n, char *buff);
+int double_to_string(double d, char *buff);
+int copy_to_string(char *buff,size_t size,char *format,...);
 
 #endif /* STR_OP_H */

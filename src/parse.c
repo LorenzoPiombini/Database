@@ -619,6 +619,16 @@ int read_header(int fd, struct Header_d *hd)
 		return 1;
 	}
 
+	hd->sch_d->fields_name = (char**)ask_mem(sizeof(char*) * hd->sch_d->fields_num);
+	hd->sch_d->types = (int*)ask_mem(sizeof(int) * hd->sch_d->fields_num);
+
+	if(!hd->sch_d->fields_name || !hd->sch_d->types ){
+		fprintf(stderr,"ask_mem failed %s:%d.\n",__FILE__,__LINE__-1);
+		if(hd->sch_d->fields_name) cancel_memory(NULL,hd->sch_d->fields_name,sizeof(char*) * hd->sch_d->fields_num);
+		if(hd->sch_d->fields_name) cancel_memory(NULL,hd->sch_d->types,sizeof(int) * hd->sch_d->fields_num);
+		return 1;
+	} 
+
 	uint16_t i;
 	for (i = 0; i < hd->sch_d->fields_num; i++) {
 		uint32_t l_end = 0;
@@ -629,16 +639,18 @@ int read_header(int fd, struct Header_d *hd)
 		}
 		size_t l = (size_t)swap32(l_end);
 
-		char field[l];
-		memset(field,0,l);
+		hd->sch_d->fields_name[i] = (char*)ask_mem(l);
+		if(!hd->sch_d->fields_name[i]){
+			fprintf(stderr,"ask_mem failed %s:%d.\n",__FILE__,__LINE__-1);
+			return 1;
+		} 
 
-		if (read(fd, field, l) == -1) {
+		if (read(fd, hd->sch_d->fields_name[i], l) == -1) {
 			perror("reading name filed from header.\n");
 			printf("parse.c l %d.\n", __LINE__ - 3);
 			return 0;
 		}
 
-		strncpy(hd->sch_d->fields_name[i],field,l);
 	}
 
 	for (i = 0; i < hd->sch_d->fields_num; i++) {
@@ -1033,10 +1045,22 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		}
 
 		sch->fields_name = new_fields;
+		int *types = (int*) reask_mem(sch->types,sch->fields_num*sizeof(int),fields_num*sizeof(int));
+		if(!types){
+			fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			return 0;
+		}
+		sch->types = types;
 
 		int i;
 		for (i = 0; i < fields_num; i++) {
 			if(pos[i] == i) continue; 
+			sch->fields_name[sch->fields_num] = (char*) ask_mem(strlen(names[i])+1);
+			if(!sch->fields_name[sch->fields_num]){
+				fprintf(stderr," ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				return 0;
+			}
+			memset(sch->fields_name[sch->fields_num],0,strlen(names[i]));
 			strncpy(sch->fields_name[sch->fields_num],names[i],strlen(names[i]));
 			sch->types[sch->fields_num] = types_i[i];
 			sch->fields_num++;
@@ -1060,7 +1084,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 	switch(mode){
 	case NO_TYPE_DF:
 		if((fields_num = get_fields_name_with_no_type(buffer,names)) == -1) return 0;
-		/*check if the fields name are correct- if not - input is incorrect */
+		/*check if the fields name are rorrect- if not - input is incorrect */
 		for (int i = 0; i < fields_num; i++) {
 
 			if (names[i][0] == '\0') {
