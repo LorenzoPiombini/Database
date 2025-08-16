@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 		case 'n':
-			new_file = 1; // true
+			new_file = 1; /*true*/
 			break;
 		case 'f':
 		{
@@ -641,7 +641,7 @@ int main(int argc, char *argv[])
 			}
 
 			fprintf(stdout,"(%s): File created successfully.\n",prog);
-			free_record(&rec, fields_count); // this free the memory allocated for the record
+			free_record(&rec, fields_count); 
 			close_file(3, fd_index, fd_data,fd_schema);
 			if(free_schema(&sch) == -1){
 				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
@@ -1028,7 +1028,7 @@ int main(int argc, char *argv[])
 						}
 
 						close_file(1, fd_index);
-						// opening with O_TRUNC
+						/*opening with O_TRUNC*/
 						fd_index = open_file(files[0], 1);
 
 						/*  write the index file */
@@ -1142,7 +1142,7 @@ int main(int argc, char *argv[])
 
 			free_ht_node(record_del);
 			close_file(1, fd_index);
-			fd_index = open_file(files[0], 1); // opening with o_trunc
+			fd_index = open_file(files[0], 1); /*opening with o_trunc*/
 
 			/*  write the index file */
 

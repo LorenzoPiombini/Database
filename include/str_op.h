@@ -111,6 +111,7 @@ int find_double_delim(char *delim, char *str, int *pos, struct Schema sch);
 int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch);
 char *find_field_to_reset_delim(int *pos, char *buffer);
 void pack(uint32_t n, uint8_t *digits_indexes);
+uint32_t power(uint32_t n, int pow);
 long long unpack(uint8_t *digits_index);
 void print_pack_str(uint8_t *digits_index);
 char *tok(char *str, char *delim);

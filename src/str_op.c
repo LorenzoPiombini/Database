@@ -15,7 +15,6 @@
 static char prog[] = "db";
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
-static uint32_t power(uint32_t n, int pow);
 /*static functions to manage String struct*/
 static void free_str(struct String *str);
 static uint8_t empty(struct String *str);
@@ -344,9 +343,10 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	}
 	
 	int skip = -1;
-	for(int j = 0; j < s; j++){
+	int j,x;
+	for(j = 0; j < s; j++){
 		int b = 0;
-		for(int x = 0; x < i; x++){
+		for(x = 0; x < i; x++){
 			size_t sz = strlen(names_s[j]);
 			if(sz != strlen(names[x])) continue;
 			if(strncmp(names_s[j],names[x],sz) == 0){
@@ -358,7 +358,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		if (b) break;
 	}
 
-	for(int x = 0; names_s[x][0] != '\0'; x++){
+	for(x = 0; names_s[x][0] != '\0'; x++){
 		if (x == skip) continue;
 		strncpy(names[i],names_s[x],strlen(names_s[x]));
 		i++;
@@ -386,10 +386,9 @@ void *key_converter(char *key, int *key_type)
 	switch (*key_type) {
 	case 2:
 	{
-		char *end;
 		errno = 0;
-		long l = strtol(key, &end, 10);
-		if (errno == ERANGE || errno == EINVAL) return NULL;
+		long l = string_to_long(key);
+		if (errno == EINVAL) return NULL;
 
 		if (l == MAX_KEY) {
 			fprintf(stderr, "key value out fo range.\n");
@@ -418,7 +417,8 @@ static char *strstr_last(char *src, char delim)
 {
 
 	int last = 0 ;
-	for(char *p = src; *p != '\0'; p++){
+	char *p = src;
+	for(; *p != '\0'; p++){
 		if(*p == delim) last = p - src;		
 	}
 	
@@ -779,11 +779,12 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 	int c = 0;
 
 	if(fields_count == 0) return 0;
-	for (int i = 0; i < fields_count; i++) {
+	int i,j;
+	for (i = 0; i < fields_count; i++) {
 		if ((fields_count - i) == 1)
 			break;
 
-		for (int j = 0; j < fields_count; j++) {
+		for (j = 0; j < fields_count; j++) {
 			if (((fields_count - i) > 1) && ((fields_count - j) > 1))
 			{
 				if (j == i)
@@ -1015,7 +1016,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				}
 				(*values)[i] = duplicate_str(end_t);
 				if(!(*values)[i]){
-					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+					fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
 						cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 					else
@@ -1038,7 +1039,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			}
 			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
-				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
 					cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 				else
@@ -1074,7 +1075,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				}
 				(*values)[i] = duplicate_str(end_T);
 				if(!(*values)[i]){
-					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+					fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
 						cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 					else
@@ -1098,7 +1099,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			}
 			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
-				fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
 					cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 				else
@@ -1125,7 +1126,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				}
 				(*values)[i] = duplicate_str(pos_d);
 				if(!(*values)[i]){
-					fprintf(stderr,"strdup() failed, %s:%d\n",__FILE__,__LINE__-2);
+					fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
 						cancel_memory(NULL,*values,sizeof(char*)*fields_count);
 					else
@@ -1202,9 +1203,9 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 			char cpy[size+1];
 			memset(cpy,0,size+1);
 			strncpy(cpy,&buff[start],size);
-			values[i] = strdup(cpy);
+			values[i] = duplicate_str(cpy);
 			if(!values[i]){
-				fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
 				return NULL;
 			}
 			p2 = (first + 1) + size+1;
@@ -1218,9 +1219,9 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 		memset(bpy,0,size+1);
 		strncpy(bpy,&buff[start],size);
 
-		values[i] = strdup(bpy);
+		values[i] = duplicate_str(bpy);
 		if(!values[i]){
-			fprintf(stderr,"strdup() failed, %s:%d",__FILE__,__LINE__-2);
+			fprintf(stderr,"duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
 			return NULL;
 		}
 
@@ -1300,9 +1301,10 @@ void free_strs(int fields_num, int count, ...)
 	va_list args;
 	va_start(args, count);
 
-	for (int i = 0; i < count; i++){
+	int i,j;
+	for (i = 0; i < count; i++){
 		char **str = va_arg(args, char **);
-		for (int j = 0; j < fields_num; j++){
+		for (j = 0; j < fields_num; j++){
 			if (str[j]){
 				cancel_memory(NULL,str[j],strlen(str[j])+1);
 			}
@@ -1314,7 +1316,8 @@ void free_strs(int fields_num, int count, ...)
 int is_file_name_valid(char *str)
 {
 	size_t l = strlen(str);
-	for (size_t i = 0; i < l; i++)
+	size_t i;
+	for (i = 0; i < l; i++)
 	{
 		if (ispunct(str[i]))
 			if ((str[i] != '-' && str[i] != '/' && str[i] != '_' && str[i] != '.')) return 0;
@@ -1330,7 +1333,9 @@ void strip(const char c, char *str)
 	size_t l = strlen(str);
 	char cpy[l];
 	memset(cpy,0,l);
-	for (size_t i = 0, j = 0; i < l; i++){
+
+	size_t i,j;
+	for (i = 0, j = 0; i < l; i++){
 		if (str[i] == c)continue;
 
 		cpy[j] = str[i];
@@ -1344,7 +1349,8 @@ void strip(const char c, char *str)
 void replace(const char c, const char with, char *str)
 {
 	size_t l = strlen(str);
-	for (size_t i = 0; i < l; i++)
+	size_t i;
+	for (i = 0; i < l; i++)
 		if (str[i] == c)
 			str[i] = with;
 }
@@ -1385,7 +1391,8 @@ unsigned char is_floaintg_point(char *str)
 {
 	size_t l = strlen(str);
 	int point = 0;
-	for (size_t i = 0; i < l; i++)
+	size_t i;
+	for (i = 0; i < l; i++)
 	{
 		if (isdigit(str[i]))
 		{
@@ -1412,7 +1419,8 @@ unsigned char is_floaintg_point(char *str)
 unsigned char is_integer(char *str)
 {
 	size_t l = strlen(str);
-	for (size_t i = 0; i < l; i++){
+	size_t i;
+	for (i = 0; i < l; i++){
 		if (!isdigit(str[i])){
 			if (str[i] == '-' && i == 0){
 				continue;
@@ -1492,7 +1500,8 @@ unsigned char is_number_in_limits(char *value)
 
 	if (is_integer(value)){
 
-		for (size_t i = 0; i < l; i++)
+		size_t i;
+		for (i = 0; i < l; i++)
 			ascii_value += (int)value[i];
 
 		if (negative){
@@ -1517,7 +1526,8 @@ unsigned char is_number_in_limits(char *value)
 	}
 
 	if (is_floaintg_point(value)){
-		for (size_t i = 0; i < l; i++)
+		size_t i;
+		for (i = 0; i < l; i++)
 			ascii_value += (int)value[i];
 
 		if (negative){
@@ -1638,7 +1648,8 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	/*
 	 * -step 1;
 	 * erase the field name from the buf string and the attached ':'*/
-	for(int i = 0; i < sch.fields_num;i++){
+	int i;
+	for(i = 0; i < sch.fields_num;i++){
 		char *f = NULL;
 		if(!(f = strstr(buf,sch.fields_name[i]))) continue;
 
@@ -1731,13 +1742,13 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 
 	/* at this point only the ':' inside the fields are left*/
 	char *delim_in_fields = NULL;
-	int i = 0;
 	int8_t cont = 0;
 	while((delim_in_fields = strstr(buf,delim))){
 		
 		int p = delim_in_fields - buf;
 		if(f_start[0] > -1 && f_end[0] > -1){
-			for(int i = 0; f_start[i] != -1 && f_end[i] != -1; i++){
+			int i;
+			for(i = 0; f_start[i] != -1 && f_end[i] != -1; i++){
 				if (p > f_start[i] && p < f_end[i]){
 					*delim_in_fields = '@';
 					cont = 1;	
@@ -1764,8 +1775,8 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 char *find_field_to_reset_delim(int *pos, char *buffer)
 {
 	static char field[MAX_FILED_LT] = {0};
-	
-	for(int i = 0; i < 200; i++){
+	int i;	
+	for(i = 0; i < 200; i++){
 		if (pos[i] == -1) break;
 		
 		char *p = &buffer[pos[i]];
@@ -1895,13 +1906,14 @@ void pack(uint32_t n, uint8_t *digits_indexes)
 
 void print_pack_str(uint8_t *digits_index)
 {
-	for(int i = 0; i < 5; i++){
+	int i;
+	for(i = 0; i < 5; i++){
 		if(digits_index[i] == 255) continue;
 		printf("%s",base_247[digits_index[i]]);
 	}
 }
 
-static uint32_t power(uint32_t n, int pow)
+uint32_t power(uint32_t n, int pow)
 {
 	uint32_t a = n;
 	if(pow == 0) return 1;

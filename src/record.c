@@ -329,7 +329,8 @@ unsigned char set_field(struct Record_f *rec,
 					free_strs(fields_count,1,values_in);
 				}else{
 
-					for(int i = 0; i < count;i++){
+					int i;
+					for(i = 0; i < count;i++){
 						switch (mode){
 						case NO_TYPE_WR:			
 						{	
@@ -520,7 +521,7 @@ unsigned char set_field(struct Record_f *rec,
 				return 0;
 			}
 
-			//write the schema to the file
+			/*write the schema to the file*/
 			struct Header_d hd = {0, 0, &sch};
 
 			hd.id_n = HEADER_ID_SYS;
@@ -804,8 +805,8 @@ unsigned char set_field(struct Record_f *rec,
 					/*convert the value to long and then cast it to int */
 					/*i do not want to use atoi*/
 					errno = 0;
-					long n = strtol(t, NULL, 10);
-					if (errno == ERANGE || errno == EINVAL) {
+					long n = string_to_long(t);
+					if (errno == EINVAL) {
 						printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -838,8 +839,8 @@ unsigned char set_field(struct Record_f *rec,
 				/*convert the value to long and then cast it to int */
 				/*i do not want to use atoi*/
 				errno = 0;
-				long n = strtol(value, NULL, 10);
-				if (errno == ERANGE || errno == EINVAL) {
+				long n = string_to_long(value);
+				if (errno == EINVAL) {
 					printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 					return 0;
 				}
@@ -877,8 +878,8 @@ unsigned char set_field(struct Record_f *rec,
 
 				if (range == IN_INT || range == IN_LONG) {
 					errno = 0;
-					long n = strtol(t, NULL, 10);
-					if (errno == ERANGE || errno == EINVAL){
+					long n = string_to_long(t);
+					if (errno == EINVAL){
 						printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -902,8 +903,8 @@ unsigned char set_field(struct Record_f *rec,
 
 			if (range == IN_INT || range == IN_LONG) {
 				errno = 0;
-				long n = strtol(value, NULL, 10);
-				if (errno == ERANGE || errno == EINVAL) {
+				long n = string_to_long(value);
+				if (errno == EINVAL) {
 					printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 					return 0;
 				}
@@ -943,15 +944,15 @@ unsigned char set_field(struct Record_f *rec,
 
 						if (range == IN_FLOAT){
 							errno = 0;
-							float f = strtof(cpy, NULL);
-							if (errno == ERANGE || errno == EINVAL){
+							float f = (float)string_to_double(cpy);
+							if (errno == EINVAL){
 								printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 								return 0;
 							}
 							rec->fields[index].data.v.insert((void *)&f,
 									&rec->fields[index].data.v,type);
 
-							t = strtok(NULL, ",");
+							t = tok(NULL, ",");
 							continue;
 						}else{
 							fprintf(stderr,"float value '%s' is out of range.\n",cpy);
@@ -971,8 +972,9 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if (range == IN_FLOAT){
-					float f = strtof(t, NULL);
-					if (f == ERANGE || f == EINVAL){
+					errno = 0;
+					float f = (float)string_to_double(t);
+					if (errno == EINVAL){
 						printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -980,7 +982,7 @@ unsigned char set_field(struct Record_f *rec,
 					rec->fields[index].data.v.insert((void *)&f,
 							 &rec->fields[index].data.v,type);
 				}
-				t = strtok(NULL, ",");
+				t = tok(NULL, ",");
 			}
 		} else {
 
@@ -1002,8 +1004,9 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					if (range == IN_FLOAT){
-						float f = strtof(cpy, NULL);
-						if (f == ERANGE || f == EINVAL){
+						errno = 0;
+						float f = (float)string_to_double(cpy);
+						if (errno == EINVAL){
 							printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 							return 0;
 						}
@@ -1027,8 +1030,9 @@ unsigned char set_field(struct Record_f *rec,
 
 			if (range == IN_FLOAT)
 			{
-				float f = strtof(value, NULL);
-				if (f == ERANGE || f == EINVAL)
+				errno = 0;
+				float f = (float)string_to_double(value);
+				if (errno == EINVAL)
 				{
 					printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 					return 0;
@@ -1053,7 +1057,7 @@ unsigned char set_field(struct Record_f *rec,
 			char *t = tok(value, ",");
 			while (t) {
 				rec->fields[index].data.v.insert((void *)t,&rec->fields[index].data.v,type);
-				t = strtok(NULL, ",");
+				t = tok(NULL, ",");
 			}
 		} else {
 			rec->fields[index].data.s = duplicate_str(value);
@@ -1097,22 +1101,22 @@ unsigned char set_field(struct Record_f *rec,
 				
 				
 				errno = 0;	
-				unsigned long un = strtoul(t, NULL, 10);
-				if (errno == ERANGE || un == EINVAL)
+				long l = string_to_long(t);
+				if (errno == EINVAL)
 				{
 					printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 					return 0;
 				}
 
-				if (un > UCHAR_MAX)
+				if (l > UCHAR_MAX || l < 0)
 				{
 					printf("byte value not allowed in this system.\n");
 					return 0;
 				}
 
-				unsigned char num = (unsigned char)un;
+				unsigned char num = (unsigned char)l;
 				rec->fields[index].data.v.insert((void *)&num,&rec->fields[index].data.v,type);
-				t = strtok(NULL, ",");
+				t = tok(NULL, ",");
 			}
 		}
 		else
@@ -1134,18 +1138,18 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			errno = 0;
-			unsigned long un = strtoul(value, NULL, 10);
-			if (errno == ERANGE || errno == EINVAL)
+			long l = string_to_long(value);
+			if (errno == EINVAL)
 			{
 				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 				return 0;
 			}
-			if (un > UCHAR_MAX)
+			if (l > UCHAR_MAX || l < 0)
 			{
 				printf("byte value not allowed in this system.\n");
 				return 0;
 			}
-			rec->fields[index].data.b = (unsigned char)un;
+			rec->fields[index].data.b = (unsigned char)l;
 		}
 		break;
 	}
@@ -1157,9 +1161,8 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			errno = 0;
-			char *endp;
-			long p = strtol(value, &endp, 10);
-			if (errno == ERANGE || errno == EINVAL || *endp != '\0'){
+			long p = string_to_long(value);
+			if (errno == EINVAL){
 				printf("conversion ERROR type pack %s:%d.\n", F, L - 2);
 				return 0;
 			}
@@ -1183,7 +1186,7 @@ unsigned char set_field(struct Record_f *rec,
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
-			char *t = strtok(value, ",");
+			char *t = tok(value, ",");
 			while (t)
 			{
 				if (!is_floaintg_point(t)) {
@@ -1205,8 +1208,8 @@ unsigned char set_field(struct Record_f *rec,
 
 						if (range == IN_DOUBLE || range == IN_FLOAT) {
 							errno = 0;
-							double d = strtod(cpy, NULL);
-							if (errno == ERANGE || errno == EINVAL) {
+							double d = string_to_double(cpy);
+							if (errno == EINVAL) {
 								printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 								return 0;
 							}
@@ -1214,7 +1217,7 @@ unsigned char set_field(struct Record_f *rec,
 							rec->fields[index].data.v.insert((void *)&d,
 									&rec->fields[index].data.v,
 									type);
-							t = strtok(NULL, ",");
+							t = tok(NULL, ",");
 							continue;
 						} else {
 							fprintf(stderr,"value '%s', it's out of range for double.\n",t);
@@ -1233,8 +1236,9 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if (range == IN_DOUBLE || range == IN_FLOAT) {
-					double d = strtod(t, NULL);
-					if (d == ERANGE || d == EINVAL) {
+					errno = 0;
+					double d = string_to_double(t);
+					if (errno == EINVAL) {
 						printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -1269,8 +1273,8 @@ unsigned char set_field(struct Record_f *rec,
 
 					if (range == IN_DOUBLE || range == IN_FLOAT) {
 						errno = 0;
-						double d = strtod(cpy, NULL);
-						if (errno == ERANGE || errno == EINVAL) {
+						double d = string_to_double(cpy);
+						if (errno == EINVAL) {
 							printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 							return 0;
 						}
@@ -1293,8 +1297,9 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			if (range == IN_DOUBLE || range == IN_FLOAT) {
-				double d = strtod(value, NULL);
-				if (d == ERANGE || d == EINVAL)
+				errno = 0;
+				double d = string_to_double(value);
+				if (errno == EINVAL)
 				{
 					printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 					return 0;
@@ -1322,7 +1327,8 @@ unsigned char set_field(struct Record_f *rec,
 void free_type_file(struct Record_f *rec,int optimized)
 {
 	int index = -1;
-	for(int i = 0; i < rec->fields_num; i++){
+	int i;
+	for(i = 0; i < rec->fields_num; i++){
 		if(rec->field_set[i] == 1 && rec->fields[i].type == TYPE_FILE) index = i;	
 	}
 
@@ -1400,7 +1406,8 @@ void free_type_file(struct Record_f *rec,int optimized)
 
 void free_record(struct Record_f *rec, int fields_num)
 {
-	for (int i = 0; i < fields_num; i++){
+	int i;
+	for (i = 0; i < fields_num; i++){
 
 		int t = (int)rec->fields[i].type;
 		switch (t) {
@@ -1471,14 +1478,15 @@ void print_record(int count, struct Record_f recs)
 
 static void display_data(struct Record_f rec, int max,int tab)
 {
-	for (int i = 0; i < rec.fields_num; i++){
+	int i;
+	for (i = 0; i < rec.fields_num; i++){
 		if (max < (int)strlen(rec.fields[i].field_name))
 		{
 			max = (int)strlen(rec.fields[i].field_name);
 		}
 	}
 
-	for (int i = 0; i < rec.fields_num; i++)
+	for (i = 0; i < rec.fields_num; i++)
 	{
 		if(rec.field_set[i] == 0) continue;
 
@@ -1621,7 +1629,8 @@ static void display_data(struct Record_f rec, int max,int tab)
 
 			if(rec.fields[i].data.file.count == 0) break;
 				printf("\n");
-			for(uint32_t x =0; x < rec.fields[i].data.file.count; x++){
+			uint32_t x;
+			for(x = 0; x < rec.fields[i].data.file.count; x++){
 				/*the last parameters is 1,will serve for formatting reason*/
 				if(x == 0){
 					display_data(*rec.fields[i].data.file.recs,max,1);
@@ -1645,7 +1654,8 @@ static void display_data(struct Record_f rec, int max,int tab)
 
 void free_record_array(int len, struct Record_f **recs)
 {
-	for (int i = 0; i < len; i++) {
+	int i;
+	for (i = 0; i < len; i++) {
 			free_record(&(*recs)[i],  (*recs)[i].fields_num);
 	}
 }
@@ -1718,8 +1728,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		case TYPE_INT:
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%d", src->fields[i].data.i) < 0) {
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+			if (copy_to_string(data, 30, "%d", src->fields[i].data.i) < 0) {
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, (*dest).fields_num);
 				return 0;
 			}
@@ -1741,8 +1751,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		case TYPE_LONG:
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%ld", src->fields[i].data.l) < 0) {
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+			if (copy_to_string(data, 30, "%ld", src->fields[i].data.l) < 0) {
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1756,9 +1766,9 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		case TYPE_FLOAT:
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%.2f", src->fields[i].data.f) < 0)
+			if (copy_to_string(data, 30, "%.2f", src->fields[i].data.f) < 0)
 			{
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1771,8 +1781,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		case TYPE_BYTE:
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%d", src->fields[i].data.b) < 0) {
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+			if (copy_to_string(data, 30, "%d", src->fields[i].data.b) < 0) {
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1785,9 +1795,9 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		case TYPE_DOUBLE:
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%.2f", src->fields[i].data.d) < 0)
+			if (copy_to_string(data, 30, "%.2f", src->fields[i].data.d) < 0)
 			{
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1800,9 +1810,9 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		case TYPE_ARRAY_INT:
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%d", *src->fields[i].data.v.elements.i[0]) < 0)
+			if (copy_to_string(data, 30, "%d", *src->fields[i].data.v.elements.i[0]) < 0)
 			{
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1825,8 +1835,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_BYTE:
 		{
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%d", *src->fields[i].data.v.elements.b[0]) < 0) {
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+			if (copy_to_string(data, 30, "%d", *src->fields[i].data.v.elements.b[0]) < 0) {
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1849,8 +1859,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_LONG:
 		{
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%ld", *src->fields[i].data.v.elements.l[0]) < 0) {
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+			if (copy_to_string(data, 30, "%ld", *src->fields[i].data.v.elements.l[0]) < 0) {
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1873,8 +1883,8 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_DOUBLE:
 		{
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%2.f", *src->fields[i].data.v.elements.d[0]) < 0) {
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+			if (copy_to_string(data, 30, "%2.f", *src->fields[i].data.v.elements.d[0]) < 0) {
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -1897,9 +1907,9 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_FLOAT:
 		{
 			memset(data, 0, 30);
-			if (snprintf(data, 30, "%2.f", *src->fields[i].data.v.elements.f[0]) < 0)
+			if (copy_to_string(data, 30, "%2.f", *src->fields[i].data.v.elements.f[0]) < 0)
 			{
-				printf("snprintf failed %s:%d.\n", F, L - 2);
+				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
@@ -2098,7 +2108,8 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		/*check if there is enough space for new item */
 		if (!(*v).elements.i[(*v).size - 1])
 		{
-			for (int i = 0; i < (*v).size; i++)
+			int i;
+			for (i = 0; i < (*v).size; i++)
 			{
 				if ((*v).elements.i[i])
 					continue;
@@ -2147,7 +2158,8 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		/*check if there is enough space for new item */
 		if (!(*v).elements.l[(*v).size - 1])
 		{
-			for (int i = 0; i < (*v).size; i++)
+			int i;
+			for (i = 0; i < (*v).size; i++)
 			{
 				if ((*v).elements.l[i])
 					continue;
@@ -2196,7 +2208,8 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		/*check if there is enough space for new item */
 		if (!(*v).elements.f[(*v).size - 1])
 		{
-			for (int i = 0; i < (*v).size; i++)
+			int i;
+			for (i = 0; i < (*v).size; i++)
 			{
 				if ((*v).elements.f[i])
 					continue;
@@ -2244,7 +2257,8 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		/*check if there is enough space for new item */
 		if (!(*v).elements.s[(*v).size - 1])
 		{
-			for (int i = 0; i < (*v).size; i++)
+			int i;
+			for (i = 0; i < (*v).size; i++)
 			{
 				if ((*v).elements.s[i])
 					continue;
@@ -2301,7 +2315,8 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		/*check if there is enough space for new item */
 		if (!(*v).elements.b[(*v).size - 1])
 		{
-			for (int i = 0; i < (*v).size; i++)
+			int i;
+			for (i = 0; i < (*v).size; i++)
 			{
 				if ((*v).elements.b[i])
 					continue;
@@ -2351,7 +2366,8 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		/*check if there is enough space for new item */
 		if (!(*v).elements.d[(*v).size - 1])
 		{
-			for (int i = 0; i < (*v).size; i++)
+			int i;
+			for (i = 0; i < (*v).size; i++)
 			{
 				if ((*v).elements.d[i])
 					continue;
@@ -2772,7 +2788,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						  number_of_digit(rec->fields[i].data.i) + \
 						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
 			if(bwritten == 0){
-				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%d\",",
+				if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%d\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.i
 					   ) == -1){
@@ -2793,7 +2809,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					buffer_lenght = new_size;
 				}
 
-				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%d\",",
+				if(copy_to_string(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%d\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.i
 					   ) == -1){
@@ -2810,7 +2826,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						  number_of_digit(rec->fields[i].data.l) + \
 						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
 			if(bwritten == 0){
-				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%ld\",",
+				if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%ld\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.l
 					   ) == -1){
@@ -2831,7 +2847,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					buffer_lenght = new_size;
 				}
 
-				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%ld\",",
+				if(copy_to_string(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%ld\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.l
 					   ) == -1){
@@ -2848,7 +2864,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						  number_of_digit(rec->fields[i].data.b) + \
 						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
 			if(bwritten == 0){
-				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%d\",",
+				if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%d\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.b
 					   ) == -1){
@@ -2869,7 +2885,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					buffer_lenght = new_size;
 				}
 
-				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%d\",",
+				if(copy_to_string(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%d\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.b
 					   ) == -1){
@@ -2886,7 +2902,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						  digits_with_decimal(rec->fields[i].data.f) + \
 						  4 + 2 + 2; /* 4 '"',  1 ':', 1 ',', 2 '00' decimal pleces */
 			if(bwritten == 0){
-				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%.2f\",",
+				if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%.2f\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.f
 					   ) == -1){
@@ -2907,7 +2923,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					buffer_lenght = new_size;
 				}
 
-				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%.2f\",",
+				if(copy_to_string(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%.2f\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.f
 					   ) == -1){
@@ -2924,7 +2940,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						  digits_with_decimal(rec->fields[i].data.d) + \
 						  4 + 2 + 2; /* 4 '"',  1 ':', 1 ',', 2 '00' decimal pleces */
 			if(bwritten == 0){
-				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%.2f\",",
+				if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%.2f\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.d
 					   ) == -1){
@@ -2945,7 +2961,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					buffer_lenght = new_size;
 				}
 
-				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%.2f\",",
+				if(copy_to_string(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%.2f\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.d
 					   ) == -1){
@@ -2962,7 +2978,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						  strlen(rec->fields[i].data.s) + \
 						  4 + 2; /* 4 '"',  1 ':', 1 ',' */
 			if(bwritten == 0){
-				if(snprintf(*buffer,field_tot_length+1,"\"%s\":\"%s\",",
+				if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%s\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.s
 					   ) == -1){
@@ -2983,7 +2999,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					buffer_lenght = new_size;
 				}
 
-				if(snprintf(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%s\",",
+				if(copy_to_string(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%s\",",
 							rec->fields[i].field_name,
 							rec->fields[i].data.s
 					   ) == -1){
