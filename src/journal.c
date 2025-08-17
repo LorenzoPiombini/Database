@@ -21,7 +21,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 {
 	int create = 0;
 	int fd = open_file(JINX,0);
-	if(fd == -1){
+	if(fd == ENOENT){
 		create = 1;
 		fd = create_file(JINX);
 		if(fd == -1){
@@ -134,8 +134,11 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 
 				return -1;
 			}
+			memset(dynamic_file_name,0,fl_name_length+1);
+			break;
 		}else{
 			strncpy(file_name,dir_data->d_name,fl_name_length);
+			break;
 		}
 	}
 	
@@ -165,6 +168,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	node.key_type = key_type;
 	node.operation = operation;
 
+	/* TODO: vhage the key handling */
 	switch(key_type){
 	case STR:
 	{	

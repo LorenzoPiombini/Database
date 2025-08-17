@@ -2400,6 +2400,7 @@ int copy_to_string(char *buff,size_t size,char *format,...)
 				break;
 			}
 		}	
+		if(*format == '\0') break;
 		if(j < size)
 			buff[j] = *format;
 		j++;
