@@ -17,7 +17,7 @@
 #define DEL_INX 0
 
 #define PROC_PATH "/proc/self/fd/%d"
-#define MAX_FILE_NAME 1024
+#define MAX_FILE_NAME 2048
 #define MAX_KEY_STRING 1024
 
 

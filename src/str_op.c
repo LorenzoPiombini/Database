@@ -2063,13 +2063,13 @@ static void free_str(struct String *str)
 	str->size = 0;
 }
 
-static struct tok_handler{
+struct tok_handler{
 	char *original_tok;
 	char *last;
 	char delim[300];
 	char result[1024];
 	uint8_t finish;
-}tok_handler;
+};
 
 static struct tok_handler t_hndl;
 
@@ -2186,6 +2186,11 @@ char *duplicate_str(char *str)
 long string_to_long(char *str)
 {
 	size_t l = strlen(str);
+	if(isspace(str[l-1])){
+		str[l-1] = '\0';
+		l--;
+	}
+
 	int at_the_power_of = l - 1;	
 	long converted = 0;
 	int negative = 0;
@@ -2195,10 +2200,12 @@ long string_to_long(char *str)
 			negative = 1;
 			continue;
 		}
+
 		if(isalpha(*str)){
 			errno = EINVAL;
 			return 0;
 		}
+
 		long n = (long)*str - '0';
 		if(at_the_power_of >= 0)
 			converted += (long)((int)power(10.00,at_the_power_of))*n;
@@ -2321,6 +2328,7 @@ int copy_to_string(char *buff,size_t size,char *format,...)
 					break;
 				}
 				case 'l':
+					format++;
 					continue;
 				case 'd':
 				{

@@ -1,15 +1,17 @@
 #include <stdio.h>
-#include <sys/types.h>
-#include <byteswap.h>
 #include <time.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <errno.h>
 #include "hash_tbl.h"
 #include "journal.h"
 #include "file.h"
 #include "memory.h"
 #include "endian.h"
 #include "str_op.h"
+#include "types.h"
 
 static char p[] ="db";
 
@@ -52,11 +54,11 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	}
 	
 	/*get the file name from the caller file descriptor */
-	ssize_t buf_size = 0;
 	char path[1024];
 	memset(path,0,1024);
-	char file_name[1024];
-	memset(file_name,0,1024);
+	char db_dir[1024];
+	memset(db_dir,0,1024);
+
 	
 	if(copy_to_string(path,1024,PROC_PATH, caller_fd) < 0){
 		error("copy_to_string failed.",__LINE__ - 1);
@@ -64,19 +66,101 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 		return -1;
 	}
 
-	if((buf_size = readlink(path,file_name,1024-1)) == -1){
-		error("cannot get full path.",__LINE__-1);
+	struct stat st;
+	if(stat(path,&st) == -1){
+		error("can't get file info.",__LINE__ -1);
 		close(fd);
 		return -1;
 	}
-	
-	if(buf_size == 1024){
-		error("file name is not completed",__LINE__-7);
+
+	char cwd[1024];
+	memset(cwd,0,1024);
+	if(getcwd(cwd,1024) == NULL){
+		error("can't get current directory.",__LINE__ -1);
 		close(fd);
 		return -1;
 	}
+
+	size_t cwd_length = strlen(cwd);
+	char *dynamic_db_path = NULL; 
+	if(cwd_length + strlen("/db") >= 1024){
+		dynamic_db_path = (char*)ask_mem(cwd_length+strlen("/db")+1);
+		if(!dynamic_db_path){
+			error("ask_mem() failed.",__LINE__ -1);
+			close(fd);
+			return -1;
+		}
+		memset(dynamic_db_path,0,cwd_length + strlen("/db")+1);
+	}else{
+		strncpy(db_dir,cwd,cwd_length);
+		strncat(db_dir,"/db",strlen("/db")+1);
+	}
 	
-	strncpy(node.file_name,file_name,strlen(file_name));
+	
+	DIR *database_dir = NULL;
+	if(dynamic_db_path){
+		if((database_dir = opendir(dynamic_db_path)) == NULL){
+			error("can't get current directory.",__LINE__ -1);
+			close(fd);
+			cancel_memory(NULL,dynamic_db_path,cwd_length+strlen("/db")+1);
+			return -1;
+		}
+	}else{
+		if((database_dir = opendir(db_dir)) == NULL){
+			error("can't get current directory.",__LINE__ -1);
+			close(fd);
+			return -1;
+		}
+	}
+
+	struct dirent *dir_data = NULL;
+	char *dynamic_file_name = NULL;
+	char file_name[MAX_FILE_NAME];
+	memset(file_name,0,MAX_FILE_NAME);
+
+	errno = 0;
+	while((dir_data = readdir(database_dir))){
+		if(dir_data->d_ino != st.st_ino) continue;
+
+		size_t fl_name_length = strlen(dir_data->d_name);
+		if(fl_name_length > 1024){
+			dynamic_file_name = (char*)ask_mem(fl_name_length + 1);
+			if(!dynamic_file_name){
+				error("ask_mem() failed.\n",__LINE__ -1);
+				close(fd);
+				closedir(database_dir);
+				if(dynamic_db_path)
+					cancel_memory(NULL,dynamic_db_path,cwd_length+strlen("/db")+1);
+
+				return -1;
+			}
+		}else{
+			strncpy(file_name,dir_data->d_name,fl_name_length);
+		}
+	}
+	
+	closedir(database_dir);
+	if(dynamic_db_path) cancel_memory(NULL,dynamic_db_path,cwd_length+strlen("/db")+1);
+
+	if(dir_data == NULL && errno == 0){
+		error("file name not found.\n",__LINE__ -1);
+		close(fd);
+		if(dynamic_file_name) cancel_memory(NULL,dynamic_file_name,strlen(dynamic_file_name)+1);
+		return -1;
+	}	
+
+	if(dynamic_file_name){
+		if(strlen(dynamic_file_name) > MAX_FILE_NAME){
+			error("code refactor needed for journal operation.",__LINE__);
+			close(fd);
+			cancel_memory(NULL,dynamic_file_name,strlen(dynamic_file_name));
+			return -1;
+		}
+		strncpy(node.file_name,dynamic_file_name,strlen(dynamic_file_name));
+		cancel_memory(NULL,dynamic_file_name,strlen(dynamic_file_name));
+	}else{
+		strncpy(node.file_name,file_name,strlen(file_name));
+	}
 	node.offset = offset;
 	node.key_type = key_type;
 	node.operation = operation;

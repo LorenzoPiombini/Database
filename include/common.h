@@ -17,6 +17,7 @@
 #define NTG_WR 14 /* nothing to write to the file*/
 #define E_RCMP 201 /* record comparison failed*/	
 #define DIF 202 /* new record is different*/	
+#define NO_ELEMENT 15 /* new record is different*/	
 
 /* possible refactor for main.c*/
 #define NEW_FILE 1 	/*0000 0001*/

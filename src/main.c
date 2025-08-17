@@ -1266,12 +1266,21 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			struct Keys_ht keys_data = {0};
-			if(keys(p_ht,&keys_data) == -1){
+			struct Keys_ht keys_data;
+			memset(&keys_data,0,sizeof(struct Keys_ht));
+			int er = 0;
+			if((er = keys(p_ht,&keys_data)) == -1){
 				fprintf(stderr,"(%s): cannot get all keys from index file.\n",prog);
 				close_file(3,fd_schema, fd_index, fd_data);
 				close_prog_memory();
 				return STATUS_ERROR;
+			}
+			if(er == NO_ELEMENT){
+				fprintf(stdout,"(%s): file is empty.\n",prog);
+				close_file(3,fd_schema, fd_index, fd_data);
+				close_prog_memory();
+				return 0;
+				
 			}
 			char keyboard = '0';
 			int end = len(ht), i = 0, j = 0;

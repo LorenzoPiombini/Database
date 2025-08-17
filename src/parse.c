@@ -851,9 +851,9 @@ int sort_input_like_header_schema(int schema_tp,
 
 	if(schema_tp == SCHEMA_CT || schema_tp == SCHEMA_CT_NT){
 		/*order the data with missing fields*/
-		char **n_v = realloc(*values,sch->fields_num * sizeof(char*));
+		char **n_v = (char**)reask_mem(*values,sizeof(char*)*fields_num,sch->fields_num * sizeof(char*));
 		if(!n_v){
-			fprintf(stderr,"realloc failed %s:%d.\n",__FILE__,__LINE__-2);
+			fprintf(stderr,"reask_mem() failed %s:%d.\n",__FILE__,__LINE__-2);
 			return -1;
 		}
 

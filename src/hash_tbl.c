@@ -12,6 +12,7 @@
 #include "endian.h"
 #include "memory.h"
 #include "types.h"
+#include "common.h"
 
 
 void print_hash_table(HashTable tbl)
@@ -455,6 +456,8 @@ void destroy_hasht(HashTable *tbl)
 int keys(HashTable *ht, struct Keys_ht *all_keys)
 {
 	int elements = len(*ht);
+
+	if(elements == 0) return NO_ELEMENT;
 
 	struct Key *keys = (struct Key*)ask_mem(elements * sizeof(struct Key));
 	if (!keys){

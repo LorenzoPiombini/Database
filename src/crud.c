@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <byteswap.h>
 #include "file.h"
+#include "endian.h"
 #include "record.h"
 #include "lock.h"
 #include "globals.h"
@@ -19,11 +19,10 @@ static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, void *key, int key_type);
 static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type);
 
-
 HashTable *g_ht = NULL;
 int g_index = 0;
 int *p_gi = &g_index;
-struct Ram_file ram = {0};
+struct Ram_file ram = {0, 0, 0, 0};
 
 int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, int *fds)
 {
@@ -116,7 +115,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 				return STATUS_ERROR;
 			}
 
-			off_t update_rec_pos = bswap_64(up_r_pos_ne);
+			off_t update_rec_pos = swap64(up_r_pos_ne);
 			n->offset = update_rec_pos;
 			if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)update_rec_pos, n,*(hd.sch_d))) == -1){
 				fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
