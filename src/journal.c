@@ -39,7 +39,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	 * - key   
 	 * */
 	
-	static struct stack index;
+	struct stack index;
 	struct Node_stack  node;
 	memset(&node,0,sizeof(struct Node_stack));
 	memset(&index,0,sizeof(struct stack));
@@ -165,7 +165,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 		strncpy(node.file_name,file_name,strlen(file_name));
 	}
 	node.offset = offset;
-	node.key_type = key_type;
+	node.key.type = key_type;
 	node.operation = operation;
 
 	/* TODO: vhage the key handling */
@@ -173,19 +173,27 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	case STR:
 	{	
 		size_t l = strlen((char *) key)+1;
-		strncpy(node.key.s,(char *)key,l);
+		strncpy(node.key.k.s,(char *)key,l);
 		break;
 	}
 	case UINT:
-		node.key.n = (*(uint32_t *)key);
+	{
+		if(*(uint32_t *)key < USHRT_MAX){
+			node.key.k.n16 = (*(uint32_t *)key);
+			node.key.size = 16;
+		}else{
+			node.key.k.n = (*(uint32_t *)key);
+			node.key.size = 32;
+		}
 		break;
+	}
 	default:
 		close_file(1,fd);
 		return -1;
 	}
 
 
-	/*push the node ont the stack*/	
+	/*push the node on the stack*/	
 	node.timestamp = time(NULL);
 	if(push_journal(&index,node) == -1){
 		error("failed to push on journal stack",__LINE__-1);
@@ -207,119 +215,59 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
  
 int push_journal(struct stack *index, struct Node_stack node)
 {
-	if(index->capacity < MAX_STACK_CAP ){
-		index->elements[index->capacity] = node; 
-		index->capacity++;
-		return 0;
-	}
-	
-	if(index->dynamic_capacty == 0) {
-		index->dynamic_elements = (struct Node_stack*)ask_mem(sizeof(struct Node_stack));
-		if(!index->dynamic_elements){
+	if(index->capacity == 0){
+		index->elements = (struct Node_stack*)ask_mem(sizeof(struct Node_stack));
+		if(!index->elements){
 			fprintf(stderr,"(%s): ask_mem failed %s:%d.\n",p,__FILE__,__LINE__-2);
 			return -1;
 		}
 
-		index->dynamic_elements->timestamp = node.timestamp;
-		strncpy(index->dynamic_elements->file_name,node.file_name,strlen(node.file_name));
-		index->dynamic_elements->key_type = node.key_type;
-		switch(node.key_type){
-		case STR:
-			strncpy(index->dynamic_elements->key.s,node.key.s,strlen(node.key.s));
-			break;
-		case UINT:
-			index->dynamic_elements->key.n= node.key.n;
-		default:
-			break;
-		}
-		index->dynamic_elements->offset = node.offset;
-		index->dynamic_elements->operation = node.operation;
-		index->dynamic_capacty++;
+		memcpy(index->elements,&node,sizeof(struct Node_stack));
+
+		index->capacity++;
 		return 0;
-	}
 	
-	struct Node_stack *nd = (struct Node_stack*) ask_mem(sizeof(struct Node_stack));
-	if(!nd){
-		fprintf(stderr,"(%s): ask_mem failed %s:%d.\n",p,__FILE__,__LINE__-2);
+	}
+
+	size_t new_size = index->capacity + 1;
+	struct Node_stack *new_elements= (struct Node_stack*) reask_mem(index->elements,
+							index->capacity*sizeof(struct Node_stack),
+							new_size * sizeof(struct Node_stack));
+	if(!new_elements){
+		fprintf(stderr,"(%s): reask_mem failed %s:%d.\n",p,__FILE__,__LINE__-2);
 		return -1;
 	}
 	
-	nd->timestamp = node.timestamp;
-	strncpy(nd->file_name,node.file_name,strlen(node.file_name));
-	nd->key_type = node.key_type;
-	switch(node.key_type){
-	case STR:
-		strncpy(nd->key.s,node.key.s,strlen(node.key.s));
-		break;
-	case UINT:
-		nd->key.n= node.key.n;
-		break;
-	default:
-		break;
-	}
-	
-	nd->offset = node.offset;
-	nd->operation = node.operation;
-	index->dynamic_elements->next = nd;
-	index->dynamic_capacty++;
+	index->elements = new_elements;
+	index->capacity = new_size;
+
+	memcpy(&index->elements[new_size-1],&node,sizeof(struct Node_stack));
 	return 0;
 }
 
 int pop_journal(struct stack *index)
 {
-	if(index->capacity <= MAX_STACK_CAP && index->dynamic_capacty == 0){
-		memset(&index->elements[index->capacity - 1],0,sizeof(struct Node_stack));
-		index->capacity--;
-		return 0;
-	}
-	
+	if(index->capacity == 0) return -1;
 
-	struct Node_stack *temp = index->dynamic_elements;
-	while(temp) {
-
-		if(!temp->next->next) {
-			struct Node_stack *temp_s = temp; 
-			temp_s->next = NULL;
-		}
-
-		temp = temp->next;
+	size_t new_size = index->capacity -1;
+	struct Node_stack *new_elements = (struct Node_stack*)reask_mem(index->elements,
+						index->capacity * sizeof(struct Node_stack),
+						new_size * sizeof(struct Node_stack));
+	if(!new_elements){
+		fprintf(stderr,"(%s): reask_mem failed %s:%d.\n",p,__FILE__,__LINE__-2);
+		return -1;
 	}
 
-	cancel_memory(NULL,temp,sizeof(struct Node_stack));
-	index->dynamic_capacty--;
+	index->elements = new_elements;
+	index->capacity = new_size;
 	return 0;
 }
 
 int peek_journal(struct stack *index, struct Node_stack *node)
 {
-	if(index->capacity < MAX_STACK_CAP){
-		*node = index->elements[index->capacity-1];
-		return 0;
-	}
-	
-	struct Node_stack *temp = index->dynamic_elements;
-	while(temp) {
-		if(!temp->next->next) break;
+	if(index->capacity == 0) return -1;
 
-		temp = temp->next;
-	}
-
-	node->timestamp = temp->timestamp;
-	strncpy(node->file_name,temp->file_name,strlen(temp->file_name));
-	node->key_type = temp->key_type;
-	switch(node->key_type){
-	case STR:
-		strncpy(node->key.s,temp->key.s,strlen(temp->key.s));
-		break;
-	case UINT:
-		node->key.n = temp->key.n;
-		break;
-	default:
-		break;
-	}
-
-	node->offset = temp->offset;
-	node->operation = temp->operation;
+	memcpy(node,&index->elements[index->capacity-1],sizeof(struct Node_stack));
 
 	return 0;
 }
@@ -332,281 +280,13 @@ int is_empty(struct stack *index)
 
 void free_stack(struct stack *index)
 {
-	memset(index,0,sizeof(*index));
-	if(index->dynamic_capacty == 0 ) return;
-	
-	while(index->dynamic_capacty > 0) pop_journal(index);
+	cancel_memory(NULL,index->elements,index->capacity*sizeof(struct Node_stack));
 }
 
 int write_journal_index(int *fd,struct stack *index)
 {
 	if(index->capacity == 0) return -1;
-	/*  
-	 * check if capacity is bigger then MAX_STACK_CAP
-	 * if true, you have to 
-	 * write 400 entry to an HISTORY-index
-	 * and write the most recent 100 to a new truncated (so you erase the content)
-	 * journal index file,
-	 * so you can keep the system efficient, and avoid to use memory allocations
-	 * extensevely
-	 * */
 
-	if(index->capacity == MAX_STACK_CAP){
-		int fd_hst = open_file(JHST,0);
-		if(fd_hst == -1){
-			fd_hst = create_file(JHST);
-			if(fd_hst == -1){
-				error("can't create archive file.",__LINE__-2);
-				return -1;
-			}
-		}
-
-		int hst_cap = 0;
-		int nw_cap = 0;
-		if(index->dynamic_capacty == 0) hst_cap = index->capacity -100;
-
-		if(index->dynamic_capacty > 0){
-			nw_cap = 100 + index->dynamic_capacty;
-			hst_cap = index->capacity-100;
-		}
-
-		uint32_t cap_ne = swap32(hst_cap);
-		if(write(fd_hst,&cap_ne,sizeof(cap_ne)) == -1) {
-			error("can't write to journal index file.",__LINE__-1);
-			close(fd_hst);
-			return -1;
-		}
-
-		int i;
-		for(i = 0; i < hst_cap;i++){
-			uint64_t ts_ne = swap64((index->elements[i].timestamp));
-			if(write(fd_hst,&ts_ne,sizeof(ts_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				close(fd_hst);
-				return -1;
-			}
-			
-			size_t size = strlen(index->elements[i].file_name);
-			uint64_t size_ne = swap64(size);
-			if(write(fd_hst,&size_ne,sizeof(size_ne)) == -1 ||
-				write(fd_hst,index->elements[i].file_name,size) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				close(fd_hst);
-				return -1;
-			}
-
-			uint32_t kt_ne = swap32(index->elements[i].key_type);
-			if(write(fd_hst,&kt_ne,sizeof(kt_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				close(fd_hst);
-				return -1;
-			}
-			switch(index->elements[i].key_type){ 
-			case STR:
-			{
-				size_t size = strlen(index->elements[i].key.s);
-				uint64_t size_ne = swap64(size);
-				if(write(fd_hst,&size_ne,sizeof(size_ne)) == -1 ||
-						write(fd_hst,index->elements[i].key.s,size) == -1){
-					error("can't write to journal index file.",__LINE__-1);
-					close(fd_hst);
-					return -1;
-				}
-
-				break;
-			}
-			case UINT:
-			{
-				uint32_t k_ne = swap32(index->elements[i].key.n);
-				if(write(fd_hst,&k_ne,sizeof(k_ne)) == -1){
-					error("can't write to journal index file.",__LINE__-1);
-					close(fd_hst);
-					return -1;
-				}
-				break;
-			}
-			default:
-				error("key not supported.",__LINE__);
-				close(fd_hst);
-				return -1;
-			}
-
-			uint64_t ot_ne = swap64((index->elements[i].offset));
-			if(write(fd_hst,&ot_ne,sizeof(ot_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				close(fd_hst);
-				return -1;
-			}
-
-			uint32_t op_ne = swap32(index->elements[i].operation);
-			if(write(fd_hst,&op_ne,sizeof(op_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				close(fd_hst);
-				return -1;
-			}
-		}
-
-		close_file(2,*fd,fd_hst);
-		if(nw_cap == 0)
-			nw_cap = 100;
-
-		/*open with O_TRUNC*/
-		*fd = open_file(JINX,1); 
-		if(file_error_handler(1,*fd) > 0) return -1;
-
-		uint32_t nw_cap_ne = swap32(nw_cap);
-		if(write(*fd,&nw_cap_ne,sizeof(nw_cap_ne)) == -1){
-			error("can't write to journal index file.",__LINE__-1);
-			return -1;
-		}
-		
-		if(nw_cap == 100)
-			nw_cap = MAX_STACK_CAP;
-
-
-		for(i = hst_cap ; i < nw_cap;i++){
-			
-			if(i >= MAX_STACK_CAP){
-				struct Node_stack *temp = index->dynamic_elements;
-				while(temp){
-					uint64_t ts_ne = swap64((temp->timestamp));
-					if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
-						error("can't write to journal index file.",__LINE__-1);
-						return -1;
-					}
-
-					size_t size = strlen(temp->file_name);
-					uint64_t size_ne = swap64(size);
-					if(write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
-							write(*fd,temp->file_name,size) == -1){
-						error("can't write to journal index file.",__LINE__-1);
-						return -1;
-					}
-
-					uint32_t kt_ne = swap32(temp->key_type);
-					if(write(*fd,&kt_ne,sizeof(kt_ne)) == -1){
-						error("can't write to journal index file.",__LINE__-1);
-						return -1;
-					}
-					switch(temp->key_type){ 
-						case STR:
-							{
-								size_t size = strlen(temp->key.s);
-								uint64_t size_ne = swap64(size);
-								if(write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
-										write(*fd,temp->key.s,size) == -1){
-									error("can't write to journal index file.",__LINE__-1);
-									return -1;
-								}
-
-								break;
-							}
-						case UINT:
-							{
-								uint32_t k_ne = swap32(temp->key.n);
-								if(write(*fd,&k_ne,sizeof(k_ne)) == -1){
-									error("can't write to journal index file.",__LINE__-1);
-									return -1;
-								}
-								break;
-							}
-						default:
-							error("key not supported.",__LINE__);
-							return -1;
-					}
-
-					uint64_t ot_ne = swap64((temp->offset));
-					if(write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
-						error("can't write to journal index file.",__LINE__-1);
-						return -1;
-					}
-
-					uint32_t op_ne = swap32(temp->operation);
-					if(write(*fd,&op_ne,sizeof(op_ne)) == -1){
-						error("can't write to journal index file.",__LINE__-1);
-						return -1;
-					}
-
-					temp = temp->next;
-				}
-				close(*fd);
-				*fd = open_file(JINX,0);
-				if(file_error_handler(1,*fd) != 0) return -1;
-
-				return 0;
-			}
-
-			uint64_t ts_ne = swap64((index->elements[i].timestamp));
-			if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				return -1;
-			}
-				
-			size_t size = strlen(index->elements[i].file_name);
-			uint64_t size_ne = swap64(size);
-			if(write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
-				write(*fd,index->elements[i].file_name,size) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				return -1;
-			}
-
-			uint32_t kt_ne = swap32(index->elements[i].key_type);
-			if(write(*fd,&kt_ne,sizeof(kt_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				return -1;
-			}
-			switch(index->elements[i].key_type){ 
-			case STR:
-			{
-				size_t size = strlen(index->elements[i].key.s);
-				uint64_t size_ne = swap64(size);
-				if(write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
-						write(*fd,index->elements[i].key.s,size) == -1){
-					error("can't write to journal index file.",__LINE__-1);
-					return -1;
-				}
-
-				break;
-			}
-			case UINT:
-			{
-				uint32_t k_ne = swap32(index->elements[i].key.n);
-				if(write(*fd,&k_ne,sizeof(k_ne)) == -1){
-					error("can't write to journal index file.",__LINE__-1);
-					return -1;
-				}
-				break;
-			}
-			default:
-				error("key not supported.",__LINE__);
-				return -1;
-			}
-
-			uint64_t ot_ne = swap64((index->elements[i].offset));
-			if(write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				return -1;
-			}
-
-			uint32_t op_ne = swap32(index->elements[i].operation);
-			if(write(*fd,&op_ne,sizeof(op_ne)) == -1){
-				error("can't write to journal index file.",__LINE__-1);
-				return -1;
-			}
-
-		}
-
-		close(*fd);
-		*fd = open_file(JINX,0);
-		if(file_error_handler(1,*fd) != 0) return -1;
-
-		return 0;
-	}
-
-	/*
-	 * this is what gets executed most of the time 
-	 * index->camacity is smaller than MAX_STACK_CAP 
-	 * */
 	uint32_t cap_ne = swap32(index->capacity);
 	if(write(*fd,&cap_ne,sizeof(cap_ne)) == -1){
 		fprintf(stderr,"(%s): can't write journal index file.",p);
@@ -629,36 +309,56 @@ int write_journal_index(int *fd,struct stack *index)
 			return -1;
 		}
 
-		uint32_t kt_ne = swap32(index->elements[i].key_type);
-		if(write(*fd,&kt_ne,sizeof(kt_ne)) == -1){
-			error("can't write to journal index file.",__LINE__-1);
-			return -1;
-		}
-		switch(index->elements[i].key_type){ 
-			case STR:
-				{
-					size_t size = strlen(index->elements[i].key.s);
-					uint64_t size_ne = swap64(size);
-					if(write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
-							write(*fd,index->elements[i].key.s,size) == -1){
-						error("can't write to journal index file.",__LINE__-1);
-						return -1;
-					}
+		switch(index->elements[i].key.type){ 
+		case STR:
+		{
+			uint32_t type = swap32(index->elements[i].key.type);
+			uint64_t key_l = swap64(strlen(index->elements[i].key.k.s));
 
-					break;
+			if (write(*fd, &type, sizeof(type)) == -1 ||
+					write(*fd, &key_l, sizeof(key_l)) == -1 ||
+					write(*fd, index->elements[i].key.k.s, strlen(index->elements[i].key.k.s) + 1) == -1 ){
+				perror("write index:");
+				return 0; 
+			}
+			break;
+
+		}
+		case UINT:
+		{
+			uint32_t type = swap32(index->elements[i].key.type);
+			uint8_t size = (uint8_t)index->elements[i].key.size;
+
+			uint32_t k = 0;
+			uint16_t k16 = 0;
+			if(index->elements[i].key.size == 32)
+				k = swap32(index->elements[i].key.k.n);
+			else
+				k16 = swap16(index->elements[i].key.k.n16);
+
+			if (write(*fd, &type, sizeof(type)) == -1 ||
+					write(*fd, &size, sizeof(size)) == -1) {
+				perror("write index:");
+				return 0; 
+			}
+
+			if(index->elements[i].key.size == 16){
+				if (write(*fd, &k16, sizeof(k16)) == -1) {
+					perror("write index:");
+					return 0; /*false*/
 				}
-			case UINT:
-				{
-					uint32_t k_ne = swap32(index->elements[i].key.n);
-					if(write(*fd,&k_ne,sizeof(k_ne)) == -1){
-						error("can't write to journal index file.",__LINE__-1);
-						return -1;
-					}
-					break;
+			}else{
+				if (write(*fd, &k, sizeof(k)) == -1) {
+					perror("write index:");
+					return 0; /*false*/
 				}
-			default:
-				error("key not supported.",__LINE__);
-				return -1;
+			}
+
+			break;
+		}
+		default:
+			error("key not supported.",__LINE__);
+			return -1;
 		}
 
 		uint64_t ot_ne = swap64((index->elements[i].offset));
@@ -674,9 +374,6 @@ int write_journal_index(int *fd,struct stack *index)
 		}
 
 	}
-	close(*fd);
-	*fd = open_file(JINX,0);
-	if(file_error_handler(1,*fd) != 0) return -1;
 
 	return 0;
 }
@@ -691,9 +388,13 @@ int read_journal_index(int fd,struct stack *index)
 
 
 	int cap = (int)swap32(cap_ne);
-	if(cap == 0 || cap >= MAX_STACK_CAP) {
-		return cap == 0 ? -1 : EJCAP;
+
+	index->elements = (struct Node_stack*)ask_mem(cap *sizeof(struct Node_stack));
+	if(!index->elements){
+		error("ask_mem() failed.",__LINE__-2);
+		return 0;
 	}
+	index->capacity = cap;
 
 	int i;
 	for(i = 0; i < cap; i++){
@@ -712,14 +413,15 @@ int read_journal_index(int fd,struct stack *index)
 			return -1;
 		}
 
-		size_t size = swap64(size_ne) + 1;
-		char buff[size];
-		memset(buff,0,size);
+		size_t size = swap64(size_ne);
+		char buff[size + 1];
+		memset(buff,0,size + 1);
 
 		if(read(fd,buff,size) == -1){
 			error("read journal index failed",__LINE__-1);
 			return -1;
 		}
+
 		strncpy(index->elements[i].file_name,buff,size);
 
 		uint32_t kt_ne = 0;
@@ -728,9 +430,9 @@ int read_journal_index(int fd,struct stack *index)
 			return -1;
 		}
 		
-		index->elements[i].key_type = (int)swap32(kt_ne);
+		index->elements[i].key.type = (int)swap32(kt_ne);
 
-		switch(index->elements[i].key_type){
+		switch(index->elements[i].key.type){
 		case STR:
 		{
 			uint64_t size_ne = 0;
@@ -748,19 +450,34 @@ int read_journal_index(int fd,struct stack *index)
 				return -1;
 			}
 
-			strncpy(index->elements[i].key.s ,buff,size);
+			strncpy(index->elements[i].key.k.s ,buff,size);
 			break;
 		}
 		case UINT:
 		{
-			uint32_t k_ne = 0;
-			if(read(fd,&k_ne,sizeof(k_ne)) == -1){
+			uint8_t k_size = 0;
+			if(read(fd,&k_size,sizeof(k_size)) == -1){
 				error("read journal index failed",__LINE__-1);
 				return -1;
 			}
-			
-			index->elements[i].key.n = (uint32_t)swap32(k_ne);
-			
+
+			if(k_size == 16){
+				uint16_t k_ne = 0;
+				if(read(fd,&k_ne,sizeof(k_ne)) == -1){
+					error("read journal index failed",__LINE__-1);
+					return -1;
+				}
+
+				index->elements[i].key.k.n16 = swap16(k_ne);
+			}else{
+				uint32_t k_ne = 0;
+				if(read(fd,&k_ne,sizeof(k_ne)) == -1){
+					error("read journal index failed",__LINE__-1);
+					return -1;
+				}
+
+				index->elements[i].key.k.n = (uint32_t)swap32(k_ne);
+			}
 			break;
 		}
 		default:
@@ -781,7 +498,6 @@ int read_journal_index(int fd,struct stack *index)
 		}
 		
 		index->elements[i].operation = (int) swap32(op_ne);
-		index->capacity++;
 	}
 
 	return 0;

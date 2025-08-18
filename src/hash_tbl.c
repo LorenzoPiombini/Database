@@ -1,11 +1,7 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <errno.h>
-#include <math.h>
 #include "hash_tbl.h"
 #include "str_op.h"
 #include "debug.h"
@@ -155,7 +151,7 @@ int hash(void *key, int size, int key_type)
 	int number = 78;
 
 	/*compute the prime number */
-	uint32_t prime = (uint32_t)(pow(2, 31) - 1);
+	uint32_t prime = (uint32_t)(power(2, 31) - 1);
 	switch (key_type) {
 	case UINT:
 	{
@@ -420,7 +416,7 @@ void free_ht_array(HashTable *ht, int l)
 	for (i = 0; i < l; i++)
 		destroy_hasht(&ht[i]);
 
-	free(ht);
+	cancel_memory(NULL,ht,sizeof(HashTable));
 }
 void destroy_hasht(HashTable *tbl)
 {

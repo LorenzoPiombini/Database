@@ -28,15 +28,10 @@
 
 /*stack for journal index file */
 
-#define MAX_STACK_CAP 500
 struct Node_stack{
 	time_t timestamp;
 	char file_name[MAX_FILE_NAME];
-	int key_type;
-	union{
-		char s[MAX_KEY_STRING];
-		uint32_t n;
-	}key;
+	struct Key key;
 	off_t offset;
 	int operation;
 	struct Node_stack *next;
@@ -44,9 +39,7 @@ struct Node_stack{
 
 struct stack{
 	int capacity;
-	int dynamic_capacty;
-	struct Node_stack elements[MAX_STACK_CAP];
-	struct Node_stack *dynamic_elements;
+	struct Node_stack *elements;
 };
 
 

@@ -1,8 +1,9 @@
 #ifndef HASH_TBL_H
 #define HASH_TBL_H
 
+
 #include <sys/types.h>
-#include <stdint.h>
+#include "types.h"
 
 #define MAX_KEY 4294967296
 #define MAX_HT_BUCKET 503 
