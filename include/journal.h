@@ -34,7 +34,6 @@ struct Node_stack{
 	struct Key key;
 	off_t offset;
 	int operation;
-	struct Node_stack *next;
 };
 
 struct stack{
@@ -51,6 +50,7 @@ int is_empty(struct stack *index);
 int journal(int caller_fd, off_t offset, void *key, int key_type, int operation);
 int write_journal_index(int *fd,struct stack *index);
 int read_journal_index(int fd,struct stack *index);
+int show_journal();
 void free_stack(struct stack *index);
 
 #endif

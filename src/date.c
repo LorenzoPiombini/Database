@@ -11,9 +11,10 @@ unsigned char is_date_this_week(char* str_d)
 	struct tm* current_t = get_now(); 
  
 	/*put the input date in the tm struct from time.h*/
-	struct tm input_date = {0};
-	if(!convert_date_str(str_d, &input_date))
-	{
+	struct tm input_date;
+	memset(&input_date,0,sizeof(struct tm));
+
+	if(!convert_date_str(str_d, &input_date)){
 		printf("error date convert. %s:%d.\n",F,L-2);
 		return 0;
 	}	
@@ -36,12 +37,9 @@ int get_week_number(struct tm* time_in)
 	/*ISO week the first day is monday */
 	/*this way the program knows that 0 is monday and 6 is sunday*/
 	if(day_w == 0)
-	{
 		day_w = 6;
-	}else
-	{
+	else
 		day_w -= 1;
-	}
 
 
 	week_n = (day_y - day_w + ISO_W_ADJ) / 7;
@@ -68,6 +66,7 @@ unsigned char convert_date_str(char *str, struct tm* input_date)
 
 	return 1;
 }
+
 unsigned char extract_date(char* key, char *date)
 {
 	
@@ -155,17 +154,13 @@ int create_string_date(long time, char* date_str)
 
 	char day[3], month[3], year[3];
 
-	if(number_of_digit(date_t->tm_mday) < 2)
-	{
-		if(copy_to_string(day,3,"%d%d",0,date_t->tm_mday) < 0)
-		{
+	if(number_of_digit(date_t->tm_mday) < 2){
+		if(copy_to_string(day,3,"%d%d",0,date_t->tm_mday) < 0){
 			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
-	}else
-	{
-		if(copy_to_string(day,3,"%d",date_t->tm_mday) < 0)
-                {
+	}else{
+		if(copy_to_string(day,3,"%d",date_t->tm_mday) < 0){
                         printf("copy_to_string failed, %s:%d.\n",F,L-2);
                         return -1;
                 }
@@ -180,11 +175,9 @@ int create_string_date(long time, char* date_str)
 			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
-	}else
-	{
+	}else{
 		unsigned char mon = date_t->tm_mon + 1;
-		if(copy_to_string(month,3,"%d",mon) < 0)
-                {
+		if(copy_to_string(month,3,"%d",mon) < 0){
                         printf("copy_to_string failed, %s:%d.\n",F,L-2);
                         return -1;
                 }
@@ -194,13 +187,11 @@ int create_string_date(long time, char* date_str)
 	if(number_of_digit(date_t->tm_year) == 3)
 	{
 		unsigned char y = date_t->tm_year > 200 ? date_t->tm_year - 200 : date_t->tm_year - 100;
-		if(copy_to_string(year,3,"%d",y) < 0)
-		{
+		if(copy_to_string(year,3,"%d",y) < 0){
 			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
-	}else
-	{
+	}else{
 		printf("you have to refactor the years formula %s:%d.\n",F,L-11);
 		return -1;
 	}
@@ -225,15 +216,13 @@ long convert_str_date_to_seconds(char* date)
 int get_service()
 {
 	struct tm *now = get_now();
-	if(now->tm_hour > 11 && now->tm_hour < 16)
-	{
+	if(now->tm_hour > 11 && now->tm_hour < 16){
 		if(now->tm_hour == 3 && now->tm_min > 30)
 			return 2; /*DINNER*/
 		else
 			return 1; /*LUNCH*/
 		
-	}else if(now->tm_hour >= 16)
-	{
+	}else if(now->tm_hour >= 16){
 		return 2; /*DINNER*/
 	}
 

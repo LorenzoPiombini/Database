@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 	unsigned char options = 0;
 	unsigned char index_add = 0;
 	unsigned char file_field = 0;
+	unsigned char journal_display = 0;
 	/*------------------------------------------*/
 
 	/* parameters populated with the flag from getopt()*/
@@ -72,9 +73,14 @@ int main(int argc, char *argv[])
 	int index_nr = 0;
 	int only_dat = 0;
 
-	while ((c = getopt(argc, argv, "nItAf:F:a:k:D:R:uleB:b:s:x:c:i:o:")) != -1)
+	while ((c = getopt(argc, argv, "jnItAf:F:a:k:D:R:uleB:b:s:x:c:i:o:")) != -1)
 	{
 		switch (c){
+		case 'j':
+		{		
+			journal_display = 1;
+			break;
+		}
 		case 'a':
 		{
 			init(&data_to_add,optarg);
@@ -204,11 +210,20 @@ int main(int argc, char *argv[])
 
 	if (!check_input_and_values(file_path, data_to_add, key,
 			argv, del, list_def, new_file, update, del_file,	
-			build, create, options, index_add, file_field,import_from_data)) {
+			build, create, options, index_add, file_field,import_from_data,journal_display)) {
 		close_prog_memory();
 		return -1;
 	}
 
+	if(journal_display){
+		if(show_journal() == -1){
+			fprintf(stderr,"show_journal() failed, %s:%d.\n",__FILE__,__LINE__-1);
+			close_prog_memory();
+			return -1;
+		}
+		close_prog_memory();
+		return 0;
+	}
 	if (create){
 		if(txt_f.allocated){
 			if (!create_system_from_txt_file(txt_f.str)) {

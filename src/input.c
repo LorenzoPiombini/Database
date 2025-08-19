@@ -28,6 +28,7 @@ void print_usage(char *argv[])
         printf("\t -i - specify how many indexes the file will have.\n");
         printf("\t -A - add indexes -i to the file specified by -f .\n");
         printf("\t -I - create only the .dat file specified by -f .\n");
+        printf("\t -j - display the journal of operations.\n");
 }
 
 void print_types(void)
@@ -50,11 +51,34 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
                            unsigned char del, unsigned char list_def, unsigned char new_file,
                            unsigned char update, unsigned char del_file, unsigned char build,
                            unsigned char create, unsigned char options, unsigned char index_add,
-			   unsigned char file_field, unsigned char import_from_data)
+			   unsigned char file_field, unsigned char import_from_data, unsigned char journal_display)
 {
+	if (journal_display && (!file_path.is_empty(&file_path)  	|| 
+			del 					|| 
+			update 					|| 
+			del_file 				|| 
+			list_def 				||
+                       	new_file 				|| 
+		       	!key.is_empty(&key) 			|| 
+			!data_to_add.is_empty(&data_to_add)	|| 
+			build 					|| 
+			create		 			||
+		       index_add || import_from_data)){
+                printf("option -j must be used by itself.\n");
+                return 0;
+        }
 
-        if (create && (!file_path.is_empty(&file_path)  || del || update || del_file || list_def ||
-                       new_file || !key.is_empty(&key)  || !data_to_add.is_empty(&data_to_add) || build || index_add || import_from_data))
+        if (create && (!file_path.is_empty(&file_path)  	|| 
+			del 					|| 
+			update 					|| 
+			del_file 				|| 
+			list_def 				||
+                       	new_file 				|| 
+		       	!key.is_empty(&key) 			|| 
+			!data_to_add.is_empty(&data_to_add)	|| 
+			build 					|| 
+			journal_display 			||
+		       index_add || import_from_data))
         {
                 printf("option -c must be used by itself.\n");
                 printf(" -c <txt-with-files-definitions>.\n");

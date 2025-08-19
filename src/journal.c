@@ -34,7 +34,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	 * each journal record will store : 
 	 * - timestamp
 	 * - operation
-	 * - the file path
+	 * - the file name
 	 * - off_t
 	 * - key   
 	 * */
@@ -287,6 +287,11 @@ int write_journal_index(int *fd,struct stack *index)
 {
 	if(index->capacity == 0) return -1;
 
+
+	close(*fd);
+	*fd = open_file(JINX,1);
+	if(file_error_handler(1,*fd) != 0) return 1;
+
 	uint32_t cap_ne = swap32(index->capacity);
 	if(write(*fd,&cap_ne,sizeof(cap_ne)) == -1){
 		fprintf(stderr,"(%s): can't write journal index file.",p);
@@ -374,6 +379,10 @@ int write_journal_index(int *fd,struct stack *index)
 		}
 
 	}
+
+	close(*fd);
+	*fd = open_file(JINX,0);
+	if(file_error_handler(1,*fd) != 0 ) return -1;
 
 	return 0;
 }
@@ -472,6 +481,8 @@ int read_journal_index(int fd,struct stack *index)
 			}else{
 				uint32_t k_ne = 0;
 				if(read(fd,&k_ne,sizeof(k_ne)) == -1){
+
+
 					error("read journal index failed",__LINE__-1);
 					return -1;
 				}
@@ -500,6 +511,60 @@ int read_journal_index(int fd,struct stack *index)
 		index->elements[i].operation = (int) swap32(op_ne);
 	}
 
+	return 0;
+}
+
+
+int show_journal()
+{
+	struct stack index;
+	memset(&index,0,sizeof(struct stack));
+
+	int fd = open_file(JINX,0);
+	if(fd == -1 || fd == ENOENT){
+		error("cannot open the journal file.\n",__LINE__-2);
+		return -1;
+	}
+
+	if(read_journal_index(fd,&index)){
+		error("cannot read journal file",__LINE__-1);	
+		close(fd);
+		return -1;
+	}			
+	
+	int i;		
+	for(i = 0;i < index.capacity; i++){
+		char *date = ctime(&index.elements[i].timestamp);	
+		char dt[strlen(date)+1];
+		memset(dt,0,strlen(date)+1);
+		strncpy(dt,date,strlen(date)-1);
+		printf("%s, ",dt);
+		printf("%s, record key: ",index.elements[i].file_name);
+		switch(index.elements[i].key.type){
+		case STR:
+			printf("%s, offset: ",index.elements[i].key.k.s);
+			break;
+		case UINT:
+			if(index.elements[i].key.size == 16)
+				printf("%d, offset: ",index.elements[i].key.k.n16);	
+			else
+				printf("%d, offset: ",index.elements[i].key.k.n);	
+			break;
+		default:
+			break;
+		}
+		printf("%ld, operation: ",index.elements[i].offset);
+		switch(index.elements[i].operation){
+		case J_DEL:
+			printf("DEL.\n");
+		default:
+			break;
+		}
+	}
+
+
+	free_stack(&index);
+	close(fd);
 	return 0;
 }
 static void error(char *msg,int line)
