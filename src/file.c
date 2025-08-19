@@ -8516,27 +8516,32 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			uint32_t sz = swap32(rec->fields[i].data.v.size);
 			memcpy(&ram->mem[ram->size],&sz, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
+			ram->offset += sizeof(uint32_t);
 			uint32_t pad = 0;
 			memcpy(&ram->mem[ram->size],&pad, sizeof(uint32_t));
 			ram->size += sizeof(uint32_t);
+			ram->offset += sizeof(uint32_t);
 
 			int j;
 			for(j = 0; j < rec->fields[i].data.v.size; j++){
 
-				uint16_t l = (uint16_t)strlen(rec->fields[i].data.s);
+				uint16_t l = (uint16_t)strlen(rec->fields[i].data.v.elements.s[j]);
 				uint16_t buf_up_ne = swap16((l*2)+1);	
 				uint32_t str_loc = 0;	
 
 				memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint32_t));
 				ram->size += sizeof(uint32_t);
+				ram->offset += sizeof(uint32_t);
 
 				memcpy(&ram->mem[ram->size],&buf_up_ne, sizeof(uint16_t));
 				ram->size += sizeof(uint16_t);
+				ram->offset += sizeof(uint16_t);
 				char buff[(l * 2) + 1];
 				memset(buff,0,(l * 2) +1);
-				strncpy(buff,rec->fields[i].data.s,l);
+				strncpy(buff,rec->fields[i].data.v.elements.s[j],l);
 				memcpy(&ram->mem[ram->size],buff,(l * 2) + 1);
 				ram->size += (( l * 2) + 1);
+				ram->offset += (( l * 2) + 1);
 
 			}
 			uint64_t upd = 0;	

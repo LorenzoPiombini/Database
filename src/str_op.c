@@ -15,6 +15,7 @@
 static char prog[] = "db";
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
+static int search_string_for_types(char *str, int *types);
 /*static functions to manage String struct*/
 static void free_str(struct String *str);
 static uint8_t empty(struct String *str);
@@ -173,10 +174,13 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 				sz = (--pos_t - cbuf) - (p - cbuf) + 1;
 				if(sz-2 > MAX_FIELD_LT) return -1;
 
-				if(p != &cbuf[0])
+				if(p != &cbuf[0]){
 					strncpy(names[i],++p, sz -2);
-				else
+					memset(p,0x20,sz-2);
+				}else{
 					strncpy(names[i],p, sz -1);
+					memset(p,0x20,sz-1);
+				}
 
 				i++;
 				break;
@@ -198,8 +202,10 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 
 			if(p != &cbuf[0]){
 				strncpy(names[i],++p, l -2);
+				memset(p,0x20,l-2);
 			}else{
 				strncpy(names[i],p, l -1);
+				memset(p,0x20,l-1);
 			}
 				
 			if(types_i[i] == TYPE_FILE){
@@ -245,10 +251,13 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 				sz = pos_T - p;
 				if(sz-2 > MAX_FIELD_LT) return -1;
 
-				if(p != &cbuf[0])
+				if(p != &cbuf[0]){
 					strncpy(names[i],++p, sz -2);
-				else
+					memset(p,0x20,sz-2);
+				}else{
 					strncpy(names[i],p, sz -1);
+					memset(p,0x20,sz-1);
+				}
 				i++;
 				break;
 			}
@@ -267,10 +276,13 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			l = pos_T - p;
 			if(l-2 > MAX_FIELD_LT) return -1;
 
-			if(p != &cbuf[0])
+			if(p != &cbuf[0]){
 				strncpy(names[i],++p, l -2);
-			else
+				memset(p,0x20,l-2);
+			}else{
 				strncpy(names[i],p, l -1);
+				memset(p,0x20,l-1);
+			}
 
 			if(types_i[i] == TYPE_FILE){
 				char *file_block = NULL;
@@ -294,46 +306,52 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	int s = 0;
 	switch(mode){
 	case HYB_DF:
-		char *t = NULL;
-		while((t = strstr(cbuf,"@t_"))) {
-			char *d = strstr(t,":");	
-			if(d) *d = '@';
-			if(d) d = strstr(d,":");
-			if(d) *d = '@';
-			t[1] = '@';
-		}
-		
-		char *T = NULL;
-		while((T = strstr(cbuf,"@TYPE_"))) {
-			char *d = strstr(T,":");	
-			if(d) *d = '@';
-			if(d) d = strstr(d,":");
-			if(d) *d = '@';
-			T[1] = '@';
+	{
+		if(search_string_for_types(cbuf,types_i) == -1){
+			return -1;
 		}
 
-		s = get_fields_name_with_no_type(cbuf, names_s);
+		char buf[strlen(cbuf)+1];
+		memset(buf,0,strlen(cbuf)+1);
+
+		char *p_buf = &cbuf[0];
+		int i;
+		for(i = 0; *p_buf != '\0'; p_buf++){
+			if(*p_buf == ' ') continue;
+			
+			if(i == 0 && *p_buf == ':') continue;
+			if(i > 0){
+				if(buf[i-1] == ':' && *p_buf == ':')continue;
+			}
+			buf[i] = *p_buf;
+			i++;
+		}
+
+		s = get_fields_name_with_no_type(buf, names_s);
 		break;
+	}
 	case HYB_WR:	
 	{ 		
-		char *t = NULL;
-		while((t = strstr(cbuf,"@t_"))) {
-			char *d = strstr(t,":");	
-			if(d) *d = '@';
-			if(d) d = strstr(d,":");
-			if(d) *d = '@';
-			t[1] = '@';
+		if(search_string_for_types(cbuf,types_i) == -1){
+			return -1;
 		}
-		
-		char *T = NULL;
-		while((T = strstr(cbuf,"@TYPE_"))) {
-			char *d = strstr(T,":");	
-			if(d) *d = '@';
-			if(d) d = strstr(d,":");
-			if(d) *d = '@';
-			T[1] = '@';
+		char buf[strlen(cbuf)+1];
+		memset(buf,0,strlen(cbuf)+1);
+
+		char *p_buf = &cbuf[0];
+		int i;
+		for(i = 0; *p_buf != '\0'; p_buf++){
+			if(*p_buf == ' ') continue;
+			
+			if(i == 0 && *p_buf == ':') continue;
+			if(i > 0){
+				if(buf[i-1] == ':' && *p_buf == ':')continue;
+			}
+			buf[i] = *p_buf;
+			i++;
 		}
-		s = get_names_with_no_type_skip_value(cbuf,names_s);
+
+		s = get_names_with_no_type_skip_value(buf,names_s);
 			
 		break;
 	}
@@ -366,7 +384,614 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	return i;
 }
 
+static int search_string_for_types(char *str, int *types)
+{
+	int i;
+	for(i = 0;*str != '\0';str++,i++){
+		if(types[i] == -1) break;
+		switch(types[i]){
+		case TYPE_INT:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_i:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
 
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			while((p = strstr(str,"@TYPE_INT:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			break;
+		}
+		case TYPE_LONG:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_l:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			while((p = strstr(str,"@TYPE_LONG:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			break;
+
+		}
+		case TYPE_FLOAT:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_f:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			while((p = strstr(str,"@TYPE_FLOAT:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+
+		}
+		case TYPE_DOUBLE:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_d:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_DOUBLE:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_BYTE:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_b:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			while((p = strstr(str,"@TYPE_BYTE:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_STRING:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_s:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_STRING:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end) return -1;
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_ARRAY_INT:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_ai:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_ARRAY_INT:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end) return -1;
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_ARRAY_LONG:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_al:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_ARRAY_LONG:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_ARRAY_BYTE:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_ab:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_ARRAY_BYTE:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_ARRAY_FLOAT:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_af:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_ARRAY_FLOAT:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_ARRAY_DOUBLE:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_ad:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_ARRAY_DOUBLE:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;	
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		case TYPE_ARRAY_STRING:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_ab:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = strstr(str,"@TYPE_ARRAY_BYTE:"))){
+
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
+		default:
+			break;
+		}	
+	}
+
+	return 0;
+}
 int is_num(char *key)
 {
 	unsigned char uint = 2;
@@ -745,7 +1370,7 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 		j++;
 	}
 
-	if(fields_name[pos + 1] != '\0') {
+	if(fields_name[pos + 1] != '\0' && strstr(fields_name,"@@") == NULL) {
 		strncpy(names[j],&fields_name[pos+1],strlen(&fields_name[pos + 1]));
 		j++;
 	}
