@@ -149,7 +149,11 @@ int load_resource(struct Request *req, struct Content *cont)
 
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(snprintf(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1) exit(-1);
-				if(write(pipefd[1],cont->cnt_st,strlen(cont->cnt_st)) == -1) goto post_exit_error;
+				if(write(pipefd[1],cont->cnt_st,strlen(cont->cnt_st)) == -1){
+					/*log error*/
+					close(pipefd[1]);
+					exit(-1);
+				}
 				close(pipefd[1]);
 				exit(0);
 post_exit_error:
@@ -160,7 +164,7 @@ post_exit_error:
 			} else {                    /* Code executed by parent */
 				close(pipefd[1]);
 				do{
-					w = waitpid(child, &wstatus,0);
+					w = waitpid(-1, &wstatus,0);
 					if(w == -1){
 						/*log errors*/
 						return -1;
@@ -175,10 +179,12 @@ post_exit_error:
 						close(pipefd[0]);
 						return -1;
 					}
+					cont->size = strlen(cont->cnt_st);
 					close(pipefd[0]);
 					return 0;
 				}else{ 
 					/*log errors*/
+					printf("child process exit wth status %d.\n",WEXITSTATUS(wstatus));
 					close(pipefd[0]);
 					return -1;
 				}
@@ -275,7 +281,7 @@ post_exit_error:
 			}else{
 				close(pipefd[1]);
 				do{
-					w = waitpid(child,&wstatus,0);
+					w = waitpid(-1, &wstatus,0);
 					if(w == -1){
 						/*log errors*/
 						return -1;
@@ -460,7 +466,7 @@ s_ord_get_exit_error:
 				/*Parent process*/
 				close(pipefd[1]);
 				do{
-					w = waitpid(child,&wstatus,0);
+					w = waitpid(-1, &wstatus,0);
 					if(w == -1){
 						/*log errors*/
 						return -1;

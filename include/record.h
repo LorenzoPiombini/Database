@@ -51,12 +51,12 @@ struct Record_f;
 struct array
 {
 	union {
-		int **i;
-		long **l;
-		float **f;
+		int *i;
+		long *l;
+		float *f;
 		char **s;
-		unsigned char **b;
-		double **d;
+		unsigned char *b;
+		double *d;
 	} elements;
 	int size;
 	int (*insert)(void *, struct array *, enum ValueType);

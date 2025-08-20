@@ -102,6 +102,8 @@ int write_cli_sock(int cli_sock, struct Response *res)
 			}
 
 			fprintf(stderr,"(%s): cannot write to socket.\n",prog);
+			if(remove_socket_from_monitor(cli_sock) == -1) return -1;
+
 			return -1;
 		}
 	}else{
@@ -114,6 +116,8 @@ int write_cli_sock(int cli_sock, struct Response *res)
 
 			free(buff);
 			fprintf(stderr,"(%s): cannot write to socket.\n",prog);
+			if(remove_socket_from_monitor(cli_sock) == -1) return -1;
+
 			return -1;
 		}
 		free(buff);

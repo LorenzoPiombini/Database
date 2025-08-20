@@ -643,7 +643,7 @@ int read_header(int fd, struct Header_d *hd)
 		hd->sch_d->fields_name[i] = (char*)ask_mem(l);
 		if(!hd->sch_d->fields_name[i]){
 			fprintf(stderr,"ask_mem failed %s:%d.\n",__FILE__,__LINE__-1);
-			return 1;
+			return 0;
 		} 
 
 		if (read(fd, hd->sch_d->fields_name[i], l) == -1) {
@@ -1041,14 +1041,16 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 
 	if (new_fields) {
 		/* check which fields are already in the schema if any */
-		char **new_fields = (char**) reask_mem(sch->fields_name,sch->fields_num*sizeof(char*),fields_num*sizeof(char*));
+		char **new_fields = (char**) reask_mem(sch->fields_name,sch->fields_num*sizeof(char*),
+				(sch->fields_num + fields_num)*sizeof(char*));
 		if(!new_fields){
 			fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			return 0;
 		}
 
 		sch->fields_name = new_fields;
-		int *types = (int*) reask_mem(sch->types,sch->fields_num*sizeof(int),fields_num*sizeof(int));
+		int *types = (int*) reask_mem(sch->types,sch->fields_num*sizeof(int),
+				(sch->fields_num + fields_num) * fields_num*sizeof(int));
 		if(!types){
 			fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			return 0;
@@ -2253,16 +2255,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 						/*check values*/
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							if (*rec_old[0]->fields[j].data.v.elements.i[a] == *rec->fields[j].data.v.elements.i[a]) continue;
+							if (rec_old[0]->fields[j].data.v.elements.i[a] == rec->fields[j].data.v.elements.i[a]) continue;
 
-							*rec_old[0]->fields[j].data.v.elements.i[a] = *rec->fields[j].data.v.elements.i[a];
+							rec_old[0]->fields[j].data.v.elements.i[a] = rec->fields[j].data.v.elements.i[a];
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.
-								insert((void *)rec->fields[j].data.v.elements.i[a],
+								insert((void *)&rec->fields[j].data.v.elements.i[a],
 								&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
 					}
@@ -2274,15 +2276,15 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 						/*check values*/
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							if (*rec_old[0]->fields[j].data.v.elements.l[a] == *rec->fields[j].data.v.elements.l[a])continue;
+							if (rec_old[0]->fields[j].data.v.elements.l[a] == rec->fields[j].data.v.elements.l[a])continue;
 
-							*rec_old[0]->fields[j].data.v.elements.l[a] = *rec->fields[j].data.v.elements.l[a];
+							rec_old[0]->fields[j].data.v.elements.l[a] = rec->fields[j].data.v.elements.l[a];
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							rec_old[0]->fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.l[a],
+							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.l[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
 					}
@@ -2294,15 +2296,15 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 						/*check values*/
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							if (*rec_old[0]->fields[j].data.v.elements.f[a] == *rec->fields[j].data.v.elements.f[a])continue;
+							if (rec_old[0]->fields[j].data.v.elements.f[a] == rec->fields[j].data.v.elements.f[a])continue;
 
-							*rec_old[0]->fields[j].data.v.elements.f[a] = *rec->fields[j].data.v.elements.f[a];
+							rec_old[0]->fields[j].data.v.elements.f[a] = rec->fields[j].data.v.elements.f[a];
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							rec_old[0]->fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.f[a],
+							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.f[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 							}
 						}
@@ -2314,15 +2316,15 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 						/*check values*/
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							if (*rec_old[0]->fields[j].data.v.elements.b[a] == *rec->fields[j].data.v.elements.b[a])continue;
+							if (rec_old[0]->fields[j].data.v.elements.b[a] == rec->fields[j].data.v.elements.b[a])continue;
 							
-							*rec_old[0]->fields[j].data.v.elements.b[a] = *rec->fields[j].data.v.elements.b[a];
+							rec_old[0]->fields[j].data.v.elements.b[a] = rec->fields[j].data.v.elements.b[a];
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							rec_old[0]->fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.b[a],
+							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.b[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
 					}
@@ -2365,15 +2367,15 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 						/*check values*/
 						int a;
 						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							if (*rec_old[0]->fields[j].data.v.elements.d[a] == *rec->fields[j].data.v.elements.d[a])continue;
+							if (rec_old[0]->fields[j].data.v.elements.d[a] == rec->fields[j].data.v.elements.d[a])continue;
 
-							*rec_old[0]->fields[j].data.v.elements.d[a] = *rec->fields[j].data.v.elements.d[a];
+							rec_old[0]->fields[j].data.v.elements.d[a] = rec->fields[j].data.v.elements.d[a];
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
-						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-							rec_old[0]->fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.i[a],
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.d[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
 					}
@@ -2477,9 +2479,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					/*check values*/
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (*rec_old[0]->fields[i].data.v.elements.i[a] == *rec->fields[i].data.v.elements.i[a])
+						if (rec_old[0]->fields[i].data.v.elements.i[a] == rec->fields[i].data.v.elements.i[a])
 							continue;
-						*rec_old[0]->fields[i].data.v.elements.i[a] = *rec->fields[i].data.v.elements.i[a];
+
+						rec_old[0]->fields[i].data.v.elements.i[a] = rec->fields[i].data.v.elements.i[a];
 						changed = 1;
 					}
 				}else{
@@ -2488,7 +2491,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.i[a],
+						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.i[a],
 								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
 				}
@@ -2500,9 +2503,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					/*check values*/
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (*rec_old[0]->fields[i].data.v.elements.l[a] == *rec->fields[i].data.v.elements.l[a])continue;
+						if (rec_old[0]->fields[i].data.v.elements.l[a] == rec->fields[i].data.v.elements.l[a])continue;
 
-						*rec_old[0]->fields[i].data.v.elements.l[a] = *rec->fields[i].data.v.elements.l[a];
+						rec_old[0]->fields[i].data.v.elements.l[a] = rec->fields[i].data.v.elements.l[a];
 					}
 				}
 				else{
@@ -2510,7 +2513,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.l[a],
+						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.l[a],
 								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
 				}
@@ -2523,16 +2526,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					/*check values*/
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (*rec_old[0]->fields[i].data.v.elements.f[a] == *rec->fields[i].data.v.elements.f[a])continue;
+						if (rec_old[0]->fields[i].data.v.elements.f[a] == rec->fields[i].data.v.elements.f[a])continue;
 
-						*rec_old[0]->fields[i].data.v.elements.f[a] = *rec->fields[i].data.v.elements.f[a];
+						rec_old[0]->fields[i].data.v.elements.f[a] = rec->fields[i].data.v.elements.f[a];
 					changed = 1;
 					}
 				}else{
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.f[a],
+						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.f[a],
 									&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
 				}
@@ -2545,9 +2548,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					/*check values*/
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (*rec_old[0]->fields[i].data.v.elements.b[a] == *rec->fields[i].data.v.elements.b[a])
+						if (rec_old[0]->fields[i].data.v.elements.b[a] == rec->fields[i].data.v.elements.b[a])
 							continue;
-						*rec_old[0]->fields[i].data.v.elements.b[a] = *rec->fields[i].data.v.elements.b[a];
+						rec_old[0]->fields[i].data.v.elements.b[a] = rec->fields[i].data.v.elements.b[a];
 					changed = 1;
 					}
 				}
@@ -2556,7 +2559,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.b[a],
+						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.b[a],
 								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
 				}
@@ -2603,16 +2606,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					/*check values*/
 					int a;
 					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-							if (*rec_old[0]->fields[i].data.v.elements.d[a] == *rec->fields[i].data.v.elements.d[a])continue;
+							if (rec_old[0]->fields[i].data.v.elements.d[a] == rec->fields[i].data.v.elements.d[a])continue;
 
-							*rec_old[0]->fields[i].data.v.elements.d[a] = *rec->fields[i].data.v.elements.d[a];
+							rec_old[0]->fields[i].data.v.elements.d[a] = rec->fields[i].data.v.elements.d[a];
 					changed = 1;
 					}
 				}else{
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.i[a],
+					for (a = 0; a < rec->fields[i].data.v.size; a++){
+						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.d[a],
 								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
 					changed = 1;
@@ -2705,8 +2708,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
-						*rec_old[i]->fields[index].data.v.elements.i[a] =
-							*rec->fields[index].data.v.elements.i[a];
+						rec_old[i]->fields[index].data.v.elements.i[a] =
+							rec->fields[index].data.v.elements.i[a];
 					}
 				positions[i] = 'y';
 				break;
@@ -2724,7 +2727,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.
-						insert((void *)rec->fields[index].data.v.elements.i[a],
+						insert((void *)&rec->fields[index].data.v.elements.i[a],
 							&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 				}
@@ -2735,8 +2738,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
-						*rec_old[i]->fields[index].data.v.elements.l[a] =
-						*rec->fields[index].data.v.elements.l[a];
+						rec_old[i]->fields[index].data.v.elements.l[a] =
+						rec->fields[index].data.v.elements.l[a];
 				}
 				positions[i] = 'y';
 				break;
@@ -2752,7 +2755,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
-					rec_old[i]->fields[index].data.v.insert((void *)rec->fields[index].data.v.elements.l[a],
+					rec_old[i]->fields[index].data.v.
+						insert((void *)&rec->fields[index].data.v.elements.l[a],
 							&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 				}
@@ -2763,8 +2767,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
-					*rec_old[i]->fields[index].data.v.elements.f[a] =
-						*rec->fields[index].data.v.elements.f[a];
+					rec_old[i]->fields[index].data.v.elements.f[a] =
+						rec->fields[index].data.v.elements.f[a];
 				}
 				positions[i] = 'y';
 				break;
@@ -2782,7 +2786,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.
-						insert((void *)rec->fields[index].data.v.elements.f[a],
+						insert((void *)&rec->fields[index].data.v.elements.d[a],
 							&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 				}
@@ -2793,8 +2797,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
-					*rec_old[i]->fields[index].data.v.elements.d[a] =
-						*rec->fields[index].data.v.elements.d[a];
+					rec_old[i]->fields[index].data.v.elements.d[a] =
+						rec->fields[index].data.v.elements.d[a];
 				}
 				positions[i] = 'y';
 				break;
@@ -2811,7 +2815,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.
-						insert((void *)rec->fields[index].data.v.elements.d[a],
+						insert((void *)&rec->fields[index].data.v.elements.d[a],
 						&rec_old[i]->fields[index].data.v, 
 						rec->fields[index].type);
 				}
@@ -2822,8 +2826,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
-					*rec_old[i]->fields[index].data.v.elements.b[a] =
-						*rec->fields[index].data.v.elements.b[a];
+					rec_old[i]->fields[index].data.v.elements.b[a] =
+						rec->fields[index].data.v.elements.b[a];
 				}
 				positions[i] = 'y';
 				break;
@@ -2841,7 +2845,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++) {
 					rec_old[i]->fields[index].data.v.
-						insert((void *)rec->fields[index].data.v.elements.b[a],
+						insert((void *)&rec->fields[index].data.v.elements.b[a],
 							&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 				}

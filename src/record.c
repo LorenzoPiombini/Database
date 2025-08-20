@@ -802,7 +802,6 @@ unsigned char set_field(struct Record_f *rec,
 
 				if (range == IN_INT) {
 					/*convert the value to long and then cast it to int */
-					/*i do not want to use atoi*/
 					errno = 0;
 					long n = string_to_long(t);
 					if (errno == EINVAL) {
@@ -811,8 +810,8 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					int num = (int)n;
-					rec->fields[index].data.v.insert((void *)&num,
-							&rec->fields[index].data.v,
+					rec->fields[index].data.v.insert((void*)&num,
+							&(rec->fields[index].data.v),
 							 type);
 				}else{
 					printf("the integer value is not valid for this system.\n");
@@ -883,7 +882,7 @@ unsigned char set_field(struct Record_f *rec,
 						return 0;
 					}
 					rec->fields[index].data.v.insert((void *)&n,
-								 &rec->fields[index].data.v,type);
+								 &(rec->fields[index].data.v),type);
 				}
 				t = tok(NULL, ",");
 			}
@@ -949,7 +948,7 @@ unsigned char set_field(struct Record_f *rec,
 								return 0;
 							}
 							rec->fields[index].data.v.insert((void *)&f,
-									&rec->fields[index].data.v,type);
+									&(rec->fields[index].data.v),type);
 
 							t = tok(NULL, ",");
 							continue;
@@ -979,7 +978,7 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					rec->fields[index].data.v.insert((void *)&f,
-							 &rec->fields[index].data.v,type);
+							 &(rec->fields[index].data.v),type);
 				}
 				t = tok(NULL, ",");
 			}
@@ -1055,7 +1054,7 @@ unsigned char set_field(struct Record_f *rec,
 
 			char *t = tok(value, ",");
 			while (t) {
-				rec->fields[index].data.v.insert((void *)t,&rec->fields[index].data.v,type);
+				rec->fields[index].data.v.insert((void *)t,&(rec->fields[index].data.v),type);
 				t = tok(NULL, ",");
 			}
 		} else {
@@ -1114,7 +1113,7 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				unsigned char num = (unsigned char)l;
-				rec->fields[index].data.v.insert((void *)&num,&rec->fields[index].data.v,type);
+				rec->fields[index].data.v.insert((void *)&num,&(rec->fields[index].data.v),type);
 				t = tok(NULL, ",");
 			}
 		}
@@ -1214,7 +1213,7 @@ unsigned char set_field(struct Record_f *rec,
 							}
 
 							rec->fields[index].data.v.insert((void *)&d,
-									&rec->fields[index].data.v,
+									&(rec->fields[index].data.v),
 									type);
 							t = tok(NULL, ",");
 							continue;
@@ -1243,7 +1242,7 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					rec->fields[index].data.v.insert((void *)&d,
-								&rec->fields[index].data.v,
+								&(rec->fields[index].data.v),
 								type);
 				}
 
@@ -1535,9 +1534,9 @@ static void display_data(struct Record_f rec, int max,int tab)
 					if (!rec.fields[i].data.v.elements.i[k])
 						continue;
 
-					printf("%d, ", *rec.fields[i].data.v.elements.i[k]);
+					printf("%d, ", rec.fields[i].data.v.elements.i[k]);
 				}else{
-					printf("%d.\n", *rec.fields[i].data.v.elements.i[k]);
+					printf("%d.\n", rec.fields[i].data.v.elements.i[k]);
 				}
 			}
 
@@ -1550,11 +1549,11 @@ static void display_data(struct Record_f rec, int max,int tab)
 					{
 						if (rec.fields[i].data.v.size - k > 1)
 						{
-							printf("%ld, ", *rec.fields[i].data.v.elements.l[k]);
+							printf("%ld, ", rec.fields[i].data.v.elements.l[k]);
 						}
 						else
 						{
-							printf("%ld.\n", *rec.fields[i].data.v.elements.l[k]);
+							printf("%ld.\n", rec.fields[i].data.v.elements.l[k]);
 						}
 					}
 					break;
@@ -1566,11 +1565,11 @@ static void display_data(struct Record_f rec, int max,int tab)
 			{
 				if (rec.fields[i].data.v.size - k > 1)
 				{
-					printf("%.2f, ", *rec.fields[i].data.v.elements.f[k]);
+					printf("%.2f, ", rec.fields[i].data.v.elements.f[k]);
 				}
 				else
 				{
-					printf("%.2f.\n", *rec.fields[i].data.v.elements.f[k]);
+					printf("%.2f.\n", rec.fields[i].data.v.elements.f[k]);
 				}
 			}
 			break;
@@ -1599,11 +1598,11 @@ static void display_data(struct Record_f rec, int max,int tab)
 			{
 				if (rec.fields[i].data.v.size - k > 1)
 				{
-					printf("%u, ", *rec.fields[i].data.v.elements.b[k]);
+					printf("%u, ", rec.fields[i].data.v.elements.b[k]);
 				}
 				else
 				{
-					printf("%u.\n", *rec.fields[i].data.v.elements.b[k]);
+					printf("%u.\n", rec.fields[i].data.v.elements.b[k]);
 				}
 			}
 			break;
@@ -1615,11 +1614,11 @@ static void display_data(struct Record_f rec, int max,int tab)
 			{
 				if (rec.fields[i].data.v.size - k > 1)
 				{
-					printf("%.2f, ", *rec.fields[i].data.v.elements.d[k]);
+					printf("%.2f, ", rec.fields[i].data.v.elements.d[k]);
 				}
 				else
 				{
-					printf("%.2f.\n", *rec.fields[i].data.v.elements.d[k]);
+					printf("%.2f.\n", rec.fields[i].data.v.elements.d[k]);
 				}
 			}
 			break;
@@ -1811,7 +1810,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		case TYPE_ARRAY_INT:
 			memset(data, 0, 30);
-			if (copy_to_string(data, 30, "%d", *src->fields[i].data.v.elements.i[0]) < 0)
+			if (copy_to_string(data, 30, "%d", src->fields[i].data.v.elements.i[0]) < 0)
 			{
 				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
@@ -1827,7 +1826,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 			int j;
 			for (j = 1; j < src->fields[i].data.v.size; j++) {
-				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.i[j],
+				dest->fields[i].data.v.insert((void *)&src->fields[i].data.v.elements.i[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
 			}
@@ -1836,7 +1835,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_BYTE:
 		{
 			memset(data, 0, 30);
-			if (copy_to_string(data, 30, "%d", *src->fields[i].data.v.elements.b[0]) < 0) {
+			if (copy_to_string(data, 30, "%d", src->fields[i].data.v.elements.b[0]) < 0) {
 				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
@@ -1851,7 +1850,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 			int j;
 			for (j = 1; j < src->fields[i].data.v.size; j++) {
-				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.b[j],
+				dest->fields[i].data.v.insert((void *)&src->fields[i].data.v.elements.b[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
 			}
@@ -1860,7 +1859,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_LONG:
 		{
 			memset(data, 0, 30);
-			if (copy_to_string(data, 30, "%ld", *src->fields[i].data.v.elements.l[0]) < 0) {
+			if (copy_to_string(data, 30, "%ld", src->fields[i].data.v.elements.l[0]) < 0) {
 				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
@@ -1875,7 +1874,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 			int j;
 			for (j = 1; j < src->fields[i].data.v.size; j++) {
-				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.l[j],
+				dest->fields[i].data.v.insert((void *)&src->fields[i].data.v.elements.l[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
 			}
@@ -1884,7 +1883,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_DOUBLE:
 		{
 			memset(data, 0, 30);
-			if (copy_to_string(data, 30, "%2.f", *src->fields[i].data.v.elements.d[0]) < 0) {
+			if (copy_to_string(data, 30, "%.2f", src->fields[i].data.v.elements.d[0]) < 0) {
 				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
 				return 0;
@@ -1899,7 +1898,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 			int j;
 			for (j = 1; j < src->fields[i].data.v.size; j++) {
-				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.d[j],
+				dest->fields[i].data.v.insert((void *)&src->fields[i].data.v.elements.d[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
 			}
@@ -1908,7 +1907,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		case TYPE_ARRAY_FLOAT:
 		{
 			memset(data, 0, 30);
-			if (copy_to_string(data, 30, "%2.f", *src->fields[i].data.v.elements.f[0]) < 0)
+			if (copy_to_string(data, 30, "%.2f", src->fields[i].data.v.elements.f[0]) < 0)
 			{
 				printf("copy_to_string failed %s:%d.\n", F, L - 2);
 				free_record(dest, dest->fields_num);
@@ -1924,7 +1923,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 			int j;
 			for (j = 1; j < src->fields[i].data.v.size; j++) {
-				dest->fields[i].data.v.insert((void *)src->fields[i].data.v.elements.f[j],
+				dest->fields[i].data.v.insert((void *)&src->fields[i].data.v.elements.f[j],
 												 &dest->fields[i].data.v,
 												 src->fields[i].type);
 			}
@@ -2025,7 +2024,7 @@ int init_array(struct array **v, enum ValueType type)
 	switch (type){
 	case TYPE_ARRAY_INT:
 	{
-		(*(*v)).elements.i = (int**)ask_mem(DEF_SIZE*sizeof(int *));
+		(*(*v)).elements.i = (int*)ask_mem(DEF_SIZE * sizeof(int));
 		if (!(*(*v)).elements.i){
 			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
@@ -2035,7 +2034,7 @@ int init_array(struct array **v, enum ValueType type)
 	}
 	case TYPE_ARRAY_LONG:
 	{
-		(*(*v)).elements.l = (long**)ask_mem(DEF_SIZE*sizeof(long *));
+		(*(*v)).elements.l = (long*)ask_mem(DEF_SIZE * sizeof(long));
 		if (!(*(*v)).elements.l)
 		{
 			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
@@ -2045,7 +2044,7 @@ int init_array(struct array **v, enum ValueType type)
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
-		(*(*v)).elements.f = (float**)ask_mem(DEF_SIZE*sizeof(float *));
+		(*(*v)).elements.f = (float*)ask_mem(DEF_SIZE * sizeof(float));
 		if (!(*(*v)).elements.f){
 			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
@@ -2064,7 +2063,7 @@ int init_array(struct array **v, enum ValueType type)
 	}
 	case TYPE_ARRAY_BYTE:
 	{
-		(*(*v)).elements.b = (unsigned char**)ask_mem(DEF_SIZE*sizeof(unsigned char *));
+		(*(*v)).elements.b = (unsigned char*)ask_mem(DEF_SIZE * sizeof(unsigned char));
 		if (!(*(*v)).elements.b)
 		{
 			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
@@ -2074,7 +2073,7 @@ int init_array(struct array **v, enum ValueType type)
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
-		(*(*v)).elements.d = (double**)ask_mem(DEF_SIZE*sizeof(double *));
+		(*(*v)).elements.d = (double*)ask_mem(DEF_SIZE * sizeof(double));
 		if (!(*(*v)).elements.d)
 		{
 			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
@@ -2115,19 +2114,14 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.i[i])
 					continue;
 
-				(*v).elements.i[i] = (int*)ask_mem(sizeof(int));
-				if (!(*v).elements.i[i]){
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-					return -1;
-				}
-				*((*v).elements.i[i]) = *(int *)element;
+				((*v).elements.i[i]) = *(int *)element;
 				return 0;
 			}
 		}
 
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		int **elements_new = (int**)reask_mem((*v).elements.i,(*v).size*sizeof(int*),new_size * sizeof(int *));
+		int *elements_new = (int*)reask_mem((*v).elements.i,(*v).size * sizeof(int),new_size * sizeof(int));
 		if (!elements_new){
 			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
@@ -2135,13 +2129,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		(*v).size = new_size;
 
 		(*v).elements.i = elements_new;
-		(*v).elements.i[(*v).size - 1] = (int*)ask_mem(sizeof(int));
-		if (!(*v).elements.i[(*v).size - 1]){
-			__er_malloc(F, L - 2);
-			return -1;
-		}
-
-		*((*v).elements.i[(*v).size - 1]) = *(int *)element;
+		((*v).elements.i[(*v).size - 1]) = *(int *)element;
 		return 0;
 	}
 	case TYPE_ARRAY_LONG:
@@ -2165,18 +2153,13 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.l[i])
 					continue;
 
-				(*v).elements.l[i] = (long*)ask_mem(sizeof(long));
-				if (!(*v).elements.l[i]){
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-					return -1;
-				}
-				*((*v).elements.l[i]) = *(long *)element;
+				((*v).elements.l[i]) = *(long *)element;
 				return 0;
 			}
 		}
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		long **elements_new = (long**)reask_mem((*v).elements.l,(*v).size * sizeof(long*),new_size * sizeof(long *));
+		long *elements_new = (long*)reask_mem((*v).elements.l,(*v).size * sizeof(long),new_size * sizeof(long));
 		if (!elements_new){
 			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
@@ -2184,14 +2167,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		(*v).size = new_size;
 
 		(*v).elements.l = elements_new;
-		(*v).elements.l[(*v).size - 1] = (long*)ask_mem(sizeof(long));
-		if (!(*v).elements.l[(*v).size - 1])
-		{
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-			return -1;
-		}
-
-		*((*v).elements.l[(*v).size - 1]) = *(long *)element;
+		((*v).elements.l[(*v).size - 1]) = *(long *)element;
 		return 0;
 	}
 	case TYPE_ARRAY_FLOAT:
@@ -2215,39 +2191,26 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.f[i])
 					continue;
 
-				(*v).elements.f[i] = (float*)ask_mem(sizeof(float));
-				if (!(*v).elements.f[i]){
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-					return -1;
-				}
-				*((*v).elements.f[i]) = *(float *)element;
+				((*v).elements.f[i]) = *(float *)element;
 				return 0;
 			}
 		}
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		float **elements_new = (float**)reask_mem((*v).elements.f,(*v).size * sizeof(float*),new_size * sizeof(float *));
+		float *elements_new = (float*)reask_mem((*v).elements.f,(*v).size * sizeof(float),new_size * sizeof(float));
 		if (!elements_new){
 			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 		(*v).size = new_size;
 		(*v).elements.f = elements_new;
-		(*v).elements.f[(*v).size - 1] = (float*)ask_mem(sizeof(float));
-		if (!(*v).elements.f[(*v).size - 1])
-		{
-			__er_malloc(F, L - 2);
-			return -1;
-		}
-
-		*((*v).elements.f[(*v).size - 1]) = *(float *)element;
+		((*v).elements.f[(*v).size - 1]) = *(float *)element;
 		return 0;
 	}
 	case TYPE_ARRAY_STRING:
 	{
 		/*check if the array has been initialized */
-		if (!(*v).elements.s)
-		{
+		if (!(*v).elements.s){
 			if (init_array(&v, type) == -1)
 			{
 				fprintf(stderr, "init array failed.\n");
@@ -2259,16 +2222,14 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		if (!(*v).elements.s[(*v).size - 1])
 		{
 			int i;
-			for (i = 0; i < (*v).size; i++)
-			{
+			for (i = 0; i < (*v).size; i++){
 				if ((*v).elements.s[i])
 					continue;
 
 				size_t l = strlen((char *)element) + 1;
 
 				(*v).elements.s[i] = (char*)ask_mem(l * sizeof(char));
-				if (!(*v).elements.s[(*v).size - 1])
-				{
+				if (!(*v).elements.s[(*v).size - 1]){
 					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
@@ -2292,8 +2253,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 		size_t l = strlen((char *)element) + 1;
 		(*v).elements.s[(*v).size - 1] = (char*)ask_mem(l * sizeof(char));
-		if (!(*v).elements.s[(*v).size - 1])
-		{
+		if (!(*v).elements.s[(*v).size - 1]){
 			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
@@ -2322,20 +2282,16 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.b[i])
 					continue;
 
-				(*v).elements.b[i] = (unsigned char*)ask_mem(sizeof(unsigned char));
-				if (!(*v).elements.b[i])
-				{
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-					return -1;
-				}
-				*((*v).elements.b[i]) = *(unsigned char *)element;
+				((*v).elements.b[i]) = *(unsigned char *)element;
 				return 0;
 			}
 		}
 
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		unsigned char **elements_new = (unsigned char**)reask_mem((*v).elements.b,(*v).size * sizeof(unsigned char*),new_size * sizeof(unsigned char *));
+		unsigned char *elements_new = (unsigned char*)reask_mem((*v).elements.b,
+						(*v).size * sizeof(unsigned char),
+						new_size * sizeof(unsigned char));
 		if (!elements_new)
 		{
 			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
@@ -2343,13 +2299,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 
 		(*v).elements.b = elements_new;
-		(*v).elements.b[(*v).size - 1] = (unsigned char*)ask_mem(sizeof(unsigned char));
-		if (!(*v).elements.i[(*v).size - 1]){
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-			return -1;
-		}
-
-		*((*v).elements.b[(*v).size - 1]) = *(unsigned char *)element;
+		((*v).elements.b[(*v).size - 1]) = *(unsigned char *)element;
 		return 0;
 	}
 	case TYPE_ARRAY_DOUBLE:
@@ -2373,33 +2323,24 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				if ((*v).elements.d[i])
 					continue;
 
-				(*v).elements.d[i] = (double*)ask_mem(sizeof(double));
-				if (!(*v).elements.d[i]){
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-					return -1;
-				}
-				*((*v).elements.d[i]) = *(double *)element;
+				((*v).elements.d[i]) = *(double *)element;
 				return 0;
 			}
 		}
 
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		double **elements_new = (double**)reask_mem((*v).elements.d,(*v).size * sizeof(double*) ,new_size * sizeof(double *));
+		double *elements_new = (double*)reask_mem((*v).elements.d,
+						(*v).size * sizeof(double) ,
+						new_size * sizeof(double));
 		if (!elements_new){
 			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
 		(*v).elements.d = elements_new;
-		(*v).elements.d[(*v).size - 1] = (double*)ask_mem(sizeof(double));
-		if (!(*v).elements.d[(*v).size - 1])
-		{
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-			return -1;
-		}
-
-		*((*v).elements.d[(*v).size - 1]) = *(double *)element;
+		(*v).size = new_size;
+		((*v).elements.d[(*v).size - 1]) = *(double *)element;
 		return 0;
 	}
 	default:
@@ -2416,38 +2357,23 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 	{
 	case TYPE_ARRAY_INT:
 	{
-		int i;
-		for (i = 0; i < v->size; i++)
-		{
-			if (v->elements.i[i])
-				cancel_memory(NULL,v->elements.i[i],sizeof(int*));
-		}
-		cancel_memory(NULL,v->elements.i,v->size*sizeof(int*));
+		cancel_memory(NULL,v->elements.i,v->size*sizeof(int));
 		v->elements.i = NULL;
+		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_LONG:
 	{
-		int i;
-		for (i = 0; i < v->size; i++)
-		{
-			if (v->elements.l[i])
-				cancel_memory(NULL,v->elements.i[i],sizeof(long*));
-		}
-		cancel_memory(NULL,v->elements.i,v->size*sizeof(long*));
+		cancel_memory(NULL,v->elements.l,v->size*sizeof(long));
 		v->elements.l = NULL;
+		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
-		int i;
-		for (i = 0; i < v->size; i++)
-		{
-			if (v->elements.f[i])
-				cancel_memory(NULL,v->elements.i[i],sizeof(float*));
-		}
-		cancel_memory(NULL,v->elements.i,v->size*sizeof(float*));
+		cancel_memory(NULL,v->elements.f,v->size*sizeof(float));
 		v->elements.f = NULL;
+		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_STRING:
@@ -2456,34 +2382,25 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (i = 0; i < v->size; i++)
 		{
 			if (v->elements.s[i])
-				cancel_memory(NULL,v->elements.i[i],sizeof(char*));
+				cancel_memory(NULL,v->elements.s[i],(strlen(v->elements.s[i])+1) * sizeof(char*));
 		}
-		cancel_memory(NULL,v->elements.i,v->size*sizeof(char*));
+		cancel_memory(NULL,v->elements.s,v->size*sizeof(char*));
 		v->elements.s = NULL;
+		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_BYTE:
 	{
-		int i;
-		for (i = 0; i < v->size; i++)
-		{
-			if (v->elements.b[i])
-				cancel_memory(NULL,v->elements.i[i],sizeof(unsigned char*));
-		}
-		cancel_memory(NULL,v->elements.i,v->size*sizeof(unsigned char*));
+		cancel_memory(NULL,v->elements.b,v->size*sizeof(unsigned char));
 		v->elements.s = NULL;
+		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
-		int i;
-		for (i = 0; i < v->size; i++)
-		{
-			if (v->elements.d[i])
-				cancel_memory(NULL,v->elements.i[i],sizeof(double*));
-		}
-		cancel_memory(NULL,v->elements.i,v->size*sizeof(double*));
+		cancel_memory(NULL,v->elements.d,v->size*sizeof(double));
 		v->elements.d = NULL;
+		v->size = 0;
 		break;
 	}
 	default:
@@ -2556,9 +2473,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				case TYPE_ARRAY_INT:
 				{	
 					if (dest->fields[i].data.v.elements.i){
-						if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.i[0] == 0){
+						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.i[0] == 0){
 							if(src->fields[i].data.v.size == 1 && 
-									*src->fields[i].data.v.elements.i[0] == 0) c++;
+									src->fields[i].data.v.elements.i[0] == 0) c++;
 
 							if(c == active) break;
 							return i;
@@ -2568,8 +2485,8 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 						if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
 							int a;
 							for (a = 0; a < dest->fields[i].data.v.size; a++){
-								if (*src->fields[i].data.v.elements.i[a] == 
-										*dest->fields[i].data.v.elements.i[a]) ai++;
+								if (src->fields[i].data.v.elements.i[a] == 
+										dest->fields[i].data.v.elements.i[a]) ai++;
 
 							}
 						}
@@ -2583,9 +2500,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				case TYPE_ARRAY_LONG:
 				{
 					if (dest->fields[i].data.v.elements.l){
-						if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.l[0] == 0){
+						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.l[0] == 0){
 							if(src->fields[i].data.v.size == 1 && 
-									*src->fields[i].data.v.elements.l[0] == 0) c++;
+									src->fields[i].data.v.elements.l[0] == 0) c++;
 
 							if(c == active) break;
 							return i;
@@ -2595,8 +2512,8 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 						if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
 							int a;
 							for (a = 0; a < dest->fields[i].data.v.size; a++){
-								if (*src->fields[i].data.v.elements.l[a] == 
-										*dest->fields[i].data.v.elements.l[a]) al++;
+								if (src->fields[i].data.v.elements.l[a] == 
+										dest->fields[i].data.v.elements.l[a]) al++;
 							}
 						}
 						if(dest->fields[i].data.v.size == al) c++;
@@ -2609,9 +2526,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				case TYPE_ARRAY_BYTE:
 				{
 					if (dest->fields[i].data.v.elements.b){
-						if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.b[0] == 0){
+						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.b[0] == 0){
 							if(src->fields[i].data.v.size == 1 && 
-									*src->fields[i].data.v.elements.b[0] == 0) c++;
+									src->fields[i].data.v.elements.b[0] == 0) c++;
 
 							if(c == active) break;
 							return i;
@@ -2621,8 +2538,8 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 						if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
 							int a;
 							for (a = 0; a < dest->fields[i].data.v.size; a++){
-								if (*src->fields[i].data.v.elements.b[a] == 
-										*dest->fields[i].data.v.elements.b[a]) ab++;
+								if (src->fields[i].data.v.elements.b[a] == 
+										dest->fields[i].data.v.elements.b[a]) ab++;
 
 							}
 						}
@@ -2636,9 +2553,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				case TYPE_ARRAY_FLOAT:
 				{
 					if (dest->fields[i].data.v.elements.f){
-						if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.f[0] == 0){
+						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.f[0] == 0.00){
 							if(src->fields[i].data.v.size == 1 && 
-									*src->fields[i].data.v.elements.f[0] == 0) c++;
+									src->fields[i].data.v.elements.f[0] == 0) c++;
 
 							if(c == active) break;
 							return i;
@@ -2648,8 +2565,8 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 						if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
 							int a;
 							for (a = 0; a < dest->fields[i].data.v.size; a++){
-								if (*src->fields[i].data.v.elements.f[a] == 
-										*dest->fields[i].data.v.elements.f[a]) af++;
+								if (src->fields[i].data.v.elements.f[a] == 
+										dest->fields[i].data.v.elements.f[a]) af++;
 							}
 						}
 						if(dest->fields[i].data.v.size == af) c++;
@@ -2663,9 +2580,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				case TYPE_ARRAY_DOUBLE:
 				{
 					if (dest->fields[i].data.v.elements.d){
-						if (dest->fields[i].data.v.size == 1 && *dest->fields[i].data.v.elements.d[0] == 0){
+						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.d[0] == 0.0){
 							if(src->fields[i].data.v.size == 1 && 
-									*src->fields[i].data.v.elements.d[0] == 0) c++;
+									src->fields[i].data.v.elements.d[0] == 0) c++;
 
 							if(c == active) break;
 							return i;
@@ -2675,8 +2592,8 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 						if (dest->fields[i].data.v.size == src->fields[i].data.v.size) {
 							int a;
 							for (a = 0; a < dest->fields[i].data.v.size; a++){
-								if (*src->fields[i].data.v.elements.d[a] == 
-										*dest->fields[i].data.v.elements.d[a]) ad++;
+								if (src->fields[i].data.v.elements.d[a] == 
+										dest->fields[i].data.v.elements.d[a]) ad++;
 
 							}
 						}

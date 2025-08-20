@@ -15,7 +15,6 @@ OBJlibp = obj/debug.o  obj/sort.o obj/parse.o
 OBJlibpPR = obj/debug_prod.o  obj/sort_prod.o obj/parse_prod.o
 OBJlibl = obj/debug.o  obj/lock.o
 OBJliblPR = obj/debug_prod.o  obj/lock_prod.o
-OBJlibbst = obj/debug.o  obj/bst.o obj/str_op.o
 OBJlibbstPR = obj/debug_prod.o  obj/bst_prod.o obj/str_op_prod.o
 OBJlibcrud = obj/crud.o obj/file.o  obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o
 
@@ -57,10 +56,6 @@ LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBl = lib$(LIBNAMEl).so
 
-LIBNAMEbst = bst
-LIBDIR = /usr/local/lib
-INCLUDEDIR = /usr/local/include
-SHAREDLIBbst = lib$(LIBNAMEbst).so
 
 SCRIPTS = SHOW FILE LIST WRITE UPDATE DEL DELa KEYS 
 
@@ -90,7 +85,6 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
-	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBbst) $(OBJlibbst)
 
 libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBht) $(OBJlibhtPR)
@@ -99,12 +93,11 @@ libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibfPR)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibpPR)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJliblPR)
-	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBbst) $(OBJlibbstPR)
 
 clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	sudo rm -f $(INCLUDEDIR)/file.h $(INCLUDEDIR)/str_op.h $(INCLUDEDIR)/record.h $(INCLUDEDIR)/parse.h $(INCLUDEDIR)/bst.h $(INCLUDEDIR)/hash_tbl.h $(INCLUDEDIR)/lock.h 
-	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) $(LIBDIR)/$(SHAREDLIBht) $(LIBDIR)/$(SHAREDLIBl) $(LIBDIR)/$(SHAREDLIBbst) 
+	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) $(LIBDIR)/$(SHAREDLIBht) $(LIBDIR)/$(SHAREDLIBl)
 	sudo ldconfig
 	rm -f obj/*.o 
 	sudo rm -f *.so
@@ -114,10 +107,10 @@ clean:
 	rm *core*
 	 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
+	sudo gcc -o $@ $? -lmem -llog -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 
 obj/%.o : src/%.c
-	sudo gcc  -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address 
+	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address 
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 $(TARGET)_prod: $(OBJ_PROD)
@@ -245,7 +238,7 @@ $(BINDIR)/DELa:
 
 install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
+	install -m 644 include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
@@ -253,20 +246,18 @@ install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $
 	install -m 755 $(SHAREDLIBr) $(LIBDIR)
 	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
 	install -m 755 $(SHAREDLIBl) $(LIBDIR)
-	install -m 755 $(SHAREDLIBbst) $(LIBDIR)
 	ldconfig
 	
 
 install_prod: $(TARGET)_prod $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/bst.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
+	install -m 644 include/types.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
 	install -m 755 $(SHAREDLIBs) $(LIBDIR)
 	install -m 755 $(SHAREDLIBr) $(LIBDIR)
 	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
 	install -m 755 $(SHAREDLIBl) $(LIBDIR)
-	install -m 755 $(SHAREDLIBbst) $(LIBDIR)
 	ldconfig
 build: object-dir default library install
 
