@@ -156,6 +156,11 @@ int check_data(char *file_path,char *data_to_add,
 	memset(pos,-1,sizeof(int)*200);
 
 	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields(":",data_to_add,pos,*(hd->sch_d)); 
+	
+	uint8_t  cnt = (uint8_t) count_fields(data_to_add,":");
+	if(cnt >= 3) cnt -= 1; 	
+
+	if((cnt == hd->sch_d->fields_num) && strstr(data_to_add,"{") && __UTILITY) return -1;
 
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 

@@ -103,7 +103,9 @@ unsigned char set_field(struct Record_f *rec,
 	rec->fields[index].type = type;
 	rec->field_set[index] = field_bit;
 
+	/*this prevent a fake failure when the TYPE_FILE is not active in the current record*/
 	if(!value && (field_bit == 0)) return 1;
+
 	int t = (int)type;
 	switch (t) {
 	case -1:

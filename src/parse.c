@@ -30,7 +30,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 {
 
 
-	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
+	char names[MAX_FIELD_NR][MAX_FIELD_LT];
 	memset(names,0,MAX_FIELD_NR * MAX_FIELD_LT * sizeof(char));
 
 	int types_i[MAX_FIELD_NR];
@@ -119,6 +119,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 		}	
 	}
 
+#if 0
 	if (check_sch == SCHEMA_NW) {
 		if(sort_input_like_header_schema(check_sch, fields_num, sch, names, &values, types_i) == -1){
 			printf("sort_input_like_header_schema failed, %s:%d.\n", F, L - 4);
@@ -152,6 +153,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 
 		create_record(file_path, *sch,rec);
 	}
+
+#endif /* this is might need to be canceled or reconsidered */
 
 	if (check_sch == SCHEMA_CT || check_sch == SCHEMA_CT_NT) { 
 		/*the input contain one or more BUT NOT ALL, fields in the schema*/
@@ -291,6 +294,13 @@ int parse_d_flag_input(char *file_path, int fields_num,
 						return -1;
 					}
 					break;
+				case TYPE_FILE:
+					if(!set_field(rec,i,sch->fields_name[i], sch->types[i],NULL,bitfield))
+					{
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
 				default:
 					printf("type no supported! %d.\n", sch->types[i]);
 					if (fields_num == 1) 
@@ -386,12 +396,6 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 			if (found == 0) {
 				switch (sch->types[i]){
 				case -1:
-					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield)) {
-						printf("set_field failed %s:%d.\n", F, L - 2);
-						return -1;
-					}
-	
-					break;
 				case TYPE_INT:
 				case TYPE_LONG:
 				case TYPE_BYTE:
@@ -880,9 +884,10 @@ int sort_input_like_header_schema(int schema_tp,
 			return 0;
 		}
 
-		char temp_name[MAX_FIELD_NR][MAX_FIELD_LT] = {0}; 
+		char temp_name[MAX_FIELD_NR][MAX_FIELD_LT]; 
+		memset(temp_name,0,MAX_FIELD_LT*MAX_FIELD_NR);
 
-		int temp_types[MAX_FIELD_NR] = {0};
+		int temp_types[MAX_FIELD_NR];
 		memset(temp_types,-1,sizeof(int)*MAX_FIELD_NR);
 
 		for (i = 0; i < sch->fields_num; i++) {
@@ -1040,7 +1045,6 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 	}
 
 	if (new_fields) {
-		/* check which fields are already in the schema if any */
 		char **new_fields = (char**) reask_mem(sch->fields_name,sch->fields_num*sizeof(char*),
 				(sch->fields_num + fields_num)*sizeof(char*));
 		if(!new_fields){
@@ -1057,6 +1061,7 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		}
 		sch->types = types;
 
+		/* check which fields are already in the schema if any */
 		int i;
 		for (i = 0; i < fields_num; i++) {
 			if(pos[i] == i) continue; 
@@ -1339,13 +1344,13 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 								/*
 								 * type byte is a number stored in 
 								 * exactly 1 byte so it can't be bigger 
-								 * than 2^7 or it can't be negative 
-								 * either 
+								 * than 2^7 * 2 (it can't be negative)
+								 *  
 								 * */
 								errno = 0;
 								long l = string_to_long(num);
 								if(errno == 0){ 
-									if(l > (long)power(2,7))return -1;
+									if(l > UCHAR_MAX)return -1;
 									if(l < 0)return -1;
 								}
 							}
@@ -1355,7 +1360,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						break;
 					}
 					default:
-						break;
+						return -1;
 					}
 					continue;
 				}
@@ -1462,8 +1467,11 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 										}else if(sch->types[j] == TYPE_ARRAY_BYTE){
 											errno = 0;
 											long l = string_to_long(num);
-											if(errno == 0) 
-												if(l > (long)power(2,7))return -1;
+											if(errno == 0){ 
+												if(l > UCHAR_MAX)return -1;
+												if(l < 0)return -1;
+											}
+											continue;
 										}
 									}
 									types_i[j] = sch->types[j];
@@ -2262,7 +2270,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
-						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.
 								insert((void *)&rec->fields[j].data.v.elements.i[a],
 								&rec_old[0]->fields[j].data.v, rec->fields[j].type);
@@ -2283,7 +2291,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
-						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.l[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
@@ -2303,7 +2311,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
-						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.f[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 							}
@@ -2323,7 +2331,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
-						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.b[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
@@ -2354,7 +2362,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						int a;
-						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.s[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
@@ -2490,7 +2498,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					changed = 1;
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+					for (a = 0; a < rec->fields[i].data.v.size; a++){
 						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.i[a],
 								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
@@ -2512,7 +2520,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					changed = 1;
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+					for (a = 0; a < rec->fields[i].data.v.size; a++){
 						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.l[a],
 								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
@@ -2534,7 +2542,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}else{
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+					for (a = 0; a < rec->fields[i].data.v.size; a++){
 						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.f[a],
 									&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
@@ -2558,7 +2566,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					changed = 1;
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+					for (a = 0; a < rec->fields[i].data.v.size; a++){
 						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.b[a],
 								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}
@@ -2593,7 +2601,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					changed = 1;
 					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+					for (a = 0; a < rec->fields[i].data.v.size; a++){
 						rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.s[a],
 							&rec_old[0]->fields[i].data.v, rec->fields[i].type);
 					}

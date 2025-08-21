@@ -2346,6 +2346,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		if(*f == ':') *f = ' ';
 	}
 
+	i = 0;
 	if(strstr(buf," ") == NULL) return -1;
 	char *start = NULL;
 	while((start = strstr(buf,"TYPE_"))){
@@ -2410,6 +2411,7 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 		int end = 0;
 		int variable_steps = 2;
 		while(count < variable_steps) {
+			if(p == &buffer[0]) break;
 			p--;
 			if (*p == ':') {
 				if(count == 0) end = p - buffer;
@@ -2429,7 +2431,10 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 			}
 		}
 	
-		strncpy(field, &buffer[start+1],end - start -1);
+		if(p == &buffer[0])
+			strncpy(field, &buffer[start],end - start -1);
+		else
+			strncpy(field, &buffer[start+1],end - start -1);
 	}
 
 	return field;

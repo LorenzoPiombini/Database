@@ -1200,7 +1200,10 @@ int main(int argc, char *argv[])
 			int lock_f = 0;
 			int check = 0;
 			int r = 0;
-			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error_7;
+			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) {
+				fprintf(stderr,"(%s): schema different than file definition or worng syntax\n",prog);
+				goto clean_on_error_7;
+			}
 
 			if(!lock_f){
 				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
