@@ -2236,7 +2236,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 					return -1;
 				}
 
-				strncpy((*v).elements.s[i], (char *)element, l);
+				strncpy((*v).elements.s[i], (char *)element, l-1);
 
 				return 0;
 			}
@@ -2384,7 +2384,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		for (i = 0; i < v->size; i++)
 		{
 			if (v->elements.s[i])
-				cancel_memory(NULL,v->elements.s[i],(strlen(v->elements.s[i])+1) * sizeof(char*));
+				cancel_memory(NULL,v->elements.s[i],(strlen(v->elements.s[i])+1) * sizeof(char));
 		}
 		cancel_memory(NULL,v->elements.s,v->size*sizeof(char*));
 		v->elements.s = NULL;

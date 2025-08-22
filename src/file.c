@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
@@ -373,7 +372,8 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	}
 	int i = 0;
 	for (i = 0; i < array_size; i++) {
-		HashTable ht_n = {0};
+		HashTable ht_n;
+		memset(&ht_n,0,sizeof(HashTable));
 		ht_n.write = write_ht;
 
 		(*ht)[i] = ht_n;
@@ -382,7 +382,7 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR) {
 		__er_file_pointer(F, L - 2);
-		free(*ht);
+		cancel_memory(NULL,ht,array_size * sizeof *ht);
 		return 0;
 	}
 
@@ -6183,16 +6183,14 @@ int add_index(int index_nr, char *file_name, int bucket)
 	int ht_i = 0;
 	if (!read_all_index_file(fd, &ht, &ht_i))
 	{
-		fprintf(stderr,
-				"read_all_index_file(),failed %s:%d.\n",
+		fprintf(stderr,"read_all_index_file(),failed %s:%d.\n",
 				F, L - 4);
 		return -1;
 	}
 
-	HashTable *ht_new = realloc(ht, (ht_i + index_nr) * sizeof(HashTable));
-	if (!ht_new)
-	{
-		__er_realloc(F, L - 2);
+	HashTable *ht_new = (HashTable*)reask_mem(ht,ht_i * sizeof *ht,(ht_i + index_nr) * sizeof(HashTable));
+	if (!ht_new){
+		fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",prog,F, L - 2);
 		free_ht_array(ht, ht_i);
 		return -1;
 	}
@@ -6204,7 +6202,8 @@ int add_index(int index_nr, char *file_name, int bucket)
 	int j;
 	for (j = ht_i; j < total_indexes; ++j)
 	{
-		HashTable dummy = {0};
+		HashTable dummy;
+		memset(&dummy,0,sizeof(HashTable)); 
 		dummy.write = write_ht;
 		dummy.size = bucket;
 
@@ -6251,7 +6250,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 		destroy_hasht(&ht[i]);
 	}
 
-	free(ht);
+	cancel_memory(NULL,ht,total_indexes * sizeof *ht);
 	close_file(1, fd);
 	return 0;
 }
@@ -6807,7 +6806,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 						&rec->fields[indexes[i]].data.v,
 						rec->fields[indexes[i]].type);
 
-					free(string);
+					cancel_memory(NULL,string,buf_up);
 				}
 
 				if (padd > 0) {
@@ -6871,12 +6870,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 	 * this block check if we have enough size in the ram file*/
 	if(ram->offset == ram->size){
 		if(rec_disk_size > (ram->capacity - ram->size)){
-			uint8_t *n_buff = realloc(ram->mem,(ram->capacity *= 2) * sizeof(uint8_t));
+			size_t new_size = ram->capacity * 2;
+			uint8_t *n_buff = (uint8_t*)reask_mem(ram->mem,ram->capacity, new_size * sizeof(uint8_t));
 			if(!n_buff){
-				fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return -1;
 			}
 
+			ram->capacity = new_size;
 			ram->mem = n_buff;
 			ram->offset = ram->size;
 		}
@@ -7079,9 +7080,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					ram->offset = eof;
 					if(eof == ram->capacity){
 						errno = 0;
-						uint8_t *n_mem = realloc(ram->mem,ram->capacity+ buff_update * sizeof(uint8_t));
+						uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+								(ram->capacity + buff_update) * sizeof(uint8_t));
 						if(!n_mem){
-							fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+							fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 							return -1;
 						}
 						ram->mem = n_mem;
@@ -7089,9 +7091,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 					}else if((eof + buff_update) > ram->capacity){
 						errno = 0;
-						uint8_t *n_mem = realloc(ram->mem,(ram->capacity +(eof + buff_update) - ram->capacity)*sizeof(uint8_t));
+						uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+								(ram->capacity + buff_update) * sizeof(uint8_t));
 						if(!n_mem){
-							fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+							fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 							return -1;
 						}
 						ram->mem = n_mem;
@@ -8010,7 +8013,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									ram->capacity * sizeof(uint8_t),
 									ram->capacity + (remaining_write_size + 1) * sizeof(uint8_t));
 							if(!n_mem){
-								fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+								fprintf(stderr,"(%s): reask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 								return -1;
 							}
 							ram->mem = n_mem;
@@ -8330,7 +8333,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									ram->capacity * sizeof(uint8_t),
 									ram->capacity + (remaining_write_size + 1) * sizeof(uint8_t));
 							if(!n_mem){
-								fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+								fprintf(stderr,"(%s): reask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 								return -1;
 							}
 
@@ -8549,6 +8552,157 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						while(sz){
 							if(step < rec->fields[i].data.v.size){
 								/*write the string*/
+								uint64_t move_to = 0;
+								uint32_t eof = 0;
+								uint16_t bu_ne = 0;
+								uint16_t new_lt = 0;
+								/*save the starting offset for the string record*/
+								uint64_t bg_pos = ram->size;
+								uint32_t str_loc_ne= 0;
+
+								/*read the other str_loc if any*/
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+								else
+									memcpy(&str_loc_ne,&ram->mem[ram->size],sizeof(uint32_t));
+
+
+								ram->offset += sizeof(uint32_t);
+								uint32_t str_loc = swap32(str_loc_ne);
+
+								/* save pos where the data starts*/
+								uint64_t af_str_loc_pos = ram->size;
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									af_str_loc_pos = ram->offset;
+								else
+									af_str_loc_pos = ram->size;
+
+								uint16_t buff_update_ne = 0;
+
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									memcpy(&buff_update_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+								else
+									memcpy(&buff_update_ne,&ram->mem[ram->size],sizeof(uint16_t));
+
+								ram->offset += sizeof(uint16_t);
+
+								uint16_t buff_update = swap16(buff_update_ne);
+								uint64_t pos_after_first_str_record = ram->offset + buff_update; 
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									pos_after_first_str_record = ram->offset + buff_update; 
+								else
+									pos_after_first_str_record = ram->size + buff_update; 
+
+								if (str_loc > 0){
+									/*set the file pointer to str_loc*/
+									ram->offset = str_loc;
+
+									/*
+									 * in the case of a regular buffer update we have
+									 *  to save the off_t to get back to it later
+									 * */
+									move_to = ram->offset; 
+
+									uint16_t bu_ne = 0;
+									memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+									ram->offset +=  sizeof(uint16_t);	
+
+									buff_update = (off_t)swap16(bu_ne);
+								}
+
+								new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
+
+								if (new_lt > buff_update) {
+									/*expand the buff_update only for the bytes needed*/
+									buff_update += (new_lt - buff_update);
+
+									/*
+									 * if the new length is bigger then the buffer,
+									 * set the file pointer to EOF to write the new data
+									 * */
+									eof = ram->size;
+									ram->offset = eof;
+									if(eof == ram->capacity){
+										errno = 0;
+										uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+												(ram->capacity + buff_update) * sizeof(uint8_t));
+										if(!n_mem){
+											fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+											return -1;
+										}
+										ram->mem = n_mem;
+										ram->capacity += buff_update; 
+
+									}else if((eof + buff_update) > ram->capacity){
+										errno = 0;
+										uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+												(ram->capacity + buff_update) * sizeof(uint8_t));
+										if(!n_mem){
+											fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+											return -1;
+										}
+										ram->mem = n_mem;
+										ram->capacity += ((eof + buff_update) - ram->capacity); 
+									}
+								}
+
+								char buff_w[buff_update];
+								memset(buff_w,0,buff_update);
+
+								strncpy(buff_w, rec->fields[i].data.s, new_lt - 1);
+								/*
+								 * if we did not move to another position
+								 * set the file pointer back to the begginning of the string record
+								 * to overwrite the data accordingly
+								 * */
+								if (str_loc == 0 && ((new_lt - buff_update) < 0)){
+									ram->offset = af_str_loc_pos;
+								} else if (str_loc > 0 && ((new_lt - buff_update) < 0)){
+									ram->offset = move_to;
+								}
+
+								/*
+								 * write the data to file --
+								 * the file pointer is always pointing to the
+								 * right position at this point */
+								bu_ne = swap16((uint16_t)buff_update);
+
+								if(eof == 0)
+									memcpy(&ram->mem[ram->offset],&bu_ne,sizeof(uint16_t));
+								else 
+									memcpy(&ram->mem[ram->size],&bu_ne,sizeof(uint16_t));
+
+
+								ram->offset += sizeof(uint16_t);
+								memcpy(&ram->mem[ram->offset],buff_w,buff_update);
+								ram->offset += sizeof(buff_w);
+
+								/*
+								 * if eof is bigger than 0 means we updated the string
+								 * we need to save the off_t of the new written data
+								 * at the start of the original.
+								 * */
+								if (eof > 0){
+									/*go at the beginning of the str record*/
+									ram->offset = bg_pos;
+
+									/*update new string position*/
+									uint32_t eof_ne = swap32((uint32_t)eof);
+									memcpy(&ram->mem[ram->offset],&eof_ne,sizeof(uint32_t));
+									ram->offset += sizeof(uint32_t);
+
+									/*set file pointer to the end of the 1st string rec*/
+									/*this step is crucial to avoid losing data        */
+
+									ram->offset = pos_after_first_str_record;
+								}else if (str_loc > 0){
+									/*
+									 * Make sure that in all cases
+									 * we go back to the end of the 1st record
+									 * */
+									ram->offset = pos_after_first_str_record;
+								}
+								step++;
 							}
 							sz--;
 						}
@@ -8598,6 +8752,157 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							if(step < rec->fields[i].data.v.size){
 								/*write string*/
+								uint64_t move_to = 0;
+								uint32_t eof = 0;
+								uint16_t bu_ne = 0;
+								uint16_t new_lt = 0;
+								/*save the starting offset for the string record*/
+								uint64_t bg_pos = ram->size;
+								uint32_t str_loc_ne= 0;
+
+								/*read the other str_loc if any*/
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+								else
+									memcpy(&str_loc_ne,&ram->mem[ram->size],sizeof(uint32_t));
+
+
+								ram->offset += sizeof(uint32_t);
+								uint32_t str_loc = swap32(str_loc_ne);
+
+								/* save pos where the data starts*/
+								uint64_t af_str_loc_pos = ram->size;
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									af_str_loc_pos = ram->offset;
+								else
+									af_str_loc_pos = ram->size;
+
+								uint16_t buff_update_ne = 0;
+
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									memcpy(&buff_update_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+								else
+									memcpy(&buff_update_ne,&ram->mem[ram->size],sizeof(uint16_t));
+
+								ram->offset += sizeof(uint16_t);
+
+								uint16_t buff_update = swap16(buff_update_ne);
+								uint64_t pos_after_first_str_record = ram->offset + buff_update; 
+								if(ram->size == ram->capacity && ram->offset != ram->size)
+									pos_after_first_str_record = ram->offset + buff_update; 
+								else
+									pos_after_first_str_record = ram->size + buff_update; 
+
+								if (str_loc > 0){
+									/*set the file pointer to str_loc*/
+									ram->offset = str_loc;
+
+									/*
+									 * in the case of a regular buffer update we have
+									 *  to save the off_t to get back to it later
+									 * */
+									move_to = ram->offset; 
+
+									uint16_t bu_ne = 0;
+									memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+									ram->offset +=  sizeof(uint16_t);	
+
+									buff_update = (off_t)swap16(bu_ne);
+								}
+
+								new_lt = strlen(rec->fields[i].data.v.elements.s[k]) + 1; /*get new str length*/
+
+								if (new_lt > buff_update) {
+									/*expand the buff_update only for the bytes needed*/
+									buff_update += (new_lt - buff_update);
+
+									/*
+									 * if the new length is bigger then the buffer,
+									 * set the file pointer to EOF to write the new data
+									 * */
+									eof = ram->size;
+									ram->offset = eof;
+									if(eof == ram->capacity){
+										errno = 0;
+										uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+												(ram->capacity + buff_update) * sizeof(uint8_t));
+										if(!n_mem){
+											fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+											return -1;
+										}
+										ram->mem = n_mem;
+										ram->capacity += buff_update; 
+
+									}else if((eof + buff_update) > ram->capacity){
+										errno = 0;
+										uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+												(ram->capacity + buff_update) * sizeof(uint8_t));
+										if(!n_mem){
+											fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+											return -1;
+										}
+										ram->mem = n_mem;
+										ram->capacity += ((eof + buff_update) - ram->capacity); 
+									}
+								}
+
+								char buff_w[buff_update];
+								memset(buff_w,0,buff_update);
+
+								strncpy(buff_w, rec->fields[i].data.v.elements.s[k], new_lt - 1);
+								/*
+								 * if we did not move to another position
+								 * set the file pointer back to the begginning of the string record
+								 * to overwrite the data accordingly
+								 * */
+								if (str_loc == 0 && ((new_lt - buff_update) < 0)){
+									ram->offset = af_str_loc_pos;
+								} else if (str_loc > 0 && ((new_lt - buff_update) < 0)){
+									ram->offset = move_to;
+								}
+
+								/*
+								 * write the data to file --
+								 * the file pointer is always pointing to the
+								 * right position at this point */
+								bu_ne = swap16((uint16_t)buff_update);
+
+								if(eof == 0)
+									memcpy(&ram->mem[ram->offset],&bu_ne,sizeof(uint16_t));
+								else 
+									memcpy(&ram->mem[ram->size],&bu_ne,sizeof(uint16_t));
+
+
+								ram->offset += sizeof(uint16_t);
+								memcpy(&ram->mem[ram->offset],buff_w,buff_update);
+								ram->offset += sizeof(buff_w);
+
+								/*
+								 * if eof is bigger than 0 means we updated the string
+								 * we need to save the off_t of the new written data
+								 * at the start of the original.
+								 * */
+								if (eof > 0){
+									/*go at the beginning of the str record*/
+									ram->offset = bg_pos;
+
+									/*update new string position*/
+									uint32_t eof_ne = swap32((uint32_t)eof);
+									memcpy(&ram->mem[ram->offset],&eof_ne,sizeof(uint32_t));
+									ram->offset += sizeof(uint32_t);
+
+									/*set file pointer to the end of the 1st string rec*/
+									/*this step is crucial to avoid losing data        */
+
+									ram->offset = pos_after_first_str_record;
+								}else if (str_loc > 0){
+									/*
+									 * Make sure that in all cases
+									 * we go back to the end of the 1st record
+									 * */
+									ram->offset = pos_after_first_str_record;
+								}
+
 								step++;
 								if(!(step < rec->fields[i].data.v.size)) exit = 0;
 							}
@@ -8664,12 +8969,16 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						 * 	we account for 1 uint64_t due to the whole record structure
 						 * */
 
-						/* 
-						 * this is different the other types 
-						 * we need to compute each string size 
-						 * */
+						size_t each_str_size = 0;
+						int x;
+						for(x = step; x <  rec->fields[i].data.v.size; x++){
+							each_str_size += (sizeof(uint32_t) + sizeof(uint16_t));
+							each_str_size+= ((strlen(rec->fields[i].data.v.elements.s[x]) * 2) + 1);
+
+						}
+
 						uint64_t remaining_write_size = ((2 * sizeof(uint32_t)) + 
-										(size_left * sizeof(double)) + 
+										each_str_size 		+ 
 										sizeof(uint64_t));
 
 						if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
@@ -8678,7 +8987,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									ram->capacity * sizeof(uint8_t),
 									ram->capacity + (remaining_write_size + 1) * sizeof(uint8_t));
 							if(!n_mem){
-								fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+								fprintf(stderr,"(%s): reask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 								return -1;
 							}
 
@@ -8702,6 +9011,22 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						for(j = 0; j < size_left; j++){
 							if(step < rec->fields[i].data.v.size){
 								/* write the string*/
+								uint16_t l = (uint16_t)strlen(rec->fields[i].data.v.elements.s[j]);
+								uint16_t buf_up_ne = swap16((l*2)+1);	
+								uint32_t str_loc = 0;	
+
+								memcpy(&ram->mem[ram->size],&str_loc, sizeof(uint32_t));
+								ram->offset += sizeof(uint32_t);
+
+								memcpy(&ram->mem[ram->size],&buf_up_ne, sizeof(uint16_t));
+								ram->offset += sizeof(uint16_t);
+								char buff[(l * 2) + 1];
+								memset(buff,0,(l * 2) +1);
+								strncpy(buff,rec->fields[i].data.v.elements.s[j],l);
+								memcpy(&ram->mem[ram->size],buff,(l * 2) + 1);
+								ram->offset += (( l * 2) + 1);
+
+
 								step++;
 							}
 						}
@@ -8715,7 +9040,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						update_off_ne = swap64((uint64_t)update_pos);
 						memcpy(&ram->mem[ram->offset],&update_off_ne,sizeof(uint64_t));
 						ram->offset += sizeof(uint64_t);
-						
+
 						break;
 					}
 
@@ -8741,6 +9066,157 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						if(step < rec->fields[i].data.v.size){
 
 							/* write string*/
+							uint64_t move_to = 0;
+							uint32_t eof = 0;
+							uint16_t bu_ne = 0;
+							uint16_t new_lt = 0;
+							/*save the starting offset for the string record*/
+							uint64_t bg_pos = ram->size;
+							uint32_t str_loc_ne= 0;
+
+							/*read the other str_loc if any*/
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+							else
+								memcpy(&str_loc_ne,&ram->mem[ram->size],sizeof(uint32_t));
+
+
+							ram->offset += sizeof(uint32_t);
+							uint32_t str_loc = swap32(str_loc_ne);
+
+							/* save pos where the data starts*/
+							uint64_t af_str_loc_pos = ram->size;
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								af_str_loc_pos = ram->offset;
+							else
+								af_str_loc_pos = ram->size;
+
+							uint16_t buff_update_ne = 0;
+
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								memcpy(&buff_update_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+							else
+								memcpy(&buff_update_ne,&ram->mem[ram->size],sizeof(uint16_t));
+
+							ram->offset += sizeof(uint16_t);
+
+							uint16_t buff_update = swap16(buff_update_ne);
+							uint64_t pos_after_first_str_record = ram->offset + buff_update; 
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								pos_after_first_str_record = ram->offset + buff_update; 
+							else
+								pos_after_first_str_record = ram->size + buff_update; 
+
+							if (str_loc > 0){
+								/*set the file pointer to str_loc*/
+								ram->offset = str_loc;
+
+								/*
+								 * in the case of a regular buffer update we have
+								 *  to save the off_t to get back to it later
+								 * */
+								move_to = ram->offset; 
+
+								uint16_t bu_ne = 0;
+								memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+								ram->offset +=  sizeof(uint16_t);	
+
+								buff_update = (off_t)swap16(bu_ne);
+							}
+
+							new_lt = strlen(rec->fields[i].data.v.elements.s[j]) + 1; /*get new str length*/
+
+							if (new_lt > buff_update) {
+								/*expand the buff_update only for the bytes needed*/
+								buff_update += (new_lt - buff_update);
+
+								/*
+								 * if the new length is bigger then the buffer,
+								 * set the file pointer to EOF to write the new data
+								 * */
+								eof = ram->size;
+								ram->offset = eof;
+								if(eof == ram->capacity){
+									errno = 0;
+									uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+											(ram->capacity + buff_update) * sizeof(uint8_t));
+									if(!n_mem){
+										fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+										return -1;
+									}
+									ram->mem = n_mem;
+									ram->capacity += buff_update; 
+
+								}else if((eof + buff_update) > ram->capacity){
+									errno = 0;
+									uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+											(ram->capacity + buff_update) * sizeof(uint8_t));
+									if(!n_mem){
+										fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+										return -1;
+									}
+									ram->mem = n_mem;
+									ram->capacity += ((eof + buff_update) - ram->capacity); 
+								}
+							}
+
+							char buff_w[buff_update];
+							memset(buff_w,0,buff_update);
+
+							strncpy(buff_w, rec->fields[i].data.v.elements.s[j], new_lt - 1);
+							/*
+							 * if we did not move to another position
+							 * set the file pointer back to the begginning of the string record
+							 * to overwrite the data accordingly
+							 * */
+							if (str_loc == 0 && ((new_lt - buff_update) < 0)){
+								ram->offset = af_str_loc_pos;
+							} else if (str_loc > 0 && ((new_lt - buff_update) < 0)){
+								ram->offset = move_to;
+							}
+
+							/*
+							 * write the data to file --
+							 * the file pointer is always pointing to the
+							 * right position at this point */
+							bu_ne = swap16((uint16_t)buff_update);
+
+							if(eof == 0)
+								memcpy(&ram->mem[ram->offset],&bu_ne,sizeof(uint16_t));
+							else 
+								memcpy(&ram->mem[ram->size],&bu_ne,sizeof(uint16_t));
+
+
+							ram->offset += sizeof(uint16_t);
+							memcpy(&ram->mem[ram->offset],buff_w,buff_update);
+							ram->offset += sizeof(buff_w);
+
+							/*
+							 * if eof is bigger than 0 means we updated the string
+							 * we need to save the off_t of the new written data
+							 * at the start of the original.
+							 * */
+							if (eof > 0){
+								/*go at the beginning of the str record*/
+								ram->offset = bg_pos;
+
+								/*update new string position*/
+								uint32_t eof_ne = swap32((uint32_t)eof);
+								memcpy(&ram->mem[ram->offset],&eof_ne,sizeof(uint32_t));
+								ram->offset += sizeof(uint32_t);
+
+								/*set file pointer to the end of the 1st string rec*/
+								/*this step is crucial to avoid losing data        */
+
+								ram->offset = pos_after_first_str_record;
+							}else if (str_loc > 0){
+								/*
+								 * Make sure that in all cases
+								 * we go back to the end of the 1st record
+								 * */
+								ram->offset = pos_after_first_str_record;
+							}
+
 							step++;
 						}
 					}
@@ -8779,6 +9255,157 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					for(j = 0; j< rec->fields[i].data.v.size; j++){
 						if(step < rec->fields[i].data.v.size){
 							/* write string*/
+							uint64_t move_to = 0;
+							uint32_t eof = 0;
+							uint16_t bu_ne = 0;
+							uint16_t new_lt = 0;
+							/*save the starting offset for the string record*/
+							uint64_t bg_pos = ram->size;
+							uint32_t str_loc_ne= 0;
+
+							/*read the other str_loc if any*/
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+							else
+								memcpy(&str_loc_ne,&ram->mem[ram->size],sizeof(uint32_t));
+
+
+							ram->offset += sizeof(uint32_t);
+							uint32_t str_loc = swap32(str_loc_ne);
+
+							/* save pos where the data starts*/
+							uint64_t af_str_loc_pos = ram->size;
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								af_str_loc_pos = ram->offset;
+							else
+								af_str_loc_pos = ram->size;
+
+							uint16_t buff_update_ne = 0;
+
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								memcpy(&buff_update_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+							else
+								memcpy(&buff_update_ne,&ram->mem[ram->size],sizeof(uint16_t));
+
+							ram->offset += sizeof(uint16_t);
+
+							uint16_t buff_update = swap16(buff_update_ne);
+							uint64_t pos_after_first_str_record = ram->offset + buff_update; 
+							if(ram->size == ram->capacity && ram->offset != ram->size)
+								pos_after_first_str_record = ram->offset + buff_update; 
+							else
+								pos_after_first_str_record = ram->size + buff_update; 
+
+							if (str_loc > 0){
+								/*set the file pointer to str_loc*/
+								ram->offset = str_loc;
+
+								/*
+								 * in the case of a regular buffer update we have
+								 *  to save the off_t to get back to it later
+								 * */
+								move_to = ram->offset; 
+
+								uint16_t bu_ne = 0;
+								memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+								ram->offset +=  sizeof(uint16_t);	
+
+								buff_update = (off_t)swap16(bu_ne);
+							}
+
+							new_lt = strlen(rec->fields[i].data.v.elements.s[j]) + 1; /*get new str length*/
+
+							if (new_lt > buff_update) {
+								/*expand the buff_update only for the bytes needed*/
+								buff_update += (new_lt - buff_update);
+
+								/*
+								 * if the new length is bigger then the buffer,
+								 * set the file pointer to EOF to write the new data
+								 * */
+								eof = ram->size;
+								ram->offset = eof;
+								if(eof == ram->capacity){
+									errno = 0;
+									uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+											(ram->capacity + buff_update) * sizeof(uint8_t));
+									if(!n_mem){
+										fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+										return -1;
+									}
+									ram->mem = n_mem;
+									ram->capacity += buff_update; 
+
+								}else if((eof + buff_update) > ram->capacity){
+									errno = 0;
+									uint8_t *n_mem = (uint8_t*)reask_mem(ram->mem,ram->capacity,
+											(ram->capacity + buff_update) * sizeof(uint8_t));
+									if(!n_mem){
+										fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+										return -1;
+									}
+									ram->mem = n_mem;
+									ram->capacity += ((eof + buff_update) - ram->capacity); 
+								}
+							}
+
+							char buff_w[buff_update];
+							memset(buff_w,0,buff_update);
+
+							strncpy(buff_w, rec->fields[i].data.v.elements.s[j], new_lt - 1);
+							/*
+							 * if we did not move to another position
+							 * set the file pointer back to the begginning of the string record
+							 * to overwrite the data accordingly
+							 * */
+							if (str_loc == 0 && ((new_lt - buff_update) < 0)){
+								ram->offset = af_str_loc_pos;
+							} else if (str_loc > 0 && ((new_lt - buff_update) < 0)){
+								ram->offset = move_to;
+							}
+
+							/*
+							 * write the data to file --
+							 * the file pointer is always pointing to the
+							 * right position at this point */
+							bu_ne = swap16((uint16_t)buff_update);
+
+							if(eof == 0)
+								memcpy(&ram->mem[ram->offset],&bu_ne,sizeof(uint16_t));
+							else 
+								memcpy(&ram->mem[ram->size],&bu_ne,sizeof(uint16_t));
+
+
+							ram->offset += sizeof(uint16_t);
+							memcpy(&ram->mem[ram->offset],buff_w,buff_update);
+							ram->offset += sizeof(buff_w);
+
+							/*
+							 * if eof is bigger than 0 means we updated the string
+							 * we need to save the off_t of the new written data
+							 * at the start of the original.
+							 * */
+							if (eof > 0){
+								/*go at the beginning of the str record*/
+								ram->offset = bg_pos;
+
+								/*update new string position*/
+								uint32_t eof_ne = swap32((uint32_t)eof);
+								memcpy(&ram->mem[ram->offset],&eof_ne,sizeof(uint32_t));
+								ram->offset += sizeof(uint32_t);
+
+								/*set file pointer to the end of the 1st string rec*/
+								/*this step is crucial to avoid losing data        */
+
+								ram->offset = pos_after_first_str_record;
+							}else if (str_loc > 0){
+								/*
+								 * Make sure that in all cases
+								 * we go back to the end of the 1st record
+								 * */
+								ram->offset = pos_after_first_str_record;
+							}
+
 							step++;
 						}
 					}
@@ -8792,7 +9419,6 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 				if(go_back_to_first_rec > 0) ram->offset = go_back_to_first_rec;
 			}
-
 
 			break;
 		}
@@ -8810,7 +9436,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				memcpy(&ram->mem[ram->size],&pad,sizeof(uint32_t));
 				ram->size += sizeof(uint32_t);
 				ram->offset += sizeof(uint32_t);
-			
+
 				struct File *f = &rec->fields[i].data.file;
 				while(f){
 					if(write_ram_record(ram,f->recs,update,init_ram_size,offset) == -1){
@@ -8828,7 +9454,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 			break;
 		}
 		default:
-			break;
+		break;
 		}
 
 	} 

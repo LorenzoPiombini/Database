@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -2589,9 +2588,9 @@ static int append(struct String *str, const char *str_to_appen)
 allocate_new_mem:
 	if(str->str){
 		errno = 0;
-		char *n = realloc(str->str,(str->size + nl) * sizeof(char));
+		char *n = (char*)reask_mem(str->str,str->size,(str->size + nl) * sizeof(char));
 		if(!n){
-			fprintf(stderr,"(%s): realloc failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
+			fprintf(stderr,"(%s): reask_mem() failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
 			return -1;
 		}
 		str->str = n;

@@ -168,7 +168,6 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	node.key.type = key_type;
 	node.operation = operation;
 
-	/* TODO: vhage the key handling */
 	switch(key_type){
 	case STR:
 	{	
