@@ -4481,21 +4481,14 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				if(write_file(fd,rec->fields[i].data.file.recs,0,0) == 0){
-					perror("failed write record array to file");
-					return 0;
-				}
-				
-				if(rec->fields[i].data.file.next){
-					struct File *temp = rec->fields[i].data.file.next;
-					while(temp){
-						if(write_file(fd,temp->recs,0,0) == 0){
-							perror("failed write record array to file");
-							return 0;
-						}
-						temp = temp->next;
+				uint32_t i;
+				for(i = 0; i< rec->fields[i].data.file.count; i++){
+					if(write_file(fd,&rec->fields[i].data.file.recs[i],0,0) == 0){
+						perror("failed write record array to file");
+						return 0;
 					}
 				}
+				
 
 				uint64_t upd_ne = 0;
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
@@ -4718,7 +4711,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							{
 								int y;
 								for(y = 0; y < padding_value;y++){
-									struct Record_f dummy ={0};
+									struct Record_f dummy;
+									memset(&dummy,0,sizeof(struct Record_f));
 									if(read_file(fd, rec->fields[i].field_name,
 												&dummy, *hd.sch_d) == -1){
 										fprintf(stderr,"cannot read type file %s:%d.\n"
@@ -4735,7 +4729,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 							}
 							/*write the epty update offset*/
-							uint64_t empty_offset = swap64(0);
+							uint64_t empty_offset = 0;
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
@@ -4796,7 +4790,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						uint32_t padding_ne = swap32(0);
+						uint32_t padding_ne = 0;
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -4815,7 +4809,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 
 						/*write the empty update offset*/
-						uint64_t empty_offset = swap64(0);
+						uint64_t empty_offset = 0;
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
@@ -4903,7 +4897,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					 * */
 					int y;
 					for(y = 0; y < pd_he;y++){
-						struct Record_f dummy ={0};
+						struct Record_f dummy;
+						memset(&dummy,0,sizeof(struct Record_f));
 						if(read_file(fd, rec->fields[i].field_name,
 									&dummy, *hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n"
@@ -4919,7 +4914,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						}
 					}
 
-					uint64_t update_arr_ne = swap64(0);
+					uint64_t update_arr_ne = 0;
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -4998,7 +4993,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 					}
 
-					uint64_t update_arr_ne = swap64(0);
+					uint64_t update_arr_ne = 0;
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
@@ -5902,31 +5897,37 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 
 						if(read_file(fd, rec->fields[i].field_name, 
-									rec->fields[i].data.file.recs,
+									&rec->fields[i].data.file.recs[j],
 									*hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
+							free_record(rec, rec->fields_num);
 							return -1;
 						}
 					}else{
 
-						first = 0;	
-						struct File *temp = &rec->fields[i].data.file;
-						while(temp->next)temp = temp->next;
-						temp->next = (struct File*)ask_mem(sizeof(struct File));
-						temp->next->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
-						if (!temp->next || !temp->next->recs){
-							fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-3);
+						uint32_t new_size = rec->fields[i].data.file.count + 1;	
+						struct Record_f* new_rec = (struct Record_f*)reask_mem(rec->fields[i].data.file.recs,
+								rec->fields[i].data.file.count * sizeof(struct Record_f),
+								new_size * sizeof(struct Record_f));
+
+						if(!new_rec){
+							fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-4);
 							free_record(rec, rec->fields_num);
 							return -1;
 						}
+						rec->fields[i].data.file.recs = new_rec;
+						rec->fields[i].data.file.count = new_size;
 
-						if(read_file(fd, rec->fields[i].field_name, temp->next->recs,*hd.sch_d) == -1){
+						if(read_file(fd, rec->fields[i].field_name,
+									&rec->fields[i].data.file.recs[new_size -1]
+									,*hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
 							return -1;
 						}
 					}
 
+					/*TODO refactor this code file.c l 5930*/
 
 					/*check if the record has updates */
 					off_t rests_pos_here = get_file_offset(fd);
