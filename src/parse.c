@@ -2269,6 +2269,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						rec_old[0]->field_set[j] = 1;
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.
@@ -2290,6 +2291,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						rec_old[0]->field_set[j] = 1;
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.l[a],

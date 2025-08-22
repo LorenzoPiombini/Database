@@ -4546,8 +4546,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					sz = swap32(sz_ne);
-					if (rec->fields[i].data.file.count < sz ||
-						rec->fields[i].data.file.count == sz)
+					if (rec->fields[i].data.file.count < sz || rec->fields[i].data.file.count == sz)
 						break;
 
 					/*read the padding data*/
@@ -4573,7 +4572,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						uint32_t y;
 						for(y = 0; y < sz;y++){
-							struct Record_f dummy ={0};
+							struct Record_f dummy;
+							memset(&dummy,0,sizeof(struct Record_f));
 							if(read_file(fd, rec->fields[i].field_name, &dummy, *hd.sch_d) == -1){
 								fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 								return -1;
@@ -4652,7 +4652,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						if (exit){
 							/*write the epty update offset*/
-							uint64_t empty_offset = swap64(0);
+							uint64_t empty_offset = 0;
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");

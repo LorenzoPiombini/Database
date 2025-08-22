@@ -163,7 +163,7 @@ unsigned char set_field(struct Record_f *rec,
 					}
 					stop = close_c - value;
 					if(stop > 500){
-						/* handle this hedge case*/
+						/* TODO handle this hedge case record.c l 166*/
 						
 					}
 					if(i < count)
@@ -377,8 +377,9 @@ unsigned char set_field(struct Record_f *rec,
 								close_file(1,fd_schema);	
 								return 0;
 							}
+
 							if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
-										types_i, values_in,&sch,0,rec->fields[index].data.file.recs) == -1){
+										types_i, values_in,&sch,0,&rec->fields[index].data.file.recs[0]) == -1){
 								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
@@ -387,20 +388,31 @@ unsigned char set_field(struct Record_f *rec,
 
 
 						}else{
-							struct File *temp = &rec->fields[index].data.file;
-							while(temp->next) temp = temp->next;	
-							temp->next = (struct File*)ask_mem(sizeof(struct File));
-							temp->next->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
-							rec->fields[index].data.file.count++;
-							if(!temp->next || !temp->next->recs){
-								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+							int new_count = rec->fields[index].data.file.count + 1
+							struct Record_f *new_rec = (struct Record_f*)reask_mem(
+									rec->fields[index].data.file.recs,
+									rec->fields[index].data.file.count * sizeof(struct Record_f),
+									new_count * sizeof(struct Record_f));
+
+							if(!new_rec){
+								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
-							if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
-										types_i, values_in,&sch,0,temp->next->recs) == -1){
+							rec->fields[index].data.file.count = new_count;
+							rec->fields[index].data.file.recs = new_rec;
+
+
+							if(parse_input_with_no_type(rec->fields[index].field_name,
+										fields_count, 
+										names, 
+										types_i, 
+										values_in,
+										&sch,
+										0,
+										&rec->fields[index].data.file.recs[new_count-1]) == -1){
 								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
@@ -443,7 +455,7 @@ unsigned char set_field(struct Record_f *rec,
 								value,
 								&sch, 
 								0,
-								rec->fields[index].data.file.recs,
+								&rec->fields[index].data.file.recs[0],
 								NULL) == -1) {
 						fprintf(stderr,"(%s): error creating the record, %s:%d.\n",ERR_MSG_PAR- 1);
 						close_file(1,fd_schema);	
@@ -470,6 +482,7 @@ unsigned char set_field(struct Record_f *rec,
 						if(!rec->fields[index].data.file.recs){
 							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 							rec->fields[index].data.file.count = 1;
+
 							if(!rec->fields[index].data.file.recs){
 								fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
@@ -481,31 +494,35 @@ unsigned char set_field(struct Record_f *rec,
 										values[i],
 										&sch, 
 										0,
-										rec->fields[index].data.file.recs,
+										&rec->fields[index].data.file.recs[0],
 										NULL) == -1) {
 								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",ERR_MSG_PAR- 1);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 						}else{
-							struct File *temp = &rec->fields[index].data.file;
-							while(temp->next) temp = temp->next;	
-							temp->next = (struct File*)ask_mem(sizeof(struct File));
-							temp->next->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
-							rec->fields[index].data.file.count++;
-							if(!temp->next || !temp->next->recs){
-								fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+							int new_count = rec->fields[index].data.file.count + 1
+							struct Record_f *new_rec = (struct Record_f*)reask_mem(
+									rec->fields[index].data.file.recs,
+									rec->fields[index].data.file.count * sizeof(struct Record_f),
+									new_count * sizeof(struct Record_f));
+
+							if(!new_rec){
+								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
 							}
+
+							rec->fields[index].data.file.count = new_count;
+							rec->fields[index].data.file.recs = new_rec;
 
 							if(parse_d_flag_input(rec->fields[index].field_name, 
 										f_count,
 										values[i],
 										&sch, 
 										0,
-										temp->next->recs,
+										&rec->fields[index].data.file.recs[new_count-1],
 										NULL) == -1) {
 								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 								close_file(1,fd_schema);	
@@ -583,56 +600,66 @@ unsigned char set_field(struct Record_f *rec,
 							}
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
 								rec->fields[index].field_name,
-								rec->fields[index].data.file.recs,
+								rec->fields[index].data.file.recs[0],
 								&hd,NULL);
 
 						}else{
-							struct File *temp = &rec->fields[index].data.file;
-							while(temp->next) temp = temp->next;	
-							temp->next =(struct File*) ask_mem(sizeof(struct File));
-							temp->next->recs = (struct Record_f*) ask_mem(sizeof(struct Record_f));
-							rec->fields[index].data.file.count++;
-							if(!temp->next || !temp->next->recs){
-								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+							int new_count = rec->fields[index].data.file.count + 1
+							struct Record_f *new_rec = (struct Record_f*)reask_mem(
+									rec->fields[index].data.file.recs,
+									rec->fields[index].data.file.count * sizeof(struct Record_f),
+									new_count * sizeof(struct Record_f));
+
+							if(!new_rec){
+								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
+							rec->fields[index].data.file.count = new_count;
+							rec->fields[index].data.file.recs = new_rec;
+
+
 
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
 									rec->fields[index].field_name,
-									temp->next->recs,
+									&rec->fields[index].data.file.recs[new_count-1],
 									&hd,NULL);
 						}
 					}else{
 						if(!rec->fields[index].data.file.recs){
 							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(count *sizeof(struct Record_f));
-							rec->fields[index].data.file.count = count;
+							rec->fields[index].data.file.count++;
 							if(!rec->fields[index].data.file.recs){
 								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
 								return 0;
 							}
 							check = perform_checks_on_schema(mode,&values[i][2], -1,
 								rec->fields[index].field_name,
-								rec->fields[index].data.file.recs,
+								&rec->fields[index].data.file.recs[0],
 								&hd,NULL);
 
 						}else{
-							struct File *temp = &rec->fields[index].data.file;
-							while(temp->next) temp = temp->next;	
-							temp->next = (struct File*)ask_mem(sizeof(struct File));
-							temp->next->recs = (struct Record_f*)(sizeof(struct Record_f));
-							rec->fields[index].data.file.count++;
-							if(!temp->next || !temp->next->recs){
-								fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+							int new_count = rec->fields[index].data.file.count + 1
+							struct Record_f *new_rec = (struct Record_f*)reask_mem(
+									rec->fields[index].data.file.recs,
+									rec->fields[index].data.file.count * sizeof(struct Record_f),
+									new_count * sizeof(struct Record_f));
+
+							if(!new_rec){
+								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
+							rec->fields[index].data.file.count = new_count;
+							rec->fields[index].data.file.recs = new_rec;
 
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
 									rec->fields[index].field_name,
-									temp->next->recs,
+									&rec->fields[index].data.file.recs[new_count-1],
 									&hd,NULL);
 						}
 
@@ -703,26 +730,26 @@ unsigned char set_field(struct Record_f *rec,
 
 					if(!rec->fields[index].data.file.recs){
 						rec->fields[index].data.file.recs = (struct Record_f*) ask_mem(count*sizeof(struct Record_f));
-						rec->fields[index].data.file.count = count;
+						rec->fields[index].data.file.count++;
 						if(!rec->fields[index].data.file.recs){
 							fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 							return 0;
 						}
 						check = perform_checks_on_schema(mode,&value[2], fields_count,
 								rec->fields[index].field_name,
-								rec->fields[index].data.file.recs,
+								&rec->fields[index].data.file.recs[0],
 								&hd,NULL);
 					}
 				} else {
 					if(!rec->fields[index].data.file.recs){
 						rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(count*sizeof(struct Record_f));
-						rec->fields[index].data.file.count = count;
+						rec->fields[index].data.file.count++;
 						if(!rec->fields[index].data.file.recs){
 							fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
 							return 0;
 						}
 						check = perform_checks_on_schema(mode,&value[2], -1,rec->fields[index].field_name,
-								rec->fields[index].data.file.recs,
+								&rec->fields[index].data.file.recs[0],
 								&hd,NULL);
 
 					}

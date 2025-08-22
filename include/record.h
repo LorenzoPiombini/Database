@@ -67,8 +67,7 @@ struct array
 struct File {
 	struct Record_f *recs;
 	uint32_t count;	
-	struct File *next;
-};/*20 bytes*/
+};/*?? bytes*/
 	
 struct Field {
 	char field_name[MAX_FIELD_LT];

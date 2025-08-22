@@ -400,6 +400,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	fds[2] = fd_schema;
 	return 0;
 }
+
 int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *rec,struct Header_d hd,int check,int *lock_f)
 {
 	struct Record_f rec_old = {0};
