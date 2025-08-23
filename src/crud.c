@@ -403,7 +403,8 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 
 int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *rec,struct Header_d hd,int check,int *lock_f)
 {
-	struct Record_f rec_old = {0};
+	struct Record_f rec_old;
+	memset(&rec_old,0,sizeof(struct Record_f));
 	int r = 0;
 
 	if(!(*lock_f)){
