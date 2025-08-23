@@ -2935,57 +2935,35 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			 * */
 			free_type_file(rec_old[i],1);
 			
-
 			/*resize the memory accordingly*/
 			if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
-				int32_t new_nodes = (int32_t)rec->fields[index].data.file.count - (int32_t)rec_old[i]->fields[index].data.file.count; 
-				if(new_nodes < 0){
-					/*erase node(s)*/
-					while(new_nodes < 0 && (((int32_t)rec_old[i]->fields[index].data.file.count + new_nodes) > 0)){
-						struct File *f = rec_old[i]->fields[index].data.file.next;
-						rec_old[i]->fields[index].data.file.next = rec_old[i]->fields[index].data.file.next->next;
-						cancel_memory(NULL,f->recs,sizeof(struct Record_f));
-						cancel_memory(NULL,f,sizeof(struct File));
-						new_nodes++;	
-					}
-				}else{
-					/*insert node(s)*/
-					struct File *f = &rec_old[i]->fields[index].data.file;
-					f->count += new_nodes;
-					while(f->next) f = f->next;
-					while(new_nodes > 0){
-						errno = 0;
-						f->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
-						if(!f->recs){
-							fprintf(stderr,"(%s): ask_mem failed, %s:%d.\n",prog,__FILE__,__LINE__-2);
-							positions[0] = '0';
-							return;
-						}
-						errno = 0;
-						f->next = (struct File*) ask_mem(sizeof(struct File));
-						if(!f->recs){
-							fprintf(stderr,"(%s): ask_mem failed, %s:%d.\n",prog,__FILE__,__LINE__-2);
-							positions[0] = '0';
-							return;
-						}
-						f = f->next;
-						new_nodes--;
-					}
+
+				struct Record_f *n_recs = (struct Record_f*)reask_mem(
+						rec_old[i]->fields[index].data.file.recs,
+						sizeof(struct Record_f) * rec_old[i]->fields[index].data.file.count,
+						rec->fields[index].data.file.count * sizeof(struct Record_f));
+				if(!n_recs){
+					fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
+					close_file(1,fd_sch);
+					positions[i] = '0';
+					return;
 				}
+
+				rec_old[i]->fields[index].data.file.recs = n_recs;
+				rec_old[i]->fields[index].data.file.count = rec->fields[index].data.file.count;
+
 			}
 
-			struct File *f =  &rec_old[i]->fields[index].data.file;
-			struct File *f_new =  &rec->fields[index].data.file;
-
 			rec_old[i]->field_set[index] = 1;
-			while(f_new){
-				if(!copy_rec(f_new->recs,f->recs,hd.sch_d)){
+			uint32_t k;
+			for(k = 0; k < rec_old[i]->fields[index].data.file.count; k++){
+				if(!copy_rec(&rec->fields[index].data.file.recs[k],
+							&rec_old[i]->fields[index].data.file.recs[k],
+							hd.sch_d)){
 					fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
 					positions[i] = '0';
 					return;
 			        }
-				f_new = f_new->next;
-				f = f->next;
 			}
 			positions[i] = 'y';
 			break;

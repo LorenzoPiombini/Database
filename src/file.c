@@ -5881,7 +5881,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				}
 
 				int padd = (int)swap32(padding);
-				uint8_t first = 0;
 				uint32_t j;
 				for(j = 0; j < sz; j++){
 					if (!rec->fields[i].data.file.recs){
@@ -5893,9 +5892,6 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 							return -1;
 						}
 						
-						first = 1;
-
-
 						if(read_file(fd, rec->fields[i].field_name, 
 									&rec->fields[i].data.file.recs[j],
 									*hd.sch_d) == -1){
@@ -5933,130 +5929,75 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					off_t rests_pos_here = get_file_offset(fd);
 					off_t update_rec_pos = 0; 
 					while ((update_rec_pos = get_update_offset(fd)) > 0) {
-						if(first){
-							rec->fields[i].data.file.recs->count++;
+						uint32_t new_size = rec->fields[i].data.file.count + 1;
 
-							struct Record_f * temp = rec->fields[i].data.file.recs->next;
-							while(temp->next) temp = temp->next;
+						rec->fields[i].data.file.recs= (struct Record_f*)reask_mem(
+								rec->fields[i].data.file.recs,	
+								rec->fields[i].data.file.count * sizeof(struct Record_f),
+								new_size * sizeof(struct Record_f));
 
-							temp->next= (struct Record_f*)ask_mem(sizeof(struct Record_f));
-							if (!temp->next) {
-								__er_realloc(F,L-4);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
+						if (!rec->fields[i].data.file.recs) {
+							fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-6);
+							free_record(rec, rec->fields_num);
+							return -1;
+						}
 
-							if (find_record_position(fd, update_rec_pos) == -1) {
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
+						rec->fields[i].data.file.count = new_size;
+						if (find_record_position(fd, update_rec_pos) == -1) {
+							__er_file_pointer(F, L - 1);
+							free_record(rec, rec->fields_num);
+							return -1;
+						}
 
-							if(read_file(fd, rec->fields[i].field_name,temp,*hd.sch_d) == -1) {
-								fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-						}else{
-							struct File *temp = &rec->fields[i].data.file;
-							while(temp->next)temp = temp->next;
-							temp->recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
-							if (!temp->recs) {
-								fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-							
-							if (find_record_position(fd, update_rec_pos) == -1) {
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
-							if(read_file(fd, rec->fields[i].field_name,temp->recs,*hd.sch_d) == -1) {
-								fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
+						if(read_file(fd, 
+								rec->fields[i].field_name,
+								&rec->fields[i].data.file.recs[new_size -1],
+								*hd.sch_d) == -1) {
+							fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
+							free_record(rec, rec->fields_num);
+							return -1;
 						}
 					}
 
-					if(first){
-						if(!rec->fields[i].data.file.recs->next) {
-							if(update_rec_pos == -1 || rests_pos_here== -1){
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
-						}else{
-							if(update_rec_pos == -1 || rests_pos_here== -1){
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
-							if (find_record_position(fd, rests_pos_here) == -1) {
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
-							if (move_in_file_bytes(fd, sizeof(off_t)) == -1) {
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-						}
-					}else{
-						struct File *temp = &rec->fields[i].data.file;
-						while(temp->next)temp = temp->next;
-
-						if(!temp->recs->next){
-							if(update_rec_pos == -1 || rests_pos_here== -1){
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
-
-
-
-						}else{
-							if(update_rec_pos == -1 || rests_pos_here== -1){
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
-							if (find_record_position(fd, rests_pos_here) == -1) {
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-
-							if (move_in_file_bytes(fd, sizeof(off_t)) == -1) {
-								__er_file_pointer(F, L - 1);
-								free_record(rec, rec->fields_num);
-								return -1;
-							}
-						}
-
-
-
-					}
-
-				}
-
-
-				if (padd > 0)
-				{
-					if (move_in_file_bytes(fd, padd * sizeof(int)) == -1)
-					{
+					if(update_rec_pos == -1 || rests_pos_here== -1){
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
 						return -1;
+					}
+
+					if (find_record_position(fd, rests_pos_here) == -1) {
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return -1;
+					}
+
+					if (move_in_file_bytes(fd, sizeof(off_t)) == -1) {
+						__er_file_pointer(F, L - 1);
+						free_record(rec, rec->fields_num);
+						return -1;
+					}
+					
+				}
+
+				if (padd > 0)
+				{
+					int y;
+					for(y = 0; y < padd;y++){
+						struct Record_f dummy;
+						memset(&dummy,0,sizeof(struct Record_f));
+						if(read_file(fd, rec->fields[i].field_name,
+									&dummy, *hd.sch_d) == -1){
+							fprintf(stderr,"cannot read type file %s:%d.\n"
+									,F,L-1);
+							return -1;
+						}
+
+						free_record(&dummy,dummy.fields_num);
+
+						if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+							__er_file_pointer(F, L - 1);
+							return 0;
+						}
 					}
 				}
 
@@ -6068,15 +6009,11 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				if (go_back_here == 0)
-				{
-					go_back_here = get_file_offset(fd);
-				}
+				if (go_back_here == 0) go_back_here = get_file_offset(fd);
+
 				array_upd = (off_t)swap64(upd_ne);
-				if (array_upd > 0)
-				{
-					if (find_record_position(fd, array_upd) == -1)
-					{
+				if (array_upd > 0){
+					if (find_record_position(fd, array_upd) == -1){
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
 						return -1;
@@ -6325,11 +6262,9 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			break;
 		case TYPE_FILE:
 			size += (sizeof(uint32_t) * 2);
-			struct File *f = &rec->fields[i].data.file;
-			while(f){
-				if(f->recs)
-					size += get_disk_size_record(f->recs);
-				f = f->next;
+			uint32_t k;
+			for(k = 0; k < rec->fields[i].data.file.count; k++){
+				size += get_disk_size_record(&rec->fields[i].data.file.recs[k]);
 			}
 			size += (sizeof(uint64_t));
 			break;
@@ -9438,13 +9373,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->size += sizeof(uint32_t);
 				ram->offset += sizeof(uint32_t);
 
-				struct File *f = &rec->fields[i].data.file;
-				while(f){
-					if(write_ram_record(ram,f->recs,update,init_ram_size,offset) == -1){
+				uint32_t j;
+				for(j = 0; j < rec->fields[i].data.file.count; j++){
+					if(write_ram_record(ram,&rec->fields[i].data.file.recs[j],update,init_ram_size,offset) == -1){
 						fprintf(stderr,"cannot write record to ram. %s:%d.\n", __FILE__,__LINE__ - 1);
 						return -1;
 					}
-					f = f->next;
 				}
 
 				uint64_t upd = 0;	
