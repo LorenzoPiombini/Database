@@ -9733,6 +9733,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					/*read and check the padding, */
 					uint32_t pad_ne = 0;
 					memcpy(&pad_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+					ram->offset += sizeof(uint32_t);
 
 					int pd_he = (int)swap32(pad_ne);
 					uint32_t j;
@@ -9743,7 +9744,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							/*write ram memory*/
 							if(write_ram_record(ram,
 										&rec->fields[i].data.file.recs[step],
-										update,0,ram->offset) == -1){
+										update,0,0) == -1){
 								fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 								return -1;
 							}

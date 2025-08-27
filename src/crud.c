@@ -36,7 +36,9 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 		}
 	}
 
-	HashTable ht = {0};
+	HashTable ht;
+	memset(&ht,0,sizeof(HashTable));
+
 	HashTable *p_ht = &ht;
 	if (!read_index_nr(0, fds[0], &p_ht)) {
 		printf("reading index file failed, %s:%d.\n", F, L - 1);

@@ -2396,10 +2396,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_FILE:
 				{	
-					if(!rec_old[0]->fields[j].data.file.recs || rec_old[0]->fields[j].data.file.recs) {
+					if(!rec_old[0]->fields[j].data.file.recs && rec_old[0]->fields[j].data.file.recs) {
 						update_new = 1;
 					}
 					if(rec_old[0]->fields[j].data.file.count == rec->fields[j].data.file.count) {
+						if(rec_old[0]->fields[j].data.file.count == 1){
+						/*zero out the old record*/
+							memset(rec_old[0]->fields[j].data.file.recs,0,sizeof(struct Record_f));
+							memcpy(&rec_old[0]->fields[j].data.file.recs[0],
+									&rec->fields[j].data.file.recs[0],sizeof(struct Record_f));
+						}
 
 
 						
