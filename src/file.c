@@ -9407,6 +9407,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					/*read the padding data*/
 					uint32_t pd_ne = 0;
 					memcpy(&pd_ne,&ram->mem[ram->offset], sizeof(pd_ne));
+					ram->offset += sizeof(uint32_t);
 
 					padding_value = (int)swap32(pd_ne);
 
@@ -9470,7 +9471,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								if(write_ram_record(ram,
 											&rec->fields[i].data.file.recs[step],
-											update,0,ram->offset) == -1){
+											update,0,0) == -1){
 									fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 									return -1;
 								}
@@ -9519,7 +9520,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							if (step < rec->fields[i].data.file.count){
 								if(write_ram_record(ram,
 											&rec->fields[i].data.file.recs[step],
-											update,0,ram->offset) == -1){
+											update,0,0) == -1){
 									fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 									return -1;
 								}
@@ -9577,7 +9578,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					off_t go_back_to = ram->offset;
 					uint64_t update_off_ne = 0;
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
-					ram->offset = sizeof(uint64_t);
+					ram->offset += sizeof(uint64_t);
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
@@ -9596,7 +9597,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						uint64_t remaining_write_size = ((2 * sizeof(uint32_t)) + 
 										each_rec_size 		+ 
-										sizeof(uint64_t));
+										(2*sizeof(uint64_t)));
 
 						if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 							/*you have to expand the capacity*/
@@ -9620,18 +9621,20 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int size_left = rec->fields[i].data.file.count - step;
 						uint32_t size_left_ne = swap32((uint32_t)size_left);
 						memcpy(&ram->mem[ram->offset],&size_left_ne,sizeof(uint32_t));
-						ram->offset += sizeof(uint32_t);
+						move_ram_file_ptr(ram,sizeof(uint32_t));
 
 						uint32_t padding_ne = 0;
 						memcpy(&ram->mem[ram->offset],&padding_ne,sizeof(uint32_t));
-						ram->offset += sizeof(uint32_t);
+						move_ram_file_ptr(ram,sizeof(uint32_t));
 
 						int j;
 						for (j = 0; j < size_left; j++){
 							if (step < rec->fields[i].data.file.count){
+								/* i think here i need to change
+								 * the update field*/
 								if(write_ram_record(ram,
 											&rec->fields[i].data.file.recs[step],
-											update,0,ram->offset) == -1){
+											0,0,0) == -1){
 									fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 									return -1;
 								}
@@ -9642,12 +9645,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						/*write the empty update offset*/
 						uint64_t empty_offset = 0;
 						memcpy(&ram->mem[ram->offset],&empty_offset,sizeof(uint64_t));
-						ram->offset += sizeof(uint64_t);
+						move_ram_file_ptr(ram,sizeof(uint64_t));
 
 						ram->offset = go_back_to;
 
-						update_off_ne = (uint64_t)swap64((uint64_t)update_pos);
-						memcpy(&ram->mem[ram->offset],&update_pos,sizeof(uint64_t));
+						update_off_ne = swap64((uint64_t)update_pos);
+						memcpy(&ram->mem[ram->offset],&update_off_ne,sizeof(uint64_t));
 						ram->offset += sizeof(uint64_t);
 
 
@@ -9688,7 +9691,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						/*write ram record*/
 						if(write_ram_record(ram,
 									&rec->fields[i].data.file.recs[step],
-									update,0,ram->offset) == -1){
+									update,0,0) == -1){
 							fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 							return -1;
 						}

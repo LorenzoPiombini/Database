@@ -2406,9 +2406,30 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 							memcpy(&rec_old[0]->fields[j].data.file.recs[0],
 									&rec->fields[j].data.file.recs[0],sizeof(struct Record_f));
 						}
+					}
 
+					if(rec_old[0]->fields[j].data.file.count < rec->fields[j].data.file.count){
 
-						
+						/*zero out the old record*/
+						memset(rec_old[0]->fields[j].data.file.recs,0,
+								rec_old[0]->fields[j].data.file.count*sizeof(struct Record_f));
+
+						size_t n_size = rec->fields[j].data.file.count;
+						struct Record_f* new_recs = (struct Record_f*)reask_mem(
+								rec_old[0]->fields[j].data.file.recs,
+								rec_old[0]->fields[j].data.file.count * sizeof *new_recs,
+								n_size * sizeof *new_recs);
+						if(!new_recs){
+							fprintf(stderr,"reask_mem() failed %s:%d.\n",__FILE__,__LINE__-5);
+							return 0;
+						}
+
+						rec_old[0]->fields[j].data.file.recs = new_recs;
+						rec_old[0]->fields[j].data.file.count = n_size;
+
+						memcpy(rec_old[0]->fields[j].data.file.recs,
+								rec->fields[j].data.file.recs,
+								rec->fields[j].data.file.count * sizeof *new_recs);
 					}
 					/*you need to test the other cases*/
 					break;
