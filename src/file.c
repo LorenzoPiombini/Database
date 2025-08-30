@@ -14,6 +14,7 @@
 #include "endian.h"
 #include "debug.h"
 #include "memory.h"
+#include "lock.h"
 
 static char prog[] = "db";
 static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);
@@ -6332,20 +6333,18 @@ int get_all_record(int fd, struct Ram_file *ram)
 	return 0;
 }
 
-off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct Record_f *rec, struct Schema sch)
+off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch)
 {
 	create_record(file_name, sch,rec);
-	uint8_t *p = &ram->mem[offset];
 
 	uint8_t fields_on_file = 0;
-	memcpy(&fields_on_file,p,sizeof(uint8_t));
-	p++;
+	memcpy(&fields_on_file,&ram->mem[ram->offset],sizeof(uint8_t));
+	move_ram_file_ptr(ram,sizeof(uint8_t));
 
 	uint8_t indexes[fields_on_file];
 	memset(indexes,-1,fields_on_file);
-	memcpy(indexes,p,sizeof(uint8_t)*fields_on_file);		
-	p += fields_on_file;
-
+	memcpy(indexes,&ram->mem[ram->offset],sizeof(uint8_t)*fields_on_file);		
+	move_ram_file_ptr(ram,sizeof(uint8_t)*2);
 
 	uint8_t i;
 	for(i = 0; i < fields_on_file; i++){
@@ -6354,51 +6353,50 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 		case TYPE_INT:
 		{
 			uint32_t n = 0;
-			memcpy(&n,p,sizeof(uint32_t));
-			p += sizeof(uint32_t);
+			memcpy(&n,&ram->mem[ram->offset],sizeof(uint32_t));
+			move_ram_file_ptr(ram,sizeof(uint32_t));
 			rec->fields[indexes[i]].data.i = swap32(n);
 			break;
 		}
 		case TYPE_LONG:
 		{
 			uint64_t n = 0;
-			memcpy(&n,p,sizeof(uint64_t));
-			p += sizeof(uint64_t);
+			memcpy(&n,&ram->mem[ram->offset],sizeof(uint64_t));
+			move_ram_file_ptr(ram,sizeof(uint64_t));
 			rec->fields[indexes[i]].data.l = swap64(n);
 			break;
 		}
 		case TYPE_BYTE:
 		{
 			uint8_t n = 0;
-			memcpy(&n,p,sizeof(uint8_t));
-			p += sizeof(uint8_t);
+			memcpy(&n,&ram->mem[ram->offset],sizeof(uint8_t));
+			move_ram_file_ptr(ram,sizeof(uint8_t));
 			rec->fields[indexes[i]].data.b = n;
 			break;
 		}
 		case TYPE_STRING:
 		{
 			uint32_t str_loc_ne = 0;
-			memcpy(&str_loc_ne,p,sizeof(uint32_t));
-			p += sizeof(uint32_t);
+			memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+			move_ram_file_ptr(ram,sizeof(uint32_t));
 			off_t str_loc = (off_t)swap32(str_loc_ne);
 
 
 			uint16_t buf_up_ne = 0;
-			memcpy(&buf_up_ne,p,sizeof(uint16_t));
-			p += sizeof(uint16_t);
-			size_t buf_up = swap64(buf_up_ne);
+			memcpy(&buf_up_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+			move_ram_file_ptr(ram,sizeof(uint16_t));
+			size_t buf_up = swap16(buf_up_ne);
 
 			off_t move_back_to = 0;
 			if(str_loc > 0){
-				move_back_to = (p - ram->mem) + buf_up;	
+				move_back_to = ram->offset + buf_up;	
 				/* move to the new location*/
-				p = &ram->mem[str_loc];
+				ram->offset = str_loc;
 
 				buf_up_ne = 0;
-				memcpy(&buf_up_ne,p,sizeof(uint16_t));
-				p += sizeof(uint16_t);
-				buf_up = swap16(str_loc_ne);
-
+				memcpy(&buf_up_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+				move_ram_file_ptr(ram,sizeof(uint16_t));
+				buf_up = swap16(buf_up_ne);
 			}
 
 			rec->fields[indexes[i]].data.s = (char*)ask_mem(buf_up*sizeof(char));
@@ -6407,34 +6405,34 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				return -1;
 			}
 
-			memcpy(rec->fields[indexes[i]].data.s,p,buf_up);
-			p += buf_up;
-			if(str_loc > 0) p = &ram->mem[move_back_to];
+			memcpy(rec->fields[indexes[i]].data.s,&ram->mem[ram->offset],buf_up);
+			move_ram_file_ptr(ram,buf_up);
+			if(str_loc > 0) ram->offset = move_back_to;
 
 			break;
 		}
 		case TYPE_FLOAT:
 		{
 			uint32_t n = 0;
-			memcpy(&n,p,sizeof(uint32_t));
-			p += sizeof(uint32_t);
+			memcpy(&n,&ram->mem[ram->offset],sizeof(uint32_t));
+			move_ram_file_ptr(ram,sizeof(uint32_t));
 			rec->fields[indexes[i]].data.f = ntohf(n);
 			break;
 		}
 		case TYPE_PACK:
 		{
 			uint32_t n = 0;
-			memcpy(&n,p,sizeof(uint32_t));
-			p += sizeof(uint32_t);
+			memcpy(&n,&ram->mem[ram->offset],sizeof(uint32_t));
+			move_ram_file_ptr(ram,sizeof(uint32_t));
 			rec->fields[indexes[i]].data.p = swap32(n);
 			break;
 		}
 		case TYPE_DOUBLE:
 		{
 			uint64_t n = 0;
-			memcpy(&n,p,sizeof(uint64_t));
-			p += sizeof(uint64_t);
-			rec->fields[indexes[i]].data.d = swap64(n);
+			memcpy(&n,&ram->mem[ram->offset],sizeof(uint64_t));
+			move_ram_file_ptr(ram,sizeof(uint64_t));
+			rec->fields[indexes[i]].data.d = ntohd(n);
 			break;
 		}
 		case TYPE_ARRAY_INT:
@@ -6449,41 +6447,41 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			do
 			{
 				uint32_t size_array = 0;
-				memcpy(&size_array,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&size_array,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
-				memcpy(&padding,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&padding,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int padd = (int)swap32(padding);
 
 				int j;
 				for (j = 0; j < sz; j++){
 					uint32_t n = 0;
-					memcpy(&n,p,sizeof(uint32_t));
-					p += sizeof(uint32_t);
+					memcpy(&n,&ram->mem[ram->offset],sizeof(uint32_t));
+					move_ram_file_ptr(ram,sizeof(uint32_t));
 					int num = (int)swap32(n);
 					rec->fields[indexes[i]].data.v.insert((void *)&num,
 						&rec->fields[indexes[i]].data.v,
 						rec->fields[indexes[i]].type);
 				}
 
-				if (padd > 0) p += (sizeof(uint32_t) * padd);
+				if (padd > 0) ram->offset += (sizeof(uint32_t) * padd);
 
 				uint64_t upd_ne = 0;
-				memcpy(&upd_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
+				memcpy(&upd_ne,&ram->mem[ram->offset],sizeof(uint64_t));
+				move_ram_file_ptr(ram,sizeof(uint64_t));
 
-				if (go_back_here == 0) go_back_here = p - ram->mem;
+				if (go_back_here == 0) go_back_here = ram->offset;
 
 				array_upd = (off_t)swap64(upd_ne);
-				if (array_upd > 0) p = &ram->mem[array_upd];
+				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
 
-			p = &ram->mem[go_back_here];
+			ram->offset = go_back_here;
 			break;
 		}
 		case TYPE_ARRAY_LONG:
@@ -6497,21 +6495,21 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			do
 			{
 				uint32_t size_array = 0;
-				memcpy(&size_array,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&size_array,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
-				memcpy(&padding,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&padding,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int padd = (int)swap32(padding);
 
 				int j;
 				for (j = 0; j < sz; j++){
 					uint64_t n = 0;
-					memcpy(&n,p,sizeof(uint64_t));
-					p += sizeof(uint64_t);
+					memcpy(&n,&ram->mem[ram->offset],sizeof(uint64_t));
+					move_ram_file_ptr(ram,sizeof(uint64_t));
 
 					long num = (long)swap64(n);
 
@@ -6520,20 +6518,20 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 						rec->fields[indexes[i]].type);
 				}
 
-				if (padd > 0) p += (sizeof(uint64_t) * padd);
+				if (padd > 0) ram->offset += (sizeof(uint64_t) * padd);
 
 				uint64_t upd_ne = 0;
-				memcpy(&upd_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
+				memcpy(&upd_ne,&ram->mem[ram->offset],sizeof(uint64_t));
+				move_ram_file_ptr(ram,sizeof(uint64_t));
 
-				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
+				if (go_back_here == 0) go_back_here = ram->offset;
 
 				array_upd = (off_t)swap64(upd_ne);
-				if (array_upd > 0) p = &ram->mem[array_upd];
+				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
 
-			p = &ram->mem[go_back_here];
+			ram->offset = go_back_here;
 			break;
 		}
 		case TYPE_ARRAY_BYTE:
@@ -6547,40 +6545,40 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			do
 			{
 				uint32_t size_array = 0;
-				memcpy(&size_array,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&size_array,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
-				memcpy(&padding,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&padding,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int padd = (int)swap32(padding);
 
 				int j;
 				for (j = 0; j < sz; j++){
 					uint8_t n = 0;
-					memcpy(&n,p,sizeof(uint8_t));
-					p += sizeof(uint8_t);
+					memcpy(&n,&ram->mem[ram->offset],sizeof(uint8_t));
+					move_ram_file_ptr(ram,sizeof(uint8_t));
 					rec->fields[indexes[i]].data.v.insert((void *)&n,
 						&rec->fields[indexes[i]].data.v,
 						rec->fields[indexes[i]].type);
 				}
 
-				if (padd > 0) p += (sizeof(uint8_t) * padd);
+				if (padd > 0) ram->offset += (sizeof(uint8_t) * padd);
 
 				uint64_t upd_ne = 0;
-				memcpy(&upd_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
+				memcpy(&upd_ne,&ram->mem[ram->offset],sizeof(uint64_t));
+				move_ram_file_ptr(ram,sizeof(uint64_t));
 
-				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
+				if (go_back_here == 0) go_back_here = ram->offset;
 
 				array_upd = (off_t)swap64(upd_ne);
-				if (array_upd > 0) p = &ram->mem[array_upd];
+				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
 
-			p = &ram->mem[go_back_here];
+			ram->offset = go_back_here;
 			break;
 		}
 		case TYPE_ARRAY_FLOAT:
@@ -6594,41 +6592,41 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			do
 			{
 				uint32_t size_array = 0;
-				memcpy(&size_array,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&size_array,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
-				memcpy(&padding,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&padding,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int padd = (int)swap32(padding);
 
 				int j;
 				for (j = 0; j < sz; j++){
 					uint32_t n = 0;
-					memcpy(&n,p,sizeof(uint32_t));
-					p += sizeof(uint32_t);
+					memcpy(&n,&ram->mem[ram->offset],sizeof(uint32_t));
+					move_ram_file_ptr(ram,sizeof(uint32_t));
 					float num = (float)ntohf(n);
 					rec->fields[indexes[i]].data.v.insert((void *)&num,
 						&rec->fields[indexes[i]].data.v,
 						rec->fields[indexes[i]].type);
 				}
 
-				if (padd > 0) p += (sizeof(uint32_t) * padd);
+				if (padd > 0) ram->offset += (sizeof(uint32_t) * padd);
 
 				uint64_t upd_ne = 0;
-				memcpy(&upd_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
+				memcpy(&upd_ne,&ram->mem[ram->offset],sizeof(uint64_t));
+				move_ram_file_ptr(ram,sizeof(uint64_t));
 
-				if (go_back_here == 0) go_back_here = p - ram->mem;
+				if (go_back_here == 0) go_back_here = ram->offset;
 
 				array_upd = (off_t)swap64(upd_ne);
-				if (array_upd > 0) p = &ram->mem[array_upd];
+				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
 
-			p = &ram->mem[go_back_here];
+			ram->offset = go_back_here;
 			break;
 		}
 
@@ -6643,43 +6641,43 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			do
 			{
 				uint32_t size_array = 0;
-				memcpy(&size_array,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&size_array,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
-				memcpy(&padding,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&padding,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int padd = (int)swap32(padding);
 
 				int j;
 				for (j = 0; j < sz; j++){
 					uint64_t n = 0;
-					memcpy(&n,p,sizeof(uint64_t));
-					p += sizeof(uint64_t);
+					memcpy(&n,&ram->mem[ram->offset],sizeof(uint64_t));
+					move_ram_file_ptr(ram,sizeof(uint64_t));
 
-					double num = (double)swap64(n);
+					double num = (double)ntohd(n);
 
 					rec->fields[indexes[i]].data.v.insert((void *)&num,
 						&rec->fields[indexes[i]].data.v,
 						rec->fields[indexes[i]].type);
 				}
 
-				if (padd > 0) p += (sizeof(uint64_t) * padd);
+				if (padd > 0) ram->offset += (sizeof(uint64_t) * padd);
 
 				uint64_t upd_ne = 0;
-				memcpy(&upd_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
+				memcpy(&upd_ne,&ram->mem[ram->offset],sizeof(uint64_t));
+				move_ram_file_ptr(ram,sizeof(uint64_t));
 
-				if (go_back_here == 0) go_back_here = (off_t)(p - ram->mem);
+				if (go_back_here == 0) go_back_here = ram->offset;
 
 				array_upd = (off_t)swap64(upd_ne);
-				if (array_upd > 0) p = &ram->mem[array_upd];
+				if (array_upd > 0) ram->offset = array_upd;
 
 			} while(array_upd > 0);
 
-			p = &ram->mem[go_back_here];
+			ram->offset = go_back_here;
 			break;
 		}
 		case TYPE_ARRAY_STRING:
@@ -6693,38 +6691,38 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 			do
 			{
 				uint32_t size_array = 0;
-				memcpy(&size_array,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&size_array,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int sz = (int)swap32(size_array);
 
 
 				uint32_t padding = 0;
-				memcpy(&padding,p,sizeof(uint32_t));
-				p += sizeof(uint32_t);
+				memcpy(&padding,&ram->mem[ram->offset],sizeof(uint32_t));
+				move_ram_file_ptr(ram,sizeof(uint32_t));
 				int padd = (int)swap32(padding);
 
 				int j;
 				for (j = 0; j < sz; j++){
 					uint32_t str_loc_ne = 0;
-					memcpy(&str_loc_ne,p,sizeof(uint32_t));
-					p += sizeof(uint32_t);
+					memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
+					move_ram_file_ptr(ram,sizeof(uint32_t));
 					off_t str_loc = (off_t)	swap32(str_loc_ne);
 
 
 					uint16_t buf_up_ne = 0;
-					memcpy(&buf_up_ne,p,sizeof(uint16_t));
-					p += sizeof(uint16_t);
+					memcpy(&buf_up_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+					move_ram_file_ptr(ram,sizeof(uint16_t));
 					size_t buf_up = (size_t)swap16(str_loc_ne);
 
 					off_t move_back_to = 0;
 					if(str_loc > 0){
-						move_back_to = (p - ram->mem) + buf_up;	
+						move_back_to = ram->offset + buf_up;	
 						/* move to the new location*/
-						p = &ram->mem[str_loc];
+						ram->offset = str_loc;
 
 						buf_up_ne = 0;
-						memcpy(&buf_up_ne,p,sizeof(uint16_t));
-						p += sizeof(uint16_t);
+						memcpy(&buf_up_ne,&ram->mem[ram->offset],sizeof(uint16_t));
+						move_ram_file_ptr(ram,sizeof(uint16_t));
 						buf_up = (size_t)swap16(str_loc_ne);
 					}
 
@@ -6734,9 +6732,9 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 						return -1;
 					}
 
-					memcpy(string,p,buf_up);
-					p += buf_up;
-					if(str_loc > 0) p = &ram->mem[move_back_to];
+					memcpy(string,&ram->mem[ram->offset],buf_up);
+					move_ram_file_ptr(ram, buf_up);
+					if(str_loc > 0) ram->offset = move_back_to;
 
 					rec->fields[indexes[i]].data.v.insert((void *)string,
 						&rec->fields[indexes[i]].data.v,
@@ -6748,27 +6746,27 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 				if (padd > 0) {
 					int x;
 					for( x = 0; x < padd; x++){
-						p += sizeof(uint32_t);
+						move_ram_file_ptr(ram,sizeof(uint32_t));
 						uint16_t buf_upn = 0;
-						memcpy(&buf_upn,p,sizeof(uint16_t));
-						p += sizeof(uint16_t);
+						memcpy(&buf_upn,&ram->mem[ram->offset],sizeof(uint16_t));
+						move_ram_file_ptr(ram,sizeof(uint16_t));
 						size_t buf_up = swap16(buf_upn);
-						p += buf_up;
+						move_ram_file_ptr(ram,buf_up);
 					}
 				}
 
 				uint64_t upd_ne = 0;
-				memcpy(&upd_ne,p,sizeof(uint64_t));
-				p += sizeof(uint64_t);
+				memcpy(&upd_ne,&ram->mem[ram->offset],sizeof(uint64_t));
+				move_ram_file_ptr(ram,sizeof(uint64_t));
 
-				if (go_back_here == 0) go_back_here = p - ram->mem;
+				if (go_back_here == 0) go_back_here = ram->offset;
 
 				array_upd = (off_t)swap64(upd_ne);
-				if (array_upd > 0) p = &ram->mem[array_upd];
+				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
 
-			p = &ram->mem[go_back_here];
+			ram->offset = go_back_here;
 			break;
 		}
 		case TYPE_FILE:
@@ -6777,7 +6775,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, size_t offset, struct
 		}
 	}
 
-	return (off_t)(p - ram->mem);
+	return 0;
 }
 
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size)
@@ -9386,6 +9384,31 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->size += sizeof(uint64_t);
 				ram->offset += sizeof(uint64_t);
 			}else{
+				/*open the schema file*/
+					
+				/*create file name*/
+				size_t file_name_length = strlen(rec->fields[i].field_name) + strlen(".sch");
+				char file_name[file_name_length + 1];
+				memset(file_name,0,file_name_length + 1);
+				strncpy(file_name,rec->fields[i].field_name,strlen(rec->fields[i].field_name));
+				strncat(file_name,".sch",strlen(".sch")+1);
+
+				int fd_schema = open(file_name,0);
+				if (fd_schema == -1){
+					fprintf(stderr,"schema file not found, %s:%d\n",__FILE__,__LINE__-2);
+					return -1;
+				}
+
+				struct Schema sch;
+				memset(&sch,0,sizeof(struct Schema));
+				struct Header_d hd = {0,0,&sch};
+				while((is_locked(1,fd_schema)) == LOCKED);
+				if(!read_header(fd_schema,&hd)){
+					fprintf(stderr,"cannot read schema from file %s:%d",__FILE__,__LINE__-1);
+					return -1;
+				}
+				close(fd_schema);
+
 				/* update branch*/
 				off_t update_pos = 0;
 				off_t go_back_to_first_rec = 0;
@@ -9423,14 +9446,19 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						for(y = 0; y < sz;y++){
 							struct Record_f dummy;
 							memset(&dummy,0,sizeof(struct Record_f));
-							memcpy(&dummy,&ram->mem[ram->offset] ,sizeof(struct Record_f));
+							off_t offset = 0;
+							if(read_ram_file(rec->file_name,
+											ram,
+											&dummy,
+											*hd.sch_d) == -1){
+								fprintf(stderr,"cannot read ram file, %s:%d.\n",__FILE__,__LINE__-1);
+								return -1;
+							}
 
-							size_t dummy_rec_size = get_disk_size_record(&dummy);
-							ram->offset += dummy_rec_size;
 
 							free_record(&dummy,dummy.fields_num);
 
-							ram->offset += sizeof(off_t);
+							ram->offset += offset + sizeof(off_t);
 						}
 
 						uint64_t update_arr = 0;

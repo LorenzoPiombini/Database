@@ -97,7 +97,8 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	} else{
 
 		off_t pos_after_read = 0;
-		if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)offset, rec,*(hd.sch_d))) == -1){
+		ram.offset = offset;
+		if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
 			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
 			clear_ram_file(&ram);
 			return STATUS_ERROR;
@@ -119,7 +120,8 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 
 			off_t update_rec_pos = swap64(up_r_pos_ne);
 			n->offset = update_rec_pos;
-			if(( pos_after_read = read_ram_file(file_name,&ram, (size_t)update_rec_pos, n,*(hd.sch_d))) == -1){
+			ram.offset = update_rec_pos;
+			if(( pos_after_read = read_ram_file(file_name,&ram, n,*(hd.sch_d))) == -1){
 				fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
 				clear_ram_file(&ram);
 				return STATUS_ERROR;
