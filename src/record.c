@@ -2605,6 +2605,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 							for(k = 0; k < src->fields[i].data.file.count; k++){
 								if((comp = compare_rec(&src->fields[i].data.file.recs[k],
 											&dest->fields[i].data.file.recs[k])) == -1){ 
+										c++;
 										continue;
 								} 
 								return i;

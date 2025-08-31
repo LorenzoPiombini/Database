@@ -2697,7 +2697,10 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 		if (positions[i] != 'y' || positions[i] != 'e')	positions[i] = 'n';
 
 		int index = compare_rec(rec_old[i],rec);
-		if(index == E_RCMP) return;
+		if(index == E_RCMP){
+			positions[0] = '0';
+			return;
+		}
 		if(index == -1){
 			positions[i] = 'e';
 			continue;
@@ -2750,7 +2753,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 						rec_old[i]->fields[index].data.v.elements.i[a] =
 							rec->fields[index].data.v.elements.i[a];
-					}
+				}
 				positions[i] = 'y';
 				break;
 			}else{
@@ -3001,6 +3004,8 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			return;
 		}
 	}
+
+
 }	
 
 

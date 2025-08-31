@@ -507,7 +507,10 @@ int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *
 		}
 
 		if((check == SCHEMA_CT  ||  check == SCHEMA_CT_NT) && !changed) {
-			if(no_updates) goto clean_on_error;
+			if(no_updates) {
+				fprintf(stderr,"nothing to update\n");
+				goto clean_on_error;
+			}
 
 			off_t eof = go_to_EOF(fds[1]); /* file pointer to the end*/
 			if (eof == -1) {
