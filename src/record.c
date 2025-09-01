@@ -2394,6 +2394,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 		int af = 0;
 		int ad = 0;
 		int as = 0;
+		int tf = 0;
 		int dif = 0;
 
 		int i;
@@ -2605,11 +2606,35 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 							for(k = 0; k < src->fields[i].data.file.count; k++){
 								if((comp = compare_rec(&src->fields[i].data.file.recs[k],
 											&dest->fields[i].data.file.recs[k])) == -1){ 
-										c++;
+										tf++;
 										continue;
 								} 
-								return i;
 							}
+							if(tf == src->fields[i].data.file.count)c++;
+						
+							if(c == active) break;
+
+							return i;
+						}
+
+						if(src->fields[i].data.file.count > dest->fields[i].data.file.count){
+							/*compare the records, and append accordingly*/
+							int comp = 0;
+							uint32_t u,y;
+							for(u = 0; u < src->fields[i].data.file.count,u++){
+								for(y = 0;y < dest->fields[i].data.file.count;y++){
+									if((comp = compare_rec(src->fields[i].data.file.recs[u],
+											dest->fields[i].data.file.recs[y])) == -1){
+										tf++;
+										continue;
+									}
+								}
+							}
+
+							if(tf == dest->fields[i].data.file.count)c++;
+							if(c == active) break;
+
+							return i;
 						}
 						break;
 					}
