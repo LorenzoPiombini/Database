@@ -12,6 +12,7 @@
 #include "sort.h"
 #include "debug.h"
 #include "memory.h"
+#include "input.h"
 
 static char prog[] = "db";
 static int schema_check_type(int count,int mode,struct Schema *sch,
@@ -2688,7 +2689,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 	return  UPDATE_OLDN;
 }
 
-void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec)
+void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec, int option)
 {
 	int dif = 0;
 	
@@ -2958,50 +2959,83 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 			close_file(1,fd_sch);
 
-			/*
-			 * ensure that previously allcoated memory
-			 * in the rec is freed this function also zeros the memory out
-			 * when the second parameter is on (1)
-			 * */
-			free_type_file(rec_old[i],1);
 			
 			/*resize the memory accordingly*/
-			if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
+			size_t n_size = 0;
+			if(option == AAR){
+				n_size = rec_old[i]->fields[index].data.file.count + rec->fields[index].data.file.count;
 
 				struct Record_f *n_recs = (struct Record_f*)reask_mem(
 						rec_old[i]->fields[index].data.file.recs,
 						sizeof(struct Record_f) * rec_old[i]->fields[index].data.file.count,
-						rec->fields[index].data.file.count * sizeof(struct Record_f));
+						n_size * sizeof(struct Record_f));
 				if(!n_recs){
 					fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
-					close_file(1,fd_sch);
 					positions[i] = '0';
 					return;
 				}
 
 				rec_old[i]->fields[index].data.file.recs = n_recs;
-				rec_old[i]->fields[index].data.file.count = rec->fields[index].data.file.count;
+				rec_old[i]->fields[index].data.file.count = n_size;
+				rec_old[i]->field_set[index] = 1;
+				uint32_t k,t;
+				for(t = 0,k = rec->fields[index].data.file.count;
+						k < rec_old[i]->fields[index].data.file.count; 
+						k++,t++){
+					if(!copy_rec(&rec->fields[index].data.file.recs[t],
+								&rec_old[i]->fields[index].data.file.recs[k],
+								hd.sch_d)){
+						fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
+						positions[i] = '0';
+						return;
+					}
+				}
+				positions[i] = 'y';
+				break;
+			}else{
+				/*
+				 * ensure that previously allcoated memory
+				 * in the rec is freed.
+				 * this function also zeros the memory out
+				 * when the second parameter is on (1)
+				 * */
+				free_type_file(rec_old[i],1);
 
+				if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
+					struct Record_f *n_recs = (struct Record_f*)reask_mem(
+							rec_old[i]->fields[index].data.file.recs,
+							sizeof(struct Record_f) * rec_old[i]->fields[index].data.file.count,
+							rec->fields[index].data.file.count * sizeof(struct Record_f));
+					if(!n_recs){
+						fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
+						close_file(1,fd_sch);
+						positions[i] = '0';
+						return;
+					}
+
+					rec_old[i]->fields[index].data.file.recs = n_recs;
+					rec_old[i]->fields[index].data.file.count = rec->fields[index].data.file.count;
+				}
+				rec_old[i]->field_set[index] = 1;
+				uint32_t k;
+				for(k = 0; k < rec_old[i]->fields[index].data.file.count; k++){
+					if(!copy_rec(&rec->fields[index].data.file.recs[k],
+								&rec_old[i]->fields[index].data.file.recs[k],
+								hd.sch_d)){
+						fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
+						positions[i] = '0';
+						return;
+					}
+				}
+				positions[i] = 'y';
+				break;
 			}
 
-			rec_old[i]->field_set[index] = 1;
-			uint32_t k;
-			for(k = 0; k < rec_old[i]->fields[index].data.file.count; k++){
-				if(!copy_rec(&rec->fields[index].data.file.recs[k],
-							&rec_old[i]->fields[index].data.file.recs[k],
-							hd.sch_d)){
-					fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
-					positions[i] = '0';
-					return;
-			        }
-			}
-			positions[i] = 'y';
-			break;
 		}
 		default:
-			printf("no matching type\n");
-			positions[0] = '0';
-			return;
+		printf("no matching type\n");
+		positions[0] = '0';
+		return;
 		}
 	}
 

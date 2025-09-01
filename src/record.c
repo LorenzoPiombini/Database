@@ -2394,6 +2394,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 		int af = 0;
 		int ad = 0;
 		int as = 0;
+		uint32_t tf = 0;
 		int dif = 0;
 
 		int i;
@@ -2598,18 +2599,40 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				case TYPE_FILE:
 				{
 					if(src->fields[i].data.file.recs){
-						int comp = 0;
 						/*if the files have the same count*/
 						if(src->fields[i].data.file.count == dest->fields[i].data.file.count){
 							uint32_t k;
 							for(k = 0; k < src->fields[i].data.file.count; k++){
-								if((comp = compare_rec(&src->fields[i].data.file.recs[k],
-											&dest->fields[i].data.file.recs[k])) == -1){ 
-										c++;
+								if(compare_rec(&src->fields[i].data.file.recs[k],
+											&dest->fields[i].data.file.recs[k]) == -1){ 
+										tf++;
 										continue;
 								} 
-								return i;
 							}
+							if(tf == src->fields[i].data.file.count)c++;
+						
+							if(c == active) break;
+
+							return i;
+						}
+
+						if(src->fields[i].data.file.count > dest->fields[i].data.file.count){
+							/*compare the records*/
+							uint32_t u,y;
+							for(u = 0; u < src->fields[i].data.file.count;u++){
+								for(y = 0;y < dest->fields[i].data.file.count;y++){
+									if(compare_rec(&src->fields[i].data.file.recs[u],
+											&dest->fields[i].data.file.recs[y]) == -1){
+										tf++;
+										continue;
+									}
+								}
+							}
+
+							if(tf == dest->fields[i].data.file.count)c++;
+							if(c == active) break;
+
+							return i;
 						}
 						break;
 					}

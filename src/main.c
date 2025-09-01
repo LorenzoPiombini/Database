@@ -1244,7 +1244,7 @@ int main(int argc, char *argv[])
 			int check = 0;
 			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error;
 
-			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f) == -1) goto clean_on_error;
+			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f,option) == -1) goto clean_on_error;
 
 			printf("record %s updated!\n", kcpy);
 			while(lock(fd_index,UNLOCK) == WTLK);

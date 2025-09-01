@@ -170,6 +170,7 @@ int convert_options(char *options)
                 options[i] = tolower(options[i]);
 
         if (strcmp(options, ALL_OP) == 0) return ALL;
+        if (strcmp(options, ADD_AR_OP) == 0) return AAR;
 
 
         return -1;
