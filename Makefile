@@ -9,7 +9,7 @@ OBJlibf = obj/debug.o  obj/file.o  obj/endian.o
 OBJlibfPR = obj/debug_prod.o  obj/file_prod.o  obj/endian_prod.o 
 OBJlibs = obj/debug.o  obj/str_op.o
 OBJlibsPR = obj/debug_prod.o  obj/str_op_prod.o
-OBJlibr = obj/debug.o  obj/record.o
+OBJlibr = obj/debug.o  obj/record.o obj/parse.o
 OBJlibrPR = obj/debug_prod.o  obj/record_prod.o
 OBJlibp = obj/debug.o  obj/sort.o obj/parse.o
 OBJlibpPR = obj/debug_prod.o  obj/sort_prod.o obj/parse_prod.o
@@ -103,14 +103,14 @@ clean:
 	sudo rm -f *.so
 	sudo rm -f $(TARGET)
 	rm -f *.lock
-	rm *.dat *.inx *.sch
+	#rm *.dat *.inx *.sch
 	rm *core*
 	 
 $(TARGET): $(OBJ)
 	sudo gcc -o $@ $? -lmem -llog -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 
 obj/%.o : src/%.c
-	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address 
+	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie #-fsanitize=address 
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 $(TARGET)_prod: $(OBJ_PROD)

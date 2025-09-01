@@ -1,0 +1,5 @@
+*.sch
+*.dat
+*.inx
+obj/
+rls
