@@ -2959,13 +2959,6 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 			close_file(1,fd_sch);
 
-			/*
-			 * ensure that previously allcoated memory
-			 * in the rec is freed.
-			 * this function also zeros the memory out
-			 * when the second parameter is on (1)
-			 * */
-			free_type_file(rec_old[i],1);
 			
 			/*resize the memory accordingly*/
 			size_t n_size = 0;
@@ -2978,7 +2971,6 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						n_size * sizeof(struct Record_f));
 				if(!n_recs){
 					fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
-					close_file(1,fd_sch);
 					positions[i] = '0';
 					return;
 				}
@@ -3001,6 +2993,14 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				positions[i] = 'y';
 				break;
 			}else{
+				/*
+				 * ensure that previously allcoated memory
+				 * in the rec is freed.
+				 * this function also zeros the memory out
+				 * when the second parameter is on (1)
+				 * */
+				free_type_file(rec_old[i],1);
+
 				if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
 					struct Record_f *n_recs = (struct Record_f*)reask_mem(
 							rec_old[i]->fields[index].data.file.recs,
