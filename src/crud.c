@@ -14,6 +14,7 @@
 #include "crud.h"
 #include "types.h"
 #include "memory.h"
+#include "input.h"
 
 static char prog[] = "db";
 static off_t get_rec_position(struct HashTable *ht, void *key, int key_type);
@@ -408,7 +409,11 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	return 0;
 }
 
-int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *rec,struct Header_d hd,int check,int *lock_f)
+int update_rec(char *file_path,
+		int *fds,void *key,
+		int key_type,struct Record_f *rec,
+		struct Header_d hd,int check,
+		int *lock_f, char *options)
 {
 	struct Record_f rec_old;
 	memset(&rec_old,0,sizeof(struct Record_f));
@@ -465,7 +470,11 @@ int update_rec(char *file_path,int *fds,void *key,int key_type,struct Record_f *
 		 * 	at that index position of 'y'.
 		 * */
 
-		find_fields_to_update(recs, positions, rec);
+		int option = 0;
+		if(options)
+			option = convert_options(options);
+
+		find_fields_to_update(recs, positions, rec, option);
 
 		if (positions[0] != 'n' && positions[0] != 'y' && positions[0] != 'e') {
 			printf("check on fields failed, %s:%d.\n", F, L - 1);
