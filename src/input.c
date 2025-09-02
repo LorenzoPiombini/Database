@@ -171,6 +171,7 @@ int convert_options(char *options)
 
         if (strcmp(options, ALL_OP) == 0) return ALL;
         if (strcmp(options, ADD_AR_OP) == 0) return AAR;
+        if (strcmp(options, FORCE) == 0) return FRC;
 
 
         return -1;

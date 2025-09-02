@@ -1301,15 +1301,18 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					case TYPE_ARRAY_INT:
 					case TYPE_ARRAY_LONG:
 					{
-						if(sch->types[i] == TYPE_ARRAY_LONG && types_i[i] == TYPE_LONG && option == AAR){
+						if(sch->types[i] == TYPE_ARRAY_LONG && types_i[i] == TYPE_LONG && 
+									(option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
-						if(sch->types[i] == TYPE_ARRAY_INT && types_i[i] == TYPE_INT && option == AAR){
+						if(sch->types[i] == TYPE_ARRAY_INT && types_i[i] == TYPE_INT && 
+									(option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
-						if(sch->types[i] == TYPE_ARRAY_BYTE && types_i[i] == TYPE_BYTE && option == AAR){
+						if(sch->types[i] == TYPE_ARRAY_BYTE && types_i[i] == TYPE_BYTE && 
+									(option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
@@ -1377,7 +1380,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					}
 					case TYPE_ARRAY_DOUBLE:
 					{
-						if(types_i[i] == TYPE_DOUBLE && option == AAR){
+						if(types_i[i] == TYPE_DOUBLE && (option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
@@ -1385,7 +1388,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					}
 					case TYPE_ARRAY_FLOAT:
 					{
-						if(types_i[i] == TYPE_FLOAT && option == AAR){
+						if(types_i[i] == TYPE_FLOAT && (option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
@@ -1452,15 +1455,18 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						case TYPE_ARRAY_BYTE:
 						case TYPE_ARRAY_LONG:
 						{
-							if(sch->types[j] == TYPE_ARRAY_LONG && types_i[j] == TYPE_LONG && option == AAR){
+							if(sch->types[j] == TYPE_ARRAY_LONG && types_i[j] == TYPE_LONG && 
+									(option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
-							if(sch->types[j] == TYPE_ARRAY_INT && types_i[j] == TYPE_INT && option == AAR){
+							if(sch->types[j] == TYPE_ARRAY_INT && types_i[j] == TYPE_INT && 
+									(option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
-							if(sch->types[j] == TYPE_ARRAY_BYTE && types_i[j] == TYPE_BYTE && option == AAR){
+							if(sch->types[j] == TYPE_ARRAY_BYTE && types_i[j] == TYPE_BYTE && 
+									(option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
@@ -1526,7 +1532,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 
 						case TYPE_ARRAY_DOUBLE:
 						{
-							if(types_i[j] == TYPE_DOUBLE && option == AAR){
+							if(types_i[j] == TYPE_DOUBLE && 
+									(option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
@@ -1534,7 +1541,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						}
 						case TYPE_ARRAY_FLOAT:
 						{
-							if(types_i[j] == TYPE_FLOAT && option == AAR){
+							if(types_i[j] == TYPE_FLOAT && 
+									(option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
@@ -1558,6 +1566,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 	}
 	return 0;
 }
+
 int schema_eq_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *types_i)
 {
 	int count = 0;

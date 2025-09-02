@@ -6,6 +6,7 @@
 
 #define ALL_OP "all" /*use to delete the all file content*/
 #define ADD_AR_OP "aar" /* specificly append to the field array*/
+#define FORCE "force" /* force the operation on the database */
 
 void print_usage(char *argv[]);
 
@@ -19,7 +20,8 @@ int convert_options(char *options);
 typedef enum
 {
     ALL,
-    AAR /*append to array*/
+    AAR, /*append to array*/
+    FRC /*Force operation */
 } Option_t;
 
 #endif

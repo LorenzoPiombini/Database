@@ -472,8 +472,13 @@ int update_rec(char *file_path,
 		 * */
 
 		int option = 0;
-		if(options)
+		if(options){
 			option = convert_options(options);
+			if(option == -1){
+				fprintf(stderr,"invalid option: '%s'\n",options);
+				goto clean_on_error;
+			}
+		}
 
 		find_fields_to_update(recs, positions, rec, option);
 
@@ -552,8 +557,13 @@ int update_rec(char *file_path,
 
 	/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
 	int op = -1;
-	if(options)
+	if(options){
 		op = convert_options(options);
+		if(op == -1){
+			fprintf(stderr,"invalid option: '%s'\n",options);
+			goto clean_on_error;
+		}
+	}
 
 	unsigned char comp_rr = compare_old_rec_update_rec(recs, rec, check,op);
 	if (comp_rr == 0) {
