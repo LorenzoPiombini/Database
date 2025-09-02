@@ -2758,6 +2758,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				positions[i] = 'y';
 				break;
 			}else{
+				
 				/*
 				 * if the sizes of the two arrays are different,
 				 * simply we destroy the old one,
@@ -2868,6 +2869,18 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_BYTE:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.b[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
+
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.elements.b[a] =
@@ -2876,6 +2889,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				positions[i] = 'y';
 				break;
 			}else{
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.b[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				/*
 				 * if the sizes of the two arrays are different,
 				 * simply we destroy the old one,
