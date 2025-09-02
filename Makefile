@@ -16,7 +16,7 @@ OBJlibpPR = obj/debug_prod.o  obj/sort_prod.o obj/parse_prod.o
 OBJlibl = obj/debug.o  obj/lock.o
 OBJliblPR = obj/debug_prod.o  obj/lock_prod.o
 OBJlibbstPR = obj/debug_prod.o  obj/bst_prod.o obj/str_op_prod.o
-OBJlibcrud = obj/crud.o obj/file.o  obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o
+OBJlibcrud = obj/crud.o obj/file.o  obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o obj/input.o
 
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
@@ -107,10 +107,10 @@ clean:
 	rm *core*
 	 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -lmem -llog -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
+	sudo gcc -o $@ $? -lmem -llog -fpie -pie -z relro -z now -z noexecstack -fsanitize=address
 
 obj/%.o : src/%.c
-	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie #-fsanitize=address 
+	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 $(TARGET)_prod: $(OBJ_PROD)
