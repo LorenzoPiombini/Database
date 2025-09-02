@@ -157,6 +157,7 @@ $(BINDIR)/FILE:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
+		echo "" >> $@; \
 		echo "if [ -e \"\$$1.dat\" ]; then" >> $@; \
 		echo "	 $(TARGET) -f \"\$$1\" -R \"\$$2\"" >> $@; \
 		echo "else" >> $@; \
@@ -185,7 +186,11 @@ $(BINDIR)/UPDATE:
 		echo "echo \"Usage: UPDATE [file name] [fields name and type] [key]\"" >> $@; \
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
-		echo "$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
+		echo "if [ -n \"\$$4\" ]; then" >> $@; \
+		echo "	$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" -o \"\$$4\" " >> $@; \
+		echo "	exit 0" >> $@; \
+		echo "fi" >> $@; \
+		echo "$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\"" >> $@; \
 		chmod +x $@; \
 	fi
 $(BINDIR)/KEYS:
