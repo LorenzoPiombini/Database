@@ -24,7 +24,8 @@ int check_data(char *file_path,char *data_to_add,
 		char files[][MAX_FILE_PATH_LENGTH], 
 		struct Record_f *rec,
 		struct Header_d *hd,
-		int *lock);
+		int *lock,
+		int option);
 int write_record(int *fds,void *key,
 		int key_type, 
 		struct Record_f *rec, 

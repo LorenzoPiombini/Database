@@ -46,7 +46,7 @@ unsigned char append_to_file(int *fds, char *file_path, char *key,
 	memset(&sch,0,sizeof(struct Schema));
 	struct Header_d hd = {0, 0, &sch};
 	int lock_f = 0;
-	if(check_data(file_path,data_to_add,fds,files, &rec,&hd,&lock_f) == -1) return -1;
+	if(check_data(file_path,data_to_add,fds,files, &rec,&hd,&lock_f,-1) == -1) return -1;
 
 	off_t eof = go_to_EOF(fds[1]);
 	if (eof == -1) {

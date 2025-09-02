@@ -1200,7 +1200,10 @@ int main(int argc, char *argv[])
 			int lock_f = 0;
 			int check = 0;
 			int r = 0;
-			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) {
+			int option_value= -1;
+			if(option)
+				option_value= convert_options(option);
+			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) {
 				fprintf(stderr,"(%s): schema different than file definition or worng syntax\n",prog);
 				goto clean_on_error_7;
 			}
@@ -1242,7 +1245,11 @@ int main(int argc, char *argv[])
 
 			int lock_f = 0;
 			int check = 0;
-			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f)) == -1) goto clean_on_error;
+			int option_value = -1;
+			if(option)
+				option_value = convert_options(option);
+
+			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) goto clean_on_error;
 
 			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f,option) == -1) goto clean_on_error;
 

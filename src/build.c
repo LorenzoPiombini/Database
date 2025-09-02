@@ -367,7 +367,7 @@ int import_data_to_system(char *data_file)
 		
 		printf("key: '%s' - '%s'\n",key,file_name);
 		/*check data (schema) and writing to file*/
-		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f) == -1) {
+		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f,-1) == -1) {
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);
 			cancel_memory(NULL,content,sizeof(char)*(size+1));
