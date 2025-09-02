@@ -1299,6 +1299,18 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					case TYPE_ARRAY_INT:
 					case TYPE_ARRAY_LONG:
 					{
+						if(sch->types[i] == TYPE_ARRAY_LONG && types_i == TYPE_LONG && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						if(sch->types[i] == TYPE_ARRAY_INT && types_i == TYPE_INT && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						if(sch->types[i] == TYPE_ARRAY_BYTE && types_i == TYPE_BYTE && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
 						char *p = NULL;
 						int index = 0;
 						while((p = strstr((*values)[i],","))){
@@ -1345,7 +1357,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 							}else if(sch->types[i] == TYPE_ARRAY_BYTE){
 								/*
 								 * type byte is a number stored in 
-								 * exactly 1 byte so it can't be bigger 
+								 * exactly 1 byte(unsigned) so it can't be bigger 
 								 * than 2^7 * 2 (it can't be negative)
 								 *  
 								 * */
@@ -1360,6 +1372,22 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						types_i[i] = sch->types[i];
 						replace('@',',',(*values)[i]);
 						break;
+					}
+					case TYPE_ARRAY_DOUBLE:
+					{
+						if(types_i[i] == TYPE_DOUBLE && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						return -1;
+					}
+					case TYPE_ARRAY_FLOAT:
+					{
+						if(types_i[i] == TYPE_FLOAT && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						return -1;
 					}
 					default:
 						return -1;
@@ -1418,71 +1446,100 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						}
 					}else if(is_number_array(sch->types[j])){
 						switch(sch->types[j]){
-							case TYPE_ARRAY_INT:
-							case TYPE_ARRAY_BYTE:
-							case TYPE_ARRAY_LONG:
-								{
-									char *p = NULL;
-									int index = 0;
-									while((p = strstr((*values)[j],","))){
-										*p ='@';
-										if(index == 0){
-											index = p - (*values)[j];
-											size_t sz = index == 1 ? (index + 1) : index;	
-											char num[sz];
-											memset(num,0,sz);
-											strncpy(num,(*values)[j],sz-1);
-											if(!is_integer(num)) return -1;
-											int result = 0;
-											if((result = is_number_in_limits(num)) == 0)
-												return -1;
-											if(sch->types[j] == TYPE_ARRAY_INT){
-												if(result == IN_INT) continue;
-												return -1;
-											}else if(sch->types[j] == TYPE_ARRAY_LONG){
-												if(result == IN_INT || result == IN_LONG)
-													continue;
-
-												return -1;
-											}
-											continue;
-										}
-										int start = index;
-										index = p - (*values)[j];
-										size_t sz = index-start;
-										if(sz == 1) sz++;
-										char num[sz];
-										memset(num,0,sz);
-										strncpy(num,&(*values)[j][start+1],sz-1);
-										if(!is_integer(num)) return -1;
-										int result = 0;
-										if((result = is_number_in_limits(num)) == 0)
-											return -1;
-										if(sch->types[j] == TYPE_ARRAY_INT){
-											if(result == IN_INT) continue;
-											return -1;
-										}else if(sch->types[j] == TYPE_ARRAY_LONG){
-											if(result == IN_INT || result == IN_LONG)
-												continue;
-
-											return -1;
-										}else if(sch->types[j] == TYPE_ARRAY_BYTE){
-											errno = 0;
-											long l = string_to_long(num);
-											if(errno == 0){ 
-												if(l > UCHAR_MAX)return -1;
-												if(l < 0)return -1;
-											}
-											continue;
-										}
-									}
-									types_i[j] = sch->types[j];
-									replace('@',',',(*values)[j]);
-									break;
-								}
-
-							default:
+						case TYPE_ARRAY_INT:
+						case TYPE_ARRAY_BYTE:
+						case TYPE_ARRAY_LONG:
+						{
+							if(sch->types[i] == TYPE_ARRAY_LONG && types_i == TYPE_LONG && option == AAR){
+								types_i[i] = sch->types[i];
 								break;
+							}
+							if(sch->types[i] == TYPE_ARRAY_INT && types_i == TYPE_INT && option == AAR){
+								types_i[i] = sch->types[i];
+								break;
+							}
+							if(sch->types[i] == TYPE_ARRAY_BYTE && types_i == TYPE_BYTE && option == AAR){
+								types_i[i] = sch->types[i];
+								break;
+							}
+
+							char *p = NULL;
+							int index = 0;
+							while((p = strstr((*values)[j],","))){
+								*p ='@';
+								if(index == 0){
+									index = p - (*values)[j];
+									size_t sz = index == 1 ? (index + 1) : index;	
+									char num[sz];
+									memset(num,0,sz);
+									strncpy(num,(*values)[j],sz-1);
+									if(!is_integer(num)) return -1;
+									int result = 0;
+									if((result = is_number_in_limits(num)) == 0)
+										return -1;
+									if(sch->types[j] == TYPE_ARRAY_INT){
+										if(result == IN_INT) continue;
+										return -1;
+									}else if(sch->types[j] == TYPE_ARRAY_LONG){
+										if(result == IN_INT || result == IN_LONG)
+											continue;
+
+										return -1;
+									}
+									continue;
+								}
+								int start = index;
+								index = p - (*values)[j];
+								size_t sz = index-start;
+								if(sz == 1) sz++;
+								char num[sz];
+								memset(num,0,sz);
+								strncpy(num,&(*values)[j][start+1],sz-1);
+								if(!is_integer(num)) return -1;
+								int result = 0;
+								if((result = is_number_in_limits(num)) == 0)
+									return -1;
+								if(sch->types[j] == TYPE_ARRAY_INT){
+									if(result == IN_INT) continue;
+									return -1;
+								}else if(sch->types[j] == TYPE_ARRAY_LONG){
+									if(result == IN_INT || result == IN_LONG)
+										continue;
+
+									return -1;
+								}else if(sch->types[j] == TYPE_ARRAY_BYTE){
+									errno = 0;
+									long l = string_to_long(num);
+									if(errno == 0){ 
+										if(l > UCHAR_MAX)return -1;
+										if(l < 0)return -1;
+									}
+									continue;
+								}
+							}
+							types_i[j] = sch->types[j];
+							replace('@',',',(*values)[j]);
+							break;
+						}
+
+						case TYPE_ARRAY_DOUBLE:
+						{
+							if(types_i[i] == TYPE_DOUBLE && option == AAR){
+								types_i[i] = sch->types[i];
+								break;
+							}
+							return -1;
+						}
+						case TYPE_ARRAY_FLOAT:
+						{
+							if(types_i[i] == TYPE_FLOAT && option == AAR){
+								types_i[i] = sch->types[i];
+								break;
+							}
+							return -1;
+						}
+						default:
+						break;
 						}
 						continue;
 					}
@@ -1494,8 +1551,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 		break;
 	}
 	default:
-		fprintf(stderr,"schema not supported %s:%d.\n",F,L);
-		return -1;
+	fprintf(stderr,"schema not supported %s:%d.\n",F,L);
+	return -1;
 	}
 	return 0;
 }
@@ -1506,7 +1563,7 @@ int schema_eq_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 	for(i = 0; i < sch->fields_num; i++){
 		for(j = 0; j < sch->fields_num; j++){
 			if(strncmp(names[j],sch->fields_name[i],strlen(names[j])) != 0) continue;
-				
+
 			if(sch->types[i] == -1){	
 				sch->types[i] = types_i[j];
 				count++;
@@ -1553,7 +1610,7 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 			size_t l = strlen(sch->fields_name[j]);
 			if(strlen(names[i]) != l) continue;
 			if(strncmp(names[i],sch->fields_name[j],l) != 0) continue;
-			
+
 			name_check++;
 			if(sch->types[j] == -1){ 
 				counter = SCHEMA_CT_NT;
@@ -1601,11 +1658,11 @@ int schema_nw_assyign_type(struct Schema *sch_d, char names[][MAX_FIELD_LT], int
 }
 
 unsigned char perform_checks_on_schema(int mode,char *buffer, 
-					int fields_count,
-					char *file_path, 
-					struct Record_f *rec, 
-					struct Header_d *hd,
-					int *pos)
+		int fields_count,
+		char *file_path, 
+		struct Record_f *rec, 
+		struct Header_d *hd,
+		int *pos)
 {
 
 	/* check if the schema on the file is equal to the input Schema.*/
