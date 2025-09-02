@@ -4,3 +4,4 @@
 *.so
 obj/
 rls
+log_info
