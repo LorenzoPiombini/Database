@@ -1088,7 +1088,8 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 {
 
 
-	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
+	char names[MAX_FIELD_NR][MAX_FIELD_LT];
+	memset(names,0,MAX_FIELD_LT*MAX_FIELD_NR);
 	int types_i[MAX_FIELD_NR];
 	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 
@@ -1096,7 +1097,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 	case NO_TYPE_DF:
 	{
 		if((fields_num = get_fields_name_with_no_type(buffer,names)) == -1) return 0;
-		/*check if the fields name are rorrect- if not - input is incorrect */
+		/*check if the fields name are correct- if not - input is incorrect */
 		int i;
 		for (i = 0; i < fields_num; i++) {
 
@@ -2750,6 +2751,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			break;
 		case TYPE_ARRAY_INT:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.i[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 						rec_old[i]->fields[index].data.v.elements.i[a] =
@@ -2759,6 +2771,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				break;
 			}else{
 				
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.i[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				/*
 				 * if the sizes of the two arrays are different,
 				 * simply we destroy the old one,
@@ -2781,6 +2804,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_LONG:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.l[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 						rec_old[i]->fields[index].data.v.elements.l[a] =
@@ -2795,6 +2829,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * and in the old record we create a new one we the data
 				 * of the new record
 				 * */
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.l[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 
@@ -2810,6 +2855,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_FLOAT:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.f[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.elements.f[a] =
@@ -2824,6 +2880,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * and in the old record we create a new one we the data
 				 * of the new record
 				 * */
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.f[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				rec_old[i]->fields[index].data.v.
 							destroy(&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
@@ -2831,7 +2898,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.
-						insert((void *)&rec->fields[index].data.v.elements.d[a],
+						insert((void *)&rec->fields[index].data.v.elements.f[a],
 							&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 				}
@@ -2840,6 +2907,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_DOUBLE:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.d[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.elements.d[a] =
@@ -2854,6 +2932,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * and in the old record we create a new one we the data
 				 * of the new record
 				 * */
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.d[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 
@@ -2922,6 +3011,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_STRING:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.s[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					cancel_memory(NULL,rec_old[i]->fields[index].data.v.elements.s[a],
@@ -2939,6 +3039,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				positions[i] = 'y';
 				break;
 			}else{
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.s[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				/*
 				 * if the sizes of the two arrays are different,
 				 * simply we destroy the old one,
