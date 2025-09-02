@@ -1076,8 +1076,15 @@ int main(int argc, char *argv[])
 						close_prog_memory();
 						return STATUS_ERROR;
 					}
+					case AAR:
+					case FRC:
+						fprintf(stderr,"option '%s' not valid for delete path,\n",option);
+						if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
+						close_file(3,fd_index,fd_data,fd_schema);
+						close_prog_memory();
+						return STATUS_ERROR;
 					default:
-						printf("options not valid.\n");
+						fprintf(stderr,"options not valid.\n");
 						if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
 						close_file(3,fd_index,fd_data,fd_schema);
 						close_prog_memory();
@@ -1201,8 +1208,13 @@ int main(int argc, char *argv[])
 			int check = 0;
 			int r = 0;
 			int option_value= -1;
-			if(option)
+			if(option){
 				option_value= convert_options(option);
+				if(option_value == -1){
+					fprintf(stderr,"option '%s' not valid\n",option);
+					goto clean_on_error_7;
+				}
+			}
 			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) {
 				fprintf(stderr,"(%s): schema different than file definition or worng syntax\n",prog);
 				goto clean_on_error_7;
@@ -1246,8 +1258,13 @@ int main(int argc, char *argv[])
 			int lock_f = 0;
 			int check = 0;
 			int option_value = -1;
-			if(option)
+			if(option){
 				option_value = convert_options(option);
+				if(option_value == -1){
+					fprintf(stderr,"option '%s' not valid\n",option);
+					goto clean_on_error_7;
+				}
+			}
 
 			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) goto clean_on_error;
 
