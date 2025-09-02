@@ -18,7 +18,8 @@ static char prog[] = "db";
 static int schema_check_type(int count,int mode,struct Schema *sch,
 			char names[][MAX_FILED_LT],
 			int *types_i,
-			char ***values);
+			char ***values,
+			int option);
 
 static int check_double_compatibility(struct Schema *sch, char ***values);
 
@@ -1088,7 +1089,8 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 {
 
 
-	char names[MAX_FIELD_NR][MAX_FIELD_LT] = {0};
+	char names[MAX_FIELD_NR][MAX_FIELD_LT];
+	memset(names,0,MAX_FIELD_LT*MAX_FIELD_NR);
 	int types_i[MAX_FIELD_NR];
 	memset(types_i,-1,sizeof(int)*MAX_FIELD_NR);
 
@@ -1096,7 +1098,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 	case NO_TYPE_DF:
 	{
 		if((fields_num = get_fields_name_with_no_type(buffer,names)) == -1) return 0;
-		/*check if the fields name are rorrect- if not - input is incorrect */
+		/*check if the fields name are correct- if not - input is incorrect */
 		int i;
 		for (i = 0; i < fields_num; i++) {
 
@@ -1260,7 +1262,8 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 static int schema_check_type(int count,int mode,struct Schema *sch,
 			char names[][MAX_FILED_LT],
 			int *types_i,
-			char ***values)
+			char ***values,
+			int option)
 {
 	int name_check = 0;
 	char *decimal = ".00";
@@ -1298,6 +1301,18 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					case TYPE_ARRAY_INT:
 					case TYPE_ARRAY_LONG:
 					{
+						if(sch->types[i] == TYPE_ARRAY_LONG && types_i[i] == TYPE_LONG && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						if(sch->types[i] == TYPE_ARRAY_INT && types_i[i] == TYPE_INT && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						if(sch->types[i] == TYPE_ARRAY_BYTE && types_i[i] == TYPE_BYTE && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
 						char *p = NULL;
 						int index = 0;
 						while((p = strstr((*values)[i],","))){
@@ -1344,7 +1359,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 							}else if(sch->types[i] == TYPE_ARRAY_BYTE){
 								/*
 								 * type byte is a number stored in 
-								 * exactly 1 byte so it can't be bigger 
+								 * exactly 1 byte(unsigned) so it can't be bigger 
 								 * than 2^7 * 2 (it can't be negative)
 								 *  
 								 * */
@@ -1359,6 +1374,22 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						types_i[i] = sch->types[i];
 						replace('@',',',(*values)[i]);
 						break;
+					}
+					case TYPE_ARRAY_DOUBLE:
+					{
+						if(types_i[i] == TYPE_DOUBLE && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						return -1;
+					}
+					case TYPE_ARRAY_FLOAT:
+					{
+						if(types_i[i] == TYPE_FLOAT && option == AAR){
+							types_i[i] = sch->types[i];
+							break;
+						}
+						return -1;
 					}
 					default:
 						return -1;
@@ -1417,71 +1448,100 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						}
 					}else if(is_number_array(sch->types[j])){
 						switch(sch->types[j]){
-							case TYPE_ARRAY_INT:
-							case TYPE_ARRAY_BYTE:
-							case TYPE_ARRAY_LONG:
-								{
-									char *p = NULL;
-									int index = 0;
-									while((p = strstr((*values)[j],","))){
-										*p ='@';
-										if(index == 0){
-											index = p - (*values)[j];
-											size_t sz = index == 1 ? (index + 1) : index;	
-											char num[sz];
-											memset(num,0,sz);
-											strncpy(num,(*values)[j],sz-1);
-											if(!is_integer(num)) return -1;
-											int result = 0;
-											if((result = is_number_in_limits(num)) == 0)
-												return -1;
-											if(sch->types[j] == TYPE_ARRAY_INT){
-												if(result == IN_INT) continue;
-												return -1;
-											}else if(sch->types[j] == TYPE_ARRAY_LONG){
-												if(result == IN_INT || result == IN_LONG)
-													continue;
-
-												return -1;
-											}
-											continue;
-										}
-										int start = index;
-										index = p - (*values)[j];
-										size_t sz = index-start;
-										if(sz == 1) sz++;
-										char num[sz];
-										memset(num,0,sz);
-										strncpy(num,&(*values)[j][start+1],sz-1);
-										if(!is_integer(num)) return -1;
-										int result = 0;
-										if((result = is_number_in_limits(num)) == 0)
-											return -1;
-										if(sch->types[j] == TYPE_ARRAY_INT){
-											if(result == IN_INT) continue;
-											return -1;
-										}else if(sch->types[j] == TYPE_ARRAY_LONG){
-											if(result == IN_INT || result == IN_LONG)
-												continue;
-
-											return -1;
-										}else if(sch->types[j] == TYPE_ARRAY_BYTE){
-											errno = 0;
-											long l = string_to_long(num);
-											if(errno == 0){ 
-												if(l > UCHAR_MAX)return -1;
-												if(l < 0)return -1;
-											}
-											continue;
-										}
-									}
-									types_i[j] = sch->types[j];
-									replace('@',',',(*values)[j]);
-									break;
-								}
-
-							default:
+						case TYPE_ARRAY_INT:
+						case TYPE_ARRAY_BYTE:
+						case TYPE_ARRAY_LONG:
+						{
+							if(sch->types[j] == TYPE_ARRAY_LONG && types_i[j] == TYPE_LONG && option == AAR){
+								types_i[j] = sch->types[j];
 								break;
+							}
+							if(sch->types[j] == TYPE_ARRAY_INT && types_i[j] == TYPE_INT && option == AAR){
+								types_i[j] = sch->types[j];
+								break;
+							}
+							if(sch->types[j] == TYPE_ARRAY_BYTE && types_i[j] == TYPE_BYTE && option == AAR){
+								types_i[j] = sch->types[j];
+								break;
+							}
+
+							char *p = NULL;
+							int index = 0;
+							while((p = strstr((*values)[j],","))){
+								*p ='@';
+								if(index == 0){
+									index = p - (*values)[j];
+									size_t sz = index == 1 ? (index + 1) : index;	
+									char num[sz];
+									memset(num,0,sz);
+									strncpy(num,(*values)[j],sz-1);
+									if(!is_integer(num)) return -1;
+									int result = 0;
+									if((result = is_number_in_limits(num)) == 0)
+										return -1;
+									if(sch->types[j] == TYPE_ARRAY_INT){
+										if(result == IN_INT) continue;
+										return -1;
+									}else if(sch->types[j] == TYPE_ARRAY_LONG){
+										if(result == IN_INT || result == IN_LONG)
+											continue;
+
+										return -1;
+									}
+									continue;
+								}
+								int start = index;
+								index = p - (*values)[j];
+								size_t sz = index-start;
+								if(sz == 1) sz++;
+								char num[sz];
+								memset(num,0,sz);
+								strncpy(num,&(*values)[j][start+1],sz-1);
+								if(!is_integer(num)) return -1;
+								int result = 0;
+								if((result = is_number_in_limits(num)) == 0)
+									return -1;
+								if(sch->types[j] == TYPE_ARRAY_INT){
+									if(result == IN_INT) continue;
+									return -1;
+								}else if(sch->types[j] == TYPE_ARRAY_LONG){
+									if(result == IN_INT || result == IN_LONG)
+										continue;
+
+									return -1;
+								}else if(sch->types[j] == TYPE_ARRAY_BYTE){
+									errno = 0;
+									long l = string_to_long(num);
+									if(errno == 0){ 
+										if(l > UCHAR_MAX)return -1;
+										if(l < 0)return -1;
+									}
+									continue;
+								}
+							}
+							types_i[j] = sch->types[j];
+							replace('@',',',(*values)[j]);
+							break;
+						}
+
+						case TYPE_ARRAY_DOUBLE:
+						{
+							if(types_i[j] == TYPE_DOUBLE && option == AAR){
+								types_i[j] = sch->types[j];
+								break;
+							}
+							return -1;
+						}
+						case TYPE_ARRAY_FLOAT:
+						{
+							if(types_i[j] == TYPE_FLOAT && option == AAR){
+								types_i[j] = sch->types[j];
+								break;
+							}
+							return -1;
+						}
+						default:
+						break;
 						}
 						continue;
 					}
@@ -1493,8 +1553,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 		break;
 	}
 	default:
-		fprintf(stderr,"schema not supported %s:%d.\n",F,L);
-		return -1;
+	fprintf(stderr,"schema not supported %s:%d.\n",F,L);
+	return -1;
 	}
 	return 0;
 }
@@ -1505,7 +1565,7 @@ int schema_eq_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 	for(i = 0; i < sch->fields_num; i++){
 		for(j = 0; j < sch->fields_num; j++){
 			if(strncmp(names[j],sch->fields_name[i],strlen(names[j])) != 0) continue;
-				
+
 			if(sch->types[i] == -1){	
 				sch->types[i] = types_i[j];
 				count++;
@@ -1552,7 +1612,7 @@ int schema_ct_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 			size_t l = strlen(sch->fields_name[j]);
 			if(strlen(names[i]) != l) continue;
 			if(strncmp(names[i],sch->fields_name[j],l) != 0) continue;
-			
+
 			name_check++;
 			if(sch->types[j] == -1){ 
 				counter = SCHEMA_CT_NT;
@@ -1600,11 +1660,12 @@ int schema_nw_assyign_type(struct Schema *sch_d, char names[][MAX_FIELD_LT], int
 }
 
 unsigned char perform_checks_on_schema(int mode,char *buffer, 
-					int fields_count,
-					char *file_path, 
-					struct Record_f *rec, 
-					struct Header_d *hd,
-					int *pos)
+		int fields_count,
+		char *file_path, 
+		struct Record_f *rec, 
+		struct Header_d *hd,
+		int *pos,
+		int option)
 {
 
 	/* check if the schema on the file is equal to the input Schema.*/
@@ -1768,7 +1829,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					goto clean_on_error;
 				}
 
-				if(schema_check_type(count, SCHEMA_EQ,hd->sch_d,names,types_i,&values) == -1 ){
+				if(schema_check_type(count, SCHEMA_EQ,hd->sch_d,names,types_i,&values,option) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -1806,7 +1867,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 
 				sorted  = 1;
 				int result = 0;
-				if((result = schema_check_type(count, SCHEMA_CT,hd->sch_d,names,types_i,&values)) == -1 ){
+				if((result = schema_check_type(count, SCHEMA_CT,hd->sch_d,names,types_i,&values,option)) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -1917,7 +1978,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					}
 				}
 				
-				if(schema_check_type(fields_count, SCHEMA_EQ,hd->sch_d,names,types_i,&values) == -1 ){
+				if(schema_check_type(fields_count, SCHEMA_EQ,hd->sch_d,names,types_i,&values,option) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -1932,7 +1993,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 				}
 					
 				sorted  = 1;
-				if(schema_check_type(fields_count, SCHEMA_CT,hd->sch_d,names,types_i,&values) == -1 ){
+				if(schema_check_type(fields_count, SCHEMA_CT,hd->sch_d,names,types_i,&values,option) == -1 ){
 					err = SCHEMA_ERR;
 					goto clean_on_error;
 				}
@@ -2193,7 +2254,10 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 	return err;	
 }
 
-unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec, unsigned char check) 
+unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
+		struct Record_f *rec, 
+		unsigned char check,
+		int option)
 {
 	int changed = 0;
 	int update_new = 0;
@@ -2260,6 +2324,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					break;
 				case TYPE_ARRAY_INT:
 				{
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.i[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
 						/*check values*/
 						int a;
@@ -2282,6 +2356,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_ARRAY_LONG:
 				{
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.l[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
 						/*check values*/
 						int a;
@@ -2303,6 +2387,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_ARRAY_FLOAT:
 				{
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.f[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
+
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
 						/*check values*/
 						int a;
@@ -2324,6 +2419,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_ARRAY_BYTE:
 				{
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.b[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size) {
 						/*check values*/
 						int a;
@@ -2345,6 +2450,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_ARRAY_STRING:
 				{
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.s[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
 						/*check values*/
 						int a;
@@ -2377,6 +2492,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 				}
 				case TYPE_ARRAY_DOUBLE:
 				{
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.d[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
 						/*check values*/
 						int a;
@@ -2400,9 +2525,37 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					if(!rec_old[0]->fields[j].data.file.recs && rec_old[0]->fields[j].data.file.recs) {
 						update_new = 1;
 					}
+
+					if(option == AAR){
+						size_t n_size = rec_old[0]->fields[j].data.file.count + rec->fields[j].data.file.count;
+
+						struct Record_f *n_recs = (struct Record_f*)reask_mem(
+								rec_old[0]->fields[j].data.file.recs,
+								sizeof(struct Record_f) * rec_old[0]->fields[j].data.file.count,
+								n_size * sizeof(struct Record_f));
+						if(!n_recs){
+							fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
+							return -1;
+						}
+
+						rec_old[0]->fields[j].data.file.recs = n_recs;
+						rec_old[0]->fields[j].data.file.count = n_size;
+						rec_old[0]->field_set[j] = 1;
+						uint32_t k,t;
+						for(t = 0,k = rec->fields[0].data.file.count;
+								k < rec_old[0]->fields[j].data.file.count; 
+								k++,t++){
+							memcpy(&rec_old[0]->fields[j].data.file.recs[k],
+									&rec->fields[j].data.file.recs[t],
+									sizeof(struct Record_f));
+
+							}
+						break;
+					}
+
 					if(rec_old[0]->fields[j].data.file.count == rec->fields[j].data.file.count) {
 						if(rec_old[0]->fields[j].data.file.count == 1){
-						/*zero out the old record*/
+							/*zero out the old record*/
 							memset(rec_old[0]->fields[j].data.file.recs,0,sizeof(struct Record_f));
 							memcpy(&rec_old[0]->fields[j].data.file.recs[0],
 									&rec->fields[j].data.file.recs[0],sizeof(struct Record_f));
@@ -2436,8 +2589,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 					break;
 				}
 				default:
-					printf("invalid type! type -> %d.\n", rec->fields[j].type);
-					return 0;
+				printf("invalid type! type -> %d.\n", rec->fields[j].type);
+				return 0;
 				}
 			}
 		}
@@ -2453,7 +2606,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 	}
 
 
-	
+
 	changed = 0;
 	int i;
 	for (i = 0; i < rec_old[0]->fields_num; i++){
@@ -2467,207 +2620,273 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Recor
 			rec->field_set[i] = 0;
 
 			switch (rec_old[0]->fields[i].type){
-			case -1:
-				break;
-			case TYPE_INT:
-				if (rec_old[0]->fields[i].data.i != rec->fields[i].data.i){
-					changed = 1;
-					rec_old[0]->fields[i].data.i = rec->fields[i].data.i;
-				}
-				break;
-			case TYPE_LONG:
-				if (rec_old[0]->fields[i].data.l != rec->fields[i].data.l){
-					changed = 1;
-					rec_old[0]->fields[i].data.l = rec->fields[i].data.l;
-		 		}
-				break;
-			case TYPE_FLOAT:
-				if (rec_old[0]->fields[i].data.f != rec->fields[i].data.f){
-					changed = 1;
-					rec_old[0]->fields[i].data.f = rec->fields[i].data.f;
-			  	}
-				break;
-			case TYPE_STRING:
-				if (strcmp(rec_old[0]->fields[i].data.s, rec->fields[i].data.s) != 0)
-				{
-					/*free memory before allocating other memory*/
-					if (rec_old[0]->fields[i].data.s != NULL) {
-						char *p =rec_old[0]->fields[i].data.s; 
-						cancel_memory(NULL,p,strlen(p)+1);
-						rec_old[0]->fields[i].data.s = NULL;
+				case -1:
+					break;
+				case TYPE_INT:
+					if (rec_old[0]->fields[i].data.i != rec->fields[i].data.i){
+						changed = 1;
+						rec_old[0]->fields[i].data.i = rec->fields[i].data.i;
 					}
+					break;
+				case TYPE_LONG:
+					if (rec_old[0]->fields[i].data.l != rec->fields[i].data.l){
+						changed = 1;
+						rec_old[0]->fields[i].data.l = rec->fields[i].data.l;
+					}
+					break;
+				case TYPE_FLOAT:
+					if (rec_old[0]->fields[i].data.f != rec->fields[i].data.f){
+						changed = 1;
+						rec_old[0]->fields[i].data.f = rec->fields[i].data.f;
+					}
+					break;
+				case TYPE_STRING:
+					if (strcmp(rec_old[0]->fields[i].data.s, rec->fields[i].data.s) != 0)
+					{
+						/*free memory before allocating other memory*/
+						if (rec_old[0]->fields[i].data.s != NULL) {
+							char *p =rec_old[0]->fields[i].data.s; 
+							cancel_memory(NULL,p,strlen(p)+1);
+							rec_old[0]->fields[i].data.s = NULL;
+						}
 
-					rec_old[0]->fields[i].data.s = duplicate_str(rec->fields[i].data.s);
-					changed = 1;
-				}
-				break;
-			case TYPE_BYTE:
-				if (rec_old[0]->fields[i].data.b != rec->fields[i].data.b){
-					rec_old[0]->fields[i].data.b = rec->fields[i].data.b;
-					changed = 1;
-				}
-				break;
-			case TYPE_DOUBLE:
-				if (rec_old[0]->fields[i].data.d != rec->fields[i].data.d){
-					changed = 1;
-					rec_old[0]->fields[i].data.d = rec->fields[i].data.d;
-				}
-				break;
-			case TYPE_ARRAY_INT:
-			{
-				if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
-				{
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (rec_old[0]->fields[i].data.v.elements.i[a] == rec->fields[i].data.v.elements.i[a])
-							continue;
-
-						rec_old[0]->fields[i].data.v.elements.i[a] = rec->fields[i].data.v.elements.i[a];
+						rec_old[0]->fields[i].data.s = duplicate_str(rec->fields[i].data.s);
 						changed = 1;
 					}
-				}else{
-					
-					changed = 1;
-					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					int a;
-					for (a = 0; a < rec->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.i[a],
-								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+					break;
+				case TYPE_BYTE:
+					if (rec_old[0]->fields[i].data.b != rec->fields[i].data.b){
+						rec_old[0]->fields[i].data.b = rec->fields[i].data.b;
+						changed = 1;
 					}
-				}
-				break;
-			}
-			case TYPE_ARRAY_LONG:
-			{
-				if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (rec_old[0]->fields[i].data.v.elements.l[a] == rec->fields[i].data.v.elements.l[a])continue;
-
-						rec_old[0]->fields[i].data.v.elements.l[a] = rec->fields[i].data.v.elements.l[a];
+					break;
+				case TYPE_DOUBLE:
+					if (rec_old[0]->fields[i].data.d != rec->fields[i].data.d){
+						changed = 1;
+						rec_old[0]->fields[i].data.d = rec->fields[i].data.d;
 					}
-				}
-				else{
-					changed = 1;
-					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					int a;
-					for (a = 0; a < rec->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.l[a],
-								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					}
-				}
-				break;
-			}
-			case TYPE_ARRAY_FLOAT:
-			{
-				if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
-				{
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (rec_old[0]->fields[i].data.v.elements.f[a] == rec->fields[i].data.v.elements.f[a])continue;
-
-						rec_old[0]->fields[i].data.v.elements.f[a] = rec->fields[i].data.v.elements.f[a];
-					changed = 1;
-					}
-				}else{
-					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					int a;
-					for (a = 0; a < rec->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.f[a],
-									&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					}
-				}
-				break;
-			}
-			case TYPE_ARRAY_BYTE:
-			{
-				if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
-				{
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (rec_old[0]->fields[i].data.v.elements.b[a] == rec->fields[i].data.v.elements.b[a])
-							continue;
-						rec_old[0]->fields[i].data.v.elements.b[a] = rec->fields[i].data.v.elements.b[a];
-					changed = 1;
-					}
-				}
-				else{
-					changed = 1;
-					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					int a;
-					for (a = 0; a < rec->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.b[a],
-								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					}
-				}
-				break;
-			}
-			case TYPE_ARRAY_STRING:
-			{
-				if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-						if (strcmp(rec_old[0]->fields[i].data.v.elements.s[a], rec->fields[i].data.v.elements.s[a]) != 0){
-							/* free memory before allocating other memory */
-							if (rec_old[0]->fields[i].data.v.elements.s[a] != NULL){
-								cancel_memory(NULL,
-										rec_old[0]->fields[i].data.v.elements.s[a],
-										strlen(rec_old[0]->fields[i].data.v.elements.s[a])+1);
-
-									rec_old[0]->fields[i].data.v.elements.s[a] = NULL;
+					break;
+				case TYPE_ARRAY_INT:
+					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.i[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
 							}
-
-							rec_old[0]->fields[i].data.v.elements.s[a] = duplicate_str(rec->fields[i].data.v.elements.s[a]);
-							if (!rec_old[0]->fields[i].data.v.elements.s[a]){
-								fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
-								return 0;
-							}
-					changed = 1;
+							changed = 1;
+							break;
 						}
-					}
-				}else{
-					changed = 1;
-					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					int a;
-					for (a = 0; a < rec->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.s[a],
-							&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					}
-				}
-				break;
-			}
-			case TYPE_ARRAY_DOUBLE:
-			{
-				if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
-							if (rec_old[0]->fields[i].data.v.elements.d[a] == rec->fields[i].data.v.elements.d[a])continue;
+						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
+						{
+							/*check values*/
+							int a;
+							for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+								if (rec_old[0]->fields[i].data.v.elements.i[a] == rec->fields[i].data.v.elements.i[a])
+									continue;
 
-							rec_old[0]->fields[i].data.v.elements.d[a] = rec->fields[i].data.v.elements.d[a];
-					changed = 1;
+								rec_old[0]->fields[i].data.v.elements.i[a] = rec->fields[i].data.v.elements.i[a];
+								changed = 1;
+							}
+						}else{
+
+							changed = 1;
+							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++){
+								rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.i[a],
+										&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							}
+						}
+						break;
 					}
-				}else{
-					rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
-					int a;
-					for (a = 0; a < rec->fields[i].data.v.size; a++){
-						rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.d[a],
-								&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+				case TYPE_ARRAY_LONG:
+					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.l[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
+						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
+							/*check values*/
+							int a;
+							for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+								if (rec_old[0]->fields[i].data.v.elements.l[a] == rec->fields[i].data.v.elements.l[a])continue;
+
+								rec_old[0]->fields[i].data.v.elements.l[a] = rec->fields[i].data.v.elements.l[a];
+							}
+						}
+						else{
+							changed = 1;
+							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++){
+								rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.l[a],
+										&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							}
+						}
+						break;
 					}
-					changed = 1;
-				}
-				break;
-			}
-			case TYPE_FILE:
-			{	
-				if (!rec_old[0]->fields[i].data.file.recs || rec_old[0]->fields[i].data.file.count == 0){ 
-					if (!changed) update_new = 1;
-				}
+				case TYPE_ARRAY_FLOAT:
+					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.f[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
+						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
+						{
+							/*check values*/
+							int a;
+							for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+								if (rec_old[0]->fields[i].data.v.elements.f[a] == rec->fields[i].data.v.elements.f[a])continue;
+
+								rec_old[0]->fields[i].data.v.elements.f[a] = rec->fields[i].data.v.elements.f[a];
+								changed = 1;
+							}
+						}else{
+							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++){
+								rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.f[a],
+										&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							}
+						}
+						break;
+					}
+				case TYPE_ARRAY_BYTE:
+					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.b[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
+						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
+						{
+							/*check values*/
+							int a;
+							for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+								if (rec_old[0]->fields[i].data.v.elements.b[a] == rec->fields[i].data.v.elements.b[a])
+									continue;
+								rec_old[0]->fields[i].data.v.elements.b[a] = rec->fields[i].data.v.elements.b[a];
+								changed = 1;
+							}
+						}
+						else{
+							changed = 1;
+							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++){
+								rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.b[a],
+										&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							}
+						}
+						break;
+					}
+				case TYPE_ARRAY_STRING:
+					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.s[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
+						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
+							/*check values*/
+							int a;
+							for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+								if (strcmp(rec_old[0]->fields[i].data.v.elements.s[a], rec->fields[i].data.v.elements.s[a]) != 0){
+									/* free memory before allocating other memory */
+									if (rec_old[0]->fields[i].data.v.elements.s[a] != NULL){
+										cancel_memory(NULL,
+												rec_old[0]->fields[i].data.v.elements.s[a],
+												strlen(rec_old[0]->fields[i].data.v.elements.s[a])+1);
+
+										rec_old[0]->fields[i].data.v.elements.s[a] = NULL;
+									}
+
+									rec_old[0]->fields[i].data.v.elements.s[a] = duplicate_str(rec->fields[i].data.v.elements.s[a]);
+									if (!rec_old[0]->fields[i].data.v.elements.s[a]){
+										fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
+										return 0;
+									}
+									changed = 1;
+								}
+							}
+						}else{
+							changed = 1;
+							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++){
+								rec_old[0]->fields[i].data.v.insert((void *)rec->fields[i].data.v.elements.s[a],
+										&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							}
+						}
+						break;
+					}
+				case TYPE_ARRAY_DOUBLE:
+					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.d[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
+						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
+							/*check values*/
+							int a;
+							for (a = 0; a < rec_old[0]->fields[i].data.v.size; a++){
+								if (rec_old[0]->fields[i].data.v.elements.d[a] == rec->fields[i].data.v.elements.d[a])continue;
+
+								rec_old[0]->fields[i].data.v.elements.d[a] = rec->fields[i].data.v.elements.d[a];
+								changed = 1;
+							}
+						}else{
+							rec_old[0]->fields[i].data.v.destroy(&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++){
+								rec_old[0]->fields[i].data.v.insert((void *)&rec->fields[i].data.v.elements.d[a],
+										&rec_old[0]->fields[i].data.v, rec->fields[i].type);
+							}
+							changed = 1;
+						}
+						break;
+					}
+				case TYPE_FILE:
+					{	
+						if (!rec_old[0]->fields[i].data.file.recs || rec_old[0]->fields[i].data.file.count == 0){ 
+							if (!changed) update_new = 1;
+						}
 
 				break;
 			}
@@ -2750,6 +2969,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			break;
 		case TYPE_ARRAY_INT:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.i[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 						rec_old[i]->fields[index].data.v.elements.i[a] =
@@ -2759,6 +2989,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				break;
 			}else{
 				
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.i[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				/*
 				 * if the sizes of the two arrays are different,
 				 * simply we destroy the old one,
@@ -2781,6 +3022,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_LONG:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.l[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 						rec_old[i]->fields[index].data.v.elements.l[a] =
@@ -2795,6 +3047,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * and in the old record we create a new one we the data
 				 * of the new record
 				 * */
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.l[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 
@@ -2810,6 +3073,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_FLOAT:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.f[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.elements.f[a] =
@@ -2824,6 +3098,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * and in the old record we create a new one we the data
 				 * of the new record
 				 * */
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.f[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				rec_old[i]->fields[index].data.v.
 							destroy(&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
@@ -2831,7 +3116,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.
-						insert((void *)&rec->fields[index].data.v.elements.d[a],
+						insert((void *)&rec->fields[index].data.v.elements.f[a],
 							&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 				}
@@ -2840,6 +3125,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_DOUBLE:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.d[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					rec_old[i]->fields[index].data.v.elements.d[a] =
@@ -2854,6 +3150,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * and in the old record we create a new one we the data
 				 * of the new record
 				 * */
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.d[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, 
 							rec->fields[index].type);
 
@@ -2922,6 +3229,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 		case TYPE_ARRAY_STRING:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.s[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					cancel_memory(NULL,rec_old[i]->fields[index].data.v.elements.s[a],
@@ -2939,6 +3257,17 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				positions[i] = 'y';
 				break;
 			}else{
+				if(option == AAR){
+					int a;
+					for (a = 0; a < rec->fields[index].data.v.size; a++) {
+						rec_old[i]->fields[index].data.v.
+							insert((void *)&rec->fields[index].data.v.elements.s[a],
+									&rec_old[i]->fields[index].data.v, 
+									rec->fields[index].type);
+					}
+					positions[i] = 'y';
+					break;
+				}
 				/*
 				 * if the sizes of the two arrays are different,
 				 * simply we destroy the old one,

@@ -153,7 +153,8 @@ int check_data(char *file_path,char *data_to_add,
 		char files[][MAX_FILE_PATH_LENGTH], 
 		struct Record_f *rec,
 		struct Header_d *hd,
-		int *lock_f)
+		int *lock_f,
+		int option)
 {
 	int fields_count = 0;
 	unsigned char check = 0;
@@ -189,11 +190,11 @@ int check_data(char *file_path,char *data_to_add,
 			return STATUS_ERROR;
 		}
 
-		check = perform_checks_on_schema(mode,data_to_add, fields_count,file_path, rec, hd,pos);
+		check = perform_checks_on_schema(mode,data_to_add, fields_count,file_path, rec, hd,pos,option);
 
 	} else {
 			
-		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd, pos);
+		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd, pos,option);
 	}
 
 	if (check == SCHEMA_ERR || check == 0) return STATUS_ERROR;
@@ -550,7 +551,11 @@ int update_rec(char *file_path,
 	} /*end of if(update_pos > 0) */
 
 	/*updated_rec_pos is 0, THE RECORD IS ALL IN ONE PLACE */
-	unsigned char comp_rr = compare_old_rec_update_rec(recs, rec, check);
+	int op = -1;
+	if(options)
+		op = convert_options(options);
+
+	unsigned char comp_rr = compare_old_rec_update_rec(recs, rec, check,op);
 	if (comp_rr == 0) {
 		fprintf(stderr,"(%s):compare records failed, %s:%d.\n",prog, F, L -2);
 		goto clean_on_error;

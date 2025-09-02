@@ -20,7 +20,8 @@ unsigned char perform_checks_on_schema(int mode, char *buffer,
 					char *file_path, 
 					struct Record_f *rec, 
 					struct Header_d *hd,
-					int *pos);
+					int *pos,
+					int option);
 
 int parse_input_with_no_type(char *file_path, int fields_num, 
 							char names[][MAX_FIELD_LT], 
@@ -46,7 +47,7 @@ int sort_input_like_header_schema(int schema_tp,
 unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd, int fields_num);
 unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struct Schema *sch);
 int create_file_definition_with_no_value(int mode, int fields_num, char *buffer, struct Schema *sch);
-unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec,unsigned char check);
+unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec,unsigned char check,int option);
 
 void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec,int option);
 void print_schema(struct Schema sch);

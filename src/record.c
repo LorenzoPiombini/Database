@@ -599,7 +599,7 @@ unsigned char set_field(struct Record_f *rec,
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
-								&hd,NULL);
+								&hd,NULL,-1);
 
 						}else{
 							int new_count = rec->fields[index].data.file.count + 1;
@@ -622,7 +622,7 @@ unsigned char set_field(struct Record_f *rec,
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
 									rec->fields[index].field_name,
 									&rec->fields[index].data.file.recs[new_count-1],
-									&hd,NULL);
+									&hd,NULL,-1);
 						}
 					}else{
 						if(!rec->fields[index].data.file.recs){
@@ -635,7 +635,7 @@ unsigned char set_field(struct Record_f *rec,
 							check = perform_checks_on_schema(mode,&values[i][2], -1,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
-								&hd,NULL);
+								&hd,NULL,-1);
 
 						}else{
 							int new_count = rec->fields[index].data.file.count + 1;
@@ -656,7 +656,7 @@ unsigned char set_field(struct Record_f *rec,
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
 									rec->fields[index].field_name,
 									&rec->fields[index].data.file.recs[new_count-1],
-									&hd,NULL);
+									&hd,NULL,-1);
 						}
 
 					}
@@ -734,7 +734,7 @@ unsigned char set_field(struct Record_f *rec,
 						check = perform_checks_on_schema(mode,&value[2], fields_count,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
-								&hd,NULL);
+								&hd,NULL,-1);
 					}
 				} else {
 					if(!rec->fields[index].data.file.recs){
@@ -746,7 +746,7 @@ unsigned char set_field(struct Record_f *rec,
 						}
 						check = perform_checks_on_schema(mode,&value[2], -1,rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
-								&hd,NULL);
+								&hd,NULL,-1);
 
 					}
 
