@@ -7761,7 +7761,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 				int j;
 				for(j = 0; j < rec->fields[i].data.v.size; j++){
-					arr[j] = swap32(rec->fields[i].data.v.elements.b[j]);
+					arr[j] = rec->fields[i].data.v.elements.b[j];
 				} 
 
 				memcpy(&ram->mem[ram->size],arr,sizeof(uint8_t) * rec->fields[i].data.v.size);
@@ -7835,7 +7835,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						while(sz){
 							if(step < rec->fields[i].data.v.size){
-								uint8_t num_ne = swap32(rec->fields[i].data.v.elements.b[step]);
+								uint8_t num_ne = rec->fields[i].data.v.elements.b[step];
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint8_t));
 								ram->offset += sizeof(uint8_t);
 								step++;
@@ -7889,9 +7889,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							}
 
 							if(step < rec->fields[i].data.v.size){
-								if(!rec->fields[i].data.v.elements.i[step]) continue;
-
-								uint32_t num_ne = swap32(rec->fields[i].data.v.elements.b[step]);
+								uint8_t num_ne = rec->fields[i].data.v.elements.b[step];
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint8_t));
 								ram->offset += sizeof(uint8_t);
 
@@ -7901,7 +7899,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						}
 
 						if(exit){
-							if(padding > 0) ram->offset += (padding * sizeof(int));
+							if(padding > 0) ram->offset += (padding * sizeof(uint8_t));
 
 							uint64_t up_pos_ne = 0;
 							memcpy(&ram->mem[ram->offset],&up_pos_ne,sizeof(uint64_t));
@@ -7910,7 +7908,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						}
 					}
 
-					if(padding > 0) ram->offset += (sizeof(int) * padding);
+					if(padding > 0) ram->offset += (sizeof(uint8_t) * padding);
 
 					uint64_t update_off_ne = 0;
 					off_t go_back_to = ram->offset;
@@ -7972,9 +7970,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						uint32_t j;
 						for(j = 0; j < size_left; j++){
 							if(step < rec->fields[i].data.v.size){
-								if(!rec->fields[i].data.v.elements.i[step]) continue;
 
-								uint8_t num_ne = swap32(rec->fields[i].data.v.elements.b[step]);
+								uint8_t num_ne = rec->fields[i].data.v.elements.b[step];
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint8_t));
 								ram->size += sizeof(uint8_t);
 								ram->offset = ram->size;
@@ -7992,8 +7989,6 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						update_off_ne = swap64((uint64_t)update_pos);
 						memcpy(&ram->mem[ram->offset],&update_off_ne,sizeof(uint64_t));
 						ram->offset += sizeof(uint64_t);
-
-						
 						break;
 					}
 
@@ -8017,9 +8012,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					int j;
 					for(j = step; j < rec->fields[i].data.v.size; j++){
 						if(step < rec->fields[i].data.v.size){
-							if(!rec->fields[i].data.v.elements.i[j]) continue;
 
-							uint8_t num_ne = swap32(rec->fields[i].data.v.elements.b[j]);
+							uint8_t num_ne = rec->fields[i].data.v.elements.b[j];
 							memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint8_t));
 							ram->offset += sizeof(uint8_t);
 							step++;
@@ -8054,7 +8048,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						for(j = 0; j < rec->fields[i].data.v.size; j++){
 							if(step < rec->fields[i].data.v.size){
 
-								uint8_t num_ne = swap32(rec->fields[i].data.v.elements.b[step]);
+								uint8_t num_ne = rec->fields[i].data.v.elements.b[step];
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint8_t));
 								ram->offset += sizeof(uint8_t);
 								step++;

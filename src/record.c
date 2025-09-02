@@ -2259,6 +2259,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			return -1;
 		}
 
+		(*v).size = new_size;
 		(*v).elements.b = elements_new;
 		((*v).elements.b[(*v).size - 1]) = *(unsigned char *)element;
 		return 0;
