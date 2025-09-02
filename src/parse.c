@@ -1377,7 +1377,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					}
 					case TYPE_ARRAY_DOUBLE:
 					{
-						if(types_i[i] == TYPE_DOUBLE && option == AAR){
+						if(types_i[i] == TYPE_DOUBLE && (option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
