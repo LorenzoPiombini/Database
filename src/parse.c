@@ -2668,6 +2668,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					break;
 				case TYPE_ARRAY_INT:
 					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.i[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
 						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
 						{
 							/*check values*/
@@ -2693,6 +2704,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 				case TYPE_ARRAY_LONG:
 					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.l[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
 						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
 							/*check values*/
 							int a;
@@ -2715,6 +2737,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 				case TYPE_ARRAY_FLOAT:
 					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.f[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
 						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
 						{
 							/*check values*/
@@ -2737,6 +2770,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 				case TYPE_ARRAY_BYTE:
 					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.b[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
 						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size)
 						{
 							/*check values*/
@@ -2761,6 +2805,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 				case TYPE_ARRAY_STRING:
 					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.s[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
 						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
 							/*check values*/
 							int a;
@@ -2796,6 +2851,17 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 				case TYPE_ARRAY_DOUBLE:
 					{
+						if(option == AAR){
+							int a;
+							for (a = 0; a < rec->fields[i].data.v.size; a++) {
+								rec_old[0]->fields[i].data.v.
+									insert((void *)&rec->fields[i].data.v.elements.d[a],
+											&rec_old[0]->fields[i].data.v, 
+											rec->fields[i].type);
+							}
+							changed = 1;
+							break;
+						}
 						if (rec_old[0]->fields[i].data.v.size == rec->fields[i].data.v.size){
 							/*check values*/
 							int a;
