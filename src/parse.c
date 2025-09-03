@@ -1473,7 +1473,9 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 
 							char *p = NULL;
 							int index = 0;
+							int8_t is_array = 0;
 							while((p = strstr((*values)[j],","))){
+								is_array = 1;
 								*p ='@';
 								if(index == 0){
 									index = p - (*values)[j];
@@ -1525,6 +1527,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 									continue;
 								}
 							}
+
+							if(!is_array) return -1;
 							types_i[j] = sch->types[j];
 							replace('@',',',(*values)[j]);
 							break;

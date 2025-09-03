@@ -243,7 +243,7 @@ $(BINDIR)/DELa:
 
 install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/hash_tbl.h include/file.h include/str_op.h include/record.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
+	install -m 644 include/hash_tbl.h include/file.h include/str_op.h include/record.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)

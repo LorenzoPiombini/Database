@@ -7722,7 +7722,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						padding = (int)swap32(pd_ne);
 						
 						int j;
-						for(j = 0; k < rec->fields[i].data.v.size; j++){
+						for(j = 0; j < rec->fields[i].data.v.size; j++){
 							if(step < rec->fields[i].data.v.size){
 								uint64_t num_ne = swap64(rec->fields[i].data.v.elements.l[step]);
 								memcpy(&ram->mem[ram->offset],&num_ne,sizeof(uint64_t));

@@ -85,12 +85,12 @@ int load_resource(struct Request *req, struct Content *cont)
 				struct Record_f rec = {0};
 				struct Schema sch = {0};
 				memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-				struct Header_d hd = {0, 0, sch};
+				struct Header_d hd = {0, 0, &sch};
 
 
 				if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) exit(-1);
 				if(is_db_file(&hd,fds) == -1) goto post_exit_error; 
-				if(check_data(SALES_ORDERS_H,orders_head,fds,files,&rec,&hd,&lock_f) == -1) goto post_exit_error;
+				if(check_data(SALES_ORDERS_H,orders_head,fds,files,&rec,&hd,&lock_f,-1) == -1) goto post_exit_error;
 				uint32_t key = generate_numeric_key(fds,NEW_SORD);
 				if(!key) return -1; 
 				if(write_record(fds,&key,UINT,&rec, 0,files,&lock_f,-1) == -1) goto post_exit_error;
@@ -108,7 +108,7 @@ int load_resource(struct Request *req, struct Content *cont)
 				memset(files,0,3*1024);
 				memset(fds,-1,sizeof(int)*3);
 				memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-				hd.sch_d = sch;
+				hd.sch_d = &sch;
 			
 				if(open_files(SALES_ORDERS_L,fds, files, -1) == -1) goto post_exit_error;
 				if(is_db_file(&hd,fds) == -1) goto post_exit_error; 
@@ -125,7 +125,7 @@ int load_resource(struct Request *req, struct Content *cont)
 					if(snprintf(key_each_line.base,line_key_sz+1,"%u/%u",key,count) == -1)goto post_exit_error;
 
 					/* write each line */
-					if(check_data(SALES_ORDERS_L,&cpy_str.base[2],fds,files,&rec,&hd,&lock_f) == -1) goto post_exit_error;
+					if(check_data(SALES_ORDERS_L,&cpy_str.base[2],fds,files,&rec,&hd,&lock_f,-1) == -1) goto post_exit_error;
 					cpy_str.close(&cpy_str);
 
 					if(write_record(fds,&key_each_line.base,STR,&rec,0,files,&lock_f,-1) == -1) goto post_exit_error;
@@ -352,7 +352,7 @@ post_exit_error:
 					struct Record_f rec = {0};
 					struct Schema sch = {0};
 					memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-					struct Header_d hd = {0, 0, sch};
+					struct Header_d hd = {0, 0, &sch};
 
 					if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) exit(-1);
 					if(is_db_file(&hd,fds) == -1) goto s_ord_get_exit_error; 
@@ -402,7 +402,7 @@ post_exit_error:
 					memset(files,0,3*1024);
 					memset(fds,-1,sizeof(int)*3);
 					memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
-					hd.sch_d = sch;
+					hd.sch_d = &sch;
 
 					if(open_files(SALES_ORDERS_L,fds, files, -1) == -1) goto s_ord_get_exit_error;
 					if(is_db_file(&hd,fds) == -1) goto s_ord_get_exit_error;
@@ -427,7 +427,6 @@ post_exit_error:
 						free_record(&rec,rec.fields_num);
 						memset(&rec,0,sizeof(struct Record_f));
 						memset(key,0,sizeof(char));
-
 					}
 
 					close_file(3,fds[0],fds[1],fds[2]);
@@ -444,7 +443,6 @@ post_exit_error:
 						free(message);
 						exit(-1);
 					}
-
 							
 					close(pipefd[1]);
 					free(message);

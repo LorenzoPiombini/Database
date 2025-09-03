@@ -2,8 +2,6 @@ TARGET = db_listener
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 
-
-
 default: $(TARGET)
 
 clean:
@@ -11,7 +9,7 @@ clean:
 	rm $(TARGET)
 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -lcrud -z relro -z now -z noexecstack -fsanitize=address 
+	sudo gcc -o $@ $? -llog -lmem -lcrud -z relro -z now -z noexecstack -fsanitize=address 
 
 
 obj/%.o : src/%.c
