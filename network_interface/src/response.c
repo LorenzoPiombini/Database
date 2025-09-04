@@ -43,6 +43,19 @@ static char *create_response_message(struct Response *res, int status, struct Co
 	int response_type = map_method_and_status(req->method,status,cont != NULL ? cont->size > 0 : 0);
 	switch(response_type)
 	{
+	case SERVER_ERROR: 
+	{
+		if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
+				"Content-Type: %s\r\n"\
+				"Content-lenght: %ld\r\n\r\n%s",
+				"HTTP/1.1", 500, "Internal server error",
+				"application/json",
+				strlen(SERVER_ER_MES),SERVER_ER_MES) == -1){
+			fprintf(stderr,"(%s): cannot form BAD RESPONSE.",prog);
+			return NULL;
+		}
+		break;
+	}
 	case BAD_REQ_RESPONSE:
 		if(snprintf(h,STD_HD_L,"%s %d %s\r\n"\
 				"Content-Type: %s\r\n"\
@@ -397,7 +410,7 @@ static int parse_body(struct Content *cont, struct Response *res)
 		res->body.size = cont->size;
 		return 0;
 	}
-
+	/*TODO handle cont->size > STD_BDY_CNT */
 	return 0;
 }
 
@@ -476,6 +489,7 @@ static int map_method_and_status(int method,int status, int body)
 {
 	if(status == 400) return BAD_REQ_RESPONSE;
 	if(status == 404) return NOT_FOUND_RESPONSE;
+	if(status == 500) return SERVER_ERROR;
 	if(method == OPTIONS && status == 200) return OPTIONS_RESPONSE;
 	if(method == GET && status == 200 && body) return OK_GET_RESPONSE_BODY;
 	if(method == GET && status == 200) return OK_GET_RESPONSE;
