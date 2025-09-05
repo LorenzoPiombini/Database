@@ -181,14 +181,29 @@ post_exit_error:
 			}
 
 			size_t l = strlen(keys);
-			if(l > MAX_CONT_SZ) {
-				cont->cnt_dy = keys;
-				cont->size = l;
+			size_t mes_l = strlen("{\"message\" : ") + l + strlen(" }");
+			if((l+mes_l) >= MAX_CONT_SZ) {
+				
+				cont->cnt_dy = malloc(mes_l+l+1);
+				if(!cont->cnt_dy){
+					/*log error*/
+					return -1;
+				}
+				memset(cont->cnt_dy, 0,mes_l+l+1);
+				if(snprintf(cont->cnt_st,mes_l,"{ \"message\" : %s",keys) == -1){
+					free(keys);
+					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+					lock_f = 0;
+					close(fds[0]);
+					return -1;
+				}
+
+				free(keys);
+				cont->size = l+mes_l;
 				if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 				lock_f = 0;
 				return 0;
 			}else{
-				size_t mes_l = strlen("{\"message\" : ") + l + strlen(" }");
 				if(snprintf(cont->cnt_st,mes_l,"{ \"message\" : %s",keys) == -1){
 					free(keys);
 					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
@@ -201,7 +216,7 @@ post_exit_error:
 				free(keys);
 				if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 				lock_f = 0;
-				return -1;
+				return 0;
 			}
 		}
 		case S_ORD_GET:
