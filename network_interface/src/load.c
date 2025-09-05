@@ -132,6 +132,7 @@ int load_resource(struct Request *req, struct Content *cont)
 				/*log error*/
 				return -1;
 			}
+			cont->size = strlen(cont->cnt_st);
 			return 0;
 post_exit_error:
 			free_record(&rec,rec.fields_num);
