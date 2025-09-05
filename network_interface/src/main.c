@@ -54,7 +54,7 @@ int main()
 				if(r == EAGAIN || r == EWOULDBLOCK) continue;
 
 				/*fork here*/
-				pid_t child = fork();
+				pid_t child = 0;
 				if(child == -1){
 					/*server error*/
 					if(generate_response(&res,500,NULL,&req) == -1) break;
@@ -107,7 +107,7 @@ int main()
 						clear_request(&req);
 						clear_response(&res);
 						if(close_sok) stop_listening(cli_sock);
-						exit(0);
+						/*exit(0);*/
 					}
 
 					struct Content cont = {0};
@@ -150,7 +150,8 @@ int main()
 								clear_response(&res);
 
 								if(close_sok) stop_listening(cli_sock);
-								exit(0);
+								break;
+								/*exit(0);*/
 							}
 							/*send a response to the options request*/
 							if(generate_response(&res,200,NULL,&req) == -1) break;
@@ -183,7 +184,8 @@ int main()
 
 							if(close_sok)stop_listening(cli_sock);
 							clear_response(&res);
-							exit(0);
+							break;
+							/*exit(0);*/
 						}
 
 						/*send a bed request response*/
@@ -219,7 +221,8 @@ int main()
 						clear_response(&res);
 
 						if(close_sok)stop_listening(cli_sock);
-						exit(0);
+						break;
+						/*exit(0);*/
 					}
 					case GET:
 					case POST:
@@ -258,7 +261,8 @@ int main()
 
 							clear_content(&cont);
 							clear_response(&res);
-							exit(0);
+							break;
+							/*exit(0);*/
 						}	
 						/*send a response to the client request*/
 						int status = 0;
@@ -303,7 +307,8 @@ int main()
 						if(close_sok) stop_listening(cli_sock);
 						clear_request(&req);
 						clear_response(&res);
-						exit(0);
+						/*exit(0);*/
+						break;
 					}
 					case PUT:
 					break;
@@ -341,7 +346,8 @@ int main()
 						clear_request(&req);
 						clear_response(&res);
 
-						exit(0);
+						/*exit(0);*/
+						break;
 					}
 				}
 				/*parent process*/

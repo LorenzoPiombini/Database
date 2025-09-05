@@ -40,7 +40,7 @@ static char *create_response_message(struct Response *res, int status, struct Co
 	if(set_up_headers(&res->headers,status,cont == NULL ? 0 : cont->size,req) == -1) return NULL;
 
 	/* string the header*/
-	int response_type = map_method_and_status(req->method,status,cont != NULL ? cont->size > 0 : 0);
+	int response_type = map_method_and_status(req->method,status,cont != NULL ? cont->size : 0);
 	switch(response_type)
 	{
 	case SERVER_ERROR: 
