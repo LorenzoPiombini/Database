@@ -190,7 +190,7 @@ post_exit_error:
 					return -1;
 				}
 				memset(cont->cnt_dy, 0,mes_l+l+1);
-				if(snprintf(cont->cnt_st,mes_l,"{ \"message\" : %s",keys) == -1){
+				if(snprintf(cont->cnt_st,mes_l+l,"{ \"message\" : %s}",keys) == -1){
 					free(keys);
 					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 					lock_f = 0;
@@ -204,7 +204,7 @@ post_exit_error:
 				lock_f = 0;
 				return 0;
 			}else{
-				if(snprintf(cont->cnt_st,mes_l,"{ \"message\" : %s",keys) == -1){
+				if(snprintf(cont->cnt_st,mes_l+l,"{ \"message\" : %s}",keys) == -1){
 					free(keys);
 					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 					lock_f = 0;
