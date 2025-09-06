@@ -247,7 +247,6 @@ post_exit_error:
 				char files[3][1024] = {0};
 				struct Record_f rec = {0};
 				struct Schema sch = {0};
-				memset(sch.types,-1,sizeof(int)*MAX_FIELD_NR);
 				struct Header_d hd = {0, 0, &sch};
 
 				if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) exit(-1);

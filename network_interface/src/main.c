@@ -108,6 +108,7 @@ int main()
 						clear_response(&res);
 						if(close_sok) stop_listening(cli_sock);
 						exit(0);
+						break;
 					}
 
 					struct Content cont = {0};
@@ -151,6 +152,7 @@ int main()
 
 								if(close_sok) stop_listening(cli_sock);
 								exit(0);
+								break;
 							}
 							/*send a response to the options request*/
 							if(generate_response(&res,200,NULL,&req) == -1) break;
@@ -184,6 +186,7 @@ int main()
 							if(close_sok)stop_listening(cli_sock);
 							clear_response(&res);
 							exit(0);
+							break;
 						}
 
 						/*send a bed request response*/
@@ -199,11 +202,11 @@ int main()
 							while((fds = monitor_events()) != -1){
 								int j;
 								for(j = 0; j < fds;j++){
-								if(events[i].data.fd == cli_sock){
-									if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
-									if(w == EAGAIN || w == EWOULDBLOCK) {
-										continue;
-									}else{
+									if(events[i].data.fd == cli_sock){
+										if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
+										if(w == EAGAIN || w == EWOULDBLOCK) {
+											continue;
+										}else{
 										remove_socket_from_monitor(cli_sock);
 										exit = 1;
 										close_sok = 0;
@@ -220,6 +223,7 @@ int main()
 
 						if(close_sok)stop_listening(cli_sock);
 						exit(0);
+						break;
 					}
 					case GET:
 					case POST:
@@ -259,6 +263,7 @@ int main()
 							clear_content(&cont);
 							clear_response(&res);
 							exit(0);
+							break;
 						}	
 						/*send a response to the client request*/
 						int status = 0;
@@ -303,7 +308,9 @@ int main()
 						if(close_sok) stop_listening(cli_sock);
 						clear_request(&req);
 						clear_response(&res);
+						clear_content(&cont);
 						exit(0);
+						break;
 					}
 					case PUT:
 					break;
@@ -342,16 +349,10 @@ int main()
 						clear_response(&res);
 
 						exit(0);
+						break;
 					}
 				}
 				/*parent process*/
-
-				/* 
-				 * TODO:
-				 * YOU HAVE TO HADLE THE CHILD 
-				 * to avoid ZOMBIES
-				 * */
-
 				stop_listening(cli_sock);
 			}else{
 				int r = 0;

@@ -16,12 +16,17 @@ int handle_sig()
 {
 	/*set up signal handler*/
 	struct sigaction act;
+	struct sigaction act_for_child;
 	memset(&act,0,sizeof (struct sigaction));
+	memset(&act_for_child,0,sizeof (struct sigaction));
 
 	act.sa_handler = &handler;
+	act_for_child.sa_handler = SIG_IGN;
+	act_for_child.sa_flags = SA_NOCLDWAIT;
 	if(/*sigaction(SIGSEGV, &act, NULL) == -1 ||*/
 			sigaction(SIGINT,&act,NULL) == -1 || 
-			sigaction(SIGPIPE,&act,NULL) == -1 ){
+			sigaction(SIGPIPE,&act,NULL) == -1  ||
+			sigaction(SIGCHLD,&act_for_child,NULL) == -1 ){ /*this is to avoid zombies*/
 		fprintf(stderr,"(%s): cannot handle the signal.\n",prog);
 		return -1;
 	}
