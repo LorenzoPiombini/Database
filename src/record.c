@@ -1377,6 +1377,7 @@ void free_record(struct Record_f *rec, int fields_num)
 	int i;
 	for (i = 0; i < fields_num; i++){
 
+		if (rec->field_set[i] == 0) continue;
 		int t = (int)rec->fields[i].type;
 		switch (t) {
 		case -1:
@@ -1388,8 +1389,9 @@ void free_record(struct Record_f *rec, int fields_num)
 		case TYPE_DOUBLE:
 			break;
 		case TYPE_STRING:
-			if(rec->fields[i].data.s)
+			if(rec->fields[i].data.s){
 				cancel_memory(NULL,rec->fields[i].data.s,strlen(rec->fields[i].data.s)+1);
+			}
 			break;
 		case TYPE_FILE:
 			free_type_file(rec,0);
@@ -2831,8 +2833,8 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 		}
 		case TYPE_DOUBLE:
 		{
-			size_t field_tot_length = strlen(rec->fields[i].field_name) + 	   \
-						  digits_with_decimal(rec->fields[i].data.d) + \
+			size_t field_tot_length = strlen(rec->fields[i].field_name) +
+						  digits_with_decimal(rec->fields[i].data.d) + 
 						  4 + 2 + 2; /* 4 '"',  1 ':', 1 ',', 2 '00' decimal pleces */
 			if(bwritten == 0){
 				if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%.2f\",",
