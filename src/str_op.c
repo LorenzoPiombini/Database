@@ -2888,6 +2888,9 @@ int long_to_string(long n, char *buff){
 		n *= -1;
 	}
 	pos += number_of_digit(n)-1;
+	if(n == 0){
+		buff[pos] = (char)(n + (int)'0');
+	}
 	while(n > 0){
 		int m = n % 10;
 		if(pos >= 0)
