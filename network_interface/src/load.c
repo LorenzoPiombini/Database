@@ -310,24 +310,40 @@ post_exit_error:
 						/*allocate memory*/
 					}
 
+					char line_title[23];
+					memset(line_title,0,23);
 					if(snprintf(key,l+1,"%d/%ld",k,i+1) == -1) goto s_ord_get_exit_error;
+
+					if(snprintf(line_title,23,"\"line_%ld\"",i+1) == -1)goto s_ord_get_exit_error;
+
 
 					if(get_record(-1,SALES_ORDERS_L,&rec,
 								(void *)key,STR, hd,fds) == -1) goto s_ord_get_exit_error; 
 
+					position_in_the_message = strlen(cont->cnt_dy);
+					strncpy(&cont->cnt_dy[position_in_the_message],line_title,strlen(line_title));
+					position_in_the_message += strlen(line_title);
+					strncpy(&cont->cnt_dy[position_in_the_message]," : { ",strlen(" : { ")+1);
+					position_in_the_message += strlen(" : { ");
+					
+
 					/*put the line in the bigger string */
 					if(data_to_json(&cont->cnt_dy,&rec,S_ORD_GET) == -1) goto s_ord_get_exit_error;
-
 
 					free_record(&rec,rec.fields_num);
 					memset(&rec,0,sizeof(struct Record_f));
 					memset(key,0,sizeof(char));
+
+					if(lines - i > 1){
+						position_in_the_message = strlen(cont->cnt_dy);
+						strncpy(&cont->cnt_dy[position_in_the_message],", ",strlen(", ") + 1);
+					}
 				}
 
 				close_file(3,fds[0],fds[1],fds[2]);
 				/*close the message*/
 				position_in_the_message = strlen(cont->cnt_dy);
-				strncpy(&cont->cnt_dy[position_in_the_message],"}}",strlen("}}")+1);
+				strncpy(&cont->cnt_dy[position_in_the_message],"}}}",strlen("}}}")+1);
 				position_in_the_message+=2;
 				memset(&cont->cnt_dy[strlen(cont->cnt_dy)],0,(1024*4) - strlen(cont->cnt_dy));	
 
@@ -337,8 +353,7 @@ post_exit_error:
 				return 0;
 s_ord_get_exit_error:
 				free_record(&rec,rec.fields_num);
-				if(cont->cnt_dy) free(cont->cnt_dy);
-				close_file(4,fds[0],fds[1],fds[2]);
+				close_file(3,fds[0],fds[1],fds[2]);
 				return -1;
 			}
 			default:
@@ -359,7 +374,10 @@ s_ord_get_exit_error:
 }
 
 void clear_content(struct Content *cont){
-	if(cont->cnt_dy) free(cont->cnt_dy);
+	if(cont->cnt_dy){ 
+		free(cont->cnt_dy);
+		cont->cnt_dy = NULL;
+	}
 
 	memset(cont->cnt_st,0,MAX_CONT_SZ);
 	cont->size = 0;

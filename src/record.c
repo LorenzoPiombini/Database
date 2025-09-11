@@ -29,14 +29,19 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	rec->count = 1;
 	rec->fields = (struct Field*)ask_mem((sizeof(struct Field)*sch.fields_num));
 	rec->field_set = (uint8_t*)ask_mem(sizeof(uint8_t)*sch.fields_num);
-	if(!rec->fields){
+	if(!rec->fields || !rec->field_set){
+		if(rec->field_set) cancel_memory(NULL,rec->field_set,sch.fields_num);
+		if(rec->fields) cancel_memory(NULL,rec->fields,sizeof(struct Field) * sch.fields_num);
 		fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 		return -1;
 	}
+	memset(rec->fields,0,sizeof(struct Field));
+	memset(rec->field_set,0,sch.fields_num);
 
 	uint16_t i;
 	for(i = 0; i < sch.fields_num;i++){
 		strncpy(rec->fields[i].field_name,sch.fields_name[i],strlen(sch.fields_name[i]));
+		memset(&rec->fields[i].field_name[strlen(rec->fields[i].field_name)],0,MAX_FILED_LT-strlen(rec->fields[i].field_name));
 		rec->fields[i].type = sch.types[i];
 	}
 

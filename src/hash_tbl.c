@@ -443,6 +443,7 @@ void destroy_hasht(HashTable *tbl)
 			}
 			default:
 				fprintf(stderr, "key type not supported.\n");
+				current = NULL;
 				break;
 			}
 		}

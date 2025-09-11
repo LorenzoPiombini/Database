@@ -547,7 +547,7 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
-
+			memset(new_node,0,sizeof *new_node);
 			new_node->key.type = key_type;
 			if(size == 16)
 				new_node->key.k.n16 = swap16(k16);

@@ -24,7 +24,9 @@ int listen_port_80(uint16_t *port)
 {
 
 	int try = 10;/* number of tryes in case of error*/
-	struct sockaddr_in addr = {0};
+	struct sockaddr_in addr;
+	memset(&addr,0,sizeof(struct sockaddr_in));
+
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(*port); 
 	addr.sin_addr.s_addr = INADDR_ANY;
@@ -83,7 +85,6 @@ int write_cli_sock(int cli_sock, struct Response *res)
 		if(res->body.d_cont){
 			strncat(buff,res->body.d_cont,res->body.size);
 		}else{
-		
 			if(res->body.size > 0)
 				strncat(buff,res->body.content,res->body.size);
 		}

@@ -536,7 +536,7 @@ int read_header(int fd, struct Header_d *hd)
 	if(!hd->sch_d->fields_name || !hd->sch_d->types ){
 		fprintf(stderr,"ask_mem failed %s:%d.\n",__FILE__,__LINE__-1);
 		if(hd->sch_d->fields_name) cancel_memory(NULL,hd->sch_d->fields_name,sizeof(char*) * hd->sch_d->fields_num);
-		if(hd->sch_d->fields_name) cancel_memory(NULL,hd->sch_d->types,sizeof(int) * hd->sch_d->fields_num);
+		if(hd->sch_d->types) cancel_memory(NULL,hd->sch_d->types,sizeof(int) * hd->sch_d->fields_num);
 		return 1;
 	} 
 

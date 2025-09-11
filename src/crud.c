@@ -61,7 +61,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			return STATUS_ERROR;
 		}
 
-		if(read_file(fds[1], file_name, rec, (*hd.sch_d)) == -1) {
+		if(read_file(fds[1], file_name, rec, *(hd.sch_d)) == -1) {
 			printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 			return STATUS_ERROR;
 		}
