@@ -35,7 +35,7 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 		fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
 		return -1;
 	}
-	memset(rec->fields,0,sizeof(struct Field));
+	memset(rec->fields,0,sizeof(struct Field) * sch.fields_num);
 	memset(rec->field_set,0,sch.fields_num);
 
 	uint16_t i;
