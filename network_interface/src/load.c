@@ -32,6 +32,7 @@ int load_resource(struct Request *req, struct Content *cont)
 	{
 		switch(resource){
 		case NEW_SORD:
+		case UPDATE_SORD:
 		{
 
 			/*save the sales order in the db */
@@ -64,18 +65,58 @@ int load_resource(struct Request *req, struct Content *cont)
 			int fds[3];
 			memset(fds,-1,sizeof(int)*3);
 			int lock_f = 0;
-			char files[3][1024] = {0};
-			struct Record_f rec = {0};
-			struct Schema sch = {0};
+			char files[3][1024];
+			memset(files,0,1024*3);
+
+			struct Record_f rec;
+			memset(&rec,0,sizeof(struct Record_f));
+			struct Schema sch;
+			memset(&sch,0,sizeof(struct Schema));
+
 			struct Header_d hd = {0, 0, &sch};
 
+			uint32_t key = 0;
+			if(resource == UPDATE_SORD){
+				char *p = req->resource;
+				p += strlen(UPDATE_ORDERS) + 1;
+
+				uint8_t type = is_num(p);
+
+				switch(type){
+				case UINT:
+				{
+					errno = 0;
+					long l = string_to_long(p);
+					if(errno == EINVAL){
+						fprintf(stderr,"cannot convert string to long %s:%d.\n",__FILE__,__LINE__);
+						return -1;
+					}
+					if(l > MAX_KEY){
+						fprintf(stderr,"key value is too big for the system %s:%d.\n",__FILE__,__LINE__);
+						return -1;
+					}
+
+					key = (uint32_t)l;
+				}
+				case STR:
+				default:
+					break;
+				}
+			}
 			if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) exit(-1);
 			if(is_db_file(&hd,fds) == -1) goto post_exit_error; 
-			if(check_data(SALES_ORDERS_H,orders_head,fds,files,&rec,&hd,&lock_f,-1) == -1) goto post_exit_error;
-			uint32_t key = generate_numeric_key(fds,NEW_SORD);
+			int check = 0;
+			if((check = check_data(SALES_ORDERS_H,orders_head,fds,files,&rec,&hd,&lock_f,-1)) == -1) goto post_exit_error;
+
+			if(resource == NEW_SORD)
+				key = generate_numeric_key(fds,NEW_SORD);
 
 			if(!key) return -1; 
-			if(write_record(fds,&key,UINT,&rec, 0,files,&lock_f,-1) == -1) goto post_exit_error;
+			if(resource ==NEW_SORD){
+				if(write_record(fds,&key,UINT,&rec, 0,files,&lock_f,-1) == -1) goto post_exit_error;
+			}else if(resource == UPDATE_SORD){
+				if(update_rec(SALES_ORDERS_H,fds,&key,UINT,&rec,hd,check,&lock_f,NULL) == -1 )goto post_exit_error;
+			}
 
 			free_record(&rec,rec.fields_num);
 			if(lock_f){
@@ -96,20 +137,44 @@ int load_resource(struct Request *req, struct Content *cont)
 			char *sub_str = NULL;
 			uint16_t count = 1;
 			while((sub_str = get_sub_str("[","]",orders_line))){
-				struct String cpy_str = {0};
+				struct String cpy_str;
+				memset(&cpy_str,0,sizeof(struct String));
 				init(&cpy_str,sub_str);
 
 				/*create the key for each line*/
 				size_t line_key_sz = number_of_digit(count) + number_of_digit(key) + 1;
-				struct String key_each_line = {0};
+				struct String key_each_line;
+				memset(&key_each_line,0,sizeof(struct String));
+
 				init(&key_each_line,NULL);
 				if(snprintf(key_each_line.base,line_key_sz+1,"%u/%u",key,count) == -1)goto post_exit_error;
 
 				/* write each line */
-				if(check_data(SALES_ORDERS_L,&cpy_str.base[2],fds,files,&rec,&hd,&lock_f,-1) == -1) goto post_exit_error;
+				int check = 0;
+				if((check = check_data(SALES_ORDERS_L,
+								&cpy_str.base[2],
+								fds,
+								files,
+								&rec,
+								&hd,
+								&lock_f,-1)) == -1) goto post_exit_error;
+				
 				cpy_str.close(&cpy_str);
 
-				if(write_record(fds,&key_each_line.base,STR,&rec,0,files,&lock_f,-1) == -1) goto post_exit_error;
+				if(resource == NEW_SORD){
+					if(write_record(fds,&key_each_line.base,STR,&rec,0,files,&lock_f,-1) == -1) goto post_exit_error;
+				}else if(resource == UPDATE_SORD){
+					if(update_rec(SALES_ORDERS_L,
+								fds,
+								&key_each_line.base,
+								STR,
+								&rec,
+								hd,
+								check,
+								&lock_f,
+								NULL) == -1) goto post_exit_error;
+				}
+
 				free_record(&rec,rec.fields_num);
 				memset(&rec,0,sizeof(struct Record_f));
 				key_each_line.close(&key_each_line);
@@ -128,12 +193,21 @@ int load_resource(struct Request *req, struct Content *cont)
 			}
 
 			close_file(3,fds[0],fds[1],fds[2]);
-			if(snprintf(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1){
-				/*log error*/
-				return -1;
+			if(resource == NEW_SORD){
+				if(snprintf(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1){
+					/*log error*/
+					return -1;
+				}
+				cont->size = strlen(cont->cnt_st);
+				return 0;
+			}else if(resource == UPDATE_SORD){
+				if(snprintf(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, updated!\"}",key) == -1){
+					/*log error*/
+					return -1;
+				}
+				cont->size = strlen(cont->cnt_st);
+				return 0;
 			}
-			cont->size = strlen(cont->cnt_st);
-			return 0;
 post_exit_error:
 			free_record(&rec,rec.fields_num);
 			if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);

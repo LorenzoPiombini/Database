@@ -139,7 +139,7 @@ int read_cli_sock(int cli_sock,struct Request *req)
 			return e;
 		}
 
-		fprintf(stderr,"(%s): cannot read data from socket",prog);
+		fprintf(stderr,"(%s): cannot read data from socket\n",prog);
 		return -1;
 	}
 	req->size = bread;
@@ -158,7 +158,7 @@ int read_cli_sock(int cli_sock,struct Request *req)
 
 					return e;
 				}
-				fprintf(stderr,"(%s): cannot read data from socket",prog);
+				fprintf(stderr,"(%s): cannot read data from socket\n",prog);
 				return -1;
 			}
 		}
