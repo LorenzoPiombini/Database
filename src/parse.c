@@ -2188,34 +2188,63 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 			if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 0) update_new = 1; 
 
 			if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 1) {
-				changed = 1;
 				switch (rec->fields[j].type) {
 				case TYPE_INT:
-					if (rec_old[0]->fields[j].data.i != rec->fields[j].data.i)
+					if (rec_old[0]->fields[j].data.i != rec->fields[j].data.i){
 						rec_old[0]->fields[j].data.i = rec->fields[j].data.i;
+						changed = 1;
+						break;
+					}
+					rec->field_set[j] = 0;
 					break;
 				case TYPE_LONG:
-					if (rec_old[0]->fields[j].data.l != rec->fields[j].data.l)
+					if (rec_old[0]->fields[j].data.l != rec->fields[j].data.l){
 						rec_old[0]->fields[j].data.l = rec->fields[j].data.l;
-
+						changed = 1;
+						break;
+					}
+					rec->field_set[j] = 0;
 					break;
 				case TYPE_PACK:
-					if (rec_old[0]->fields[j].data.p != rec->fields[j].data.p)
+					if (rec_old[0]->fields[j].data.p != rec->fields[j].data.p){
 						rec_old[0]->fields[j].data.p = rec->fields[j].data.p;
+						changed = 1;
+						break;
+					}
+					rec->field_set[j] = 0;
 					break;
 				case TYPE_FLOAT:
-					if (rec_old[0]->fields[j].data.f != rec->fields[j].data.f)
+					if (rec_old[0]->fields[j].data.f != rec->fields[j].data.f){
 						rec_old[0]->fields[j].data.f = rec->fields[j].data.f;
+						changed = 1;
+						break;
+					}
+					rec->field_set[j] = 0;
 					break;
 				case TYPE_STRING:
-					if(rec_old[0]->fields[j].data.s){
-						if (strcmp(rec_old[0]->fields[j].data.s, rec->fields[j].data.s) != 0) {
-							/* free memory before allocating other memory*/
-							if (rec_old[0]->fields[j].data.s != NULL){
-								cancel_memory(NULL,rec_old[0]->fields[j].data.s,
-										strlen(rec_old[0]->fields[j].data.s)+1);
+				{
+					if(rec_old[0]->fields[j].data.s && rec->fields[j].data.s){
+						size_t size_old = strlen(rec_old[0]->fields[j].data.s);
+						size_t size_new = strlen(rec->fields[j].data.s);
+						if(size_new == size_old){
+							if (strcmp(rec_old[0]->fields[j].data.s, rec->fields[j].data.s) != 0) {
+								cancel_memory(NULL,rec_old[0]->fields[j].data.s,size_old + 1);
 								rec_old[0]->fields[j].data.s = NULL;
+								rec_old[0]->fields[j].data.s = duplicate_str(rec->fields[j].data.s);
+								if (!rec_old[0]->fields[j].data.s){
+									fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
+									return 0;
+								}
+								changed = 1;
+								break;
 							}
+							
+							rec->field_set[j] = 0;
+							break;
+
+						}else{
+							cancel_memory(NULL,rec_old[0]->fields[j].data.s,size_old+1);
+							rec_old[0]->fields[j].data.s = NULL;
 							rec_old[0]->fields[j].data.s = duplicate_str(rec->fields[j].data.s);
 							if (!rec_old[0]->fields[j].data.s){
 								fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
@@ -2224,20 +2253,23 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						}
 						break;
 					}
-					rec_old[0]->fields[j].data.s = duplicate_str(rec->fields[j].data.s);
-					if (!rec_old[0]->fields[j].data.s) {
-						fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
-						return 0;
-					}
-
 					break;
+				}
 				case TYPE_BYTE:
-					if (rec_old[0]->fields[j].data.b != rec->fields[j].data.b)
+					if (rec_old[0]->fields[j].data.b != rec->fields[j].data.b){
 						rec_old[0]->fields[j].data.b = rec->fields[j].data.b;
+						changed = 1;
+						break;
+					}
+					rec->field_set[j] = 0;
 					break;
 				case TYPE_DOUBLE:
-					if (rec_old[0]->fields[j].data.d != rec->fields[j].data.d)
+					if (rec_old[0]->fields[j].data.d != rec->fields[j].data.d){
 						rec_old[0]->fields[j].data.d = rec->fields[j].data.d;
+						changed = 1;
+						break;
+					}
+					rec->field_set[j] = 0;
 					break;
 				case TYPE_ARRAY_INT:
 				{
@@ -2258,6 +2290,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							if (rec_old[0]->fields[j].data.v.elements.i[a] == rec->fields[j].data.v.elements.i[a]) continue;
 
 							rec_old[0]->fields[j].data.v.elements.i[a] = rec->fields[j].data.v.elements.i[a];
+							changed = 1;
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
@@ -2268,6 +2301,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 								insert((void *)&rec->fields[j].data.v.elements.i[a],
 								&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
+						changed = 1;
 					}
 					break;
 				}
@@ -2290,6 +2324,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							if (rec_old[0]->fields[j].data.v.elements.l[a] == rec->fields[j].data.v.elements.l[a])continue;
 
 							rec_old[0]->fields[j].data.v.elements.l[a] = rec->fields[j].data.v.elements.l[a];
+							changed = 1;
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
@@ -2299,6 +2334,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.l[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
+						changed = 1;
 					}
 					break;
 				}
@@ -2323,6 +2359,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 
 							rec_old[0]->fields[j].data.v.elements.f[a] = rec->fields[j].data.v.elements.f[a];
 						}
+						changed = 1;
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						rec_old[0]->field_set[j] = 1;
@@ -2331,7 +2368,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.f[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 							}
-						}
+						changed = 1;
+					}
 						break;
 				}
 				case TYPE_ARRAY_BYTE:
@@ -2353,6 +2391,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							if (rec_old[0]->fields[j].data.v.elements.b[a] == rec->fields[j].data.v.elements.b[a])continue;
 							
 							rec_old[0]->fields[j].data.v.elements.b[a] = rec->fields[j].data.v.elements.b[a];
+							changed = 1;
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
@@ -2362,6 +2401,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.b[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
+						changed = 1;
 					}
 					break;
 				}
@@ -2375,6 +2415,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 										&rec_old[0]->fields[j].data.v, 
 										rec->fields[j].type);
 						}
+						changed = 1;
 						break;
 					}
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
@@ -2394,6 +2435,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 									fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
 									return 0;
 								}
+								changed = 1;
 							}
 						}
 					}else{
@@ -2404,6 +2446,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							rec_old[0]->fields[j].data.v.insert((void *)rec->fields[j].data.v.elements.s[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
+						changed = 1;
 					}
 					break;
 				}
@@ -2417,6 +2460,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 										&rec_old[0]->fields[j].data.v, 
 										rec->fields[j].type);
 						}
+						changed = 1;
 						break;
 					}
 					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
@@ -2426,6 +2470,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							if (rec_old[0]->fields[j].data.v.elements.d[a] == rec->fields[j].data.v.elements.d[a])continue;
 
 							rec_old[0]->fields[j].data.v.elements.d[a] = rec->fields[j].data.v.elements.d[a];
+							changed = 1;
 						}
 					}else{
 						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
@@ -2434,6 +2479,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.d[a],
 									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
 						}
+						changed = 1;
 					}
 					break;
 				}
@@ -2466,7 +2512,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 									&rec->fields[j].data.file.recs[t],
 									sizeof(struct Record_f));
 
-							}
+						}
+						changed = 1;
 						break;
 					}
 
@@ -2501,6 +2548,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						memcpy(rec_old[0]->fields[j].data.file.recs,
 								rec->fields[j].data.file.recs,
 								rec->fields[j].data.file.count * sizeof *new_recs);
+
+						changed = 1;
 					}
 					/*you need to test the other cases*/
 					break;

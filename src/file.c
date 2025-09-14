@@ -6831,7 +6831,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 	move_ram_file_ptr(ram,sizeof(uint8_t));
 
-	if(cnt == 0) return -1;
+	if(cnt == 0){
+		fprintf(stderr,"no active fields in the record %s:%d\n",__FILE__,__LINE__);
+		return -1;
+	}
 
 	for(i = 0; i < rec->fields_num; i++){
 		if(rec->field_set[i] == 0) continue;
