@@ -1,10 +1,10 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
 #include "request.h"
 #include "end_points.h"
+#include "memory.h"
 
 static char prog[] = "net_interface";
 static int get_headers_block(struct Request *req);
@@ -35,13 +35,14 @@ int handle_request(struct Request *req)
 				strncpy(req->req_body.content,&req->d_req[h_end],(req->size - h_end) - 1 );
 				return 0;
 			}else{
-				req->req_body.d_cont = calloc(req->size - h_end, sizeof(char));
+				req->req_body.d_cont = (char *)ask_mem(req->size - h_end);
 				if(!req->req_body.d_cont){
-					fprintf(stderr,"(%s): calloc failed with error '%s', %s:%d\n",
-							prog,strerror(errno),__FILE__,__LINE__-2);
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d\n",
+							prog,__FILE__,__LINE__-2);
 					return BAD_REQ;
 				}
 				strncpy(req->req_body.d_cont, &req->d_req[h_end],(req->size -h_end) - 1);
+				req->req_body.size = req->size - h_end;
 				return 0;
 			}
 		}	
@@ -55,7 +56,7 @@ int handle_request(struct Request *req)
 int set_up_request(ssize_t bytes,struct Request *req)
 {	
 	ssize_t n_size = bytes * 2;
-	req->d_req = calloc(n_size,sizeof(char));
+	req->d_req = (char *)ask_mem(n_size);
 	if(!req->d_req){
 		fprintf(stderr,"(%s): cannot allocate memory for request.\n",prog);
 		return -1;
@@ -68,8 +69,8 @@ int set_up_request(ssize_t bytes,struct Request *req)
 
 void clear_request(struct Request *req)
 {
-	if(req->d_req) free(req->d_req);
-	if(req->req_body.d_cont) free(req->req_body.d_cont);
+	if(req->d_req) cancel_memory(NULL,req->d_req,req->size);
+	if(req->req_body.d_cont) cancel_memory(NULL,req->req_body.d_cont,req->req_body.size);
 	memset(req->req,0,BASE);
 	memset(req->req_body.content,0,STD_REQ_BDY_CNT);
 }

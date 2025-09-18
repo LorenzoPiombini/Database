@@ -1,6 +1,5 @@
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -14,6 +13,7 @@
 #include "monitor.h"       
 #include "request.h"       
 #include "response.h"       
+#include "memory.h"       
 
 static char prog[] = "net_interface"; 
 static int parse_URL(char *URL, struct Url *url);
@@ -71,13 +71,9 @@ int write_cli_sock(int cli_sock, struct Response *res)
 	char *buff = NULL;
 	if( buff_l >= STD_HD_L){
 		errno = 0;
-		buff = calloc(buff_l,sizeof(char));
+		buff = (char *)ask_mem(buff_l);
 		if(!buff){
-			if(errno == ENOMEM)
-				fprintf(stderr,"(%s): not enough memory.\n",prog);	
-			else 
-				fprintf(stderr,"(%s): calloc() failed %s:%d.\n",prog,__FILE__,__LINE__);	
-
+			fprintf(stderr,"(%s): ask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__);	
 			return -1;
 		}
 
@@ -115,13 +111,13 @@ int write_cli_sock(int cli_sock, struct Response *res)
 				return errno;
 			}
 
-			free(buff);
+			cancel_memory(NULL,buff,buff_l);
 			fprintf(stderr,"(%s): cannot write to socket.\n",prog);
 			if(remove_socket_from_monitor(cli_sock) == -1) return -1;
 
 			return -1;
 		}
-		free(buff);
+		cancel_memory(NULL,buff,buff_l);
 	}
 	return 0;
 }
@@ -138,7 +134,7 @@ int read_cli_sock(int cli_sock,struct Request *req)
 
 			return e;
 		}
-
+		printf("errno is %s",strerror(errno));
 		fprintf(stderr,"(%s): cannot read data from socket\n",prog);
 		return -1;
 	}

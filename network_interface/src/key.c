@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
@@ -9,6 +8,7 @@
 #include <str_op.h>
 #include "key.h"
 #include "end_points.h"
+#include "memory.h"
 
 
 #define ORDER_BASE 100
@@ -34,7 +34,8 @@ uint32_t generate_numeric_key(int *fds, int end_point)
 	}
 	case NEW_SORD_LINES:
 	{
-		HashTable ht = {0};
+		HashTable ht;
+		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
 		if(!read_index_nr(0,fds[0],&p_ht)){
 			/*log failure*/
@@ -112,7 +113,7 @@ char *get_all_keys_for_file(int *fds,int index)
 
 	/* 2 is for '[' and ']' */
 	str_size += (2 + all_keys.length);
-	char *str_keys = calloc(str_size + 1,sizeof(char));
+	char *str_keys = (char *)ask_mem(str_size + 1);
 	if(!str_keys){
 		/*log failure*/
 		free_keys_data(&all_keys);
@@ -144,7 +145,7 @@ char *get_all_keys_for_file(int *fds,int index)
 				size_t n = number_of_digit(all_keys.keys[i].k.n16);
 				if(snprintf(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
 					/*log failure*/						
-					free(str_keys);
+					cancel_memory(NULL,str_keys,str_size + 1);	
 					free_keys_data(&all_keys);
 					return NULL;
 				}
@@ -157,7 +158,7 @@ char *get_all_keys_for_file(int *fds,int index)
 				size_t n = number_of_digit(all_keys.keys[i].k.n);
 				if(snprintf(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n) == -1){
 					/*log failure*/						
-					free(str_keys);
+					cancel_memory(NULL,str_keys,str_size + 1);	
 					free_keys_data(&all_keys);
 					return NULL;
 				}
@@ -172,7 +173,7 @@ char *get_all_keys_for_file(int *fds,int index)
 		}
 		default:
 			free_keys_data(&all_keys);
-			free(str_keys);	
+			cancel_memory(NULL,str_keys,str_size + 1);	
 			return NULL;
 		}
 	}

@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <fcntl.h>              /* Definition of O_* constants */
 #include <unistd.h>
@@ -9,6 +8,9 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+
+/* these are my libriry */
+#include <types.h>
 #include <crud.h>
 #include <lock.h>
 #include <file.h>
@@ -17,6 +19,7 @@
 #include "load.h"
 #include "request.h"
 #include "end_points.h"
+#include "memory.h"
 
 static char prog[] = "net_interface";
 static char *convert_json(char* body);
@@ -103,7 +106,9 @@ int load_resource(struct Request *req, struct Content *cont)
 					break;
 				}
 			}
-			if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) exit(-1);
+
+
+			if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) return -1;
 			if(is_db_file(&hd,fds) == -1) goto post_exit_error; 
 			int check = 0;
 			if((check = check_data(SALES_ORDERS_H,orders_head,fds,files,&rec,&hd,&lock_f,-1)) == -1) goto post_exit_error;
@@ -147,7 +152,7 @@ int load_resource(struct Request *req, struct Content *cont)
 				memset(&key_each_line,0,sizeof(struct String));
 
 				init(&key_each_line,NULL);
-				if(snprintf(key_each_line.base,line_key_sz+1,"%u/%u",key,count) == -1)goto post_exit_error;
+				if(copy_to_string(key_each_line.base,line_key_sz+1,"%u/%u",key,count) == -1)goto post_exit_error;
 
 				/* write each line */
 				int check = 0;
@@ -194,14 +199,14 @@ int load_resource(struct Request *req, struct Content *cont)
 
 			close_file(3,fds[0],fds[1],fds[2]);
 			if(resource == NEW_SORD){
-				if(snprintf(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1){
+				if(copy_to_string(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1){
 					/*log error*/
 					return -1;
 				}
 				cont->size = strlen(cont->cnt_st);
 				return 0;
 			}else if(resource == UPDATE_SORD){
-				if(snprintf(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, updated!\"}",key) == -1){
+				if(copy_to_string(cont->cnt_st,1024,"{ \"message\" : \"order nr %d, updated!\"}",key) == -1){
 					/*log error*/
 					return -1;
 				}
@@ -237,7 +242,7 @@ post_exit_error:
 			memset(fds,-1,sizeof(int)*3);
 			int lock_f = 0;
 			char files[3][1024] = {0};
-			if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) exit(-1);
+			if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) return -1;
 			/*lock file*/
 			int r = -1;
 			while((is_locked(1,fds[0])) == LOCKED);
@@ -251,35 +256,36 @@ post_exit_error:
 			char *keys = get_all_keys_for_file(fds,0);
 			if(!keys){
 				/*log errors*/	
-				return -1;
+				char erro_message[] = "{\"message\": \"there are no orders\"}";
+				strncpy(cont->cnt_st,erro_message,strlen(erro_message));
+				if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+				return 0;
 			}
 
 			size_t l = strlen(keys);
 			size_t mes_l = strlen("{\"message\" : ") + l + strlen(" }");
 			if((l+mes_l) >= MAX_CONT_SZ) {
 				
-				cont->cnt_dy = malloc(mes_l+l+1);
+				cont->cnt_dy = (char *)ask_mem(mes_l+l+1);
 				if(!cont->cnt_dy){
 					/*log error*/
 					return -1;
 				}
 				memset(cont->cnt_dy, 0,mes_l+l+1);
-				if(snprintf(cont->cnt_st,mes_l+l,"{ \"message\" : %s}",keys) == -1){
-					free(keys);
+				if(copy_to_string(cont->cnt_st,mes_l+l,"{ \"message\" : %s}",keys) == -1){
 					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 					lock_f = 0;
 					close(fds[0]);
 					return -1;
 				}
 
-				free(keys);
+				//cancel_memory(NULL,keys,strlen(key));
 				cont->size = l+mes_l;
 				if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 				lock_f = 0;
 				return 0;
 			}else{
-				if(snprintf(cont->cnt_st,mes_l+l,"{ \"message\" : %s}",keys) == -1){
-					free(keys);
+				if(copy_to_string(cont->cnt_st,mes_l+l,"{ \"message\" : %s}",keys) == -1){
 					if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 					lock_f = 0;
 					close(fds[0]);
@@ -287,7 +293,6 @@ post_exit_error:
 				}
 				strncpy(&cont->cnt_st[strlen(cont->cnt_st)]," }",strlen(" }")+1);
 				cont->size = mes_l;
-				free(keys);
 				if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 				lock_f = 0;
 				return 0;
@@ -301,29 +306,30 @@ post_exit_error:
 			uint32_t k = 0;
 			uint8_t type = is_num(p);
 
-			char key[1024];
-			memset(key,0,1024);
+			char *key = NULL;
 			switch(type){
 			case UINT:
 			{
 				/*convert to number */	
-				char *endp;
-				long l = strtol(p,&endp,10);
-				if(*endp == '\0'){
-					k = (uint32_t) l;
-				}else{
+				errno = 0;
+				long l = string_to_long(p);
+				if(errno == EINVAL){
 					/*log error*/
 					return -1;
 				}
+				k = (uint32_t) l;
 
 				int fds[3];
 				memset(fds,-1,sizeof(int)*3);
-				char files[3][1024] = {0};
-				struct Record_f rec = {0};
-				struct Schema sch = {0};
+				char files[3][1024];
+				memset(files,0,3*1024);
+				struct Record_f rec;
+				memset(&rec,0,sizeof(struct Record_f));
+				struct Schema sch;
+				memset(&sch,0,sizeof(struct Schema));
 				struct Header_d hd = {0, 0, &sch};
 
-				if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) exit(-1);
+				if(open_files(SALES_ORDERS_H,fds, files, -1) == -1) return -1;
 				if(is_db_file(&hd,fds) == -1) goto s_ord_get_exit_error; 
 
 				if(get_record(-1,SALES_ORDERS_H,&rec,(void *)&k,type, hd,fds) == -1) goto s_ord_get_exit_error; 
@@ -336,7 +342,7 @@ post_exit_error:
 				long lines = rec.fields[field_ix].data.l;
 
 				/*stringfy the orders head here*/
-				cont->cnt_dy = calloc(1024*4,sizeof(char));
+				cont->cnt_dy = (char*)ask_mem(PAGE_SIZE);
 				if(!cont->cnt_dy){
 					/*log error*/	
 					goto s_ord_get_exit_error;
@@ -380,15 +386,20 @@ post_exit_error:
 				for(i = 0;i < lines;i++){
 
 					size_t l = number_of_digit(k) + number_of_digit(i+1)+1;
-					if(l >= 1024){
-						/*allocate memory*/
+					key = (char*) ask_mem(l+1);
+					if(!key){
+						fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+						goto s_ord_get_exit_error;
 					}
 
-					char line_title[23];
-					memset(line_title,0,23);
-					if(snprintf(key,l+1,"%d/%ld",k,i+1) == -1) goto s_ord_get_exit_error;
+					char *line_title = (char*)ask_mem(23);
+					if(!line_title){
+						fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+						goto s_ord_get_exit_error;
+					}
+					if(copy_to_string(key,l+1,"%d/%ld",k,i+1) == -1) goto s_ord_get_exit_error;
 
-					if(snprintf(line_title,23,"\"line_%ld\"",i+1) == -1)goto s_ord_get_exit_error;
+					if(copy_to_string(line_title,23,"\"line_%ld\"",i+1) == -1)goto s_ord_get_exit_error;
 
 
 					if(get_record(-1,SALES_ORDERS_L,&rec,
@@ -406,7 +417,7 @@ post_exit_error:
 
 					free_record(&rec,rec.fields_num);
 					memset(&rec,0,sizeof(struct Record_f));
-					memset(key,0,sizeof(char));
+					cancel_memory(NULL,key,l+1);
 
 					if(lines - i > 1){
 						position_in_the_message = strlen(cont->cnt_dy);
@@ -449,7 +460,7 @@ s_ord_get_exit_error:
 
 void clear_content(struct Content *cont){
 	if(cont->cnt_dy){ 
-		free(cont->cnt_dy);
+		cancel_memory(NULL,cont->cnt_dy,cont->capacity);
 		cont->cnt_dy = NULL;
 	}
 

@@ -470,6 +470,7 @@ int main(int argc, char *argv[])
 			close_file(3, fd_index, fd_data,fd_schema);
 			if(free_schema(&sch) == -1){
 				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+				goto clean_on_error_1;
 			}
 			close_prog_memory();
 			return 0;

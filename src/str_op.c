@@ -2962,6 +2962,7 @@ int copy_to_string(char *buff,size_t size,char *format,...)
 				case 'l':
 					format++;
 					continue;
+				case 'u':
 				case 'd':
 				{
 					l = va_arg(list,int);

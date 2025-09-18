@@ -10,6 +10,7 @@ struct Content{
 	char cnt_st[MAX_CONT_SZ];
 	char *cnt_dy;
 	size_t size;
+	uint64_t capacity; 
 };
 
 int load_resource(struct Request *req, struct Content *cont);

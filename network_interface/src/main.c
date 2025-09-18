@@ -2,30 +2,23 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <memory.h>
 #include "network.h"
 #include "monitor.h"
 #include "request.h"
 #include "response.h"
 #include "handlesig.h"
-#include "memory.h"
 
 #define USE_FORK 1
 
 int main()
 {
-	if (init_prog_memory() == -1){
-		fprintf(stderr,"cannot initialize memory for db inner working.\n");
-		return -1;
-	}
-
 	unsigned short port = 5043;
 	int con = -1;
 	if((con = listen_port_80(&port)) == -1){
 		fprintf(stderr,"can't connect to port '%d': %s.\n",port,strerror(errno));
-		close_prog_memory();
 		return -1;
 	}
 
@@ -34,14 +27,12 @@ int main()
 	if(start_monitor(con) == -1) {
 		/*log the error*/
 		stop_listening(con);
-		close_prog_memory();
 		return -1;
 	}
 	
 	hdl_sock  = con;
 	if(handle_sig() == -1) {
 		stop_listening(con);
-		close_prog_memory();
 		return -1;
 	}
 
@@ -93,10 +84,15 @@ int main()
 
 				if(child == 0){
 					/*send response*/
+					if(init_prog_memory() == -1){
+						/*log error*/
+						stop_listening(cli_sock);
+						exit(1);
+					}
+
 					if(r == BAD_REQ){
 						if(generate_response(&res,400,NULL,&req) == -1) break;
 
-						clear_request(&req);
 						int w = 0;
 						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -110,8 +106,8 @@ int main()
 								break;
 							}
 							if(ws){
-								clear_response(&res);
 								stop_listening(cli_sock);
+								close_prog_memory();
 								exit(0);
 							}
 							clear_response(&res);
@@ -124,8 +120,8 @@ int main()
 						}
 
 #if USE_FORK
-						clear_response(&res);
 						stop_listening(cli_sock);
+						close_prog_memory();
 						exit(0);
 #else
 						clear_request(&req);
@@ -146,7 +142,7 @@ int main()
 								/*send a bed request response*/
 								if(generate_response(&res,400,NULL,&req) == -1) break;
 
-								clear_request(&req);
+								//clear_request(&req);
 								int w = 0;
 								if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 								if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -159,12 +155,14 @@ int main()
 										break;
 									}
 									if(ws){
-										clear_response(&res);
+										//clear_response(&res);
 										stop_listening(cli_sock);
+										close_prog_memory();
 										exit(0);
 									}
-									clear_response(&res);
+									//clear_response(&res);
 									stop_listening(cli_sock);
+									close_prog_memory();
 									exit(1);
 
 #else
@@ -173,9 +171,10 @@ int main()
 								}
 
 #if USE_FORK
-								clear_request(&req);
-								clear_response(&res);
+								//clear_request(&req);
+								//clear_response(&res);
 								stop_listening(cli_sock);
+								close_prog_memory();
 								exit(0);
 #else
 								clear_request(&req);
@@ -200,12 +199,14 @@ int main()
 								break;
 							}
 							if(ws){
-								clear_response(&res);
+								//clear_response(&res);
 								stop_listening(cli_sock);
+								close_prog_memory();
 								exit(0);
 							}
-							clear_response(&res);
-							stop_listening(cli_sock);
+							//clear_response(&res);
+							//stop_listening(cli_sock);
+							close_prog_memory();
 							exit(1);
 
 #else
@@ -215,7 +216,8 @@ int main()
 
 #if USE_FORK
 							stop_listening(cli_sock);
-							clear_response(&res);
+							//clear_response(&res);
+							close_prog_memory();
 							exit(0);
 #else
 							remove_socket_from_monitor(cli_sock);
@@ -227,7 +229,7 @@ int main()
 						/*send a bed request response*/
 						if(generate_response(&res,400,NULL,&req) == -1) break;
 
-						clear_request(&req);
+						//clear_request(&req);
 						int w = 0;
 						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 						if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -241,12 +243,14 @@ int main()
 								break;
 							}
 							if(ws){
-								clear_response(&res);
+						//		clear_response(&res);
+								close_prog_memory();
 								stop_listening(cli_sock);
 								exit(0);
 							}
-							clear_response(&res);
-							stop_listening(cli_sock);
+							//clear_response(&res);
+							//stop_listening(cli_sock);
+							close_prog_memory();
 							exit(1);
 
 #else
@@ -255,8 +259,9 @@ int main()
 						}
 #if USE_FORK
 						stop_listening(cli_sock);
-						clear_request(&req);
-						clear_response(&res);
+						//clear_request(&req);
+						//clear_response(&res);
+						close_prog_memory();
 						exit(0);
 #else
 						clear_request(&req);
@@ -272,7 +277,7 @@ int main()
 							/*send a bad request response*/
 							if(generate_response(&res,400,NULL,&req) == -1) break;
 
-							clear_request(&req);
+							//clear_request(&req);
 							int w = 0;
 							if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 							if(w == EAGAIN || w == EWOULDBLOCK){
@@ -285,12 +290,14 @@ int main()
 								break;
 							}
 							if(ws){
-								clear_response(&res);
+							//	clear_response(&res);
+								close_prog_memory();
 								stop_listening(cli_sock);
 								exit(0);
 							}
-							clear_response(&res);
-							stop_listening(cli_sock);
+							//clear_response(&res);
+							//stop_listening(cli_sock);
+							close_prog_memory();
 							exit(1);
 
 #else
@@ -300,8 +307,9 @@ int main()
 #if USE_FORK
 							stop_listening(cli_sock);
 
-							clear_content(&cont);
-							clear_response(&res);
+							//clear_content(&cont);
+							//clear_response(&res);
+							close_prog_memory();
 							exit(0);
 #else
 							clear_response(&res);
@@ -324,7 +332,7 @@ int main()
 							}
 						}
 
-						clear_request(&req);
+					//	clear_request(&req);
 						printf("response body is \n %s\n",res.body.content);
 						int w = 0;
 						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
@@ -338,14 +346,16 @@ int main()
 								break;
 							}
 							if(ws){
-								clear_response(&res);
-								clear_content(&cont);
+								//clear_response(&res);
+								//clear_content(&cont);
 								stop_listening(cli_sock);
+								close_prog_memory();
 								exit(0);
 							}
-							clear_response(&res);
-							clear_content(&cont);
-							stop_listening(cli_sock);
+							//clear_response(&res);
+							//clear_content(&cont);
+							//stop_listening(cli_sock);
+							close_prog_memory();
 							exit(1);
 
 #else
@@ -355,8 +365,9 @@ int main()
 
 #if USE_FORK
 						stop_listening(cli_sock);
-						clear_response(&res);
-						clear_content(&cont);
+						//clear_response(&res);
+						//clear_content(&cont);
+						close_prog_memory();
 						exit(0);
 #else
 						clear_response(&res);
@@ -383,12 +394,14 @@ int main()
 							break;
 						}
 						if(ws){
-							clear_response(&res);
+							//clear_response(&res);
+							close_prog_memory();
 							stop_listening(cli_sock);
 							exit(0);
 						}
-						clear_response(&res);
-						stop_listening(cli_sock);
+						//clear_response(&res);
+						//stop_listening(cli_sock);
+						close_prog_memory();
 						exit(1);
 
 #else
@@ -399,8 +412,8 @@ int main()
 
 #if USE_FORK
 					stop_listening(cli_sock);
-					clear_request(&req);
-					clear_response(&res);
+					//clear_request(&req);
+					//clear_response(&res);
 					exit(0);
 #else
 					clear_request(&req);
@@ -412,13 +425,22 @@ int main()
 				}
 #if USE_FORK
 				/*parent process*/
-				stop_listening(cli_sock);
+					
+				int wstatus;
+                   		if(waitpid(child, &wstatus, WNOHANG) == -1)
+					fprintf(stderr,"cannot wait for child process\n");
+
+				if(WIFEXITED(wstatus)){
+					stop_listening(cli_sock);
+					printf("parent try to remove the socket nr %d from monitor line %d\n",cli_sock,__LINE__);
+				}
 #endif
 			}else{
 				int r = 0;
 				if(events[i].events == EPOLLIN) {
 
-					printf("second branc line %d\n",__LINE__);
+					printf("second branch line %d\nreading from socket number %d.\n",__LINE__
+							,events[i].data.fd);
 					if((r = read_cli_sock(events[i].data.fd,&req)) == -1) break;
 					if(r == EAGAIN || r == EWOULDBLOCK) continue;
 
@@ -431,10 +453,21 @@ int main()
 					if(child == -1){
 						/*send a server error response*/
 
+						continue;
 					}
 					if(child == 0){
+						if(init_prog_memory() == -1){
+							/*log error*/
+							/*NOT SURE ABOUT REMOVE HERE*/
+							//remove_socket_from_monitor(events[i].data.fd);
+							exit(1);
+						}
 						if(r == BAD_REQ) {
 							/*send a bed request response*/
+							//remove_socket_from_monitor(events[i].data.fd);
+							stop_listening(cli_sock);
+							close_prog_memory();
+							exit(1);
 						}
 
 						struct Content cont;
@@ -449,7 +482,7 @@ int main()
 
 								bad_request:
 								if(generate_response(&res,400,NULL,&req) == -1) break;
-								clear_request(&req);
+								//clear_request(&req);
 
 								int w = 0;
 								if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
@@ -463,12 +496,17 @@ int main()
 										break;
 									}
 									if(ws){
-										clear_response(&res);
-										remove_socket_from_monitor(events[i].data.fd);
+										//clear_response(&res);
+										close_prog_memory();
+										//remove_socket_from_monitor(events[i].data.fd);
+										stop_listening(cli_sock);
 										exit(0);
+
 									}
 									clear_response(&res);
-									remove_socket_from_monitor(events[i].data.fd);
+								//	remove_socket_from_monitor(events[i].data.fd);
+									stop_listening(cli_sock);
+									close_prog_memory();
 									exit(1);
 
 #else
@@ -481,7 +519,7 @@ int main()
 							if(generate_response(&res,200,NULL,&req) == -1) break;
 
 
-							clear_request(&req);
+							//clear_request(&req);
 
 							int w = 0;
 							if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
@@ -495,12 +533,16 @@ int main()
 									break;
 								}
 								if(ws){
-									clear_response(&res);
-									remove_socket_from_monitor(events[i].data.fd);
+									//clear_response(&res);
+									//remove_socket_from_monitor(events[i].data.fd);
+									stop_listening(events[i].data.fd);
+									close_prog_memory();
 									exit(0);
 								}
-								clear_response(&res);
-								remove_socket_from_monitor(events[i].data.fd);
+							//	clear_response(&res);
+							//	remove_socket_from_monitor(events[i].data.fd);
+								stop_listening(events[i].data.fd);
+								close_prog_memory();
 								exit(1);
 
 #else
@@ -510,8 +552,9 @@ int main()
 
 #if USE_FORK
 
-							clear_response(&res);
-							remove_socket_from_monitor(events[i].data.fd);
+							//clear_response(&res);
+							stop_listening(events[i].data.fd);
+							close_prog_memory();
 							exit(0);
 #else
 							clear_response(&res);
@@ -526,8 +569,8 @@ int main()
 								/*send a bed request response*/
 								if(generate_response(&res,400,NULL,&req) == -1) break;
 
-								clear_request(&req);
-								clear_content(&cont);
+							//	clear_request(&req);
+							//	clear_content(&cont);
 
 								int w = 0;
 								if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
@@ -541,12 +584,14 @@ int main()
 										break;
 									}
 									if(ws){
-										clear_response(&res);
-										remove_socket_from_monitor(events[i].data.fd);
+										//clear_response(&res);
+										stop_listening(events[i].data.fd);
+										close_prog_memory();
 										exit(0);
 									}
-									clear_response(&res);
-									remove_socket_from_monitor(events[i].data.fd);
+									//clear_response(&res);
+									stop_listening(events[i].data.fd);
+									close_prog_memory();
 									exit(1);
 
 #else
@@ -565,8 +610,8 @@ int main()
 							}
 
 							printf("in the second branch response body is \n %s\n",res.body.content);
-							clear_content(&cont);
-							clear_request(&req);
+							//clear_content(&cont);
+							//clear_request(&req);
 							int w = 0;
 							if((w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 							if(w == EAGAIN || w == EWOULDBLOCK){
@@ -579,21 +624,25 @@ int main()
 									break;
 								}
 								if(ws){
-									clear_response(&res);
-									remove_socket_from_monitor(events[i].data.fd);
+									//clear_response(&res);
+									stop_listening(events[i].data.fd);
+									close_prog_memory();
 									exit(0);
 								}
-								clear_response(&res);
-								remove_socket_from_monitor(events[i].data.fd);
+								//clear_response(&res);
+								stop_listening(events[i].data.fd);
+								close_prog_memory();
 								exit(1);
-
 #else
 								continue;
 #endif
 							}
 #if USE_FORK
-							clear_response(&res);
-							remove_socket_from_monitor(events[i].data.fd);
+							//clear_response(&res);
+							close_prog_memory();
+							stop_listening(events[i].data.fd);
+							printf("child try to remove sock nr %d, from monitor.\n",
+									events[i].data.fd);
 							exit(0);
 #else
 							clear_response(&res);
@@ -605,8 +654,8 @@ int main()
 							/*send a bad or not found request response*/
 							if(generate_response(&res,404,NULL,&req) == -1) break;
 
-							clear_content(&cont);
-							clear_request(&req);
+							//clear_content(&cont);
+							//clear_request(&req);
 							int w =	 0;
 							if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;
 							if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -619,12 +668,14 @@ int main()
 									break;
 								}
 								if(ws){
-									clear_response(&res);
-									remove_socket_from_monitor(events[i].data.fd);
+									//clear_response(&res);
+									stop_listening(events[i].data.fd);
+									close_prog_memory();
 									exit(0);
 								}
-								clear_response(&res);
-								remove_socket_from_monitor(events[i].data.fd);
+								//clear_response(&res);
+								stop_listening(events[i].data.fd);
+								close_prog_memory();
 								exit(1);
 
 #else
@@ -647,12 +698,14 @@ int main()
 								break;
 							}
 							if(ws){
-								clear_response(&res);
-								remove_socket_from_monitor(events[i].data.fd);
+								//clear_response(&res);
+								stop_listening(events[i].data.fd);
+								close_prog_memory();
 								exit(0);
 							}
-							clear_response(&res);
-							remove_socket_from_monitor(events[i].data.fd);
+							//clear_response(&res);
+							stop_listening(events[i].data.fd);
+							close_prog_memory();
 							exit(1);
 
 #else
@@ -660,8 +713,9 @@ int main()
 #endif
 						}
 #if USE_FORK
-						clear_response(&res);
-						remove_socket_from_monitor(events[i].data.fd);
+						//clear_response(&res);
+						stop_listening(events[i].data.fd);
+						close_prog_memory();
 						exit(0);
 #else
 						clear_response(&res);
@@ -672,13 +726,22 @@ int main()
 					}
 					/*parent*/
 					printf("in the parent\n");
-					/*this line you could probably delete it */
-					remove_socket_from_monitor(events[i].data.fd);
+					int wstatus;
+					if(waitpid(child, &wstatus, WNOHANG) == -1)
+						fprintf(stderr,"cannot wait for child process\n");
+
+					if(WIFEXITED(wstatus)){
+						remove_socket_from_monitor(events[i].data.fd);
+						printf("parent try to remove the socket nr %d from monitor line %d\n",
+								events[i].data.fd,
+								__LINE__);
+					}
 				}else if(events[i].events == EPOLLOUT) {
 					int w = 0;
 					if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;	
 
 					if(w == EAGAIN || w == EWOULDBLOCK) {
+						/*you should fork right here*/
 #if USE_FORK 
 						uint8_t ws = 0;
 						while((w = write_cli_sock(events[i].data.fd,&res) != -1)){
@@ -693,7 +756,7 @@ int main()
 							exit(0);
 						}
 						clear_response(&res);
-						remove_socket_from_monitor(events[i].data.fd);
+						//remove_socket_from_monitor(events[i].data.fd);
 						exit(1);
 
 #else
@@ -719,6 +782,5 @@ int main()
 
 	stop_listening(con);
 	stop_monitor();
-	close_prog_memory();
 	return 0;
 }

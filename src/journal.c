@@ -172,6 +172,12 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	case STR:
 	{	
 		size_t l = strlen((char *) key)+1;
+		node.key.k.s = (char *)ask_mem(l);
+		if(!node.key.k.s){
+			fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-1);
+			return -1;
+			
+		}
 		strncpy(node.key.k.s,(char *)key,l);
 		break;
 	}
@@ -192,8 +198,8 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	}
 
 
-	/*push the node on the stack*/	
 	node.timestamp = time(NULL);
+	/*push the node on the stack*/	
 	if(push_journal(&index,node) == -1){
 		error("failed to push on journal stack",__LINE__-1);
 		close(fd);
@@ -455,6 +461,12 @@ int read_journal_index(int fd,struct stack *index)
 
 			if(read(fd,buff,size) == -1){
 				error("read journal index failed",__LINE__-1);
+				return -1;
+			}
+
+			index->elements[i].key.k.s = (char *)ask_mem(size);
+			if(!index->elements[i].key.k.s){
+				error("ask_mem() failed",__LINE__-1);
 				return -1;
 			}
 

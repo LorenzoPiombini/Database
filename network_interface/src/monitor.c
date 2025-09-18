@@ -83,6 +83,11 @@ int add_socket_to_monitor(int sock,int event)
 int remove_socket_from_monitor(int sock)
 {
 
+	if(!is_sock_in_monitor(sock)) {
+		close(sock);
+		return -1;
+	}
+
 	errno = 0;
 	if (epoll_ctl(epollfd, EPOLL_CTL_DEL, sock,NULL) == -1) {
                fprintf(stderr,"(%s): cannot remove socket from monitor: %s\n",prog,strerror(errno));
