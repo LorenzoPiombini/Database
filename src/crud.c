@@ -453,6 +453,8 @@ int update_rec(char *file_path,
 	}
 
 
+	/*used to return proper value in case of nothing to update*/
+	int no_updates = 0;
 	if(rec_old.count > 1){
 		/* here we have the all record in memory and we have
 		   to check which fields in the record we have to update*/
@@ -489,7 +491,6 @@ int update_rec(char *file_path,
 
 		/* write the update records to file */
 		int changed = 0;
-		int no_updates = 0;
 		uint16_t updates = 0; /* bool value if 0 no updates*/
 		uint32_t i;
 		for (i = 0; i < rec_old.count; i++) {
@@ -638,7 +639,10 @@ int update_rec(char *file_path,
 clean_on_error:
 	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	free_record(&rec_old, rec_old.fields_num);
-	return STATUS_ERROR;
+	if(no_updates)
+		return 0;
+	else
+		return STATUS_ERROR;
 
 }
 

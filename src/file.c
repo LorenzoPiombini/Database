@@ -6818,7 +6818,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 	}
 	
 	uint8_t cnt = 0;
-	int i;
+	uint8_t i;
 	for(i = 0; i < rec->fields_num; i++){
 		if(rec->field_set[i] == 0) continue;
 		cnt++;
@@ -6950,7 +6950,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				uint16_t bu_ne = 0;
 				uint16_t new_lt = 0;
 				/*save the starting offset for the string record*/
-				uint64_t bg_pos = ram->size;
+				uint64_t bg_pos = ram->offset;
 				uint32_t str_loc_ne= 0;
 
 				/*read the other str_loc if any*/
