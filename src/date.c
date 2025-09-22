@@ -6,13 +6,13 @@
 #include "debug.h"
 #include "str_op.h"
 
-static enum date_delim{
+enum date_delim{
 	DOT,
 	SLASH,
 	DASH
 };
 
-static is_valid_date(char *date);
+static int is_valid_date(char *date);
 
 unsigned char is_date_this_week(char* str_d)
 {
@@ -239,7 +239,7 @@ int get_service()
 	return 0; /*BREAKFAST*/
 }
 
-static is_valid_date(char *date)
+static int is_valid_date(char *date)
 {
 	char *p = date;
 	uint8_t dash = 0;
@@ -247,7 +247,7 @@ static is_valid_date(char *date)
 	uint8_t dot = 0;
 	for(; *p != '\0';p++){
 		if(isalpha(*p)) return -1;
-		if(isblank(*p)) return -1;
+		if(*p == ' ' || *p == '\t') return -1;
 		if(*p == '\\' || *p == '/') slash++;
 		if(*p == '.') dot++;
 		if(*p == '-') dash++;

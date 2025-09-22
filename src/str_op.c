@@ -2931,20 +2931,20 @@ int double_to_string(double d, char *buff){
 int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 {
 	if(strstr(format,"%s")){
-		fprint(stderr,"invalid format string, unexpected '%%s'\nformat specifier acceptted %%ld %%d %%u\n");	
+		fprintf(stderr,"invalid format string, unexpected '%%s'\nformat specifier acceptted %%ld %%d %%u\n");	
 		return -1;
 	}
 
 	va_list list;
 	va_start(list,format);
-	int i, is_long;
-	for(i = 0; format != '\0'; format++){
-		uint8_t exit = 0;
+	size_t i;
+	uint8_t is_long = 0;
+	for(i = 0; *format != '\0'; format++){
 		if(*format == '%'){
 			format++;
 			if(*format == '\0')break;
 			for(;;){
-				switch(format){
+				switch(*format){
 				case 's':
 					va_end(list);
 					return -1;
@@ -2965,12 +2965,13 @@ int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 							}else{
 								va_end(list);
 								fprintf(stderr,
-									"number is too large: %s, has more than 15 digit\n");
+									"number is too large: %s, has more than 15 digit\n",
+									number);
 								return -1;
 							}
 							i++;
 							
-							if(i >= size){
+							if( i >= size){
 								va_end(list);
 								return -1;
 							}
@@ -2979,7 +2980,7 @@ int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 
 						while(!isdigit(buff[i])){
 							i++;
-							if( i >= size){
+							if(i > size){
 								va_end(list);
 								return -1;
 							}
@@ -2992,12 +2993,13 @@ int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 							}else{
 								va_end(list);
 								fprintf(stderr,
-									"number is too large: %s, has more than 15 digit\n");
+									"number is too large: %s, has more than 15 digit\n",
+									number);
 								return -1;
 							}
 							i++;
 							
-							if(i >= size){
+							if(i > size){
 								va_end(list);
 								return -1;
 							}
@@ -3012,25 +3014,25 @@ int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 						return -1;
 					}
 					if(is_long){
-
 						long *n = va_arg(list,long*);
 						*n = l;
 					}else{
 						int *n = va_arg(list,int*);
 						*n = l;
 					}
-					exit = 1;
 					break;
 				default:
-
+					break;
 				}
-				if(exit) break;
+				format++;
+				break;
 			}
-
 		}
+
+		if(*format == '\0') break;
 	}
-
-
+	va_end(list);
+	return 0;
 }
 int copy_to_string(char *buff,size_t size,char *format,...)
 {
