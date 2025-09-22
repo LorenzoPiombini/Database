@@ -15,27 +15,10 @@
 #define SCHEMA_CT_NT 12 /*intput is part of the schema but NO type in the schema file*/
 #define SCHEMA_NW_NT 13 /*intput is part of the schema but also new part no part of the schema*/
 #define NTG_WR 14 /* nothing to write to the file*/
+#define NO_ELEMENT 15 /* ?? */	
+#define KEY_NOT_FOUND 16 /*key not in the index file*/
 #define E_RCMP 201 /* record comparison failed*/	
 #define DIF 202 /* new record is different*/	
-#define NO_ELEMENT 15 /* new record is different*/	
-
-/* possible refactor for main.c*/
-#define NEW_FILE 1 	/*0000 0001*/
-#define DEL 2		/*0000 0010*/ 
-#define UPDATE 4        /*0000 0100*/
-#define LIST_DEF 8      /*0000 1000*/
-#define DEL_FILE 16     /*0001 0000*/
-#define BUILD 32	/*0010 0000*/
-#define LIST_KEYS 64 	/*0100 0000*/
-#define CREATE 128 	/*1000 0000*/
-#define IMPORT_FROM_DATA 129 /*1000 0001*/
-#define OPTIONS 130	/*1000 0010*/
-#define INDEX_ADD 132   /*1000 0100*/
-#define FILE_FIELD 136 /*1000 1000*/
-
-
-
-
 
 
 

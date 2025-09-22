@@ -411,10 +411,14 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 }
 
 int update_rec(char *file_path,
-		int *fds,void *key,
-		int key_type,struct Record_f *rec,
-		struct Header_d hd,int check,
-		int *lock_f, char *options)
+		int *fds,
+		void *key,
+		int key_type,
+		struct Record_f *rec,
+		struct Header_d hd,
+		int check,
+		int *lock_f, 
+		char *options)
 {
 	struct Record_f rec_old;
 	memset(&rec_old,0,sizeof(struct Record_f));
@@ -430,9 +434,18 @@ int update_rec(char *file_path,
 		*lock_f = 1;
 	}
 
-	if(get_record(-1,file_path,&rec_old,key,key_type,hd,fds) == -1){
+	uint8_t err = 0;
+	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds) == -1)){
 		if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		return -1;
+	}
+
+	if(err == KEY_NOT_FOUND){
+		if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
+		if(__UTILITY)
+			return KEY_NOT_FOUND;
+		else
+			return -1;
 	}
 
 	struct Record_f *recs[rec_old.count];
@@ -450,8 +463,8 @@ int update_rec(char *file_path,
 			i++;
 			recs[i] = temp;
 		}
-	}
 
+	}
 
 	/*used to return proper value in case of nothing to update*/
 	int no_updates = 0;
@@ -689,13 +702,17 @@ static off_t get_rec_position(struct HashTable *ht, void *key, int key_type)
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
 				cancel_memory(NULL,key_conv,sizeof(uint32_t));
+				if(offset == -1) return KEY_NOT_FOUND;
+
 				return offset;
 			}
 		} else if (key_type == STR) {
 			offset = get((void *)key, ht, key_type); /*look for the key in the ht */
+			if(offset == -1) return KEY_NOT_FOUND;
 			return offset;
 		}
 	}
 	offset = get((void *)key, ht, key_type); /*look for the key in the ht */
+	if(offset == -1) return KEY_NOT_FOUND;
 	return offset;
 }

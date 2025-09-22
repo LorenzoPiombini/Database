@@ -1,9 +1,18 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <ctype.h>
 #include "date.h"
 #include "debug.h"
 #include "str_op.h"
+
+static enum date_delim{
+	DOT,
+	SLASH,
+	DASH
+};
+
+static is_valid_date(char *date);
 
 unsigned char is_date_this_week(char* str_d)
 {
@@ -47,10 +56,11 @@ int get_week_number(struct tm* time_in)
 }
 
 
-unsigned char convert_date_str(char *str, struct tm* input_date)
+int convert_date_str(char *str, struct tm* input_date)
 {
 	int year = 0, day = 0, month = 0;
-	
+	if(is_valid_date(str) == -1) return -1;
+
 	if(sscanf(str,"%d-%d-%d",&month, &day, &year) < 3)
 	{
 		printf("date convert failed, %s:%d.\n", F,L-2);
@@ -229,3 +239,24 @@ int get_service()
 	return 0; /*BREAKFAST*/
 }
 
+static is_valid_date(char *date)
+{
+	char *p = date;
+	uint8_t dash = 0;
+	uint8_t slash = 0;
+	uint8_t dot = 0;
+	for(; *p != '\0';p++){
+		if(isalpha(*p)) return -1;
+		if(isblank(*p)) return -1;
+		if(*p == '\\' || *p == '/') slash++;
+		if(*p == '.') dot++;
+		if(*p == '-') dash++;
+		if(isdigit(*p)) continue;
+	}
+
+	if (slash == 3) return SLASH;
+	if (dot == 3) return DOT;
+	if (dash == 3) return DASH;
+	return -1;
+
+}

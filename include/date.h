@@ -7,7 +7,7 @@
 
 unsigned char is_date_this_week(char* str_d);
 int get_week_number(struct tm* time_in);
-unsigned char convert_date_str(char *str, struct tm* input_date);
+int convert_date_str(char *str, struct tm* input_date);
 unsigned char extract_date(char* key, char *date);
 unsigned char w_day(void);
 struct tm* get_now(void);

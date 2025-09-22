@@ -2928,6 +2928,110 @@ int double_to_string(double d, char *buff){
 	return 0;
 }
 
+int extract_numbers_from_string(char *buff,size_t size,char *format,...)
+{
+	if(strstr(format,"%s")){
+		fprint(stderr,"invalid format string, unexpected '%%s'\nformat specifier acceptted %%ld %%d %%u\n");	
+		return -1;
+	}
+
+	va_list list;
+	va_start(list,format);
+	int i, is_long;
+	for(i = 0; format != '\0'; format++){
+		uint8_t exit = 0;
+		if(*format == '%'){
+			format++;
+			if(*format == '\0')break;
+			for(;;){
+				switch(format){
+				case 's':
+					va_end(list);
+					return -1;
+				case 'l':
+					format++;
+					is_long = 1;
+					continue;
+				case 'd':
+					char number[15];
+					memset(number,0,15);
+					int j = 0;
+				
+					if(isdigit(buff[i])){
+						while(isdigit(buff[i])){
+							if(j < 15){
+								number[j] = buff[i];
+								j++;
+							}else{
+								va_end(list);
+								fprintf(stderr,
+									"number is too large: %s, has more than 15 digit\n");
+								return -1;
+							}
+							i++;
+							
+							if(i >= size){
+								va_end(list);
+								return -1;
+							}
+						}		
+					}else{
+
+						while(!isdigit(buff[i])){
+							i++;
+							if( i >= size){
+								va_end(list);
+								return -1;
+							}
+						}
+
+						while(isdigit(buff[i])){
+							if(j < 15){
+								number[j] = buff[i];
+								j++;
+							}else{
+								va_end(list);
+								fprintf(stderr,
+									"number is too large: %s, has more than 15 digit\n");
+								return -1;
+							}
+							i++;
+							
+							if(i >= size){
+								va_end(list);
+								return -1;
+							}
+						}
+					}
+					errno = 0;
+					long l = string_to_long(number);
+					if(errno == EINVAL){
+						va_end(list);
+						fprintf(stderr,"string to number conversion failed, %s,%d.\n",
+								__FILE__,__LINE__-4);
+						return -1;
+					}
+					if(is_long){
+
+						long *n = va_arg(list,long*);
+						*n = l;
+					}else{
+						int *n = va_arg(list,int*);
+						*n = l;
+					}
+					exit = 1;
+					break;
+				default:
+
+				}
+				if(exit) break;
+			}
+
+		}
+	}
+
+
+}
 int copy_to_string(char *buff,size_t size,char *format,...)
 {
 	if(strlen(format) > size){
