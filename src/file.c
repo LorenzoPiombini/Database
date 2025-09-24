@@ -10363,11 +10363,11 @@ static size_t get_string_size(int fd, struct Ram_file *ram)
 
 #elif defined(_WIN32) 
 #include <windows.h>
-#include <stdint.h>
 #include "file.h"
+#include "types.h"
 #include "str_op.h"
 #include "common.h"
-#include "float_endian.h"
+#include "endian.h"
 #include "debug.h"
 
 HANDLE open_file(char *fileName, uint32_t use_trunc)
@@ -10377,11 +10377,11 @@ HANDLE open_file(char *fileName, uint32_t use_trunc)
 	HANDLE h_file;
 
 	if(!use_trunc){
-		access = GENERIC_WRITE | GENERIC_READ;
+		access = GENERIC_WRITE | GENERIC_READ | FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE;
 		creation = OPEN_EXISTING;
 
 	}else{
-		access = GENERIC_WRITE | GENERIC_READ;
+		access = GENERIC_WRITE | GENERIC_READ | FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE;
 		creation = TRUNCATE_EXISTING;
 	}
 
@@ -10390,6 +10390,7 @@ HANDLE open_file(char *fileName, uint32_t use_trunc)
 
 	return h_file;
 }
+
 
 
 #endif
