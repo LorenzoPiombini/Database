@@ -9,12 +9,13 @@
 #include <string.h>
 #include <assert.h>
 
-/* these are my libriry */
+/* these are my library */
 #include <types.h>
 #include <crud.h>
 #include <lock.h>
 #include <file.h>
 #include <str_op.h>
+#include <common.h>
 #include "key.h"
 #include "load.h"
 #include "request.h"
@@ -113,11 +114,12 @@ int load_resource(struct Request *req, struct Content *cont)
 			int check = 0;
 			if((check = check_data(SALES_ORDERS_H,orders_head,fds,files,&rec,&hd,&lock_f,-1)) == -1) goto post_exit_error;
 
-			if(resource == NEW_SORD)
+			if(resource == NEW_SORD){
 				key = generate_numeric_key(fds,NEW_SORD);
+				if(!key) return -1; 
+			}
 
-			if(!key) return -1; 
-			if(resource ==NEW_SORD){
+			if(resource == NEW_SORD){
 				if(write_record(fds,&key,UINT,&rec, 0,files,&lock_f,-1) == -1) goto post_exit_error;
 			}else if(resource == UPDATE_SORD){
 				if(update_rec(SALES_ORDERS_H,fds,&key,UINT,&rec,hd,check,&lock_f,NULL) == -1 )goto post_exit_error;
@@ -169,7 +171,14 @@ int load_resource(struct Request *req, struct Content *cont)
 				if(resource == NEW_SORD){
 					if(write_record(fds,&key_each_line.base,STR,&rec,0,files,&lock_f,-1) == -1) goto post_exit_error;
 				}else if(resource == UPDATE_SORD){
-					if(update_rec(SALES_ORDERS_L,
+					/* 
+					 * the err variable and the if 
+					 * statement after the update_rec
+					 * are ment to perform an update  of an order
+					 * with new lines 
+					 * */
+					int err = 0;
+					if(( err = update_rec(SALES_ORDERS_L,
 								fds,
 								&key_each_line.base,
 								STR,
@@ -177,7 +186,17 @@ int load_resource(struct Request *req, struct Content *cont)
 								hd,
 								check,
 								&lock_f,
-								NULL) == -1) goto post_exit_error;
+								NULL)) == -1) goto post_exit_error;
+
+					if(err == KEY_NOT_FOUND){
+						if(write_record(fds,
+								&key_each_line.base,
+								STR,
+								&rec,
+								0,
+								files,
+								&lock_f,-1) == -1) goto post_exit_error;
+					}
 				}
 
 				free_record(&rec,rec.fields_num);

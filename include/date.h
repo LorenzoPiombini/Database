@@ -2,6 +2,7 @@
 #define _DATE_H
 
 #include <time.h>
+#include "types.h"
 
 #define ISO_W_ADJ 10
 
@@ -17,5 +18,7 @@ long now_seconds();
 int create_string_date(long time, char* date_str);
 long convert_str_date_to_seconds(char* date);
 int get_service();
+int convert_number_to_date(char *date, int date_number);
+uint32_t convert_date_to_number(char *date);
 
 #endif /* date.h */

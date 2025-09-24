@@ -43,7 +43,9 @@ int parse_d_flag_input(char *file_path, int fields_num,
 	memset(cpy,0,s+1);
 	strncpy(cpy,buffer,s);
 
+	clear_tok();
 	get_fileds_name(buffer, fields_num, 3, names);
+	clear_tok();
 	get_value_types(buffer, fields_num, 3, types_i);
 	
 	/* check if the fields name are correct- if not - input is incorrect */
@@ -1036,6 +1038,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					types_i[i] != TYPE_PACK &&
 					types_i[i] != TYPE_STRING &&
 					types_i[i] != TYPE_FILE &&
+					types_i[i] != TYPE_DATE &&
 					types_i[i] != TYPE_ARRAY_INT &&
 					types_i[i] != TYPE_ARRAY_LONG &&
 					types_i[i] != TYPE_ARRAY_FLOAT &&
@@ -1198,6 +1201,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						}
 						continue;
 					}
+					types_i[i] = sch->types[i];
 					continue;
 				}else if(is_number_array(sch->types[i])){
 					switch(sch->types[i]){
@@ -1304,7 +1308,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					continue;
 				}
 
-				return -1;
+				types_i[i] = sch->types[i];
+				continue;
 			}
 		}
 		if(name_check != sch->fields_num) return -1;
@@ -1486,6 +1491,9 @@ int schema_eq_assign_type(struct Schema *sch, char names[][MAX_FIELD_LT],int *ty
 			if(sch->types[i] == -1){	
 				sch->types[i] = types_i[j];
 				count++;
+			}
+			if(sch->types[i] != types_i[i]){
+				types_i[i] = sch->types[i];	
 			}
 		}
 	}
@@ -2187,6 +2195,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 		for (j = 0; j < rec_old[0]->fields_num; j++) {
 
 			switch (rec->fields[j].type) {
+			case -1:
+				break;
 			case TYPE_INT:
 				if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 0){
 					update_new = 1; 
@@ -2195,6 +2205,21 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 1){
 					if (rec_old[0]->fields[j].data.i != rec->fields[j].data.i){
 						rec_old[0]->fields[j].data.i = rec->fields[j].data.i;
+						changed = 1;
+						rec->field_set[j] = 0;
+						break;
+					}
+					rec->field_set[j] = 0;
+				}
+				break;
+			case TYPE_DATE:
+				if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 0){
+					update_new = 1; 
+					break;
+				}
+				if (rec->field_set[j] == 1  && rec_old[0]->field_set[j] == 1){
+					if (rec_old[0]->fields[j].data.date != rec->fields[j].data.date){
+						rec_old[0]->fields[j].data.date = rec->fields[j].data.date;
 						changed = 1;
 						rec->field_set[j] = 0;
 						break;
@@ -2641,6 +2666,19 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						rec->field_set[i] = 0;
 					}
 					break;
+				case TYPE_DATE:
+					if(rec->field_set[i] == 1 && rec_old[0]->field_set[i] == 0){ 
+						update_new = 1;
+						break;
+					} else if(rec->field_set[i] == 1 && rec_old[0]->field_set[i] == 1){ 
+						if (rec_old[0]->fields[i].data.date != rec->fields[i].data.date){
+							changed = 1;
+							rec_old[0]->fields[i].data.date = rec->fields[i].data.date;
+							rec->field_set[i] = 0;
+						}
+						rec->field_set[i] = 0;
+					}
+					break;
 				case TYPE_LONG:
 					if(rec->field_set[i] == 1 && rec_old[0]->field_set[i] == 0){ 
 						update_new = 1;
@@ -2717,7 +2755,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					} else if(rec->field_set[i] == 1 && rec_old[0]->field_set[i] == 1){ 
 						if (rec_old[0]->fields[i].data.d != rec->fields[i].data.d){
 							changed = 1;
-							rec_old[0]->fields[i].data.b = rec->fields[i].data.b;
+							rec_old[0]->fields[i].data.d = rec->fields[i].data.d;
 							rec->field_set[i] = 0;
 						}
 						rec->field_set[i] = 0;
@@ -2988,6 +3026,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 	}else if(changed && !update_new){
 		return UPDATE_OLD;
 	}else if (!changed && update_new){
+		return UPDATE_OLD;
+	}else if(!changed && !update_new){
 		return UPDATE_OLD;
 	}
 
@@ -3507,6 +3547,9 @@ void print_schema(struct Schema sch)
 				break;
 			case TYPE_PACK:
 				printf("pack.\n");
+				break;
+			case TYPE_DATE:
+				printf("date.\n");
 				break;
 			case TYPE_DOUBLE:
 				printf("double.\n");

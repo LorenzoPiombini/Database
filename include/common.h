@@ -17,6 +17,7 @@
 #define NTG_WR 14 /* nothing to write to the file*/
 #define NO_ELEMENT 15 /* ?? */	
 #define KEY_NOT_FOUND 16 /*key not in the index file*/
+#define UPDATE_NOT 17 /*nothing tio update*/
 #define E_RCMP 201 /* record comparison failed*/	
 #define DIF 202 /* new record is different*/	
 

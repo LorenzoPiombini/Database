@@ -613,6 +613,7 @@ size_t record_size_on_disk(void *rec_f)
 		{
 		case TYPE_INT:
 		case TYPE_FLOAT:
+		case TYPE_DATE:
 			rec_size += sizeof(uint32_t);
 			break;
 		case TYPE_LONG:
@@ -5133,6 +5134,18 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			rec->fields[i].data.p = swap32(p_ne);
 			break;
 		}
+		case TYPE_DATE:
+		{
+			uint32_t p_ne = 0;
+			if (read(fd, &p_ne, sizeof(uint32_t)) < 0) {
+				perror("could not read type float, file.c l 505.\n");
+				free_record(rec, rec->fields_num);
+				return -1;
+			}
+
+			rec->fields[i].data.date = swap32(p_ne);
+			break;
+		}
 		case TYPE_STRING:
 		{
 			/*read pos of new str if any*/
@@ -6211,6 +6224,9 @@ static size_t get_disk_size_record(struct Record_f *rec)
 		case TYPE_INT:
 			size += sizeof(uint32_t);
 			break;
+		case TYPE_DATE:
+			size += sizeof(uint32_t);
+			break;
 		case TYPE_LONG:
 			size += sizeof(uint64_t);
 			break;
@@ -6824,6 +6840,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		cnt++;
 	}
 
+	if(cnt == 0){
+		fprintf(stderr,"no active fields in the record %s:%d\n",__FILE__,__LINE__);
+		return -1;
+	}
+
 	if(ram->size == ram->capacity && ram->offset != ram->size)
 		memcpy(&ram->mem[ram->offset],&cnt,sizeof(uint8_t));
 	else
@@ -6831,10 +6852,6 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 	move_ram_file_ptr(ram,sizeof(uint8_t));
 
-	if(cnt == 0){
-		fprintf(stderr,"no active fields in the record %s:%d\n",__FILE__,__LINE__);
-		return -1;
-	}
 
 	for(i = 0; i < rec->fields_num; i++){
 		if(rec->field_set[i] == 0) continue;
@@ -6880,6 +6897,17 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 			move_ram_file_ptr(ram,sizeof(uint8_t));
 			break;
+		case TYPE_DATE:
+		{
+			uint32_t value = swap32(rec->fields[i].data.date);
+			if(ram->size == ram->capacity && ram->offset != ram->size)
+				memcpy(&ram->mem[ram->offset],&value,sizeof(uint32_t));
+			else
+				memcpy(&ram->mem[ram->size],&value,sizeof(uint32_t));
+			
+			move_ram_file_ptr(ram,sizeof(uint32_t));
+			break;
+		}
 		case TYPE_FLOAT:
 		{
 			uint32_t value = htonf(rec->fields[i].data.f);

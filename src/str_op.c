@@ -440,6 +440,50 @@ static int search_string_for_types(char *str, int *types)
 
 			break;
 		}
+		case TYPE_DATE:
+		{
+			char *p = NULL;
+			while((p = strstr(str,"@t_dt:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p);
+					int k;
+					for(k = 0; k < p_size; k++,p++)
+						*p = ' ';
+
+					break;/* break from switch */
+				}
+				int p_size = (int)(p_end - str) - (p - str);
+				if(p_size < 0)return -1;
+				
+				int k;
+				for(k = 0; k < p_size; k++,p++)
+					*p = ' ';
+
+				break;
+			}
+
+			while((p = strstr(str,"@TYPE_DATE:"))){
+				char *p_end = strstr(p,":");
+				if(!p_end){
+					int p_size = (int)strlen(p);
+					int k;
+					for(k = 0; k < p_size; k++,p++)
+						*p = ' ';
+
+					break;/* break from switch */
+				}
+				int p_size = (int)(p_end - str) - (p - str);
+				if(p_size < 0)return -1;
+
+				int k;
+				for(k = 0; k < p_size; k++,p++)
+					*p = ' ';
+
+				break;
+			}
+			break;
+		}
 		case TYPE_LONG:
 		{
 			char *p = NULL;
@@ -985,7 +1029,8 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		default:
-			break;
+			fprintf(stderr,"type not valid. %s:%d.\n",__FILE__,__LINE__);
+			return -1;
 		}	
 	}
 
@@ -1308,7 +1353,9 @@ int get_type(char *s){
 	{
 		return 13;
 	}
-	else if (strcmp(s, "t_ai") == 0)
+	else if (strcmp(s, "TYPE_DATE") == 0){
+		return 14;
+	}else if (strcmp(s, "t_ai") == 0)
 	{
 		return 7;
 	}
@@ -1335,6 +1382,8 @@ int get_type(char *s){
 	else if (strcmp(s, "t_fl") == 0)
 	{
 		return 13;
+	}else if (strcmp(s, "t_dt") == 0){
+		return 14;
 	}
 
 	return -1;
@@ -2486,6 +2535,7 @@ static int is_target_db_type(char *target)
 		if(strlen(tg) == strlen(":t_as")) if(strncmp(tg,":t_as",size) == 0) return 0;
 		if(strlen(tg) == strlen(":t_ab")) if(strncmp(tg,":t_ab",size) == 0) return 0;
 		if(strlen(tg) == strlen(":t_fl")) if(strncmp(tg,":t_fl",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_dt")) if(strncmp(tg,":t_dt",size) == 0) return 0;
 
 		return -1;
 
@@ -2702,51 +2752,59 @@ struct tok_handler{
 
 static struct tok_handler t_hndl;
 
+void clear_tok()
+{
+	t_hndl.finish = 0;
+	if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+		/*log the error*/
+	}
+	t_hndl.original_tok = NULL;
+}
 char *tok(char *str, char *delim)
 {
 
         if(t_hndl.finish){
-		if(!str){
-			if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
-				/*log the error*/
-			}
-			t_hndl.original_tok = NULL;
-			t_hndl.finish = 0;
-			return NULL;
-		}
-
-		
-		size_t string_size = strlen(str);	
-		if(string_size != strlen(t_hndl.original_tok)){
-			if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
-				/*log the error*/
-			}
-			t_hndl.original_tok = NULL;
-			t_hndl.finish = 0;
-			goto tok_process;
-		}else{
-			replace('\n',*delim,t_hndl.original_tok);	
-			if(strncmp(str,t_hndl.original_tok,string_size) == 0){
+			if(!str){
 				if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
 					/*log the error*/
 				}
 				t_hndl.original_tok = NULL;
 				t_hndl.finish = 0;
 				return NULL;
-			} else {
+			}
+
+		
+			size_t string_size = strlen(str);	
+			if(string_size != strlen(t_hndl.original_tok)){
 				if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
 					/*log the error*/
 				}
 				t_hndl.original_tok = NULL;
 				t_hndl.finish = 0;
 				goto tok_process;
+			}else{
+				replace('\n',*delim,t_hndl.original_tok);	
+				if(strncmp(str,t_hndl.original_tok,string_size) == 0){
+					if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+						/*log the error*/
+					}
+					t_hndl.original_tok = NULL;
+					t_hndl.finish = 0;
+					return NULL;
+				} else {
+					if(cancel_memory(NULL,t_hndl.original_tok,strlen(t_hndl.original_tok)+1) == -1){
+						/*log the error*/
+					}
+					t_hndl.original_tok = NULL;
+					t_hndl.finish = 0;
+					goto tok_process;
+				}
 			}
-		}
-		t_hndl.finish = 0;
-		if(!t_hndl.original_tok)goto tok_process;
+			t_hndl.finish = 0;
+			if(!t_hndl.original_tok)goto tok_process;
 
-		return NULL;
-	}
+			return NULL;
+		}
 
 tok_process:
 	if(!t_hndl.original_tok && !str) return NULL;
@@ -2918,7 +2976,10 @@ int double_to_string(double d, char *buff){
 
 	int i;
 	int j = strlen(buff);
-	for(i = 0; i < 15; i++){
+	int zeros_after_point = 15;
+	if(d < 0) zeros_after_point -= 1;
+
+	for(i = 0; i < zeros_after_point; i++){
 		fraction *= 10;
 		buff[j] =  ((int)fraction + '0');
 		fraction = (double)(fraction - (int)fraction);
@@ -3087,7 +3148,8 @@ int copy_to_string(char *buff,size_t size,char *format,...)
 				case 'f':
 				{
 					d = va_arg(list,double);
-					size_t sz = number_of_digit((int)d);
+					
+					size_t sz = number_of_digit(d < 0 ? (int)d * -1 : (int)d);
 					/* 1 for the sign 15 digits after the . ,the . and '\0'  at the end*/
 					char num_str[sz+18];
 					memset(num_str,0,sz+18);

@@ -114,12 +114,14 @@ void pack(uint32_t n, uint8_t *digits_indexes);
 uint32_t power(uint32_t n, int pow);
 long long unpack(uint8_t *digits_index);
 void print_pack_str(uint8_t *digits_index);
+void clear_tok();
 char *tok(char *str, char *delim);
 char *duplicate_str(char *str);
 long string_to_long(char *str);
 double string_to_double(char *str);
 int long_to_string(long n, char *buff);
 int double_to_string(double d, char *buff);
+int extract_numbers_from_string(char *buff,size_t size,char *format,...);
 int copy_to_string(char *buff,size_t size,char *format,...);
 
 #endif /* STR_OP_H */

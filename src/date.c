@@ -6,6 +6,8 @@
 #include "debug.h"
 #include "str_op.h"
 
+#define SEC_IN_A_DAY 60*60*24
+
 enum date_delim{
 	DOT,
 	SLASH,
@@ -61,10 +63,10 @@ int convert_date_str(char *str, struct tm* input_date)
 	int year = 0, day = 0, month = 0;
 	if(is_valid_date(str) == -1) return -1;
 
-	if(sscanf(str,"%d-%d-%d",&month, &day, &year) < 3)
+	if(extract_numbers_from_string(str,strlen(str),"%d-%d-%d",&month, &day, &year) == -1)
 	{
 		printf("date convert failed, %s:%d.\n", F,L-2);
-		return 0;
+		return -1;
 	}
 
 	input_date->tm_mday = day;
@@ -74,7 +76,7 @@ int convert_date_str(char *str, struct tm* input_date)
 	
 	input_date->tm_year = year - 1900;
 
-	return 1;
+	return 0;
 }
 
 unsigned char extract_date(char* key, char *date)
@@ -157,67 +159,68 @@ long now_seconds()
 
 int create_string_date(long time, char* date_str)
 {
-	time_t time_tm = (time_t) time;
+	time_t time_tm = (time_t) time + (60*60*5);
 	struct tm *date_t = localtime(&time_tm);
 	
 	memset(date_str,0,9); /* 9 is the size of "mm-gg-yy" plus the '\0'*/
 
-	char day[3], month[3], year[3];
+	char day[3];
+	char month[3];
+	char year[3];
 
-	if(number_of_digit(date_t->tm_mday) < 2){
-		if(copy_to_string(day,3,"%d%d",0,date_t->tm_mday) < 0){
+	memset(day,0,3);
+	memset(month,0,3);
+	memset(year,0,3);
+	if(date_t->tm_mday < 10 && date_t->tm_mon < 9){
+		/*create string day*/
+		day[0] = '0';	
+		day[1] = date_t->tm_mday + '0';
+		month[0] = '0';
+		month[1] = (date_t->tm_mon + 1) + '0';
+		if(copy_to_string(date_str,9,"%s-%s-%d",
+									day,
+									month,
+									(date_t->tm_year + 1900) - 2000) == -1){
 			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
-	}else{
-		if(copy_to_string(day,3,"%d",date_t->tm_mday) < 0){
+	}else if(date_t->tm_mday < 10){
+		day[0] = '0';	
+		day[1] = date_t->tm_mday + '0';
+		if(copy_to_string(date_str,9,"%d-%s-%d",date_t->tm_mon + 1,
+												day,
+												date_t->tm_year - 100) == -1){
                         printf("copy_to_string failed, %s:%d.\n",F,L-2);
                         return -1;
-                }
-	}
-	
-
-	if(number_of_digit(date_t->tm_mon) < 2)
-	{
-		unsigned char mon = date_t->tm_mon + 1;
-		if(copy_to_string(month,3,"%d%d",0,mon) < 0)
-		{
-			printf("copy_to_string failed, %s:%d.\n",F,L-2);
-			return -1;
 		}
-	}else{
-		unsigned char mon = date_t->tm_mon + 1;
-		if(copy_to_string(month,3,"%d",mon) < 0){
+		return 0;
+	}else if(date_t->tm_mon < 9){
+		month[0] = '0';
+		month[1] = (date_t->tm_mon + 1) + '0';
+		if(copy_to_string(date_str,9,"%s-%d-%d",month,
+											date_t->tm_mday,
+											date_t->tm_year -100) == -1){
                         printf("copy_to_string failed, %s:%d.\n",F,L-2);
                         return -1;
-                }
-	}
-
-	/* this will be valid till year 2899 */
-	if(number_of_digit(date_t->tm_year) == 3)
-	{
-		unsigned char y = date_t->tm_year > 200 ? date_t->tm_year - 200 : date_t->tm_year - 100;
-		if(copy_to_string(year,3,"%d",y) < 0){
-			printf("copy_to_string failed, %s:%d.\n",F,L-2);
-			return -1;
 		}
-	}else{
-		printf("you have to refactor the years formula %s:%d.\n",F,L-11);
-		return -1;
+		return 0;
 	}
 
-	if(copy_to_string(date_str,9,"%s-%s-%s",month,day,year) < 0) {
+
+	if(copy_to_string(date_str,9,"%s-%d-%d",date_t->tm_mon+1,
+											date_t->tm_mday,
+											date_t->tm_year-100) == -1){
 		printf("copy_to_string failed, %s:%d.\n",F,L-2);
 		return -1;
 	}
-
-	return 1;
+	return 0;
 }
 
 long convert_str_date_to_seconds(char* date)
 {
-	struct tm input_date = {0};
-	if(!convert_date_str(date, &input_date)) return -1;
+	struct tm input_date;
+	memset(&input_date,0,sizeof(input_date));
+	if(convert_date_str(date, &input_date) == -1) return -1;
 
 	return (long) mktime(&input_date);
 }
@@ -254,9 +257,29 @@ static int is_valid_date(char *date)
 		if(isdigit(*p)) continue;
 	}
 
-	if (slash == 3) return SLASH;
-	if (dot == 3) return DOT;
-	if (dash == 3) return DASH;
+	if (slash == 2) return SLASH;
+	if (dot == 2) return DOT;
+	if (dash == 2) return DASH;
 	return -1;
 
+}
+
+
+uint32_t convert_date_to_number(char *date)
+{
+	
+	long seconds = 0;
+	if((seconds = convert_str_date_to_seconds(date)) == -1){
+		fprintf(stderr,"convert_str_date_to_seconds failed, %s:%d\n",__FILE__,__LINE__-1);
+		return 0;
+	}
+	return seconds / (SEC_IN_A_DAY);
+}
+
+int convert_number_to_date(char *date, int date_number)
+{
+	long second = date_number * SEC_IN_A_DAY;		
+	/*date MUST be 10 char long (MM-DD-YYYY\0)*/
+	if(create_string_date(second,date) == -1 ) return -1;
+	return 0;
 }

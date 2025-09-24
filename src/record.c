@@ -13,6 +13,7 @@
 #include "common.h"
 #include "memory.h"
 #include "types.h"
+#include "date.h"
 
   
  
@@ -114,6 +115,12 @@ unsigned char set_field(struct Record_f *rec,
 	int t = (int)type;
 	switch (t) {
 	case -1:
+		break;
+	case TYPE_DATE:
+		if((rec->fields[index].data.date = convert_date_to_number(value)) == 0){
+			fprintf(stderr,"cannot convert date\n");
+			return 0;
+		}
 		break;
 	case TYPE_FILE:
 	{	
@@ -1391,6 +1398,7 @@ void free_record(struct Record_f *rec, int fields_num)
 		case TYPE_FLOAT:
 		case TYPE_BYTE:
 		case TYPE_PACK:
+		case TYPE_DATE:
 		case TYPE_DOUBLE:
 			break;
 		case TYPE_STRING:
@@ -1498,6 +1506,14 @@ static void display_data(struct Record_f rec, int max,int tab)
 			pack(rec.fields[i].data.p,packed);
 			print_pack_str(packed);
 			printf("\n");
+			break;
+		}
+		case TYPE_DATE:
+		{
+			char date_buff[10];
+			memset(date_buff,0,10);
+			convert_number_to_date(date_buff,(int)rec.fields[i].data.date);
+			printf("%s\n",date_buff);
 			break;
 		}
 		case TYPE_DOUBLE:
@@ -1759,6 +1775,9 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				free_record(dest, dest->fields_num);
 				return 0;
 			}
+			break;
+		case TYPE_DATE:
+			dest->fields[i].data.date = src->fields[i].data.date;
 			break;
 		case TYPE_DOUBLE:
 			memset(data, 0, 30);
@@ -2427,6 +2446,10 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 					if(src->fields[i].data.f == dest->fields[i].data.f) c++;
 					if(c == active) break;
 					return i;
+				case TYPE_DATE:
+					if(src->fields[i].data.date == dest->fields[i].data.date) c++;
+					if(c == active) break;
+					return i;
 				case TYPE_DOUBLE:
 					if(src->fields[i].data.d == dest->fields[i].data.d) c++;
 					if(c == active) break;
@@ -2835,6 +2858,52 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					bwritten += field_tot_length;
 					break;
 				}
+				case TYPE_DATE:
+				{
+					char date_buff[10];
+					memset(date_buff,0,10);
+					if(convert_number_to_date(date_buff,(int)rec->fields[i].data.date) == -1){
+						fprintf(stderr,"cannot convert date");
+						return -1;
+					}
+
+					size_t field_tot_length = strlen(temp->fields[i].field_name) + 	   \
+								  strlen(date_buff) + \
+								  4 + 2; /* 4 '"',  1 ':', 1 ',' */
+					if(bwritten == 0){
+						if(copy_to_string(*buffer,field_tot_length+1,"\"%s\":\"%s\",",
+									temp->fields[i].field_name,
+									date_buff
+								 ) == -1){
+							/*log error*/
+							return -1;
+						}
+					}else{
+						if((bwritten + field_tot_length) >= buffer_lenght){
+							/* reallocate memory*/
+							size_t new_size = buffer_lenght * 2;
+							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							if(!n_buff){
+								/*log error*/
+								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								return -1;
+							}
+							*buffer = n_buff;
+							buffer_lenght = new_size;
+						}
+
+						if(copy_to_string(&(*buffer)[bwritten],field_tot_length+1,"\"%s\":\"%s\",",
+									temp->fields[i].field_name,
+									date_buff
+								 ) == -1){
+							return -1;
+						}
+					}
+					bwritten += field_tot_length;
+					break;
+
+
+				}	
 				case TYPE_DOUBLE:
 				{
 					size_t field_tot_length = strlen(temp->fields[i].field_name) +

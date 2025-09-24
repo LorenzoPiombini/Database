@@ -432,10 +432,10 @@ int main()
 
 				if(WIFEXITED(wstatus)){
 					stop_listening(cli_sock);
-					printf("parent try to remove the socket nr %d from monitor line %d\n",cli_sock,__LINE__);
+					printf("parent close the socket %d\n",cli_sock);
 				}
 #endif
-			}else{
+			}else{ /*SECOND BRANCH*/
 				int r = 0;
 				if(events[i].events == EPOLLIN) {
 
@@ -465,7 +465,7 @@ int main()
 						if(r == BAD_REQ) {
 							/*send a bed request response*/
 							//remove_socket_from_monitor(events[i].data.fd);
-							stop_listening(cli_sock);
+							//stop_listening(cli_sock);
 							close_prog_memory();
 							exit(1);
 						}
@@ -481,6 +481,7 @@ int main()
 							if(strncmp(req.origin,ORIGIN_DEF,strlen(ORIGIN_DEF)) != 0){
 
 								bad_request:
+								printf("\n\n\n\n\norigin failed\n\n\n");
 								if(generate_response(&res,400,NULL,&req) == -1) break;
 								//clear_request(&req);
 
@@ -499,13 +500,13 @@ int main()
 										//clear_response(&res);
 										close_prog_memory();
 										//remove_socket_from_monitor(events[i].data.fd);
-										stop_listening(cli_sock);
+									//	stop_listening(cli_sock);
 										exit(0);
 
 									}
 									clear_response(&res);
 								//	remove_socket_from_monitor(events[i].data.fd);
-									stop_listening(cli_sock);
+								//	stop_listening(cli_sock);
 									close_prog_memory();
 									exit(1);
 
@@ -566,6 +567,8 @@ int main()
 						case POST:
 						{
 							if(load_resource(&req,&cont) == -1){
+
+							printf("\n\n\n\nssecond branch load function failed\n\n\n\n\n");
 								/*send a bed request response*/
 								if(generate_response(&res,400,NULL,&req) == -1) break;
 

@@ -44,7 +44,8 @@ enum ValueType
 	TYPE_ARRAY_STRING,
 	TYPE_ARRAY_BYTE,
 	TYPE_ARRAY_DOUBLE,
-	TYPE_FILE
+	TYPE_FILE,
+	TYPE_DATE
 };
 
 struct Record_f;	
@@ -79,6 +80,7 @@ struct Field {
 		float f;
 		char *s;
 		uint32_t p;
+		uint32_t date;
 		unsigned char b;
 		double d;
 		struct array v;
