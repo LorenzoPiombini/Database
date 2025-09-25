@@ -28,6 +28,7 @@ static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 static off_t seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
 #endif
 
+#if defined(__linux__)
 int open_file(char *fileName, int use_trunc)
 {
 	int fd = 0;
@@ -165,15 +166,25 @@ off_t move_in_file_bytes(int fd, off_t offset)
 	return pos;
 }
 
-unsigned char write_index_file_head(int fd, int index_num)
+#endif /*linux*/
+
+#if defined(__linux__)
+	unsigned char write_index_file_head(int fd, int index_num)
+#elif defined(_WIN32)
+	unsigned char write_index_file_head(HANDLE file_handle,int index_num)
+#endif
 {
 
 	int i = 0;
 	off_t pos = 0;
 
 	uint32_t in = swap32(index_num);
-	if (write(fd, &in, sizeof(in)) == -1)
-	{
+#if defined(__linux__)
+	if (write(fd, &in, sizeof(in)) == -1){
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if(!WriteFile(file_handle,&in,sizeof(uint32_t),&written,NULL)){
+#endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
@@ -181,8 +192,12 @@ unsigned char write_index_file_head(int fd, int index_num)
 	for (i = 0; i < index_num; i++)
 	{
 		uint64_t p_n = swap64(pos);
-		if (write(fd, &p_n, sizeof(p_n)) == -1)
-		{
+#if defined(__linux__)
+		if (write(fd, &p_n, sizeof(p_n)) == -1){
+#elif defined(_WIN32)
+		written = 0;
+		if(!WriteFile(file_handle,&p_n,sizeof(uint64_t),&written,NULL)){
+#endif
 			printf("write to file failed, %s:%d.\n", F, L - 2);
 			return 0;
 		}
@@ -190,14 +205,21 @@ unsigned char write_index_file_head(int fd, int index_num)
 
 	return 1;
 }
-
+#if defined(__linux__)
 unsigned char write_index_body(int fd, int i, HashTable *ht)
+#elif defined(_WIN32)
+unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
+#endif
 {
 	off_t pos = 0;
 
 	uint32_t i_n = swap32(i);
-	if (write(fd, &i_n, sizeof(i_n)) == -1)
-	{
+#if defined(__linux__)
+	if (write(fd, &i_n, sizeof(i_n)) == -1){
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if (WriteFile(file_handle,&i_n,sizeof(&i_n),&written,NULL)){
+#endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
@@ -219,27 +241,42 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
-
+#if defined(__linux__)
 	if (find_record_position(fd, sizeof(int)) == -1) {
+#elif defined(_WIN32)
+	if (find_record_position(file_handle, sizeof(int)) == -1) {
+#endif
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
 	if (i != 0) {
+#if defined(__linux__)
 		if (move_in_file_bytes(fd, i * sizeof(pos)) == -1) {
+#elif defined(_WIN32)
+		if (move_in_file_bytes(file_handle, i * sizeof(pos)) == -1) {
+#endif
 			__er_file_pointer(F, L - 2);
 			return 0;
 		}
 	}
 
 	uint64_t p_n = swap64(pos);
-	if (write(fd, &p_n, sizeof(p_n)) == -1)
-	{
+#if defined(__linux__)
+	if (write(fd, &p_n, sizeof(p_n)) == -1){
+#elif defined(_WIN32)
+	written = 0;
+	if (WriteFile(file_handle,&p_n,sizeof(&p_n),&written,NULL)){
+#endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
+#if defined(__linux__)
 	if (go_to_EOF(fd) == STATUS_ERROR)
+#elif defined(_WIN32)
+	if (go_to_EOF(file_handle) == STATUS_ERROR)
+#endif
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
@@ -247,18 +284,31 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 	return 1;
 }
 
+#if defined(__linux__)
 unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
+#elif defined(_WIN32) 
+unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
+#endif
 {
+#if defined(__linux__)
 	if (begin_in_file(fd) == STATUS_ERROR)
+#elif defined(_WIN32) 
+	if (begin_in_file(file_handle) == STATUS_ERROR)
+#endif
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
 	uint32_t a_s = 0;
+#if defined(__linux__)
 	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR)
+#elif defined(_WIN32) 
+	DWORD written = 0;
+	if (!ReadFile(file_handle,&a_s,sizeof(a_s),&written,NULL))
+#endif
 	{
-		printf("read from file failed. %s:%d.\n", F, L - 2);
+		fprintf(stderr,"read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
 
@@ -276,14 +326,23 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 	}
 
 	off_t move_to = i_num * sizeof(off_t);
+#if defined(__linux__)
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR)
+#elif defined(_WIN32) 
+	if (move_in_file_bytes(file_handle, move_to) == STATUS_ERROR)
+#endif
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
 	uint64_t i_p = 0;
+#if defined(__linux__)
 	if (read(fd, &i_p, sizeof(i_p)) == STATUS_ERROR)
+#elif defined(_WIN32)
+	written = 0;
+	if (!ReadFile(file_handle,&a_s,sizeof(a_s),&written,NULL))
+#endif
 	{
 		printf("read from fiel failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -295,14 +354,21 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
-
+#if defined(__linux__)
 	if (find_record_position(fd, index_pos) == STATUS_ERROR)
+#elif defined(_WIN32)
+	if (find_record_position(file_handle, index_pos) == STATUS_ERROR)
+#endif
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
+#if defined(__linux__)
 	if (!read_index_file(fd, *ht)){
+#elif defined(_WIN32)
+	if (!read_index_file(file_handle, *ht)){
+#endif
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
@@ -310,15 +376,29 @@ unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 	return 1;
 }
 
+#if defined(__linux__)
 unsigned char indexes_on_file(int fd, int *p_i_nr)
+#elif defined(_WIN32)
+unsigned char indexes_on_file(HANDLE file_handle, int *p_i_nr)
+#endif
 {
+
+#if defined(__linux__)
 	if (begin_in_file(fd) == STATUS_ERROR) {
+#elif defined(_WIN32)
+	if (begin_in_file(file_handle) == STATUS_ERROR) {
+#endif
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
 	uint32_t a_s = 0;
+#if defined(__linux__)
 	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR) {
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if (!ReadFile(file_handle,&a_s,sizeof(a_s),&written,NULL)){
+#endif
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
@@ -333,11 +413,19 @@ unsigned char indexes_on_file(int fd, int *p_i_nr)
 	return 1;
 }
 
+#if defined(__linux__)
 unsigned char nr_bucket(int fd, int *p_buck)
+#elif defined(_WIN32)
+unsigned char nr_bucket(HANDLE file_handle, int *p_buck)
+#endif
 {
 	HashTable ht = {0};
 	HashTable *pht = &ht;
+#if defined(__linux__)
 	if (!read_index_nr(0, fd, &pht)) {
+#elif defined(_WIN32)
+	if (!read_index_nr(0,file_handle, &pht)) {
+#endif
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		if (ht.size > 0) {
 			destroy_hasht(&ht);
@@ -350,15 +438,28 @@ unsigned char nr_bucket(int fd, int *p_buck)
 	return 1;
 }
 
+#if defined(__linux__)
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
+#elif defined(_WIN32)
+unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_index)
+#endif
 {
+
+#if defined(__linux__)
 	if (begin_in_file(fd) == STATUS_ERROR) {
+#elif defined(_WIN32)
+	if (begin_in_file(file_handle) == STATUS_ERROR) {
+#endif
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
 
 	uint32_t a_s = 0;
+#if defined(__linux__)
 	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR) {
+#elif defined(_WIN32)
+	if (!ReadFile(file_handle,&a_s,sizeof(a_s),&written,NULL)){
+#endif
 		printf("read from file failed. %s:%d.\n", F, L - 2);
 		return 0;
 	}
@@ -386,7 +487,11 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	}
 
 	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
+#if defined(__linux__)
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR) {
+#elif defined(_WIN32)
+	if (move_in_file_bytes(file_handle, move_to) == STATUS_ERROR) {
+#endif
 		__er_file_pointer(F, L - 2);
 		cancel_memory(NULL,ht,array_size * sizeof *ht);
 		return 0;
@@ -394,7 +499,11 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 
 	for (i = 0; i < array_size; i++)
 	{
+#if defined(__linux__)
 		if (!read_index_file(fd, &((*ht)[i])))
+#elif defined(_WIN32)
+		if (!read_index_file(file_handle, &((*ht)[i])))
+#endif
 		{
 			printf("read from file failed. %s:%d.\n", F, L - 2);
 			free_ht_array(*ht, i);
@@ -403,7 +512,11 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 
 		if ((array_size - i) > 1)
 		{
+#if defined(__linux__)
 			if (move_in_file_bytes(fd, sizeof(int)) == STATUS_ERROR)
+#elif defined(_WIN32)
+			if (move_in_file_bytes(file_handle, sizeof(int)) == STATUS_ERROR)
+#endif
 			{
 				__er_file_pointer(F, L - 2);
 				free_ht_array(*ht, i);
@@ -413,11 +526,21 @@ unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 	}
 	return 1;
 }
-unsigned char read_index_file(int fd, HashTable *ht)
-{
 
+
+#if defined(__linux__)
+unsigned char read_index_file(int fd, HashTable *ht)
+#elif defined(_WIN32)
+unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
+#endif
+{
 	uint32_t s_n = 0;
+#if defined(__linux__)
 	if (read(fd, &s_n, sizeof(s_n)) < 0)
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if (!ReadFile(file_handle,&s_n,sizeof(s_n),&written,NULL))
+#endif
 	{
 		perror("reading Index file");
 		return 0;
@@ -426,7 +549,12 @@ unsigned char read_index_file(int fd, HashTable *ht)
 	ht->size = (int)swap32(s_n); 
 
 	uint32_t ht_ln = 0;
+#if defined(__linux__)
 	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR) {
+#elif defined(_WIN32)
+	written = 0;
+	if (!ReadFile(file_handle,&ht_ln,sizeof(ht_ln),&written,NULL))
+#endif
 		perror("reading ht length");
 		return 0;
 	}
@@ -435,7 +563,13 @@ unsigned char read_index_file(int fd, HashTable *ht)
 	register int i = 0;
 	for (i = 0; i < ht_l; i++) {
 		uint32_t type = 0;
-		if (read(fd, &type, sizeof(type)) == -1) {
+#if defined(__linux__)
+		if (read(fd, &type, sizeof(type)) == -1) 
+#elif defined(_WIN32)
+		written = 0;
+		if (!ReadFile(file_handle,&type,sizeof(type),&written,NULL))
+#endif
+		{
 			fprintf(stderr, "can't read key type, %s:%d.\n",
 					F, L - 3);
 			free_nodes(ht->data_map, ht->size);
@@ -448,9 +582,13 @@ unsigned char read_index_file(int fd, HashTable *ht)
 		case STR:
 		{
 			uint64_t key_l = 0l;
+#if defined(__linux__)
 			if (read(fd, &key_l, sizeof(key_l)) > 0) {
+#elif defined(_WIN32)
+			written = 0;
+			if (!ReadFile(file_handle,&key_l,sizeof(key_l),&written,NULL))
 				size_t size = (size_t)swap64(key_l);
-
+#endif
 				char *key = (char*)ask_mem((size + 1)*sizeof(char));
 				if (!key) {
 					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",prog,F,L-2);		
@@ -459,8 +597,16 @@ unsigned char read_index_file(int fd, HashTable *ht)
 				}
 
 				uint64_t v_n = 0l;
+#if defined(__linux__)
 				if (read(fd, key, size + 1) == -1 ||
-					read(fd, &v_n, sizeof(v_n)) == -1) {
+					read(fd, &v_n, sizeof(v_n)) == -1) 
+#elif defined(_WIN32)
+				written = 0;
+				if (!ReadFile(file_handle,&key,sizeof(key),&written,NULL) ||
+					 !ReadFile(file_handle,&v_n,sizeof(v_n),&written,NULL))
+#endif
+				{
+
 
 					fprintf(stderr,"(%s): read key failed, %s:%d.\n",prog,F,L-2);		
 					free_nodes(ht->data_map, ht->size);
@@ -518,7 +664,11 @@ unsigned char read_index_file(int fd, HashTable *ht)
 			uint32_t k = 0;
 			uint16_t k16 = 0;
 			uint64_t value = 0;
+#if defined(__linux__)
 			if (read(fd, &size, sizeof(size)) == -1)
+#elif defined(_WIN32)
+			if (!ReadFile(file_handle,&size,sizeof(size),&written,NULL))
+#endif
 			{
 				fprintf(stderr, "read index failed.\n");
 				free_nodes(ht->data_map, ht->size);
