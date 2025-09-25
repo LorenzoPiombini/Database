@@ -53,6 +53,11 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 		return STATUS_ERROR;
 	}
 
+	if(offset == KEY_NOT_FOUND){
+		fprintf(stderr,"(%s): record not found.\n",prog);
+		destroy_hasht(p_ht);
+		return STATUS_ERROR;
+	}
 	rec->offset = offset;
 	destroy_hasht(p_ht);
 	if(!e){

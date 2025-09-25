@@ -91,6 +91,7 @@ int main()
 					}
 
 					if(r == BAD_REQ){
+						printf("first brach 400 response\n");
 						if(generate_response(&res,400,NULL,&req) == -1) break;
 
 						int w = 0;
@@ -140,6 +141,7 @@ int main()
 						if(s == strlen(ORIGIN_DEF)){
 							if(strncmp(req.origin,ORIGIN_DEF,strlen(ORIGIN_DEF)) != 0){
 								/*send a bed request response*/
+								printf("first brach 400 response ORIGIN FAILED\n");
 								if(generate_response(&res,400,NULL,&req) == -1) break;
 
 								//clear_request(&req);
@@ -191,28 +193,28 @@ int main()
 							if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 							if(w == EAGAIN || w == EWOULDBLOCK) {
 #if USE_FORK 
-							uint8_t ws = 0;
-							while((w = write_cli_sock(cli_sock,&res) != -1)){
-								if(w == EAGAIN || w == EWOULDBLOCK) continue;
-								
-								ws = 1;
-								break;
-							}
-							if(ws){
+								uint8_t ws = 0;
+								while((w = write_cli_sock(cli_sock,&res) != -1)){
+									if(w == EAGAIN || w == EWOULDBLOCK) continue;
+
+									ws = 1;
+									break;
+								}
+								if(ws){
+									//clear_response(&res);
+									stop_listening(cli_sock);
+									close_prog_memory();
+									exit(0);
+								}
 								//clear_response(&res);
-								stop_listening(cli_sock);
+								//stop_listening(cli_sock);
 								close_prog_memory();
-								exit(0);
-							}
-							//clear_response(&res);
-							//stop_listening(cli_sock);
-							close_prog_memory();
-							exit(1);
+								exit(1);
 
 #else
-							continue;
+								continue;
 #endif
-						}
+							}
 
 #if USE_FORK
 							stop_listening(cli_sock);
@@ -225,8 +227,10 @@ int main()
 							break;
 #endif
 						}
-
+						
+						/*THIS MIGHT NOT BE NECCESRY*/
 						/*send a bed request response*/
+						printf("first brach 400 response after ORIGIN but this does not make sense\n");
 						if(generate_response(&res,400,NULL,&req) == -1) break;
 
 						//clear_request(&req);
@@ -275,6 +279,7 @@ int main()
 					{
 						if(load_resource(&req,&cont) == -1){
 							/*send a bad request response*/
+							printf("first brach 400 response for load_resource GET or POST\n");
 							if(generate_response(&res,400,NULL,&req) == -1) break;
 
 							//clear_request(&req);

@@ -218,7 +218,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	if (write(fd, &i_n, sizeof(i_n)) == -1){
 #elif defined(_WIN32)
 	DWORD written = 0;
-	if (WriteFile(file_handle,&i_n,sizeof(&i_n),&written,NULL)){
+	if (WriteFile(file_handle,&i_n,sizeof(i_n),&written,NULL)){
 #endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -266,7 +266,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	if (write(fd, &p_n, sizeof(p_n)) == -1){
 #elif defined(_WIN32)
 	written = 0;
-	if (WriteFile(file_handle,&p_n,sizeof(&p_n),&written,NULL)){
+	if (WriteFile(file_handle,&p_n,sizeof(p_n),&written,NULL)){
 #endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -587,8 +587,8 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 #elif defined(_WIN32)
 			written = 0;
 			if (!ReadFile(file_handle,&key_l,sizeof(key_l),&written,NULL))
-				size_t size = (size_t)swap64(key_l);
 #endif
+				size_t size = (size_t)swap64(key_l);
 				char *key = (char*)ask_mem((size + 1)*sizeof(char));
 				if (!key) {
 					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",prog,F,L-2);		
@@ -7147,7 +7147,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				uint32_t str_loc = swap32(str_loc_ne);
 
 				/* save pos where the data starts*/
-				uint64_t af_str_loc_pos = ram->size;
+				uint64_t af_str_loc_pos = 0;
 				if(ram->size == ram->capacity && ram->offset != ram->size)
 					af_str_loc_pos = ram->offset;
 				else
@@ -7163,7 +7163,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				move_ram_file_ptr(ram,sizeof(uint16_t));
 
 				uint16_t buff_update = swap16(buff_update_ne);
-				uint64_t pos_after_first_str_record = ram->offset + buff_update; 
+				
+				uint64_t pos_after_first_str_record = 0; 
 				if(ram->size == ram->capacity && ram->offset != ram->size)
 					pos_after_first_str_record = ram->offset + buff_update; 
 				else
@@ -7231,9 +7232,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				 * set the file pointer back to the begginning of the string record
 				 * to overwrite the data accordingly
 				 * */
-				if (str_loc == 0 && ((new_lt - buff_update) < 0)){
+				if (str_loc == 0 && ((new_lt - buff_update) <= 0) && eof == 0){
 					ram->offset = af_str_loc_pos;
-				} else if (str_loc > 0 && ((new_lt - buff_update) < 0)){
+				} else if (str_loc > 0 && ((new_lt - buff_update) <= 0) && eof == 0){
 					ram->offset = move_to;
 				}
 
@@ -10516,7 +10517,7 @@ static size_t get_string_size(int fd, struct Ram_file *ram)
 	return -1;
 }
 
-#elif defined(_WIN32) 
+#if defined(_WIN32) 
 #include <windows.h>
 #include "file.h"
 #include "types.h"
