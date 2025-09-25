@@ -4,6 +4,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#endif /*linux*/
+
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
@@ -22,6 +24,9 @@ static size_t get_string_size(int fd, struct Ram_file *ram);
 static size_t get_disk_size_record(struct Record_f *rec);
 static int init_ram_file(struct Ram_file *ram, size_t size);
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
+#if defined(_WIN32)
+static off_t seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
+#endif
 
 int open_file(char *fileName, int use_trunc)
 {
@@ -10377,20 +10382,125 @@ HANDLE open_file(char *fileName, uint32_t use_trunc)
 	HANDLE h_file;
 
 	if(!use_trunc){
-		access = GENERIC_WRITE | GENERIC_READ | FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE;
+		access = GENERIC_WRITE | GENERIC_READ 
 		creation = OPEN_EXISTING;
 
 	}else{
-		access = GENERIC_WRITE | GENERIC_READ | FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE;
+		access = GENERIC_WRITE | GENERIC_READ 
 		creation = TRUNCATE_EXISTING;
 	}
 
 	h_file = createFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
-	if(h_file == INVALID_HANDLE_VALUE) return NULL;
+	if(h_file == INVALID_HANDLE_VALUE)
+		return INVALID_HANDLE_VALUE;
 
 	return h_file;
 }
 
+HANDLE create_file(char *file_name)
+{
 
+
+	DWORD err = getFileAttributesA(file_name);
+	if(err !=  INVALID_FILE_ATTRIBUTE){
+		fprintf(stderr,"file %s already exist");
+		return INVALID_HANDLE_VALUE;
+	}
+
+	HANDLE h_file = createFileA(file_name,GENERIC_READ | GENERIC_WRITE, 
+								FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+								NULL,
+								CREATE_NEW,
+								FILE_ATTRIBUTE_NORMAL,
+								NULL);
+	if(h_file == INVALID_HANDLE_VALUE) 
+		return INVALID_HANDLE_VALUE;
+
+	return h_file;
+
+}
+
+void close_file(int count, ...)
+{
+	int fails = 0;
+
+	va_list args;
+	va_start(args,count);
+
+	int i;
+	for(i = 0; i < count; i++){
+		HANDLE h = va_args(args,HANDLE);
+		if(h != INVALID_HANDLE_VALUE){
+			if(!closeHandle(h))
+				fails++;
+		}
+	}
+		
+	va_end(args);
+	if(fails) fprintf(stderr,"error closing the file: %ld",GetLastError());
+}
+
+int delete_file(int count,...)
+{
+	int err = 0;
+	va_args args;
+	va_start(args,count);
+	int i;
+	for(i = 0; i < count; i++){
+		char *file_name = va_args(args, char*);
+		if(file_name){
+			if(!DeleteFileA(file_name))
+				err++;
+		}
+	}
+
+	if(err){
+		fprintf(stderr,"failed to delete one or more file, error code: %ld\n",GetLastError());
+		return -1;
+	}
+
+	return 0;
+
+}
+
+static off_t seek_file_win(HANDLE file_handle,long long offset, DWORD file_position)
+{
+	LARGE_INTEGER li;
+	li.QuadPart = offset;
+	LARGE_INTEGER new_file_ptr;
+	if(!SetFilePointerEx(file_handle,li,&new_file_ptr,file_position)){
+		fprintf(stderr,"seek failed %s:%d\n",__FILE__,__LINE__-1);
+		return -1;
+	}
+
+	return (off_t) new_file_ptr.QuadPart;
+}
+
+off_t begin_in_file(HANDLE file_handle)
+{
+	return seek_file_win(file_handle,0,FILE_BEGIN);
+
+}
+
+off_t get_file_offset(HANDLE file_handle)
+{
+	return seek_file_win(file_handle,0,FILE_CURRENT);
+}
+
+off_t find_record_position(HANDLE file_handle, long long offset)
+{
+	return seek_file_win(file_handle,offset,FILE_BEGIN);
+
+}
+
+off_t go_to_EOF(HANDLE file_handle)
+{
+	return seek_file_win(file_handle,0,FILE_END);
+}
+
+off_t move_in_file_bytes(HANDLE file_handle, off_t offset)
+{
+	return seek_file_win(file_handle,offset,FILE_CURRENT);
+}
 
 #endif
