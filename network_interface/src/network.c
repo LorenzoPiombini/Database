@@ -140,8 +140,16 @@ int read_cli_sock(int cli_sock,struct Request *req)
 	}
 	req->size = bread;
 	if(handle_request(req) == BAD_REQ){
-		if(req->method == -1) return BAD_REQ;
-		if(req->size < (ssize_t)BASE) return BAD_REQ;
+
+		if(req->method == -1){
+			printf("did not get the method\n");
+			return BAD_REQ;
+		}
+		
+		if(req->size < (ssize_t)BASE){ 
+			printf("req->size less than base\nrequest is \n\n%s",req->req);
+			return BAD_REQ;
+		};
 		
 		if(req->size == (ssize_t)BASE){
 			if(set_up_request(bread,req) == -1) return -1;
