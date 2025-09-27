@@ -126,7 +126,7 @@ int read_cli_sock(int cli_sock,struct Request *req)
 {
 	ssize_t bread = 0;	
 	errno = 0;
-	if((bread = read(cli_sock,req->req,BASE)) == -1){
+	if((bread = read(cli_sock,req->size == 0 ? req->req : &req->req[req->size],BASE)) == -1){
 		if(errno == EAGAIN || errno == EWOULDBLOCK) {
 			int e = errno;
 			int err = -1;
@@ -134,12 +134,18 @@ int read_cli_sock(int cli_sock,struct Request *req)
 
 			return e;
 		}
-		printf("errno is %s",strerror(errno));
+		printf("errno is %s\n",strerror(errno));
 		fprintf(stderr,"(%s): cannot read data from socket\n",prog);
 		return -1;
 	}
-	req->size = bread;
-	if(handle_request(req) == BAD_REQ){
+
+	if(req->size > 0)
+		req->size += bread;
+	else
+		req->size = bread;
+
+	int result = 0;
+	if((result = handle_request(req)) == BAD_REQ){
 
 		if(req->method == -1){
 			printf("did not get the method\n");
@@ -147,7 +153,7 @@ int read_cli_sock(int cli_sock,struct Request *req)
 		}
 		
 		if(req->size < (ssize_t)BASE){ 
-			printf("req->size less than base\nrequest is \n\n%s",req->req);
+			printf("req->size less than base\n");
 			return BAD_REQ;
 		};
 		
@@ -166,6 +172,61 @@ int read_cli_sock(int cli_sock,struct Request *req)
 				return -1;
 			}
 		}
+	}
+
+	if(result == BDY_MISS){
+		if(((ssize_t)req->cont_length + req->size) < (ssize_t)BASE){
+			if((bread = read(cli_sock,&req->req[req->size],BASE)) == -1){
+				if(errno == EAGAIN || errno == EWOULDBLOCK) {
+					int e = errno;
+					int err = -1;
+					if(( err = add_socket_to_monitor(cli_sock,EPOLLIN)) == -1) return -1;
+
+					return e;
+				}
+				printf("errno is %s\n",strerror(errno));
+				fprintf(stderr,"(%s): cannot read data from socket\n",prog);
+				return -1;
+			}
+		}else{
+
+
+		}
+
+		result = 0;
+		if((result = handle_request(req)) == BAD_REQ){
+
+			if(req->method == -1){
+				printf("did not get the method\n");
+				return BAD_REQ;
+			}
+
+			if(req->size < (ssize_t)BASE){ 
+				printf("req->size less than base\n");
+				return BAD_REQ;
+			};
+
+			if(req->size == (ssize_t)BASE){
+				if(set_up_request(bread,req) == -1) return -1;
+
+				ssize_t move = req->size;
+				if((bread = read(cli_sock,req->d_req +  move,req->size)) == -1){
+					if(errno == EAGAIN || errno == EWOULDBLOCK) {
+						int e = errno;
+						if((add_socket_to_monitor(cli_sock,EPOLLIN)) == -1) return -1;
+
+						return e;
+					}
+					fprintf(stderr,"(%s): cannot read data from socket\n",prog);
+					return -1;
+				}
+			}
+
+			if( result == BDY_MISS){
+				return -1;	
+			}
+		}
+
 	}
 
 	return 0;

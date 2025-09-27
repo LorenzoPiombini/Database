@@ -9,8 +9,8 @@ clean:
 	rm $(TARGET)
 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -llog -lmem -lcrud -z relro -z now -z noexecstack -fsanitize=address 
+	gcc -o $@ $? -llog -lmem -lcrud -z relro -z now -z noexecstack -fsanitize=address 
 
 
 obj/%.o : src/%.c
-	sudo gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fsanitize=address 
+	gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fsanitize=address 

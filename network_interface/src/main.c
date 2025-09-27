@@ -40,6 +40,10 @@ int main()
 	struct Response res;
 	memset(&res,0,sizeof(struct Response));
 
+	struct Request req;
+	memset(&req,0,sizeof(struct Request));
+	req.method = -1;
+	
 	for(;;){
 		if((nfds = monitor_events()) == -1) break;
 		if(nfds == EINTR) continue;
@@ -47,9 +51,6 @@ int main()
 		int i;
 		for(i = 0; i < nfds; i++){
 
-			struct Request req;
-			memset(&req,0,sizeof(struct Request));
-			req.method = -1;
 
 			if(events[i].data.fd == con){
 				int r = 0;		
@@ -57,6 +58,23 @@ int main()
 
 				if(r == EAGAIN || r == EWOULDBLOCK) continue;
 
+				if(r == BAD_REQ){
+						if(generate_response(&res,400,NULL,&req) == -1) break;
+
+						clear_request(&req);
+						int w = 0;
+						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
+						if(w == EAGAIN || w == EWOULDBLOCK) continue;
+
+						stop_listening(cli_sock);
+						clear_response(&res);
+						break;
+				}
+
+				if (r == BDY_MISS){
+					printf("\nrequest is %s and is %ld bytes long\n",req.req,req.size);
+					continue;
+				}
 #if USE_FORK
 				pid_t child = fork();
 #else
@@ -67,6 +85,7 @@ int main()
 					/*server error*/
 					if(generate_response(&res,500,NULL,&req) == -1) break;
 
+					clear_request(&req);
 					int w = 0;
 					if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 					if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -76,7 +95,6 @@ int main()
 
 					remove_socket_from_monitor(cli_sock);
 
-					clear_request(&req);
 					clear_response(&res);
 					
 					continue;
@@ -90,47 +108,7 @@ int main()
 						exit(1);
 					}
 
-					if(r == BAD_REQ){
-						printf("first brach 400 response\n");
-						if(generate_response(&res,400,NULL,&req) == -1) break;
-
-						int w = 0;
-						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
-						if(w == EAGAIN || w == EWOULDBLOCK) {
-
-#if USE_FORK 
-							uint8_t ws = 0;
-							while((w = write_cli_sock(cli_sock,&res) != -1)){
-								if(w == EAGAIN || w == EWOULDBLOCK) continue;
-								
-								ws = 1;
-								break;
-							}
-							if(ws){
-								stop_listening(cli_sock);
-								close_prog_memory();
-								exit(0);
-							}
-							clear_response(&res);
-							stop_listening(cli_sock);
-							exit(1);
-
-#else
-							continue;
-#endif
-						}
-
-#if USE_FORK
-						stop_listening(cli_sock);
-						close_prog_memory();
-						exit(0);
-#else
-						clear_request(&req);
-						clear_response(&res);
-						break;
-#endif
-					}
-
+				
 					struct Content cont;
 					memset(&cont,0,sizeof(struct Content));
 
@@ -144,7 +122,7 @@ int main()
 								printf("first brach 400 response ORIGIN FAILED\n");
 								if(generate_response(&res,400,NULL,&req) == -1) break;
 
-								//clear_request(&req);
+								clear_request(&req);
 								int w = 0;
 								if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
 								if(w == EAGAIN || w == EWOULDBLOCK) {
@@ -227,52 +205,7 @@ int main()
 							break;
 #endif
 						}
-						
-						/*THIS MIGHT NOT BE NECCESRY*/
-						/*send a bed request response*/
-						printf("first brach 400 response after ORIGIN but this does not make sense\n");
-						if(generate_response(&res,400,NULL,&req) == -1) break;
-
-						//clear_request(&req);
-						int w = 0;
-						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
-						if(w == EAGAIN || w == EWOULDBLOCK) {
-
-#if USE_FORK 
-							uint8_t ws = 0;
-							while((w = write_cli_sock(cli_sock,&res) != -1)){
-								if(w == EAGAIN || w == EWOULDBLOCK) continue;
-								
-								ws = 1;
-								break;
-							}
-							if(ws){
-						//		clear_response(&res);
-								close_prog_memory();
-								stop_listening(cli_sock);
-								exit(0);
-							}
-							//clear_response(&res);
-							//stop_listening(cli_sock);
-							close_prog_memory();
-							exit(1);
-
-#else
-							continue;
-#endif
-						}
-#if USE_FORK
-						stop_listening(cli_sock);
-						//clear_request(&req);
-						//clear_response(&res);
-						close_prog_memory();
-						exit(0);
-#else
-						clear_request(&req);
-						clear_response(&res);
-						remove_socket_from_monitor(cli_sock);
-						break;
-#endif
+					break;	
 					}
 					case GET:
 					case POST:
@@ -337,7 +270,7 @@ int main()
 							}
 						}
 
-					//	clear_request(&req);
+						clear_request(&req);
 						printf("response body is \n %s\n",res.body.content);
 						int w = 0;
 						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
@@ -432,13 +365,16 @@ int main()
 				/*parent process*/
 					
 				int wstatus;
-                   		if(waitpid(child, &wstatus, WNOHANG) == -1)
+				if(waitpid(child, &wstatus, WNOHANG) == -1)
 					fprintf(stderr,"cannot wait for child process\n");
 
 				if(WIFEXITED(wstatus)){
-					stop_listening(cli_sock);
-					printf("parent close the socket %d\n",cli_sock);
+					if(WEXITSTATUS(wstatus) == 0){
+						stop_listening(cli_sock);
+						printf("parent close the socket %d\n",cli_sock);
+					}
 				}
+				clear_request(&req);
 #endif
 			}else{ /*SECOND BRANCH*/
 				int r = 0;
@@ -457,6 +393,7 @@ int main()
 #endif
 					if(child == -1){
 						/*send a server error response*/
+						clear_request(&req);
 
 						continue;
 					}
@@ -617,7 +554,6 @@ int main()
 								if(generate_response(&res,status,&cont,&req) == -1) break;
 							}
 
-							printf("in the second branch response body is \n %s\n",res.body.content);
 							//clear_content(&cont);
 							//clear_request(&req);
 							int w = 0;
@@ -744,6 +680,7 @@ int main()
 								events[i].data.fd,
 								__LINE__);
 					}
+					clear_request(&req);
 				}else if(events[i].events == EPOLLOUT) {
 					int w = 0;
 					if(( w = write_cli_sock(events[i].data.fd,&res)) == -1) break;	

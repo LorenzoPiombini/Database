@@ -48,7 +48,8 @@ int load_resource(struct Request *req, struct Content *cont)
 
 			assert(db != NULL);
 
-			printf("%s\n",db);
+
+			if(db[0] == '\0') return -1;
 
 			/*process the string and separate the two file sintax*/
 

@@ -29,7 +29,7 @@ int handle_request(struct Request *req)
 	map_content_type(req);
 	if(req->method == POST){
 		/*we should have a body*/
-		if((req->size - h_end) == 0) return BAD_REQ;
+		if((req->size - h_end) == 0) return BDY_MISS;
 		if(req->d_req){
 			if((req->size - h_end) < STD_REQ_BDY_CNT){
 				strncpy(req->req_body.content,&req->d_req[h_end],(req->size - h_end) - 1 );
@@ -71,8 +71,8 @@ void clear_request(struct Request *req)
 {
 	if(req->d_req) cancel_memory(NULL,req->d_req,req->size);
 	if(req->req_body.d_cont) cancel_memory(NULL,req->req_body.d_cont,req->req_body.size);
-	memset(req->req,0,BASE);
-	memset(req->req_body.content,0,STD_REQ_BDY_CNT);
+	memset(req,0,sizeof(struct Request));
+	
 }
 
 
@@ -140,6 +140,20 @@ static int parse_header(char *head, struct Request *req)
 			if((b = strstr(t,"Content-Type:"))){
 				b += strlen("Content-Type: ");
 				strncpy(req->cont_type,b,strlen(b));
+				*crlf = ' ';
+				start = end + 2;
+				continue;
+			}
+
+			if((b = strstr(t,"Content-Length:"))){
+				b += strlen("Content-Length: ");
+				char *endp;
+				errno = 0;
+				req->cont_length = (size_t)strtol(b,&endp,10);
+				if(errno == EINVAL || errno == LONG_MAX){
+					printf("string to number conversion failed\n");
+					req->cont_length = 0;
+				}
 				*crlf = ' ';
 				start = end + 2;
 				continue;
