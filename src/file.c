@@ -166,6 +166,32 @@ off_t move_in_file_bytes(int fd, off_t offset)
 	return pos;
 }
 
+off_t get_file_size(int fd, char *file_name)
+{
+	struct stat st;
+	if (!file_name)
+	{
+		if (fstat(fd, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (off_t)st.st_size;
+	}
+	else
+	{
+		if (stat(file_name, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (off_t)st.st_size;
+	}
+}
 #endif /*linux*/
 
 #if defined(__linux__)
@@ -667,6 +693,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 #if defined(__linux__)
 			if (read(fd, &size, sizeof(size)) == -1)
 #elif defined(_WIN32)
+			written = 0;
 			if (!ReadFile(file_handle,&size,sizeof(size),&written,NULL))
 #endif
 			{
@@ -675,13 +702,22 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 				return 0;
 			}
 			if(size == 16){
+#if defined(__linux__)
 				if (read(fd, &k16, sizeof(k16)) == -1){
+#elif defined(_WIN32)
+				if (!ReadFile(file_handle,&k16,sizeof(k16),&written,NULL))
+#endif
 					fprintf(stderr, "read index failed.\n");
 					free_nodes(ht->data_map, ht->size);
 					return 0;
 				}
 			}else{
-				if (read(fd, &k, sizeof(k)) == -1){
+#if defined(__linux__)
+				if (read(fd, &k, sizeof(k)) == -1)
+#elif defined(_WIN32)
+				if (!ReadFile(file_handle,&k,sizeof(k),&written,NULL))
+#endif
+				{
 					fprintf(stderr, "read index failed.\n");
 					free_nodes(ht->data_map, ht->size);
 					return 0;
@@ -689,7 +725,11 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 
 			}
 
+#if defined(__linux__)
 			if (read(fd, &value, sizeof(value)) == -1)
+#elif defined(_WIN32)
+			if (!ReadFile(file_handle,&value,sizeof(value),&written,NULL))
+#endif
 			{
 				fprintf(stderr, "read index failed.\n");
 				free_nodes(ht->data_map, ht->size);
@@ -5191,10 +5231,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 }
 
 
+#if defined(__linux__)
 off_t get_update_offset(int fd)
+#elif defined(_WIN32)
+off_t get_update_offset(HANDLE file_handle)
+#endif
 {
 	uint64_t urec_ne = 0;
+#if defined(__linux__)
 	if (read(fd, &urec_ne, sizeof(urec_ne)) == STATUS_ERROR)
+#elif defined(_WIN32)
+	if (!ReadFile(file_handle,&urec_ne,sizeof(urec_ne),&written,NULL))
+#endif
 	{
 		perror("could not read the update record position (file.c l 424).\n");
 		return -1;
@@ -5208,6 +5256,7 @@ off_t get_update_offset(int fd)
  *  reads a record from a file,
  *  the caller must inistialized the struct Record_f
  * */
+/*TODO WRITE READ RAM RECORD */
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 {
 	create_record(file_name, sch,rec);
@@ -6237,32 +6286,6 @@ int file_error_handler(int count, ...)
 	return j;
 }
 
-off_t get_file_size(int fd, char *file_name)
-{
-	struct stat st;
-	if (!file_name)
-	{
-		if (fstat(fd, &st) == -1)
-		{
-			perror("stat failed :");
-			printf("%s:%d.\n", F, L - 3);
-			return -1;
-		}
-
-		return (off_t)st.st_size;
-	}
-	else
-	{
-		if (stat(file_name, &st) == -1)
-		{
-			perror("stat failed :");
-			printf("%s:%d.\n", F, L - 3);
-			return -1;
-		}
-
-		return (off_t)st.st_size;
-	}
-}
 
 int add_index(int index_nr, char *file_name, int bucket)
 {
@@ -10654,4 +10677,8 @@ off_t move_in_file_bytes(HANDLE file_handle, off_t offset)
 	return seek_file_win(file_handle,offset,FILE_CURRENT);
 }
 
+DWORD get_file_size(HANDLE file_handle)
+{
+	return GetFileSize(file_handle, NULL)
+}
 #endif
