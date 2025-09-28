@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <str_op.h>
 #include "request.h"
 #include "end_points.h"
 #include "memory.h"
@@ -215,6 +216,233 @@ int find_headers_end(char *buffer, size_t size)
 
 	return -1;
 }
+
+int write_request_to_pipe(int pipefd,struct Request *req)
+{
+	size_t buffer_size = 0;
+	if(!req->d_req && req->req[0] != '\0') 
+		buffer_size += strlen(req->req) + 1;
+	else
+		buffer_size += strlen(req->d_req) + 1;
+
+	if(req->size > 0) buffer_size += number_of_digit(req->size) + 1;
+	if(req->method != -1 ) buffer_size += 2;
+	if(req->protocol[0] != '\0') buffer_size += strlen(req->protocol) + 1;
+	if(req->host[0] != '\0') buffer_size += strlen(req->host) + 1;
+	if(req->resource[0] != '\0') buffer_size += strlen(req->resource) + 1;
+	if(req->connection[0] != '\0') buffer_size += strlen(req->connection) + 1;
+	if(req->cont_type[0] != '\0') buffer_size += strlen(req->cont_type) + 1;
+	if(req->cont_length != 0) buffer_size += number_of_digit(req->cont_length) + 1;
+	if(req->transfer_encoding[0] != '\0') buffer_size += strlen(req->transfer_encoding) + 1;
+	if(req->access_control_request_headers[0] != '\0') buffer_size += strlen(req->access_control_request_headers) + 1;
+	if(req->access_control_request_method[0] != '\0') buffer_size += strlen(req->access_control_request_method) + 1;
+	if(req->origin[0] != '\0') buffer_size += strlen(req->origin) + 1;
+	if(!req->req_body->d_cont && req->req_body->content[0] != '\0')
+		buffer_size += strlen(req->req_body->content) + 1;
+	else
+		buffer_size += strlen(req->req_body->d_cont) + 1;
+	
+	if(req->req_body->size > 0) buffer_size += number_of_digit(req->size) + 1;
+
+	buffer_size += number_of_digit(buffer_size) + 1;
+	char buff[buffer_size+1];
+	memset(buff,0,buffer_size+1);
+
+	/*copy data to buffer*/
+	char *p = buff;
+
+	int number_size = number_of_digit(buffer_size);
+	if(copy_to_string(p,number_size < 4 ? 4 : number_size + 1,"%ld#",buffer_size) == -1){
+		fprintf(stderr,"(%s): copy_to_string failed, %s:%d\n",__FILE__,__LINE__-1);
+		return -1;
+	}
+
+	p += number_size + 1;
+
+	if(!req->d_req && req->req[0] != '\0'){
+		size_t s = strlen(req->req);
+		strncpy(p,req->req,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}else{
+		size_t s = strlen(req->d_req);
+		strncpy(p,req->d_req,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+
+
+	if(req->size > 0){
+		number_size = number_of_digit(req->size);
+		if(copy_to_string(p,number_size < 4 ? 4 : number_size + 1,"%ld#",req->size) == -1){
+				fprintf(stderr,"(%s): copy_to_string failed, %s:%d\n",__FILE__,__LINE__-1);
+				return -1;
+		}
+		p += number_size + 1;
+	}
+	if(req->method != -1 ){
+		if(copy_to_string(p,3,"%d#",req->method) == -1){
+			fprintf(stderr,"(%s): copy_to_string failed, %s:%d\n",prog,__FILE__,__LINE__-1);
+			return -1;
+		}
+		p += 2;
+	}
+
+	if(req->protocol[0] != '\0'){ 
+		size_t s = strlen(req->protocol);
+		strncpy(p,req->protocol,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+	if(req->host[0] != '\0') {
+		size_t s = strlen(req->host);
+		strncpy(p,req->host,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}	
+	if(req->resource[0] != '\0') {
+		size_t s = strlen(req->resource);
+		strncpy(p,req->resource,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+	if(req->connection[0] != '\0'){
+		size_t s = strlen(req->connection);
+		strncpy(p,req->connection,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+
+	if(req->cont_type[0] != '\0') {
+		size_t s = strlen(req->cont_type);
+		strncpy(buff,req->cont_type,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+
+	if(req->cont_length != 0) {
+		number_size = number_of_digit(req->cont_length);
+		if(copy_to_string(p,number_size < 4 ? 4 : number_size + 1,"%ld#",req->cont_length) == -1){
+			fprintf(stderr,"(%s): copy_to_string failed, %s:%d\n",prog,__FILE__,__LINE__-1);
+			return -1;
+		}
+		p += (number_size + 1);
+	}
+	if(req->transfer_encoding[0] != '\0'){ 
+		size_t s = strlen(req->transfer_encoding);
+		strncpy(p,req->transfer_encoding,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+
+	if(req->access_control_request_headers[0] != '\0'){
+		size_t s = strlen(req->access_control_request_headers);
+		strncpy(p,req->access_control_request_headers,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+
+	if(req->access_control_request_method[0] != '\0'){
+		size_t s = strlen(req->access_control_request_method);
+		strncpy(p,req->access_control_request_method,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+
+	}
+
+	if(req->origin[0] != '\0'){
+		size_t s = strlen(req->origin);
+		strncpy(p,req->origin,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+
+	if(!req->req_body.d_cont && req->req_body.content[0] != '\0'){
+		size_t s = strlen(req->req_body.content);
+		strncpy(p,req->req_body.content,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}else{
+		size_t s = strlen(req->req_body.d_cont);
+		strncpy(p,req->req_body.d_cont,s);
+		p += s;
+		strncpy(p,"#",2);
+		p += 1;
+	}
+
+	if(req->req_body.size != 0) {
+		number_size = number_of_digit(req->req_body.size);
+		if(copy_to_string(p,number_size < 4 ? 4 : number_size + 1,"%ld#",req->req_body.size) == -1){
+			fprintf(stderr,"(%s): copy_to_string failed, %s:%d\n",prog,__FILE__,__LINE__-1);
+			return -1;
+		}
+		p += (number_size + 1);
+	}
+
+	/*write to pipe*/
+	if(write(pipefd,buff,buffer_size) == -1){
+		fprintf(stderr,"(%s): cannot write to pipe %s:%d\n",prog,__FILE__,__LINE__-1);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+int read_request_from_pipe(int pipefd,struct Request *req)
+{
+	char *buffer = (char *)ask_mem(READ_PIPE_FX_SIZE);
+	if(!buffer){
+		fprintf(stderr,"(%s) ask_mem failed %s:%d.\n",prog,__FILE__,__LINE__-2);	
+		return -1;
+	}
+
+	if(read(pipefd,buffer,READ_PIPE_FX_SIZE) == -1){
+		fprintf(stderr,"(%s) read failed %s:%d.\n",prog,__FILE__,__LINE__-1);	
+		return -1;
+	}
+
+	char *t = tok(buffer,"#");
+	size_t buffer_size = 0;
+	if(t){
+		errno = 0;
+		buffer_size = (size_t)string_to_long(t);
+		if(errno == EINVAL){
+			fprintf(stderr,"(%s): cannot read proper data from pipe buffer\n",prog,__FILE__,__LINE__-2);
+			cancel_memory(NULL,buffer,READ_PIPE_FX_SIZE);
+			return -1;
+		}
+	}
+
+	if(buffer_size > READ_PIPE_FX_SIZE){
+		/*expand the memory*/
+		/*TODO: 
+		 * read the pipe again
+		 * put the remaining data at the end of the buffer that you already read*/
+
+	}
+
+
+	while((t = tok(NULL,"#"))){
+		/*parse the request*/
+
+	}
+
+
+}
+/*=================== STATIC FUNCTIONS DECLARATIONS ===========================*/
 
 static int get_headers_block(struct Request *req)
 {

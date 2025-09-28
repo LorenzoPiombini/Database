@@ -161,10 +161,14 @@ static int set_up_headers(struct Header *headers, int status, size_t body_size, 
 {
 	set_status_and_phrase(headers,(uint16_t)status);
 		
-	if(strncmp(req->protocol,STD_PTC,STD_LEN_PTC) == 0)
+	if(strncmp(req->protocol,STD_PTC,STD_LEN_PTC) == 0){
 		strncpy(headers->protocol_vs,STD_PTC,STD_LEN_PTC);
-	else
-		strncpy(headers->protocol_vs,req->protocol,strlen(req->protocol));
+	}else{
+		if(req->protocol[0] == '\0')
+			strncpy(headers->protocol_vs,STD_PTC,STD_LEN_PTC);
+		else
+			strncpy(headers->protocol_vs,req->protocol,strlen(req->protocol));
+	}
 
 	char *date = date_formatter();
 	if(!date) return -1;
@@ -174,7 +178,7 @@ static int set_up_headers(struct Header *headers, int status, size_t body_size, 
 		strncpy(headers->keep_alive,"timeout=3600, max=200",strlen("timeout=3600, max=200")+1);
 	}
 
-	if(status != 400 || status != 404)
+	if(status != 400 || status != 404 || status != 500)
 		strncpy(headers->cont_type,req->cont_type,strlen(req->cont_type));
 
 	if(req->method == OPTIONS){
