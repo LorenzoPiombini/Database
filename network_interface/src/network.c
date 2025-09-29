@@ -126,7 +126,14 @@ int read_cli_sock(int cli_sock,struct Request *req)
 {
 	ssize_t bread = 0;	
 	errno = 0;
-	if((bread = read(cli_sock,req->size == 0 ? req->req : &req->req[req->size],BASE)) == -1){
+	req->d_req = (char*)ask_mem(BASE);
+	if(!req->d_req){
+		/*erro*/
+		return -1;
+	}
+
+	memset(req->d_req,0,BASE);
+	if((bread = read(cli_sock,req->size == 0 ? req->d_req : &req->d_req[req->size],BASE)) == -1){
 		if(errno == EAGAIN || errno == EWOULDBLOCK) {
 			int e = errno;
 			int err = -1;
@@ -176,7 +183,7 @@ int read_cli_sock(int cli_sock,struct Request *req)
 
 	if(result == BDY_MISS){
 		if(((ssize_t)req->cont_length + req->size) < (ssize_t)BASE){
-			if((bread = read(cli_sock,&req->req[req->size],BASE)) == -1){
+			if((bread = read(cli_sock,&req->d_req[req->size],BASE)) == -1){
 				if(errno == EAGAIN || errno == EWOULDBLOCK) {
 					int e = errno;
 					int err = -1;

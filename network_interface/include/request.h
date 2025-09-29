@@ -34,7 +34,6 @@ struct r_body{
 };
 
 struct Request{
-	char req[BASE];
 	char *d_req;
 	ssize_t size;
 	int method;
@@ -56,7 +55,5 @@ struct Request{
 int handle_request(struct Request *req);
 int set_up_request(ssize_t len,struct Request *req);
 int find_headers_end(char *buffer, size_t size);
-int write_request_to_pipe(int pipefd,struct Request *req);
-int read_request_from_pipe(int pipefd,struct Request *req);
 void clear_request(struct Request *req);
 #endif

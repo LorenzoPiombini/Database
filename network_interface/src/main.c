@@ -64,7 +64,7 @@ int main()
 				if(r == EAGAIN || r == EWOULDBLOCK) continue;
 
 				if(r == BAD_REQ){
-						close_arena();
+
 						if(generate_response(&res,400,NULL,&req) == -1) break;
 
 						clear_request(&req);
@@ -74,57 +74,17 @@ int main()
 
 						stop_listening(cli_sock);
 						clear_response(&res);
+						close_arena();
 						break;
 				}
 
 				if (r == BDY_MISS){
-					printf("\nrequest is %s and is %ld bytes long\n",req.req,req.size);
+					printf("\nrequest is %s and is %ld bytes long\n",req.d_req,req.size);
 					continue;
 				}
 
-
-				/* TODO: 
-				 * write the request into a pipe
-				 * close the arena 
-				 * close the fd of the pipe that we do not need (fd READ)
-				 * zerod out request struct.
-				 * */
-				int pipefd[2];
-				if(req->d_req){
-					if(pipe(pipefd) == -1){
-						/*server error*/
-						if(generate_response(&res,500,NULL,&req) == -1) break;
-
-						//clear_request(&req);
-						int w = 0;
-						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
-						if(w == EAGAIN || w == EWOULDBLOCK) {
-							continue; 
-						}
-						close_arena();
-						memset(&req,0,sizeof(struct Request));
-						break;
-					}
-
-					/*write to the pipe*/
-					if(write_request_to_pipe(pipefd[1],&req) == -1){
-						/*server error*/
-						if(generate_response(&res,500,NULL,&req) == -1) break;
-
-						//clear_request(&req);
-						int w = 0;
-						if(( w = write_cli_sock(cli_sock,&res)) == -1) break;
-						if(w == EAGAIN || w == EWOULDBLOCK) {
-							continue; 
-						}
-						close_arena();
-						close(pipefd[0]);
-						close(pipefd[1]);
-						memset(&req,0,sizeof(struct Request));
-						break;
-					}
-				}
 				close_arena();	
+				
 #if USE_FORK
 				pid_t child = fork();
 #else
@@ -132,8 +92,6 @@ int main()
 #endif
 				if(child == -1){
 					/*parent*/
-					close(pipefd[0]);
-					close(pipefd[1]);
 					/*server error*/
 					if(generate_response(&res,500,NULL,&req) == -1) break;
 
@@ -153,8 +111,6 @@ int main()
 				}
 
 				if(child == 0){
-					/*close the pipe end that we do not need*/
-					close(pipefd[1]);
 					/*send response*/
 					if(init_prog_memory() == -1){
 						/*log error*/
@@ -162,17 +118,6 @@ int main()
 						exit(1);
 					}
 
-					/*TODO:
-					 * if req zeroed out read pipe,
-					 * 			@@@ put the data in the req struct!
-					 * if req not zeroed, close the pipe,
-					 *  
-					 * */	
-					if(req->req[0] == '\0' && !req->d_req){
-						/*read from pipe*/
-					}
-
-					close(pipefd[0]);
 					struct Content cont;
 					memset(&cont,0,sizeof(struct Content));
 
@@ -429,7 +374,7 @@ int main()
 				/*parent process*/
 					
 				/*close the pipe that parent do not need*/
-				close(pipefd[0]);
+				//close(pipefd[0]);
 				int wstatus;
 				if(waitpid(child, &wstatus, WNOHANG) == -1)
 					fprintf(stderr,"cannot wait for child process\n");
