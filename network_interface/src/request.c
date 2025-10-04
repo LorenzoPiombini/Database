@@ -210,6 +210,30 @@ int find_headers_end(char *buffer, size_t size)
 }
 
 
+void print_request(struct Request req){
+	printf("debug reuest:\n" \
+			"d_req -> %s\n" \
+			"size -> %ld\n" \
+			"method -> %d\n"
+			"protocol -> %s\n"
+			"host -> %s\n" \
+			"resource -> %s\n"\
+			"connection ->%s\n"\
+			"cont_type -> %s\n"\
+			"cont_length ->%ld\n" \
+			"content -> %s\n",req.d_req,
+			req.size,
+			req.method,
+			req.protocol,
+			req.host,
+			req.resource,
+			req.connection,
+			req.cont_type,
+			req.cont_length,
+			req.req_body.content);
+
+
+}
 /*=================== STATIC FUNCTIONS DECLARATIONS ===========================*/
 
 static int get_headers_block(struct Request *req)

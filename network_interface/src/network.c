@@ -8,7 +8,9 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <errno.h>
+#include <assert.h>
 #include <ifaddrs.h>
+#include <sys/un.h>
 #include "network.h"       
 #include "monitor.h"       
 #include "request.h"       
@@ -64,6 +66,51 @@ sock_setup:
 	return sock_fd;
 }
 
+
+int connect_UNIX_socket()
+{
+	struct sockaddr_un address_socket_family;
+	memset(&address_socket_family,0,sizeof(struct sockaddr_un));
+
+	int sock_un = socket(AF_UNIX,SOCK_SEQPACKET,0);
+	if(sock_un == -1) return -1;
+	
+	/*bind to a file_path*/
+	address_socket_family.sun_family = AF_UNIX;
+	strncpy(address_socket_family.sun_path,INT_PROC_SOCK,strlen(INT_PROC_SOCK)+1);	
+
+
+	int result = connect(sock_un,(const struct sockaddr*) &address_socket_family,sizeof(address_socket_family));
+	if(result == -1) return -1;
+
+	return sock_un;
+}
+
+int listen_UNIX_socket() 
+{
+	
+	struct sockaddr_un address_socket_family;
+	memset(&address_socket_family,0,sizeof(struct sockaddr_un));
+
+	int sock_un = socket(AF_UNIX,SOCK_SEQPACKET,0);
+	if(sock_un == -1) return -1;
+	
+	/*bind to a file_path*/
+	address_socket_family.sun_family = AF_UNIX;
+	strncpy(address_socket_family.sun_path,INT_PROC_SOCK,strlen(INT_PROC_SOCK)+1);	
+
+
+	unlink(INT_PROC_SOCK);
+	int result = bind(sock_un,(const struct sockaddr *) &address_socket_family,sizeof(address_socket_family));
+	if(result == -1) return -1;
+
+	/*listen socket*/
+	if(listen(sock_un,20) == -1) return -1;
+	
+
+	return sock_un;
+
+}
 int write_cli_sock(int cli_sock, struct Response *res)
 {
 	size_t l = strlen(res->header_str);
@@ -126,14 +173,18 @@ int read_cli_sock(int cli_sock,struct Request *req)
 {
 	ssize_t bread = 0;	
 	errno = 0;
+
+	assert(req->d_req == NULL);
+
 	req->d_req = (char*)ask_mem(BASE);
 	if(!req->d_req){
 		/*erro*/
+		printf("ask_mem failed\n");
 		return -1;
 	}
 
 	memset(req->d_req,0,BASE);
-	if((bread = read(cli_sock,req->size == 0 ? req->d_req : &req->d_req[req->size],BASE)) == -1){
+	if((bread = read(cli_sock,req->d_req,BASE)) == -1){
 		if(errno == EAGAIN || errno == EWOULDBLOCK) {
 			int e = errno;
 			int err = -1;
@@ -151,6 +202,37 @@ int read_cli_sock(int cli_sock,struct Request *req)
 	else
 		req->size = bread;
 
+	if(req->cont_length > 0){
+		size_t l = strlen(req->d_req);
+		if(l == 0){
+			if((bread = read(cli_sock,req->d_req,BASE)) == -1){
+				if(errno == EAGAIN || errno == EWOULDBLOCK) {
+					int e = errno;
+					int err = -1;
+					if(( err = add_socket_to_monitor(cli_sock,EPOLLIN)) == -1) {
+						printf("read_cli_sock failed line %d",__LINE__-1);
+						return -1;
+					}
+
+					return e;
+				}
+				printf("errno is %s\n",strerror(errno));
+				fprintf(stderr,"(%s): cannot read data from socket\n",prog);
+				return -1;
+			}
+
+		}
+		l = strlen(req->d_req);
+		if(l > STD_BDY_CNT){
+			/*TODO: allocate memory for the content*/
+
+		}else{
+			assert(req->req_body.content[0] == '\0');
+			strncpy(req->req_body.content,req->d_req,l);
+			return 0;
+		}
+	}
+
 	int result = 0;
 	if((result = handle_request(req)) == BAD_REQ){
 
@@ -159,11 +241,13 @@ int read_cli_sock(int cli_sock,struct Request *req)
 			return BAD_REQ;
 		}
 		
-		if(req->size < (ssize_t)BASE){ 
-			printf("req->size less than base\n");
+	
+		if(req->size < (ssize_t)BASE && req->cont_length == 0){ 
+			printf("req->size less than base\nand request is %s",req->d_req);
 			return BAD_REQ;
 		};
 		
+		print_request(*req);	
 		if(req->size == (ssize_t)BASE){
 			if(set_up_request(bread,req) == -1) return -1;
 
@@ -178,12 +262,15 @@ int read_cli_sock(int cli_sock,struct Request *req)
 				fprintf(stderr,"(%s): cannot read data from socket\n",prog);
 				return -1;
 			}
+			
+			return 0;
+
 		}
 	}
 
 	if(result == BDY_MISS){
 		if(((ssize_t)req->cont_length + req->size) < (ssize_t)BASE){
-			if((bread = read(cli_sock,&req->d_req[req->size],BASE)) == -1){
+			if((bread = read(cli_sock,req->d_req,BASE)) == -1){
 				if(errno == EAGAIN || errno == EWOULDBLOCK) {
 					int e = errno;
 					int err = -1;
@@ -195,9 +282,13 @@ int read_cli_sock(int cli_sock,struct Request *req)
 				fprintf(stderr,"(%s): cannot read data from socket\n",prog);
 				return -1;
 			}
+			
+			assert(req->req_body.content[0] == '\0');
+			strncpy(req->req_body.content,req->d_req,strlen(req->d_req));
+			return 0;
 		}else{
-
-
+			/*TODO*/
+			printf("NOT HANDLED HEDGE CASE\n");	
 		}
 
 		result = 0;
@@ -230,6 +321,7 @@ int read_cli_sock(int cli_sock,struct Request *req)
 			}
 
 			if( result == BDY_MISS){
+				printf("hey this is bdy missing not handled\n");
 				return -1;	
 			}
 		}
@@ -257,8 +349,11 @@ int wait_for_connections(int sock_fd,int *cli_sock, struct Request *req)
 
 
 	int e = 0;
+	errno = 0;
 	if(( e = read_cli_sock(*cli_sock,req)) == -1){
-		fprintf(stderr,"(%s): cannot read data from socket",prog);
+
+		printf("yes you are in wait for connection\nsocket is %d\nerrno is %s\n",*cli_sock,strerror(errno));
+		fprintf(stderr,"(%s): cannot read data from socket\n",prog);
 		return -1;
 	}
 	

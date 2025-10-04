@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include "response.h"
+#include "memory.h"
 
 static char prog[] = "net_interface";
 static int set_up_headers(struct Header *headers, int status, size_t body_size, struct Request *req);
@@ -414,7 +415,12 @@ static int parse_body(struct Content *cont, struct Response *res)
 		res->body.size = cont->size;
 		return 0;
 	}
-	/*TODO handle cont->size > STD_BDY_CNT */
+
+	res->body.d_cont =(char*)ask_mem(cont->size+1);
+	if(!res->body.d_cont) return -1;
+
+	strncpy(res->body.d_cont,cont->cnt_dy,cont->size);
+	res->body.size = cont->size;
 	return 0;
 }
 

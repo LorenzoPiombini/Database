@@ -147,7 +147,6 @@ int is_db_file(struct Header_d *hd, int *fds)
 {
 
 	while((is_locked(3,fds[0],fds[1],fds[2])) == LOCKED);
-
 	if (!read_header(fds[2], hd)) return STATUS_ERROR;
 
 	return 0;
@@ -225,13 +224,16 @@ int check_data(char *file_path,char *data_to_add,
 		 * we update the header
 		 * */
 		/* aquire lock */
-		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
-		while((r = lock(fds[0],WLOCK)) == WTLK);
-		if(r == -1){
-			fprintf(stderr,"can't acquire or release proper lock.\n");
-			return STATUS_ERROR;
+		if(!(*lock_f)){
+			while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
+			while((r = lock(fds[0],WLOCK)) == WTLK);
+			if(r == -1){
+				fprintf(stderr,"can't acquire or release proper lock.\n");
+				return STATUS_ERROR;
+			}
+
+			*lock_f = 1;
 		}
-		*lock_f = 1;
 		close_file(1,fds[2]);
 		fds[2] = open_file(files[2],1); /*open with O_TRUNCATE*/
 
@@ -281,7 +283,6 @@ int write_record(int *fds,void *key,
 	}
 
 	if(!(*lock_f)){
-		*lock_f = 1;
 		int r = 0;
 		/* aquire lock */
 		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
@@ -290,6 +291,7 @@ int write_record(int *fds,void *key,
 			fprintf(stderr,"can't acquire or release proper lock.\n");
 			return STATUS_ERROR;
 		}
+		*lock_f = 1;
 	}
 	
 	off_t eof = go_to_EOF(fds[1]);
@@ -303,7 +305,7 @@ int write_record(int *fds,void *key,
 	int *p_index = &index;
 	/* load al indexes in memory */
 	if (!read_all_index_file(fds[0], &ht, p_index)) {
-		fprintf(stderr,"read index file failed. %s:%d.\n", F, L - 2);
+		fprintf(stderr,"read index file failed. %s:%d.\n", F, L - 1);
 		return STATUS_ERROR;
 	}
 
@@ -321,7 +323,6 @@ int write_record(int *fds,void *key,
 	if(write_index(fds,index,ht,files[0]) == -1) return -1;
 
 	cancel_memory(NULL,ht,sizeof(HashTable));
-	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	return 0;
 }
 
@@ -441,12 +442,10 @@ int update_rec(char *file_path,
 
 	uint8_t err = 0;
 	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds) == -1)){
-		if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		return -1;
 	}
 
 	if(err == KEY_NOT_FOUND){
-		if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		if(__UTILITY)
 			return KEY_NOT_FOUND;
 		else
@@ -569,7 +568,6 @@ int update_rec(char *file_path,
 
 		}
 
-		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	} /*end of if(update_pos > 0) */
@@ -605,7 +603,6 @@ int update_rec(char *file_path,
 			goto clean_on_error;
 		}
 
-		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	}
@@ -648,14 +645,11 @@ int update_rec(char *file_path,
 			goto clean_on_error;
 		}
 
-		/*free the lock */
-		if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	}
 
 clean_on_error:
-	if(*lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	free_record(&rec_old, rec_old.fields_num);
 	if(no_updates)
 		return 0;

@@ -144,6 +144,10 @@ int write_ht(int fd, HashTable *ht)
 
 int hash(void *key, int size, int key_type)
 {
+	if(size == 0){
+		fprintf(stderr,"something bad happend call security! %s:%d\n",__FILE__,__LINE__);
+		return -1;
+	}
 
 	uint32_t integer_key = 0;
 	char *string_key = NULL;
@@ -156,6 +160,7 @@ int hash(void *key, int size, int key_type)
 	case UINT:
 	{
 		integer_key = *(uint32_t *)key;
+		/*printf("size is %d, integer_key %u, coprime is %d, prime is %d\n",size,integer_key,COPRIME,prime);*/
 		hash = ((COPRIME * integer_key + number) % prime) % size;
 		break;
 	}
@@ -549,7 +554,7 @@ void free_nodes(Node **data_map, int size)
 			}
 			default:
 				fprintf(stderr, "key type not supported.\n");
-				break;
+				return;/*safer than break (avoid infinete loop)*/
 			}
 		}
 	}

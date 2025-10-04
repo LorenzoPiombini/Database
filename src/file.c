@@ -503,14 +503,10 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 		printf("ask_mem failed. %s:%d.\n", F, L - 3);
 		return 0;
 	}
-	int i = 0;
-	for (i = 0; i < array_size; i++) {
-		HashTable ht_n;
-		memset(&ht_n,0,sizeof(HashTable));
-		ht_n.write = write_ht;
 
-		(*ht)[i] = ht_n;
-	}
+	int i = 0;
+	for (i = 0; i < array_size; i++)
+		(*ht)[i].write = write_ht;
 
 	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
 #if defined(__linux__)
@@ -584,7 +580,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		perror("reading ht length");
 		return 0;
 	}
-
+	
 	int ht_l = (int)swap32(ht_ln);
 	register int i = 0;
 	for (i = 0; i < ht_l; i++) {
@@ -607,7 +603,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		switch (key_type) {
 		case STR:
 		{
-			uint64_t key_l = 0l;
+			uint64_t key_l = 0;
 #if defined(__linux__)
 			if (read(fd, &key_l, sizeof(key_l)) > 0) {
 #elif defined(_WIN32)
@@ -777,7 +773,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 			break;
 		}
 		default:
-			fprintf(stderr, "key type not supported.\n");
+			fprintf(stderr, "key type not supported.\nsize ht is %d\nht_l is %d\n",ht->size,ht_l);
 			free_nodes(ht->data_map, ht->size);
 			return 0;
 		}

@@ -56,4 +56,5 @@ int handle_request(struct Request *req);
 int set_up_request(ssize_t len,struct Request *req);
 int find_headers_end(char *buffer, size_t size);
 void clear_request(struct Request *req);
+void print_request(struct Request req);
 #endif

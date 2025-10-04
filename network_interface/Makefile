@@ -6,6 +6,8 @@ default: $(TARGET)
 
 clean:
 	rm obj/*.*
+	rm *log*
+	rm *.lock
 	rm $(TARGET)
 
 $(TARGET): $(OBJ)
