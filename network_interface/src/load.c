@@ -24,7 +24,6 @@
 
 static char prog[] = "net_interface";
 static char *convert_json(char* body);
-static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
 
 int load_resource(struct Request *req, struct Content *cont,int data_sock)
@@ -67,23 +66,57 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			memset(orders_head,0,((lines_start - db) -strlen("sales_orders_head:")) +1);
 			strncpy(orders_head,&db[strlen("sales_orders_head:")],((lines_start - db)-strlen("sales_orders_head:")));
 
+
+			size_t size_buffer = 0;
+			char *buffer = NULL;
+			if(resource == NEW_SORD){
 			/* 3 is 
 			 *  1 for '^'
 			 *  1 for instruction byte
 			 *  1 for '\0';
 			 * */
-			size_t size_buffer = sizeof(orders_head) + sizeof(orders_line)+3;
-			char buffer[size_buffer];
-			memset(buffer,0,size_buffer);
+				size_buffer = sizeof(orders_head) + sizeof(orders_line)+3;
+				buffer = (char*)ask_mem(size_buffer);
+				if(!buffer) return -1;
 
-			/*parse data to buffer*/
-			buffer[0] = resource + '0';
-			strncpy(&buffer[1],orders_head,strlen(orders_head));
-			strncpy(&buffer[1+strlen(orders_head)],"^",2);
-			strncpy(&buffer[1+strlen(orders_head)+1],orders_line,strlen(orders_line));
+				memset(buffer,0,size_buffer);
+
+				/*parse data to buffer*/
+				buffer[0] = resource + '0';
+				strncpy(&buffer[1],orders_head,strlen(orders_head));
+				strncpy(&buffer[1+strlen(orders_head)],"^",2);
+				strncpy(&buffer[1+strlen(orders_head)+1],orders_line,strlen(orders_line));
+			}else{
+				/*parse a buffer for the update operation*/
+				char *p = req->resource;
+				p += strlen(UPDATE_ORDERS) + 1;
+
+			/* 4 is 
+			 *  2 for '^'
+			 *  1 for instruction byte
+			 *  1 for '\0';
+			 * */
+				
+				size_buffer = sizeof(orders_head) + sizeof(orders_line)+ strlen(p) +4;
+				buffer = (char*)ask_mem(size_buffer);
+				if(!buffer) return -1;
+
+				memset(buffer,0,size_buffer);
+
+				buffer[0] = resource + '0';
+				strncpy(&buffer[1],p,strlen(p));
+				int position = 1+strlen(p);
+				strncpy(&buffer[position],"^",2);
+				position += 1;
+				strncpy(&buffer[position],orders_head,strlen(orders_head));
+				position += strlen(orders_head);
+				strncpy(&buffer[position],"^",2);
+				position += 1;
+				strncpy(&buffer[position],orders_line,strlen(orders_line));
+			}
 
 			/*send data to the worker process*/
-			if(write(data_sock,buffer,sizeof(buffer)) == -1){
+			if(write(data_sock,buffer,strlen(buffer)) == -1){
 				return -1;
 			}
 
@@ -125,7 +158,6 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 				return -1;
 			}
 
-			char *big_buff = NULL;
 			char *read_buffer = (char*)ask_mem(EIGTH_Kib*4);
 			if(!read_buffer) return -1;
 
@@ -156,6 +188,32 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 		{
 			char *p = req->resource;
 			p += strlen(SALES_ORDERS) + 1;
+
+			size_t key_size = strlen(p);
+			char buffer[key_size+2];
+			memset(buffer,0,key_size+2);
+
+			buffer[0] = resource + '0';
+			strncpy(&buffer[1],p,key_size);
+
+			if(write(data_sock,buffer,strlen(buffer)) == -1) return -1;
+
+			char *read_buffer = (char*) ask_mem(EIGTH_Kib);
+			if(!read_buffer) return -1;
+
+			ssize_t bread = 0;
+			if((bread = read(data_sock,read_buffer,EIGTH_Kib) == -1)) return -1;
+
+			if(bread == EIGTH_Kib){
+				/*code refactor*/					
+				fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__-4);
+				return -1;
+			}
+
+			strncpy(cont->cnt_st,read_buffer,strlen(read_buffer));		
+			cont->size = strlen(read_buffer);
+			return 0;
+#if 0
 
 			uint32_t k = 0;
 			uint8_t type = is_num(p);
@@ -285,7 +343,6 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 						strncpy(&cont->cnt_dy[position_in_the_message],"}}}",strlen("}}}")+1);
 						position_in_the_message+=2;
 						memset(&cont->cnt_dy[strlen(cont->cnt_dy)],0,(1024*4) - strlen(cont->cnt_dy));	
-
 						cont->size = strlen(cont->cnt_dy);
 						/*printf("%s\nsize is %ld\nlast char is '%c'\n",message,strlen(message),message[strlen(message)-1]);*/
 
@@ -294,11 +351,13 @@ s_ord_get_exit_error:
 						free_record(&rec,rec.fields_num);
 						close_file(3,fds[0],fds[1],fds[2]);
 						return -1;
+
 					}
 				default:
 					return -1;
 			}	
 
+#endif
 			break;
 		}
 		default:
@@ -423,16 +482,4 @@ s_ord_get_exit_error:
 		return &db_entry[0];
 	}
 
-	static int data_to_json(char **buffer, struct Record_f *rec,int end_point)
-	{
-		switch(end_point){	
-			case S_ORD_GET: 
-				{
-					if(parse_record_to_json(rec,buffer) == -1) return -1;
-					break;
-				}
-			default:
-				return -1;
-		}
-		return 0;
-	}
+	

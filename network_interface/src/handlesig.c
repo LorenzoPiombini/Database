@@ -41,7 +41,7 @@ static void handler(int signo)
 	case SIGPIPE:
 		stop_monitor();	
 		stop_listening(hdl_sock);
-		close_shared_memory();
+		//close_shared_memory();
 		close_prog_memory();
 		if(signo == SIGINT)
 			fprintf(stderr,"\b\b(%s):cleaning on interrupt, recived %s.\n",prog,"SIGINT");

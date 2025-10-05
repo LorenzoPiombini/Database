@@ -63,6 +63,8 @@ int main()
 		if((work_proc_data_sock = listen_UNIX_socket()) == -1) exit(1);
 
 		work_process(work_proc_data_sock);
+		stop_listening(con);
+		return -1;
 	}else{
 		
 
@@ -156,7 +158,7 @@ int main()
 						}
 
 						/*send response*/
-						if(init_prog_memory() == -1){
+						if(create_arena(FIVE_H_Kib) == -1){
 							/*log error*/
 							stop_listening(cli_sock);
 							exit(1);
@@ -190,12 +192,12 @@ int main()
 												if(ws){
 													//clear_response(&res);
 													stop_listening(cli_sock);
-													close_prog_memory();
+													close_arena();
 													exit(0);
 												}
 												//clear_response(&res);
 												stop_listening(cli_sock);
-												close_prog_memory();
+												close_arena();
 												exit(1);
 
 #else
@@ -207,7 +209,7 @@ int main()
 											//clear_request(&req);
 											//clear_response(&res);
 											stop_listening(cli_sock);
-											close_prog_memory();
+											close_arena();
 											exit(0);
 #else
 											clear_request(&req);
@@ -234,12 +236,12 @@ int main()
 											if(ws){
 												//clear_response(&res);
 												stop_listening(cli_sock);
-												close_prog_memory();
+												close_arena();
 												exit(0);
 											}
 											//clear_response(&res);
 											//stop_listening(cli_sock);
-											close_prog_memory();
+											close_arena();
 											exit(1);
 
 #else
@@ -250,7 +252,7 @@ int main()
 #if USE_FORK
 										stop_listening(cli_sock);
 										//clear_response(&res);
-										close_prog_memory();
+										close_arena();
 										exit(0);
 #else
 										remove_socket_from_monitor(cli_sock);
@@ -283,13 +285,13 @@ int main()
 											}
 											if(ws){
 												//	clear_response(&res);
-												close_prog_memory();
+												close_arena();
 												stop_listening(cli_sock);
 												exit(0);
 											}
 											//clear_response(&res);
 											//stop_listening(cli_sock);
-											close_prog_memory();
+											close_arena();
 											exit(1);
 
 #else
@@ -301,7 +303,7 @@ int main()
 
 										//clear_content(&cont);
 										//clear_response(&res);
-										close_prog_memory();
+										close_arena();
 										exit(0);
 #else
 										clear_response(&res);
@@ -345,13 +347,13 @@ int main()
 											//clear_response(&res);
 											//clear_content(&cont);
 											stop_listening(cli_sock);
-											close_prog_memory();
+											close_arena();
 											exit(0);
 										}
 										//clear_response(&res);
 										//clear_content(&cont);
 										//stop_listening(cli_sock);
-										close_prog_memory();
+										close_arena();
 										exit(1);
 
 #else
@@ -363,7 +365,7 @@ int main()
 									stop_listening(cli_sock);
 									//clear_response(&res);
 									//clear_content(&cont);
-									close_prog_memory();
+									close_arena();
 									exit(0);
 #else
 									clear_response(&res);
@@ -391,13 +393,13 @@ int main()
 									}
 									if(ws){
 										//clear_response(&res);
-										close_prog_memory();
+										close_arena();
 										stop_listening(cli_sock);
 										exit(0);
 									}
 									//clear_response(&res);
 									//stop_listening(cli_sock);
-									close_prog_memory();
+									close_arena();
 									exit(1);
 
 #else
@@ -477,17 +479,18 @@ int main()
 								exit(1);
 							}
 
-							if(init_prog_memory() == -1){
+							if(create_arena(FIVE_H_Kib) == -1){
 								/*log error*/
 								/*NOT SURE ABOUT REMOVE HERE*/
 								//remove_socket_from_monitor(events[i].data.fd);
 								exit(1);
 							}
+
 							if(r == BAD_REQ) {
 								/*send a bed request response*/
 								//remove_socket_from_monitor(events[i].data.fd);
 								//stop_listening(cli_sock);
-								close_prog_memory();
+								close_arena();
 								exit(1);
 							}
 
@@ -519,7 +522,7 @@ bad_request:
 												}
 												if(ws){
 													//clear_response(&res);
-													close_prog_memory();
+													close_arena();
 													//remove_socket_from_monitor(events[i].data.fd);
 													//	stop_listening(cli_sock);
 													exit(0);
@@ -528,7 +531,7 @@ bad_request:
 												clear_response(&res);
 												//	remove_socket_from_monitor(events[i].data.fd);
 												//	stop_listening(cli_sock);
-												close_prog_memory();
+												close_arena();
 												exit(1);
 
 #else
@@ -558,13 +561,13 @@ bad_request:
 												//clear_response(&res);
 												//remove_socket_from_monitor(events[i].data.fd);
 												stop_listening(events[i].data.fd);
-												close_prog_memory();
+												close_arena();
 												exit(0);
 											}
 											//	clear_response(&res);
 											//	remove_socket_from_monitor(events[i].data.fd);
 											stop_listening(events[i].data.fd);
-											close_prog_memory();
+											close_arena();
 											exit(1);
 
 #else
@@ -576,7 +579,7 @@ bad_request:
 
 										//clear_response(&res);
 										stop_listening(events[i].data.fd);
-										close_prog_memory();
+										close_arena();
 										exit(0);
 #else
 										clear_response(&res);
@@ -610,12 +613,12 @@ bad_request:
 												if(ws){
 													//clear_response(&res);
 													stop_listening(events[i].data.fd);
-													close_prog_memory();
+													close_arena();
 													exit(0);
 												}
 												//clear_response(&res);
 												stop_listening(events[i].data.fd);
-												close_prog_memory();
+												close_arena();
 												exit(1);
 
 #else
@@ -649,12 +652,12 @@ bad_request:
 											if(ws){
 												//clear_response(&res);
 												stop_listening(events[i].data.fd);
-												close_prog_memory();
+												close_arena();
 												exit(0);
 											}
 											//clear_response(&res);
 											stop_listening(events[i].data.fd);
-											close_prog_memory();
+											close_arena();
 											exit(1);
 #else
 											continue;
@@ -662,7 +665,7 @@ bad_request:
 										}
 #if USE_FORK
 										//clear_response(&res);
-										close_prog_memory();
+										close_arena();
 										stop_listening(events[i].data.fd);
 										printf("child try to remove sock nr %d, from monitor.\n",
 												events[i].data.fd);
@@ -693,12 +696,12 @@ bad_request:
 										if(ws){
 											//clear_response(&res);
 											stop_listening(events[i].data.fd);
-											close_prog_memory();
+											close_arena();
 											exit(0);
 										}
 										//clear_response(&res);
 										stop_listening(events[i].data.fd);
-										close_prog_memory();
+										close_arena();
 										exit(1);
 
 #else
@@ -723,12 +726,12 @@ bad_request:
 								if(ws){
 									//clear_response(&res);
 									stop_listening(events[i].data.fd);
-									close_prog_memory();
+									close_arena();
 									exit(0);
 								}
 								//clear_response(&res);
 								stop_listening(events[i].data.fd);
-								close_prog_memory();
+								close_arena();
 								exit(1);
 
 #else
@@ -738,7 +741,7 @@ bad_request:
 #if USE_FORK
 							//clear_response(&res);
 							stop_listening(events[i].data.fd);
-							close_prog_memory();
+							close_arena();
 							exit(0);
 #else
 							clear_response(&res);
