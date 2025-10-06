@@ -549,11 +549,15 @@ s_ord_get_exit_error:
 					}
 				default:
 					memset(err,0,1024);
-					write(data_sock,err,2);
+					write(data_sock,err,sizeof(err));
+					close(data_sock);
 					continue;
 			}
 		}
 		default:
+		memset(err,0,1024);
+				write(data_sock,err,sizeof(err));
+					close(data_sock);
 		continue;
 		}
 
