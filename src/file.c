@@ -8,7 +8,6 @@
 
 #include <string.h>
 #include <stdarg.h>
-#include <math.h>
 #include <errno.h>
 #include "file.h"
 #include "str_op.h"
