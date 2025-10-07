@@ -572,11 +572,12 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 
 	uint32_t ht_ln = 0;
 #if defined(__linux__)
-	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR) {
+	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR)
 #elif defined(_WIN32)
 	written = 0;
 	if (!ReadFile(file_handle,&ht_ln,sizeof(ht_ln),&written,NULL))
 #endif
+	{
 		perror("reading ht length");
 		return 0;
 	}
@@ -605,11 +606,12 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		{
 			uint64_t key_l = 0;
 #if defined(__linux__)
-			if (read(fd, &key_l, sizeof(key_l)) > 0) {
+			if (read(fd, &key_l, sizeof(key_l)) > 0) 
 #elif defined(_WIN32)
 			written = 0;
 			if (!ReadFile(file_handle,&key_l,sizeof(key_l),&written,NULL))
 #endif
+			{
 				size_t size = (size_t)swap64(key_l);
 				char *key = (char*)ask_mem((size + 1)*sizeof(char));
 				if (!key) {
@@ -711,7 +713,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 				}
 			}else{
 #if defined(__linux__)
-				if (read(fd, &k, sizeof(k)) == -1){
+				if (read(fd, &k, sizeof(k)) == -1)
 #elif defined(_WIN32)
 				written = 0;
 				if (!ReadFile(file_handle,&k,sizeof(k),&written,NULL))
@@ -6262,7 +6264,7 @@ int file_error_handler(int count, ...)
 	int fds[count];
 #elif defined(_WIN32)
 	HANDLE handles[count];
-#elif
+#endif
 	int i = 0, j = 0;
 
 	int err = 0;
@@ -6290,7 +6292,7 @@ int file_error_handler(int count, ...)
 	if(j != 0 ){
 		int x;
 		for(x = 0 ;x < 0; x++){
-#if denifed(__linux__)
+#if defined(__linux__)
 			if(fds[x] != -1	) close(fds[x]);
 #elif defined(_WIN32)
 			if(handles[x] !=  INVALID_HANDLE_VALUE || handles[x] != ERROR_FILE_NOT_FOUND)
@@ -6298,14 +6300,13 @@ int file_error_handler(int count, ...)
 #endif
 	   } 
 	}
-#if denifed(__linux__)
+#if defined(__linux__)
 	if(err > 0) return ENOENT;	
 #elif defined(_WIN32)
 	if(err > 0) return ERROR_FILE_NOT_FOUND;	
 #endif
 	return j;
 }
-#endif
 
 
 int add_index(int index_nr, char *file_name, int bucket)
@@ -10520,7 +10521,7 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, off_t 
 		strncpy(buf,rec->file_name,strlen(rec->file_name));
 		strncat(buf,".dat",strlen(".dat")+1);		
 
-#if define(__linux__)
+#if defined(__linux__)
 		close(*fd);
 		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
 		if(file_error_handler(1,*fd) != 0) 
@@ -10547,13 +10548,13 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, off_t 
 	}
 
 	if(update){
-#if define(__linux__)
+#if defined(__linux__)
 		close(*fd);
 		*fd = open_file(buf,0); /*open the file in nirmal mode*/
 		if(file_error_handler(1,*fd) != 0) 
 #elif defined(_WIN32)
 		CloseHandle(*file_handle);
-		*file_handle = open_file(buf,0)
+		*file_handle = open_file(buf,0);
 		if(file_error_handler(1,*file_handle) != 0) 
 #endif
 		{
