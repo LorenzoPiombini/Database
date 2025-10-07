@@ -166,6 +166,32 @@ off_t move_in_file_bytes(int fd, off_t offset)
 	return pos;
 }
 
+off_t get_file_size(int fd, char *file_name)
+{
+	struct stat st;
+	if (!file_name)
+	{
+		if (fstat(fd, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (off_t)st.st_size;
+	}
+	else
+	{
+		if (stat(file_name, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (off_t)st.st_size;
+	}
+}
 #endif /*linux*/
 
 #if defined(__linux__)
@@ -218,7 +244,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	if (write(fd, &i_n, sizeof(i_n)) == -1){
 #elif defined(_WIN32)
 	DWORD written = 0;
-	if (WriteFile(file_handle,&i_n,sizeof(&i_n),&written,NULL)){
+	if (WriteFile(file_handle,&i_n,sizeof(i_n),&written,NULL)){
 #endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -266,7 +292,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	if (write(fd, &p_n, sizeof(p_n)) == -1){
 #elif defined(_WIN32)
 	written = 0;
-	if (WriteFile(file_handle,&p_n,sizeof(&p_n),&written,NULL)){
+	if (WriteFile(file_handle,&p_n,sizeof(p_n),&written,NULL)){
 #endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -477,14 +503,10 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 		printf("ask_mem failed. %s:%d.\n", F, L - 3);
 		return 0;
 	}
-	int i = 0;
-	for (i = 0; i < array_size; i++) {
-		HashTable ht_n;
-		memset(&ht_n,0,sizeof(HashTable));
-		ht_n.write = write_ht;
 
-		(*ht)[i] = ht_n;
-	}
+	int i = 0;
+	for (i = 0; i < array_size; i++)
+		(*ht)[i].write = write_ht;
 
 	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
 #if defined(__linux__)
@@ -558,7 +580,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		perror("reading ht length");
 		return 0;
 	}
-
+	
 	int ht_l = (int)swap32(ht_ln);
 	register int i = 0;
 	for (i = 0; i < ht_l; i++) {
@@ -581,14 +603,14 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		switch (key_type) {
 		case STR:
 		{
-			uint64_t key_l = 0l;
+			uint64_t key_l = 0;
 #if defined(__linux__)
 			if (read(fd, &key_l, sizeof(key_l)) > 0) {
 #elif defined(_WIN32)
 			written = 0;
 			if (!ReadFile(file_handle,&key_l,sizeof(key_l),&written,NULL))
-				size_t size = (size_t)swap64(key_l);
 #endif
+				size_t size = (size_t)swap64(key_l);
 				char *key = (char*)ask_mem((size + 1)*sizeof(char));
 				if (!key) {
 					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",prog,F,L-2);		
@@ -755,7 +777,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 			break;
 		}
 		default:
-			fprintf(stderr, "key type not supported.\n");
+			fprintf(stderr, "key type not supported.\nsize ht is %d\nht_l is %d\n",ht->size,ht_l);
 			free_nodes(ht->data_map, ht->size);
 			return 0;
 		}
@@ -5209,10 +5231,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 }
 
 
+#if defined(__linux__)
 off_t get_update_offset(int fd)
+#elif defined(_WIN32)
+off_t get_update_offset(HANDLE file_handle)
+#endif
 {
 	uint64_t urec_ne = 0;
+#if defined(__linux__)
 	if (read(fd, &urec_ne, sizeof(urec_ne)) == STATUS_ERROR)
+#elif defined(_WIN32)
+	if (!ReadFile(file_handle,&urec_ne,sizeof(urec_ne),&written,NULL))
+#endif
 	{
 		perror("could not read the update record position (file.c l 424).\n");
 		return -1;
@@ -5226,6 +5256,7 @@ off_t get_update_offset(int fd)
  *  reads a record from a file,
  *  the caller must inistialized the struct Record_f
  * */
+/*TODO WRITE READ RAM RECORD */
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 {
 	create_record(file_name, sch,rec);
@@ -6276,32 +6307,6 @@ int file_error_handler(int count, ...)
 }
 #endif
 
-off_t get_file_size(int fd, char *file_name)
-{
-	struct stat st;
-	if (!file_name)
-	{
-		if (fstat(fd, &st) == -1)
-		{
-			perror("stat failed :");
-			printf("%s:%d.\n", F, L - 3);
-			return -1;
-		}
-
-		return (off_t)st.st_size;
-	}
-	else
-	{
-		if (stat(file_name, &st) == -1)
-		{
-			perror("stat failed :");
-			printf("%s:%d.\n", F, L - 3);
-			return -1;
-		}
-
-		return (off_t)st.st_size;
-	}
-}
 
 int add_index(int index_nr, char *file_name, int bucket)
 {
@@ -7207,7 +7212,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				uint32_t str_loc = swap32(str_loc_ne);
 
 				/* save pos where the data starts*/
-				uint64_t af_str_loc_pos = ram->size;
+				uint64_t af_str_loc_pos = 0;
 				if(ram->size == ram->capacity && ram->offset != ram->size)
 					af_str_loc_pos = ram->offset;
 				else
@@ -7223,7 +7228,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				move_ram_file_ptr(ram,sizeof(uint16_t));
 
 				uint16_t buff_update = swap16(buff_update_ne);
-				uint64_t pos_after_first_str_record = ram->offset + buff_update; 
+				
+				uint64_t pos_after_first_str_record = 0; 
 				if(ram->size == ram->capacity && ram->offset != ram->size)
 					pos_after_first_str_record = ram->offset + buff_update; 
 				else
@@ -7291,9 +7297,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				 * set the file pointer back to the begginning of the string record
 				 * to overwrite the data accordingly
 				 * */
-				if (str_loc == 0 && ((new_lt - buff_update) < 0)){
+				if (str_loc == 0 && ((new_lt - buff_update) <= 0) && eof == 0){
 					ram->offset = af_str_loc_pos;
-				} else if (str_loc > 0 && ((new_lt - buff_update) < 0)){
+				} else if (str_loc > 0 && ((new_lt - buff_update) <= 0) && eof == 0){
 					ram->offset = move_to;
 				}
 
@@ -10604,7 +10610,7 @@ static size_t get_string_size(struct Ram_file *ram)
 	return -1;
 }
 
-#elif defined(_WIN32) 
+#if defined(_WIN32) 
 #include <windows.h>
 #include "file.h"
 #include "types.h"
@@ -10740,4 +10746,8 @@ off_t move_in_file_bytes(HANDLE file_handle, off_t offset)
 	return seek_file_win(file_handle,offset,FILE_CURRENT);
 }
 
+DWORD get_file_size(HANDLE file_handle)
+{
+	return GetFileSize(file_handle, NULL)
+}
 #endif

@@ -1323,7 +1323,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 
 			if(strncmp(sch->fields_name[j],names[j],strlen(sch->fields_name[j])) == 0){
 				name_check++;
-				if(sch->types[j] != types_i[j])	{
+				if(sch->types[j] != types_i[j] && sch->types[j] != -1){
 					if(is_number_type(sch->types[j])){
 						if(sch->types[j] == TYPE_DOUBLE) {
 							types_i[j] = TYPE_DOUBLE;
@@ -1466,7 +1466,8 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						}
 						continue;
 					}
-					return -1;
+					types_i[j] = sch->types[j];
+					continue;
 				}
 			}
 		}
@@ -3026,7 +3027,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 	}else if(changed && !update_new){
 		return UPDATE_OLD;
 	}else if (!changed && update_new){
-		return UPDATE_OLD;
+		return UPDATE_OLDN;
 	}else if(!changed && !update_new){
 		return UPDATE_OLD;
 	}

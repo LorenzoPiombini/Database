@@ -13,7 +13,7 @@ struct Content{
 	uint64_t capacity; 
 };
 
-int load_resource(struct Request *req, struct Content *cont);
+int load_resource(struct Request *req, struct Content *cont, int data_sock);
 void clear_content(struct Content *cont);
 
 #endif

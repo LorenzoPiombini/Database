@@ -2,9 +2,11 @@
 #define _REQUEST_H_
 
 #define STD_REQ_BDY_CNT	8192
+#define READ_PIPE_FX_SIZE (4095*2)
 #define MIN_HEAD_FIELD 50
 #define BASE 1024
 #define BAD_REQ 400
+#define BDY_MISS 600
 #define OK 200 
 #define STD_LT_RESOURCE 550
 #define DEFAULT "HTTP/1.1"
@@ -32,7 +34,6 @@ struct r_body{
 };
 
 struct Request{
-	char req[BASE];
 	char *d_req;
 	ssize_t size;
 	int method;
@@ -42,7 +43,7 @@ struct Request{
 	char connection[STD_LT_RESOURCE];
 	/*rapresentation header*/
 	char cont_type[MIN_HEAD_FIELD];
-	char cont_length[MIN_HEAD_FIELD];
+	ssize_t cont_length;
 	char transfer_encoding[MIN_HEAD_FIELD];
 	/*fields from OPTIONS method request (LIKE CORS browser preflight)*/
 	char access_control_request_headers[MIN_HEAD_FIELD];
@@ -55,4 +56,5 @@ int handle_request(struct Request *req);
 int set_up_request(ssize_t len,struct Request *req);
 int find_headers_end(char *buffer, size_t size);
 void clear_request(struct Request *req);
+void print_request(struct Request req);
 #endif
