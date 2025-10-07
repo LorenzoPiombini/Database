@@ -3095,6 +3095,26 @@ int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 	va_end(list);
 	return 0;
 }
+void* memset(void *s,int byte, size_t size)
+{
+	unsigned char *p = (unsigned char*)&byte;
+	switch(size){
+	case 1: *s = (void*)p; return s;
+	case 2: 
+	{
+		*s |= *p << 8;
+		*s |= *p << 16;
+		return s;
+	}
+	case 4:
+		*s |= *p << 8;
+		*s |= *p << 16;
+		*s |= *p << 32;
+		return s;
+	case 8: 
+}
+
+}
 int copy_to_string(char *buff,size_t size,char *format,...)
 {
 	if(strlen(format) > size){
