@@ -667,6 +667,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 #if defined(__linux__)
 			if (read(fd, &size, sizeof(size)) == -1)
 #elif defined(_WIN32)
+			written = 0;
 			if (!ReadFile(file_handle,&size,sizeof(size),&written,NULL))
 #endif
 			{
@@ -675,13 +676,25 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 				return 0;
 			}
 			if(size == 16){
-				if (read(fd, &k16, sizeof(k16)) == -1){
+#if defined(__linux__)
+				if (read(fd, &k16, sizeof(k16)) == -1)
+#elif defined(_WIN32)
+				written = 0;
+				if (!ReadFile(file_handle,&k16,sizeof(k16),&written,NULL))
+#endif
+				{	
 					fprintf(stderr, "read index failed.\n");
 					free_nodes(ht->data_map, ht->size);
 					return 0;
 				}
 			}else{
+#if defined(__linux__)
 				if (read(fd, &k, sizeof(k)) == -1){
+#elif defined(_WIN32)
+				written = 0;
+				if (!ReadFile(file_handle,&k,sizeof(k),&written,NULL))
+#endif
+				{
 					fprintf(stderr, "read index failed.\n");
 					free_nodes(ht->data_map, ht->size);
 					return 0;
@@ -689,7 +702,12 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 
 			}
 
+#if defined(__linux__)
 			if (read(fd, &value, sizeof(value)) == -1)
+#elif defined(_WIN32)
+			written = 0;
+			if (!ReadFile(file_handle,&value,sizeof(value),&written,NULL))
+#endif
 			{
 				fprintf(stderr, "read index failed.\n");
 				free_nodes(ht->data_map, ht->size);
@@ -6205,37 +6223,58 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 	return 0;
 }
-
 int file_error_handler(int count, ...)
 {
 	va_list args;
 	va_start(args, count);
+#if defined(__linux__)
 	int fds[count];
-
+#elif defined(_WIN32)
+	HANDLE handles[count];
+#elif
 	int i = 0, j = 0;
 
 	int err = 0;
 	for (i = 0; i < count; i++) {
+#if defined(__linux__)
 		int fd = va_arg(args, int);
-		if (fd == STATUS_ERROR) {
+		if (fd == STATUS_ERROR) 
+#elif defined(_WIN32)
+		HANDLE file_handle = va_args(args,HANDLE);
+		if (file_handle == INVALID_HANDLE_VALUE)
+#endif
+		{
 			j++;
 			continue;
 		}
+#if defined(__linux__)
 		if (fd == ENOENT) err++;
-		
 		fds[i] = fd;
+#elif defined(_WIN32)
+		if (file_handle == ERROR_FILE_NOT_FOUND) err++;
+		handles[i] = file_handle;
+#endif
 	}
 
 	if(j != 0 ){
 		int x;
 		for(x = 0 ;x < 0; x++){
+#if denifed(__linux__)
 			if(fds[x] != -1	) close(fds[x]);
+#elif defined(_WIN32)
+			if(handles[x] !=  INVALID_HANDLE_VALUE || handles[x] != ERROR_FILE_NOT_FOUND)
+				CloseHandle(handles[x]);
+#endif
 	   } 
 	}
-
+#if denifed(__linux__)
 	if(err > 0) return ENOENT;	
+#elif defined(_WIN32)
+	if(err > 0) return ERROR_FILE_NOT_FOUND;	
+#endif
 	return j;
 }
+#endif
 
 off_t get_file_size(int fd, char *file_name)
 {
@@ -6279,9 +6318,13 @@ int add_index(int index_nr, char *file_name, int bucket)
 				F, L - 3);
 		return -1;
 	}
-
+#if defined(__linux__)
 	int fd = open_file(buff, 0);
-	if (file_error_handler(1, fd) > 0) {
+	if (file_error_handler(1, fd) > 0) 
+#elif defined(_WIN32)
+	HANDLE file_handle = open_file(buff,0)
+#endif
+	{
 		fprintf(stderr,"can't open %s, %s:%d.\n", buff, F, L - 3);
 		return -1;
 	}
@@ -6492,12 +6535,29 @@ size_t get_offset_ram_file(struct Ram_file *ram)
 	return ram->size;
 }
 
+#if defined(__linux__)
 int get_all_record(int fd, struct Ram_file *ram)
+#elif defined(_WIN32)
+int get_all_record(HANDLE file_handle, struct Ram_file *ram)
+#endif
 {
+
+#if defined(__linux__)
 	off_t eof = go_to_EOF(fd);
 	if(begin_in_file(fd) == -1) return -1;
+#elif defined(_WIN32)
+	off_t eof = go_to_EOF(file_handle);
+	if(begin_in_file(file_handle) == -1) return -1;
+#endif
+
 	if(init_ram_file(ram,(size_t)eof) == -1) return -1;	
+
+#if defined(__linux__)
 	if(read(fd,ram->mem,ram->capacity) == -1) return -1;
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if(!ReadFile(file_handle,ram->mem,ram->capacity,&written,NULL)) return -1;
+#endif
 
 	ram->size = (size_t)eof;
 	ram->offset = 0;
@@ -10417,8 +10477,11 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 	return -1;
 }
 
-
+#if defined(__linux__)
 int buffered_write(int *fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)
+#elif defined(_WIN32)
+int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)
+#endif
 {
 	struct Ram_file ram;
 	memset(&ram,0,sizeof(struct Ram_file));
@@ -10451,24 +10514,43 @@ int buffered_write(int *fd, struct Record_f *rec, int update, off_t rec_ram_file
 		strncpy(buf,rec->file_name,strlen(rec->file_name));
 		strncat(buf,".dat",strlen(".dat")+1);		
 
+#if define(__linux__)
 		close(*fd);
 		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
-		if(file_error_handler(1,*fd) != 0) {
+		if(file_error_handler(1,*fd) != 0) 
+#elif defined(_WIN32)
+		CloseHandle(*file_handle);
+		*file_handle = open_file(buf,1)
+		if(file_error_handler(1,*file_handle) != 0) 
+#endif
+		{
 			close_ram_file(&ram);
 			return -1;
 		}
 	}
-
-	if(write(*fd,ram.mem,ram.size) == -1){
+#if defined(__linux__)
+	if(write(*fd,ram.mem,ram.size) == -1)
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if(!WriteFile(file_handle,ram.mem,ram.size,&written,NULL))
+#endif
+	{
 		fprintf(stderr,"write to file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 		close_ram_file(&ram);
 		return -1;
 	}
 
 	if(update){
+#if define(__linux__)
 		close(*fd);
 		*fd = open_file(buf,0); /*open the file in nirmal mode*/
-		if(file_error_handler(1,*fd) != 0) {
+		if(file_error_handler(1,*fd) != 0) 
+#elif defined(_WIN32)
+		CloseHandle(*file_handle);
+		*file_handle = open_file(buf,0)
+		if(file_error_handler(1,*file_handle) != 0) 
+#endif
+		{
 			close_ram_file(&ram);
 			return -1;
 		}
@@ -10477,9 +10559,14 @@ int buffered_write(int *fd, struct Record_f *rec, int update, off_t rec_ram_file
 	return 0;
 }
 
+#if defined(__linux__)
 static size_t get_string_size(int fd, struct Ram_file *ram)
+#elif defined(_WIN32)
+static size_t get_string_size(struct Ram_file *ram)
+#endif
 {
 
+#if defined(__linux__)
 	if(fd != -1 && ram) {
 		fprintf(stderr,"(%s): wrong usage of %s(), you can pass either fd or Ram_file, both is not allowed.\n",prog,__func__);
 		return -1;
@@ -10497,6 +10584,7 @@ static size_t get_string_size(int fd, struct Ram_file *ram)
 
 		return 0;
 	}
+#endif
 
 	if(ram){
 		if(ram->mem){
@@ -10542,14 +10630,13 @@ HANDLE open_file(char *fileName, uint32_t use_trunc)
 
 	h_file = createFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
 	if(h_file == INVALID_HANDLE_VALUE)
-		return INVALID_HANDLE_VALUE;
+		return GetLastError();
 
 	return h_file;
 }
 
 HANDLE create_file(char *file_name)
 {
-
 
 	DWORD err = getFileAttributesA(file_name);
 	if(err !=  INVALID_FILE_ATTRIBUTE){
@@ -10564,7 +10651,7 @@ HANDLE create_file(char *file_name)
 								FILE_ATTRIBUTE_NORMAL,
 								NULL);
 	if(h_file == INVALID_HANDLE_VALUE) 
-		return INVALID_HANDLE_VALUE;
+		return GetLastError();
 
 	return h_file;
 
@@ -10581,7 +10668,7 @@ void close_file(int count, ...)
 	for(i = 0; i < count; i++){
 		HANDLE h = va_args(args,HANDLE);
 		if(h != INVALID_HANDLE_VALUE){
-			if(!closeHandle(h))
+			if(!CloseHandle(h))
 				fails++;
 		}
 	}
