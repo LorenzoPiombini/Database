@@ -17,8 +17,8 @@
 #include "input.h"
 
 static char prog[] = "db";
-static off_t get_rec_position(struct HashTable *ht, void *key, int key_type);
-static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type);
+static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type);
+static int set_rec(struct HashTable *ht, void *key, file_offset offset, int key_type);
 
 HashTable *g_ht = NULL;
 int g_index = 0;
@@ -46,7 +46,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 		return STATUS_ERROR;
 	}
 
-	off_t offset = 0;
+	file_offset offset = 0;
 	if((offset = get_rec_position(p_ht,key,key_type)) == -1){
 		fprintf(stderr,"(%s): record not found.\n",prog);
 		destroy_hasht(p_ht);
@@ -70,7 +70,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			printf("read record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 			return STATUS_ERROR;
 		}
-		off_t update_rec_pos = 0; 
+		file_offset update_rec_pos = 0; 
 		struct Record_f *temp = NULL;
 		temp = rec;
 		while ((update_rec_pos = get_update_offset(fds[1])) > 0) {
@@ -102,7 +102,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 		}
 	} else{
 
-		off_t pos_after_read = 0;
+		file_offset pos_after_read = 0;
 		ram.offset = offset;
 		if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
 			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
@@ -124,7 +124,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 				return STATUS_ERROR;
 			}
 
-			off_t update_rec_pos = swap64(up_r_pos_ne);
+			file_offset update_rec_pos = swap64(up_r_pos_ne);
 			n->offset = update_rec_pos;
 			ram.offset = update_rec_pos;
 			if(( pos_after_read = read_ram_file(file_name,&ram, n,*(hd.sch_d))) == -1){
@@ -271,7 +271,7 @@ int write_record(int *fds,void *key,
 			}
 		}
 
-		if(set_rec(g_ht,key,(off_t)ram.size,key_type) == -1) return 0;
+		if(set_rec(g_ht,key,(file_offset)ram.size,key_type) == -1) return 0;
 
 		if(write_ram_record(&ram,rec,0,0,0) == -1){
 			fprintf(stderr,"write_ram_record() failed. %s:%d.\n",__FILE__,__LINE__-1);
@@ -294,7 +294,7 @@ int write_record(int *fds,void *key,
 		*lock_f = 1;
 	}
 	
-	off_t eof = go_to_EOF(fds[1]);
+	file_offset eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
 		__er_file_pointer(F, L - 1);
 		return -1;
@@ -314,7 +314,7 @@ int write_record(int *fds,void *key,
 		return STATUS_ERROR;
 	}
 
-/*int buffered_write(int fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)*/
+/*int buffered_write(int fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)*/
 	if(buffered_write(&fds[1],rec,update,eof,0) == -1){
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
 		return STATUS_ERROR;
@@ -526,7 +526,7 @@ int update_rec(char *file_path,
 				goto clean_on_error;
 			}
 
-			off_t right_update_pos = 0;
+			file_offset right_update_pos = 0;
 			if ((rec_old.count - i) > 1)
 				right_update_pos = recs[i+1]->offset;
 
@@ -545,7 +545,7 @@ int update_rec(char *file_path,
 				goto clean_on_error;
 			}
 
-			off_t eof = go_to_EOF(fds[1]); /* file pointer to the end*/
+			file_offset eof = go_to_EOF(fds[1]); /* file pointer to the end*/
 			if (eof == -1) {
 				__er_file_pointer(F, L - 1);
 				goto clean_on_error;
@@ -595,7 +595,7 @@ int update_rec(char *file_path,
 			goto clean_on_error;
 		}
 
-		/* buffered_write(int fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)*/
+		/* buffered_write(int fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)*/
 
 		/* write the updated record to the file*/
 		if(buffered_write(&fds[1], recs[0], 1,recs[0]->offset,0) == -1){
@@ -615,7 +615,7 @@ int update_rec(char *file_path,
 			  check == SCHEMA_CT ||
 			  check == SCHEMA_CT_NT)) {
 
-		off_t eof = 0;
+		file_offset eof = 0;
 		if ((eof = go_to_EOF(fds[1])) == -1) {
 			__er_file_pointer(F, L - 1);
 			goto clean_on_error;
@@ -658,7 +658,7 @@ clean_on_error:
 
 }
 
-static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
+static int set_rec(struct HashTable *ht, void *key, file_offset offset, int key_type)
 {
 	if(key_type == UINT){
 		if(!set(key, key_type, offset, &ht[0])) return -1;
@@ -688,9 +688,9 @@ static int set_rec(struct HashTable *ht, void *key, off_t offset, int key_type)
 	}
 	return 0;
 }
-static off_t get_rec_position(struct HashTable *ht, void *key, int key_type)
+static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type)
 {
-	off_t offset = 0;
+	file_offset offset = 0;
 	void *key_conv =NULL;
 	if(key_type == -1){
 		key_conv = key_converter(key, &key_type);

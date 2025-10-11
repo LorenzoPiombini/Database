@@ -178,7 +178,7 @@ int hash(void *key, int size, int key_type)
 	return hash;
 }
 
-off_t get(void *key, HashTable *tbl, int key_type)
+file_offset get(void *key, HashTable *tbl, int key_type)
 {
 	int index = hash(key, tbl->size, key_type);
 	Node *temp = tbl->data_map[index];
@@ -215,7 +215,7 @@ off_t get(void *key, HashTable *tbl, int key_type)
 	return -1;
 }
 
-int set(void *key, int key_type, off_t value, HashTable *tbl)
+int set(void *key, int key_type, file_offset value, HashTable *tbl)
 {
 
 	int index = hash(key, tbl->size, key_type);

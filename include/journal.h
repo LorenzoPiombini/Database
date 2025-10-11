@@ -2,6 +2,7 @@
 #define _JOURNAL_H_
 
 #include "hash_tbl.h"
+#include "time.h"
 
 #define JINX "journal.inx"
 #define JHST "jarchive.inx"
@@ -32,7 +33,7 @@ struct Node_stack{
 	time_t timestamp;
 	char file_name[MAX_FILE_NAME];
 	struct Key key;
-	off_t offset;
+	file_offset offset;
 	int operation;
 };
 
@@ -47,7 +48,7 @@ int pop_journal(struct stack *index);
 int peek_journal(struct stack *index, struct Node_stack *node);
 int is_empty(struct stack *index);
 
-int journal(int caller_fd, off_t offset, void *key, int key_type, int operation);
+int journal(int caller_fd, file_offset offset, void *key, int key_type, int operation);
 int write_journal_index(int *fd,struct stack *index);
 int read_journal_index(int fd,struct stack *index);
 int show_journal();

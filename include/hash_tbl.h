@@ -2,7 +2,6 @@
 #define HASH_TBL_H
 
 
-#include <sys/types.h>
 #include "types.h"
 
 #define MAX_KEY 4294967296
@@ -24,7 +23,7 @@ struct Key{
 
 typedef struct Node {
 	struct Key key;
-	off_t value;
+	file_offset value;
 	struct Node *next;
 }Node;
 
@@ -56,10 +55,10 @@ void print_hash_table(HashTable tbl);
 int write_ht(int fd, HashTable *ht);
 int hash(void *key, int size, int key_type);
 Node *delete(void *key, HashTable *tbl, int key_type);
-int set(void *key, int key_type, off_t value, HashTable *tbl);
+int set(void *key, int key_type, file_offset value, HashTable *tbl);
 void free_ht_array(HashTable *ht, int l);
 void destroy_hasht(HashTable *tbl); /*free memory*/
-off_t get(void *key, HashTable *tbl, int key_type);
+file_offset get(void *key, HashTable *tbl, int key_type);
 int keys(HashTable *ht, struct Keys_ht *all_keys);
 int len(HashTable tbl);
 void free_nodes(Node **dataMap, int size);

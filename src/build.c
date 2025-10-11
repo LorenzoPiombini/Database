@@ -226,7 +226,7 @@ int import_data_to_system(char *data_file)
 	
 	if(fseek(fp,0,SEEK_END) == -1) return -1;
 	
-	off_t size = ftell(fp);
+	file_offset size = ftell(fp);
 	rewind(fp);	
 
 	char *content = (char*)ask_mem((size+1)*sizeof(char));
@@ -262,12 +262,12 @@ int import_data_to_system(char *data_file)
 
 
 	char *delim = NULL;
-	off_t start = 0;
+	file_offset start = 0;
 	char file_name[MAX_FILE_PATH_LENGTH] = {0};
 	int lock_f = 0;
 	while((delim = strstr(&content[start],"\n"))){
 		size_t l = 0;
-		off_t end = delim - content;		
+		file_offset end = delim - content;		
 		if(start != 0) 
 			l = end - start + 1; 
 		else

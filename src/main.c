@@ -613,7 +613,7 @@ int main(int argc, char *argv[])
 				ht.write = write_ht;
 
 				if (i == 0) {
-					off_t offset = get_file_offset(fd_data);
+					file_offset offset = get_file_offset(fd_data);
 					if (offset == -1) {
 						__er_file_pointer(F, L - 3);
 						goto clean_on_error_2;
