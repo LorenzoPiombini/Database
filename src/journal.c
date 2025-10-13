@@ -17,7 +17,7 @@ static char p[] ="db";
 
 static void error(char *msg,int line);
 
-int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
+int journal(int caller_fd, file_offset offset, void *key, int key_type, int operation)
 {
 	int create = 0;
 	int fd = open_file(JINX,0);
@@ -35,7 +35,7 @@ int journal(int caller_fd, off_t offset, void *key, int key_type, int operation)
 	 * - timestamp
 	 * - operation
 	 * - the file name
-	 * - off_t
+	 * - file_offset
 	 * - key   
 	 * */
 	
@@ -512,7 +512,7 @@ int read_journal_index(int fd,struct stack *index)
 			return -1;
 		}
 		
-		index->elements[i].offset = (off_t) swap64(os_ne);
+		index->elements[i].offset = (file_offset) swap64(os_ne);
 		uint32_t op_ne = 0;
 		if(read(fd,&op_ne,sizeof(op_ne)) == -1){
 			error("read journal index failed",__LINE__-1);

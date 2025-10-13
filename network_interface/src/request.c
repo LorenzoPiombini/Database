@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <str_op.h>
 #include "request.h"
 #include "end_points.h"
 #include "memory.h"
@@ -19,35 +20,31 @@ int handle_request(struct Request *req)
 
 	char head[h_end+1];
 	memset(head,0,h_end+1);
-	if(req->d_req)
-		strncpy(head,req->d_req,h_end);
-	else
-		strncpy(head,req->req,h_end);
+
+	strncpy(head,req->d_req,h_end);
 
 	if(parse_header(head, req) == -1) return BAD_REQ;
 
 	map_content_type(req);
 	if(req->method == POST){
 		/*we should have a body*/
-		if((req->size - h_end) == 0) return BAD_REQ;
-		if(req->d_req){
-			if((req->size - h_end) < STD_REQ_BDY_CNT){
-				strncpy(req->req_body.content,&req->d_req[h_end],(req->size - h_end) - 1 );
-				return 0;
-			}else{
-				req->req_body.d_cont = (char *)ask_mem(req->size - h_end);
-				if(!req->req_body.d_cont){
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d\n",
-							prog,__FILE__,__LINE__-2);
-					return BAD_REQ;
-				}
-				strncpy(req->req_body.d_cont, &req->d_req[h_end],(req->size -h_end) - 1);
-				req->req_body.size = req->size - h_end;
-				return 0;
-			}
-		}	
+		if((req->size - h_end) == 0) return BDY_MISS;
 
-		strncpy(req->req_body.content,&req->req[h_end],(req->size - h_end) - 1);
+		if((req->size - h_end) < STD_REQ_BDY_CNT){
+			strncpy(req->req_body.content,&req->d_req[h_end],(req->size - h_end) - 1 );
+			return 0;
+		}else{
+			req->req_body.d_cont = (char *)ask_mem(req->size - h_end);
+			if(!req->req_body.d_cont){
+				fprintf(stderr,"(%s): ask_mem() failed, %s:%d\n",
+						prog,__FILE__,__LINE__-2);
+				return BAD_REQ;
+			}
+			strncpy(req->req_body.d_cont, &req->d_req[h_end],(req->size -h_end) - 1);
+			req->req_body.size = req->size - h_end;
+			return 0;
+		}
+
 	}
 	return 0;
 }
@@ -56,13 +53,11 @@ int handle_request(struct Request *req)
 int set_up_request(ssize_t bytes,struct Request *req)
 {	
 	ssize_t n_size = bytes * 2;
-	req->d_req = (char *)ask_mem(n_size);
+	req->d_req = (char *)reask_mem(req->d_req,req->size * sizeof *req->d_req, n_size * sizeof *req->d_req);
 	if(!req->d_req){
 		fprintf(stderr,"(%s): cannot allocate memory for request.\n",prog);
 		return -1;
 	}
-	strncpy(req->d_req,req->req,req->size);	
-	memset(req->req,0,BASE);
 	req->size= n_size;
 	return 0;
 }
@@ -71,8 +66,7 @@ void clear_request(struct Request *req)
 {
 	if(req->d_req) cancel_memory(NULL,req->d_req,req->size);
 	if(req->req_body.d_cont) cancel_memory(NULL,req->req_body.d_cont,req->req_body.size);
-	memset(req->req,0,BASE);
-	memset(req->req_body.content,0,STD_REQ_BDY_CNT);
+	memset(req,0,sizeof(struct Request));
 }
 
 
@@ -144,6 +138,19 @@ static int parse_header(char *head, struct Request *req)
 				start = end + 2;
 				continue;
 			}
+
+			if((b = strstr(t,"Content-Length:"))){
+				b += strlen("Content-Length: ");
+				errno = 0;
+				req->cont_length = (size_t)string_to_long(b);
+				if(errno == EINVAL){
+					printf("string to number conversion failed\n");
+					req->cont_length = 0;
+				}
+				*crlf = ' ';
+				start = end + 2;
+				continue;
+			}
 			*crlf = ' ';
 			start = end + 2;
 			continue;
@@ -202,11 +209,36 @@ int find_headers_end(char *buffer, size_t size)
 	return -1;
 }
 
+
+void print_request(struct Request req){
+	printf("debug reuest:\n" \
+			"d_req -> %s\n" \
+			"size -> %ld\n" \
+			"method -> %d\n"
+			"protocol -> %s\n"
+			"host -> %s\n" \
+			"resource -> %s\n"\
+			"connection ->%s\n"\
+			"cont_type -> %s\n"\
+			"cont_length ->%ld\n" \
+			"content -> %s\n",req.d_req,
+			req.size,
+			req.method,
+			req.protocol,
+			req.host,
+			req.resource,
+			req.connection,
+			req.cont_type,
+			req.cont_length,
+			req.req_body.content);
+
+
+}
+/*=================== STATIC FUNCTIONS DECLARATIONS ===========================*/
+
 static int get_headers_block(struct Request *req)
 {
-	if(req->d_req) return find_headers_end(req->d_req, req->size);
-	
-	return find_headers_end(req->req, req->size);
+	return find_headers_end(req->d_req, req->size);
 }
 
 

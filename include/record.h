@@ -2,7 +2,6 @@
 #define RECORD_H
 
 #include <types.h>
-#include <sys/types.h>
 #define MAX_FILE_NAME_LEN 1024
 
 /*default dynamic array size*/
@@ -90,7 +89,7 @@ struct Field {
 
 struct Record_f {
 	char file_name[MAX_FILE_NAME_LEN];
-	off_t offset;
+	file_offset offset;
 	int fields_num;
 	uint8_t *field_set;
 	struct Field *fields;

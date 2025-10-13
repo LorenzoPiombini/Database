@@ -48,7 +48,7 @@ unsigned char append_to_file(int *fds, char *file_path, char *key,
 	int lock_f = 0;
 	if(check_data(file_path,data_to_add,fds,files, &rec,&hd,&lock_f,-1) == -1) return -1;
 
-	off_t eof = go_to_EOF(fds[1]);
+	file_offset eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
 		printf("file pointer failed, helper.c l %d.\n", __LINE__ - 2);
 		free_record(&rec, rec.fields_num);

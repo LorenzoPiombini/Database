@@ -8,6 +8,7 @@
 #define MAX_HOST_LT 50
 #define MAX_PT_LT 20
 #define MAX_RESOURCE_LT 1024
+#define INT_PROC_SOCK  "/tmp/db_operation.socket"
 struct Url{
 	char protocol[MAX_PT_LT];
 	char host[MAX_HOST_LT];
@@ -20,5 +21,7 @@ int write_cli_sock(int cli_sock, struct Response *res);
 int wait_for_connections(int sock_fd, int *cli_sock, struct Request *req);
 int __get(char *URL);
 void stop_listening(int sock_fd);
+int connect_UNIX_socket();
+int listen_UNIX_socket();
 
 #endif

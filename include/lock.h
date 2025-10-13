@@ -1,9 +1,6 @@
 #ifndef LOCK_H
 #define LOCK_H
 
-#include <sys/types.h>
-#include <semaphore.h>
-#include <fcntl.h>
 
 #define FCNTL_ERR 2
 #define SH_ILOCK "/lock_info_memory"

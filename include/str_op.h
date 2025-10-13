@@ -56,7 +56,6 @@ the number in e.i (int or long)*/
 
 #define return_first_char(str) str[0]
 
-#include <stdint.h>
 
 #define DEF_STR 1024 /*1 kb*/
 #define SET_ON 1

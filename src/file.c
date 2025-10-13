@@ -1,6 +1,5 @@
 #if defined(__linux__)
 #include <stdio.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -8,7 +7,6 @@
 
 #include <string.h>
 #include <stdarg.h>
-#include <math.h>
 #include <errno.h>
 #include "file.h"
 #include "str_op.h"
@@ -25,7 +23,7 @@ static size_t get_disk_size_record(struct Record_f *rec);
 static int init_ram_file(struct Ram_file *ram, size_t size);
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 #if defined(_WIN32)
-static off_t seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
+static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
 #endif
 
 #if defined(__linux__)
@@ -97,10 +95,10 @@ void delete_file(unsigned short count, ...)
 		perror("unlink");
 }
 
-off_t begin_in_file(int fd)
+file_offset begin_in_file(int fd)
 {
 
-	off_t pos = lseek(fd, 0, SEEK_SET);
+	file_offset pos = lseek(fd, 0, SEEK_SET);
 	if (pos == STATUS_ERROR) {
 		perror("set begin in file");
 		return pos;
@@ -109,10 +107,10 @@ off_t begin_in_file(int fd)
 	return pos;
 }
 
-off_t get_file_offset(int fd)
+file_offset get_file_offset(int fd)
 {
 
-	off_t offset = lseek(fd, 0, SEEK_CUR);
+	file_offset offset = lseek(fd, 0, SEEK_CUR);
 
 	if (offset == STATUS_ERROR)
 	{
@@ -123,9 +121,9 @@ off_t get_file_offset(int fd)
 	return offset;
 }
 
-off_t go_to_EOF(int fd)
+file_offset go_to_EOF(int fd)
 {
-	off_t eof = lseek(fd, 0, SEEK_END);
+	file_offset eof = lseek(fd, 0, SEEK_END);
 	if (eof == STATUS_ERROR)
 	{
 		perror("could not find end of file");
@@ -135,9 +133,9 @@ off_t go_to_EOF(int fd)
 	return eof;
 }
 
-off_t find_record_position(int fd, off_t offset)
+file_offset find_record_position(int fd, file_offset offset)
 {
-	off_t pos = lseek(fd, offset, SEEK_SET);
+	file_offset pos = lseek(fd, offset, SEEK_SET);
 	if (pos == STATUS_ERROR)
 	{
 		perror("seeking offset.");
@@ -153,11 +151,11 @@ off_t find_record_position(int fd, off_t offset)
  *		move_in_file_bytes(fd, -4); will move the file pointer backwords of 4 bytes
  *
  * */
-off_t move_in_file_bytes(int fd, off_t offset)
+file_offset move_in_file_bytes(int fd, file_offset offset)
 {
-	off_t current_p = get_file_offset(fd);
-	off_t move_to = current_p + offset;
-	off_t pos = 0;
+	file_offset current_p = get_file_offset(fd);
+	file_offset move_to = current_p + offset;
+	file_offset pos = 0;
 	if ((pos = lseek(fd, move_to, SEEK_SET)) == STATUS_ERROR) {
 		perror("seeking offset.");
 		return pos;
@@ -166,6 +164,32 @@ off_t move_in_file_bytes(int fd, off_t offset)
 	return pos;
 }
 
+file_offset get_file_size(int fd, char *file_name)
+{
+	struct stat st;
+	if (!file_name)
+	{
+		if (fstat(fd, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (file_offset)st.st_size;
+	}
+	else
+	{
+		if (stat(file_name, &st) == -1)
+		{
+			perror("stat failed :");
+			printf("%s:%d.\n", F, L - 3);
+			return -1;
+		}
+
+		return (file_offset)st.st_size;
+	}
+}
 #endif /*linux*/
 
 #if defined(__linux__)
@@ -176,7 +200,7 @@ off_t move_in_file_bytes(int fd, off_t offset)
 {
 
 	int i = 0;
-	off_t pos = 0;
+	file_offset pos = 0;
 
 	uint32_t in = swap32(index_num);
 #if defined(__linux__)
@@ -211,14 +235,14 @@ unsigned char write_index_body(int fd, int i, HashTable *ht)
 unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 #endif
 {
-	off_t pos = 0;
+	file_offset pos = 0;
 
 	uint32_t i_n = swap32(i);
 #if defined(__linux__)
 	if (write(fd, &i_n, sizeof(i_n)) == -1){
 #elif defined(_WIN32)
 	DWORD written = 0;
-	if (WriteFile(file_handle,&i_n,sizeof(&i_n),&written,NULL)){
+	if (WriteFile(file_handle,&i_n,sizeof(i_n),&written,NULL)){
 #endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -266,7 +290,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	if (write(fd, &p_n, sizeof(p_n)) == -1){
 #elif defined(_WIN32)
 	written = 0;
-	if (WriteFile(file_handle,&p_n,sizeof(&p_n),&written,NULL)){
+	if (WriteFile(file_handle,&p_n,sizeof(p_n),&written,NULL)){
 #endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
 		return 0;
@@ -325,7 +349,7 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 		return 0;
 	}
 
-	off_t move_to = i_num * sizeof(off_t);
+	file_offset move_to = i_num * sizeof(file_offset);
 #if defined(__linux__)
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR)
 #elif defined(_WIN32) 
@@ -348,7 +372,7 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 		return 0;
 	}
 
-	off_t index_pos = (off_t)swap64(i_p);
+	file_offset index_pos = (file_offset)swap64(i_p);
 	if (index_pos == 0)
 	{
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
@@ -477,16 +501,12 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 		printf("ask_mem failed. %s:%d.\n", F, L - 3);
 		return 0;
 	}
+
 	int i = 0;
-	for (i = 0; i < array_size; i++) {
-		HashTable ht_n;
-		memset(&ht_n,0,sizeof(HashTable));
-		ht_n.write = write_ht;
+	for (i = 0; i < array_size; i++)
+		(*ht)[i].write = write_ht;
 
-		(*ht)[i] = ht_n;
-	}
-
-	off_t move_to = (array_size * sizeof(off_t)) + sizeof(int);
+	file_offset move_to = (array_size * sizeof(file_offset)) + sizeof(int);
 #if defined(__linux__)
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR) {
 #elif defined(_WIN32)
@@ -550,15 +570,16 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 
 	uint32_t ht_ln = 0;
 #if defined(__linux__)
-	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR) {
+	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR)
 #elif defined(_WIN32)
 	written = 0;
 	if (!ReadFile(file_handle,&ht_ln,sizeof(ht_ln),&written,NULL))
 #endif
+	{
 		perror("reading ht length");
 		return 0;
 	}
-
+	
 	int ht_l = (int)swap32(ht_ln);
 	register int i = 0;
 	for (i = 0; i < ht_l; i++) {
@@ -581,14 +602,15 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		switch (key_type) {
 		case STR:
 		{
-			uint64_t key_l = 0l;
+			uint64_t key_l = 0;
 #if defined(__linux__)
-			if (read(fd, &key_l, sizeof(key_l)) > 0) {
+			if (read(fd, &key_l, sizeof(key_l)) > 0) 
 #elif defined(_WIN32)
 			written = 0;
 			if (!ReadFile(file_handle,&key_l,sizeof(key_l),&written,NULL))
-				size_t size = (size_t)swap64(key_l);
 #endif
+			{
+				size_t size = (size_t)swap64(key_l);
 				char *key = (char*)ask_mem((size + 1)*sizeof(char));
 				if (!key) {
 					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",prog,F,L-2);		
@@ -614,7 +636,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 					return 0;
 				}
 
-				off_t value = (off_t)swap64(v_n);
+				file_offset value = (file_offset)swap64(v_n);
 				key[size] = '\0';
 				Node *newNode = (Node*)ask_mem(1*sizeof(Node));
 				if (!newNode)
@@ -689,7 +711,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 				}
 			}else{
 #if defined(__linux__)
-				if (read(fd, &k, sizeof(k)) == -1){
+				if (read(fd, &k, sizeof(k)) == -1)
 #elif defined(_WIN32)
 				written = 0;
 				if (!ReadFile(file_handle,&k,sizeof(k),&written,NULL))
@@ -727,7 +749,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 			else
 				new_node->key.k.n = swap32(k);
 
-			new_node->value = (off_t)swap64(value);
+			new_node->value = (file_offset)swap64(value);
 			new_node->next = NULL;
 			new_node->key.size = size;
 
@@ -755,7 +777,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 			break;
 		}
 		default:
-			fprintf(stderr, "key type not supported.\n");
+			fprintf(stderr, "key type not supported.\nsize ht is %d\nht_l is %d\n",ht->size,ht_l);
 			free_nodes(ht->data_map, ht->size);
 			return 0;
 		}
@@ -811,9 +833,9 @@ size_t record_size_on_disk(void *rec_f)
 	return rec_size;
 }
 
-int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char update)
+int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, unsigned char update)
 {
-	off_t go_back_to = 0;
+	file_offset go_back_to = 0;
 	        
 	
 	/* ----------these variables are used to handle the strings-------- */
@@ -821,10 +843,10 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	/* ----------some realities might required such a feature----------- */
 
 	size_t lt = 0, new_lt = 0;
-	off_t str_loc = 0, af_str_loc_pos = 0, eof = 0;
+	file_offset str_loc = 0, af_str_loc_pos = 0, eof = 0;
 	size_t buff_update = 0;
 	size_t __n_buff_update = 0;
-	off_t move_to = 0, bg_pos = 0;
+	file_offset move_to = 0, bg_pos = 0;
 
 	/*--------------------------------------------------*/
 
@@ -937,7 +959,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				str_loc = (off_t)swap32(str_loc_ne);
+				str_loc = (file_offset)swap32(str_loc_ne);
 
 				/*store record beginning pos*/
 				if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -953,7 +975,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				buff_update = (off_t)swap16(bu_ne);
+				buff_update = (file_offset)swap16(bu_ne);
 
 				/*save the end offset of the first string record */
 				if((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -962,7 +984,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					return 0;
 				}
 
-				/*add the buffer size to this file off_t*/
+				/*add the buffer size to this file file_offset*/
 				/*so we can reposition right after the 1st string after the writing */
 				go_back_to += buff_update;
 				if (str_loc > 0)
@@ -975,7 +997,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 					/*
 					 * in the case of a regular buffer update we have
-					 *  to save the off_t to get back to it later
+					 *  to save the file_offset to get back to it later
 					 * */
 					if ((move_to = get_file_offset(fd)) == -1)
 					{
@@ -990,7 +1012,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						return 0;
 					}
 
-					buff_update = (off_t)swap16(bu_ne);
+					buff_update = (file_offset)swap16(bu_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -1050,7 +1072,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				/*
 				 * if eof is bigger than 0 means we updated the string
-				 * we need to save the off_t of the new written data
+				 * we need to save the file_offset of the new written data
 				 * at the start of the original.
 				 * */
 				if (eof > 0)
@@ -1165,8 +1187,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int step = 0;
 				int sz = 0;
 				int k = 0;
@@ -1356,18 +1378,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = get_file_offset(fd);
+					file_offset go_back_to = get_file_offset(fd);
 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 					{
-						perror("failed read update off_t int array.\n");
+						perror("failed read update file_offset int array.\n");
 						return 0;
 					}
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -1638,8 +1660,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int step = 0;
 				int sz = 0;
 				int k = 0;
@@ -1825,17 +1847,17 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = get_file_offset(fd);
+					file_offset go_back_to = get_file_offset(fd);
 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1){
-						perror("failed read update off_t int array.\n");
+						perror("failed read update file_offset int array.\n");
 						return 0;
 					}
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -2097,8 +2119,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int step = 0;
 				int sz = 0;
 				int k = 0;
@@ -2286,18 +2308,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = get_file_offset(fd);
+					file_offset go_back_to = get_file_offset(fd);
 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 					{
-						perror("failed read update off_t int array.\n");
+						perror("failed read update file_offset int array.\n");
 						return 0;
 					}
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -2579,8 +2601,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int step = 0;
 				int sz = 0;
 				int k = 0;
@@ -2678,7 +2700,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 								
 								if(str_loc_ne != 0)
-									str_loc = (off_t)swap32(str_loc_ne);
+									str_loc = (file_offset)swap32(str_loc_ne);
 
 								/*store record  beginning pos*/
 								if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -2694,7 +2716,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								buff_update = (off_t)swap16(bu_ne);
+								buff_update = (file_offset)swap16(bu_ne);
 
 								/*save the end offset of the first string record */
 								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -2703,7 +2725,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								/*add the buffer size to this file off_t*/
+								/*add the buffer size to this file file_offset*/
 								/*so we can reposition right after the 1st string after the writing */
 								go_back_to += buff_update;
 								if (str_loc > 0)
@@ -2716,7 +2738,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 									/*
 									 * in the case of a regular buffer update we have
-									 *  to save the off_t to get back to it later
+									 *  to save the file_offset to get back to it later
 									 * */
 									if ((move_to = get_file_offset(fd)) == -1)
 									{
@@ -2731,7 +2753,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 										return 0;
 									}
 
-									buff_update = (off_t)swap16(bu_ne);
+									buff_update = (file_offset)swap16(bu_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -2796,7 +2818,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 								/*
 								 * if eof is bigger than 0 means we updated the string
-								 * we need to save the off_t of the new written data
+								 * we need to save the file_offset of the new written data
 								 * at the start of the original.
 								 * */
 								if (eof > 0)
@@ -2918,7 +2940,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									printf(" %s:%d", F, L - 3);
 									return 0;
 								}
-								str_loc = (off_t)swap32(str_loc_ne);
+								str_loc = (file_offset)swap32(str_loc_ne);
 
 								/*store record  beginning pos*/
 								if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -2934,7 +2956,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								buff_update = (off_t)swap16(bu_ne);
+								buff_update = (file_offset)swap16(bu_ne);
 
 								/*save the end offset of the first string record */
 								if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR){
@@ -2942,7 +2964,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								/*add the buffer size to this file off_t*/
+								/*add the buffer size to this file file_offset*/
 								/*so we can reposition right after the 1st string after the writing */
 								go_back_to += buff_update;
 								if (str_loc > 0)
@@ -2955,7 +2977,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									}
 									/*
 									 * in the case of a regular buffer update we have
-									 *  to save the off_t to get back to it later
+									 *  to save the file_offset to get back to it later
 									 * */
 									if ((move_to = get_file_offset(fd)) == -1)
 									{
@@ -2970,7 +2992,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 										return 0;
 									}
 
-									buff_update = (off_t)swap16(bu_ne);
+									buff_update = (file_offset)swap16(bu_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -3032,7 +3054,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 								/*
 								 * if eof is bigger than 0 means we updated the string
-								 * we need to save the off_t of the new written data
+								 * we need to save the file_offset of the new written data
 								 * at the start of the original.
 								 * */
 								if (eof > 0)
@@ -3113,17 +3135,17 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to_string_array = get_file_offset(fd);
+					file_offset go_back_to_string_array = get_file_offset(fd);
 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1){
-						perror("failed read update off_t int array.\n");
+						perror("failed read update file_offset int array.\n");
 						return 0;
 					}
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0){
 						/*go to EOF*/
 						if ((update_pos = go_to_EOF(fd)) == -1){
@@ -3274,7 +3296,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							printf(" %s:%d", F, L - 3);
 							return 0;
 						}
-						str_loc = (off_t)swap32(str_loc_ne);
+						str_loc = (file_offset)swap32(str_loc_ne);
 
 						/*store record  beginning pos*/
 						if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -3290,7 +3312,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						buff_update = (off_t)swap16(bu_ne);
+						buff_update = (file_offset)swap16(bu_ne);
 
 						/*save the end offset of the first string record */
 						if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -3299,7 +3321,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						/*add the buffer size to this file off_t*/
+						/*add the buffer size to this file file_offset*/
 						/*so we can reposition right after the 1st string after the writing */
 						go_back_to += buff_update;
 						if (str_loc > 0)
@@ -3312,7 +3334,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							}
 							/*
 							 * in the case of a regular buffer update we have
-							 *  to save the off_t to get back to it later
+							 *  to save the file_offset to get back to it later
 							 * */
 							if ((move_to = get_file_offset(fd)) == -1)
 							{
@@ -3327,7 +3349,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 
-							buff_update = (off_t)swap16(bu_ne);
+							buff_update = (file_offset)swap16(bu_ne);
 						}
 
 						new_lt = strlen(rec->fields[i].data.v.elements.s[k]) + 1; /*get new str length*/
@@ -3389,7 +3411,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						/*
 						 * if eof is bigger than 0 means we updated the string
-						 * we need to save the off_t of the new written data
+						 * we need to save the file_offset of the new written data
 						 * at the start of the original.
 						 * */
 						if (eof > 0)
@@ -3506,7 +3528,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								printf(" %s:%d", F, L - 3);
 								return 0;
 							}
-							str_loc = (off_t)swap32(str_loc_ne);
+							str_loc = (file_offset)swap32(str_loc_ne);
 
 							/*store record  beginning pos*/
 							if ((af_str_loc_pos = get_file_offset(fd)) == STATUS_ERROR)
@@ -3522,7 +3544,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 
-							buff_update = (off_t)swap16(bu_ne);
+							buff_update = (file_offset)swap16(bu_ne);
 
 							/*save the end offset of the first string record */
 							if ((go_back_to = get_file_offset(fd)) == STATUS_ERROR)
@@ -3531,7 +3553,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								return 0;
 							}
 
-							/*add the buffer size to this file off_t*/
+							/*add the buffer size to this file file_offset*/
 							/*so we can reposition right after the 1st string after the writing */
 							go_back_to += buff_update;
 							if (str_loc > 0)
@@ -3544,7 +3566,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 								}
 								/*
 								 * in the case of a regular buffer update we have
-								 *  to save the off_t to get back to it later
+								 *  to save the file_offset to get back to it later
 								 * */
 								if ((move_to = get_file_offset(fd)) == -1)
 								{
@@ -3559,7 +3581,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 									return 0;
 								}
 
-								buff_update = (off_t)swap16(bu_ne);
+								buff_update = (file_offset)swap16(bu_ne);
 							}
 
 							new_lt = strlen(rec->fields[i].data.v.elements.s[step]) + 1; /*get new str length*/
@@ -3624,7 +3646,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 							/*
 							 * if eof is bigger than 0 means we updated the string
-							 * we need to save the off_t of the new written data
+							 * we need to save the file_offset of the new written data
 							 * at the start of the original.
 							 * */
 							if (eof > 0)
@@ -3750,8 +3772,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int step = 0;
 				int sz = 0;
 				int k = 0;
@@ -3941,18 +3963,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = get_file_offset(fd);
+					file_offset go_back_to = get_file_offset(fd);
 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 					{
-						perror("failed read update off_t int array.\n");
+						perror("failed read update file_offset int array.\n");
 						return 0;
 					}
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -4215,8 +4237,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 			else
 			{
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int step = 0;
 				int sz = 0;
 				int k = 0;
@@ -4403,18 +4425,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = get_file_offset(fd);
+					file_offset go_back_to = get_file_offset(fd);
 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 					{
-						perror("failed read update off_t int array.\n");
+						perror("failed read update file_offset int array.\n");
 						return 0;
 					}
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -4698,8 +4720,8 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 				close(fd_schema);
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				uint32_t step = 0;
 				uint32_t sz = 0;
 				uint32_t k = 0;
@@ -4732,7 +4754,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 						int exit = 0;
 						
 						/*check if the array of type file is in the last block*/
-						off_t reset_pointer_here = 0;
+						file_offset reset_pointer_here = 0;
 						if((reset_pointer_here = get_file_offset(fd)) == -1){
 							__er_file_pointer(F, L - 1);
 							return 0;
@@ -4749,7 +4771,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 							free_record(&dummy,dummy.fields_num);
 
-							if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+							if(move_in_file_bytes(fd,sizeof(file_offset)) == -1){
 								__er_file_pointer(F, L - 1);
 								return 0;
 							}
@@ -4757,7 +4779,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						uint64_t update_arr = 0;
 						if (read(fd, &update_arr, sizeof(update_arr)) == -1){
-							perror("failed read update off_t int array.\n");
+							perror("failed read update file_offset int array.\n");
 							return 0;
 						}
 
@@ -4766,7 +4788,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 							return 0;
 						}
 
-						off_t up_he = (off_t) swap64(update_arr);
+						file_offset up_he = (file_offset) swap64(update_arr);
 						if(up_he == 0) array_last = 1;
 
 						if (rec->fields[i].data.file.count < (sz + step) && array_last)
@@ -4897,7 +4919,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 									free_record(&dummy,dummy.fields_num);
 
-									if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+									if(move_in_file_bytes(fd,sizeof(file_offset)) == -1){
 										__er_file_pointer(F, L - 1);
 										return 0;
 									}
@@ -4928,7 +4950,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 							free_record(&dummy,dummy.fields_num);
 
-							if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+							if(move_in_file_bytes(fd,sizeof(file_offset)) == -1){
 								__er_file_pointer(F, L - 1);
 								return 0;
 							}
@@ -4937,18 +4959,18 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = get_file_offset(fd);
+					file_offset go_back_to = get_file_offset(fd);
 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 					{
-						perror("failed read update off_t int array.\n");
+						perror("failed read update file_offset int array.\n");
 						return 0;
 					}
 
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -5083,7 +5105,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 						free_record(&dummy,dummy.fields_num);
 
-						if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+						if(move_in_file_bytes(fd,sizeof(file_offset)) == -1){
 							__er_file_pointer(F, L - 1);
 							return 0;
 						}
@@ -5160,7 +5182,7 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 
 							free_record(&dummy,dummy.fields_num);
 
-							if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+							if(move_in_file_bytes(fd,sizeof(file_offset)) == -1){
 								__er_file_pointer(F, L - 1);
 								return 0;
 							}
@@ -5195,12 +5217,12 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 	}
 
 	uint64_t uot_ne = 0;
-	if(update_off_t > 0)
-		uot_ne = swap64((uint64_t)update_off_t);
+	if(update_file_offset > 0)
+		uot_ne = swap64((uint64_t)update_file_offset);
 
 	if (write(fd, &uot_ne, sizeof(uot_ne)) == STATUS_ERROR)
 	{
-		perror("writing off_t for future update");
+		perror("writing file_offset for future update");
 		printf(" %s:%d", F, L - 3);
 		return 0;
 	}
@@ -5209,16 +5231,24 @@ int write_file(int fd, struct Record_f *rec, off_t update_off_t, unsigned char u
 }
 
 
-off_t get_update_offset(int fd)
+#if defined(__linux__)
+file_offset get_update_offset(int fd)
+#elif defined(_WIN32)
+file_offset get_update_offset(HANDLE file_handle)
+#endif
 {
 	uint64_t urec_ne = 0;
+#if defined(__linux__)
 	if (read(fd, &urec_ne, sizeof(urec_ne)) == STATUS_ERROR)
+#elif defined(_WIN32)
+	if (!ReadFile(file_handle,&urec_ne,sizeof(urec_ne),&written,NULL))
+#endif
 	{
 		perror("could not read the update record position (file.c l 424).\n");
 		return -1;
 	}
 
-	return (off_t)swap64(urec_ne);
+	return (file_offset)swap64(urec_ne);
 }
 
 /*
@@ -5226,6 +5256,7 @@ off_t get_update_offset(int fd)
  *  reads a record from a file,
  *  the caller must inistialized the struct Record_f
  * */
+/*TODO WRITE READ RAM RECORD */
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 {
 	create_record(file_name, sch,rec);
@@ -5251,9 +5282,9 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 	
 
-	off_t str_loc = 0;
+	file_offset str_loc = 0;
 	size_t buff_update = 0; /* to get the real size of the string*/
-	off_t move_to = 0;
+	file_offset move_to = 0;
 
 
 	for (i = 0; i < (uint8_t) rec->fields_num; i++) {
@@ -5330,7 +5361,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
-			str_loc = (off_t)swap32(str_loc_ne);
+			str_loc = (file_offset)swap32(str_loc_ne);
 
 			uint16_t bu_up_ne = 0;
 			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0){
@@ -5362,7 +5393,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					return -1;
 				}
 
-				buff_update = (off_t)swap16(bu_up_ne);
+				buff_update = (file_offset)swap16(bu_up_ne);
 			}
 
 			rec->fields[i].data.s = (char*)ask_mem(buff_update*sizeof(char));
@@ -5423,8 +5454,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -5485,7 +5516,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					go_back_here = get_file_offset(fd);
 				}
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5513,8 +5544,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -5574,7 +5605,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5602,8 +5633,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -5730,7 +5761,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5758,8 +5789,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -5821,7 +5852,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					go_back_here = get_file_offset(fd);
 				}
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5849,8 +5880,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -5910,7 +5941,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -5938,8 +5969,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				rec->fields[i].data.v.destroy = free_dynamic_array;
 			}
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -5999,7 +6030,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					go_back_here = get_file_offset(fd);
 				}
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0)
 				{
 					if (find_record_position(fd, array_upd) == -1)
@@ -6048,8 +6079,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -6113,8 +6144,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					/*TODO refactor this code file.c l 5930*/
 
 					/*check if the record has updates */
-					off_t rests_pos_here = get_file_offset(fd);
-					off_t update_rec_pos = 0; 
+					file_offset rests_pos_here = get_file_offset(fd);
+					file_offset update_rec_pos = 0; 
 					while ((update_rec_pos = get_update_offset(fd)) > 0) {
 						uint32_t new_size = rec->fields[i].data.file.count + 1;
 
@@ -6158,7 +6189,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						return -1;
 					}
 
-					if (move_in_file_bytes(fd, sizeof(off_t)) == -1) {
+					if (move_in_file_bytes(fd, sizeof(file_offset)) == -1) {
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
 						return -1;
@@ -6181,7 +6212,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 						free_record(&dummy,dummy.fields_num);
 
-						if(move_in_file_bytes(fd,sizeof(off_t)) == -1){
+						if(move_in_file_bytes(fd,sizeof(file_offset)) == -1){
 							__er_file_pointer(F, L - 1);
 							return 0;
 						}
@@ -6198,7 +6229,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				if (go_back_here == 0) go_back_here = get_file_offset(fd);
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0){
 					if (find_record_position(fd, array_upd) == -1){
 						__er_file_pointer(F, L - 1);
@@ -6231,7 +6262,7 @@ int file_error_handler(int count, ...)
 	int fds[count];
 #elif defined(_WIN32)
 	HANDLE handles[count];
-#elif
+#endif
 	int i = 0, j = 0;
 
 	int err = 0;
@@ -6259,7 +6290,7 @@ int file_error_handler(int count, ...)
 	if(j != 0 ){
 		int x;
 		for(x = 0 ;x < 0; x++){
-#if denifed(__linux__)
+#if defined(__linux__)
 			if(fds[x] != -1	) close(fds[x]);
 #elif defined(_WIN32)
 			if(handles[x] !=  INVALID_HANDLE_VALUE || handles[x] != ERROR_FILE_NOT_FOUND)
@@ -6267,41 +6298,14 @@ int file_error_handler(int count, ...)
 #endif
 	   } 
 	}
-#if denifed(__linux__)
+#if defined(__linux__)
 	if(err > 0) return ENOENT;	
 #elif defined(_WIN32)
 	if(err > 0) return ERROR_FILE_NOT_FOUND;	
 #endif
 	return j;
 }
-#endif
 
-off_t get_file_size(int fd, char *file_name)
-{
-	struct stat st;
-	if (!file_name)
-	{
-		if (fstat(fd, &st) == -1)
-		{
-			perror("stat failed :");
-			printf("%s:%d.\n", F, L - 3);
-			return -1;
-		}
-
-		return (off_t)st.st_size;
-	}
-	else
-	{
-		if (stat(file_name, &st) == -1)
-		{
-			perror("stat failed :");
-			printf("%s:%d.\n", F, L - 3);
-			return -1;
-		}
-
-		return (off_t)st.st_size;
-	}
-}
 
 int add_index(int index_nr, char *file_name, int bucket)
 {
@@ -6543,10 +6547,10 @@ int get_all_record(HANDLE file_handle, struct Ram_file *ram)
 {
 
 #if defined(__linux__)
-	off_t eof = go_to_EOF(fd);
+	file_offset eof = go_to_EOF(fd);
 	if(begin_in_file(fd) == -1) return -1;
 #elif defined(_WIN32)
-	off_t eof = go_to_EOF(file_handle);
+	file_offset eof = go_to_EOF(file_handle);
 	if(begin_in_file(file_handle) == -1) return -1;
 #endif
 
@@ -6564,7 +6568,7 @@ int get_all_record(HANDLE file_handle, struct Ram_file *ram)
 	return 0;
 }
 
-off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch)
+file_offset read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch)
 {
 	create_record(file_name, sch,rec);
 
@@ -6610,7 +6614,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 			uint32_t str_loc_ne = 0;
 			memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
 			move_ram_file_ptr(ram,sizeof(uint32_t));
-			off_t str_loc = (off_t)swap32(str_loc_ne);
+			file_offset str_loc = (file_offset)swap32(str_loc_ne);
 
 
 			uint16_t buf_up_ne = 0;
@@ -6618,7 +6622,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 			move_ram_file_ptr(ram,sizeof(uint16_t));
 			size_t buf_up = swap16(buf_up_ne);
 
-			off_t move_back_to = 0;
+			file_offset move_back_to = 0;
 			if(str_loc > 0){
 				move_back_to = ram->offset + buf_up;	
 				/* move to the new location*/
@@ -6673,8 +6677,8 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
 
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -6707,7 +6711,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 
 				if (go_back_here == 0) go_back_here = ram->offset;
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
@@ -6721,8 +6725,8 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 				rec->fields[indexes[i]].data.v.insert = insert_element;
 				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -6757,7 +6761,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 
 				if (go_back_here == 0) go_back_here = ram->offset;
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
@@ -6771,8 +6775,8 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 				rec->fields[indexes[i]].data.v.insert = insert_element;
 				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -6804,7 +6808,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 
 				if (go_back_here == 0) go_back_here = ram->offset;
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
@@ -6818,8 +6822,8 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 				rec->fields[indexes[i]].data.v.insert = insert_element;
 				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -6852,7 +6856,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 
 				if (go_back_here == 0) go_back_here = ram->offset;
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
@@ -6867,8 +6871,8 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 				rec->fields[indexes[i]].data.v.insert = insert_element;
 				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -6903,7 +6907,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 
 				if (go_back_here == 0) go_back_here = ram->offset;
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0) ram->offset = array_upd;
 
 			} while(array_upd > 0);
@@ -6917,8 +6921,8 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 				rec->fields[indexes[i]].data.v.insert = insert_element;
 				rec->fields[indexes[i]].data.v.destroy = free_dynamic_array;
 			}
-			off_t array_upd = 0;
-			off_t go_back_here = 0;
+			file_offset array_upd = 0;
+			file_offset go_back_here = 0;
 			do
 			{
 				uint32_t size_array = 0;
@@ -6937,7 +6941,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 					uint32_t str_loc_ne = 0;
 					memcpy(&str_loc_ne,&ram->mem[ram->offset],sizeof(uint32_t));
 					move_ram_file_ptr(ram,sizeof(uint32_t));
-					off_t str_loc = (off_t)	swap32(str_loc_ne);
+					file_offset str_loc = (file_offset)	swap32(str_loc_ne);
 
 
 					uint16_t buf_up_ne = 0;
@@ -6945,7 +6949,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 					move_ram_file_ptr(ram,sizeof(uint16_t));
 					size_t buf_up = (size_t)swap16(str_loc_ne);
 
-					off_t move_back_to = 0;
+					file_offset move_back_to = 0;
 					if(str_loc > 0){
 						move_back_to = ram->offset + buf_up;	
 						/* move to the new location*/
@@ -6992,7 +6996,7 @@ off_t read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec,
 
 				if (go_back_here == 0) go_back_here = ram->offset;
 
-				array_upd = (off_t)swap64(upd_ne);
+				array_upd = (file_offset)swap64(upd_ne);
 				if (array_upd > 0) ram->offset = array_upd;
 
 			} while (array_upd > 0);
@@ -7024,7 +7028,7 @@ static void move_ram_file_ptr(struct Ram_file *ram,size_t size)
  * if you pass init_ram_size as 0, in case the struct Ram_file memory is NULL
  * it will allocate the STD_RAM_FILE size to it (3 Mib)
  * */
-int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, off_t offset)
+int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset)
 {
 	if(ram->capacity == 0)
 		if(init_ram_file(ram, init_ram_size) == -1) return -1;
@@ -7207,7 +7211,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				uint32_t str_loc = swap32(str_loc_ne);
 
 				/* save pos where the data starts*/
-				uint64_t af_str_loc_pos = ram->size;
+				uint64_t af_str_loc_pos = 0;
 				if(ram->size == ram->capacity && ram->offset != ram->size)
 					af_str_loc_pos = ram->offset;
 				else
@@ -7223,7 +7227,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				move_ram_file_ptr(ram,sizeof(uint16_t));
 
 				uint16_t buff_update = swap16(buff_update_ne);
-				uint64_t pos_after_first_str_record = ram->offset + buff_update; 
+				
+				uint64_t pos_after_first_str_record = 0; 
 				if(ram->size == ram->capacity && ram->offset != ram->size)
 					pos_after_first_str_record = ram->offset + buff_update; 
 				else
@@ -7235,7 +7240,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 					/*
 					 * in the case of a regular buffer update we have
-					 *  to save the off_t to get back to it later
+					 *  to save the file_offset to get back to it later
 					 * */
 					move_to = ram->offset; 
 
@@ -7243,7 +7248,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
 					ram->offset +=  sizeof(uint16_t);	
 
-					buff_update = (off_t)swap16(bu_ne);
+					buff_update = (file_offset)swap16(bu_ne);
 				}
 
 				new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -7291,9 +7296,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				 * set the file pointer back to the begginning of the string record
 				 * to overwrite the data accordingly
 				 * */
-				if (str_loc == 0 && ((new_lt - buff_update) < 0)){
+				if (str_loc == 0 && ((new_lt - buff_update) <= 0) && eof == 0){
 					ram->offset = af_str_loc_pos;
-				} else if (str_loc > 0 && ((new_lt - buff_update) < 0)){
+				} else if (str_loc > 0 && ((new_lt - buff_update) <= 0) && eof == 0){
 					ram->offset = move_to;
 				}
 
@@ -7315,7 +7320,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 				/*
 				 * if eof is bigger than 0 means we updated the string
-				 * we need to save the off_t of the new written data
+				 * we need to save the file_offset of the new written data
 				 * at the start of the original.
 				 * */
 				if (eof > 0){
@@ -7371,8 +7376,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->size += (sizeof(uint64_t));
 				ram->offset += sizeof(uint64_t);
 			}else{
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int sz = 0;
 				int k = 0;
 				int step = 0;
@@ -7509,14 +7514,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					if(padding > 0) ram->offset += (sizeof(int) * padding);
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = ram->offset;
+					file_offset go_back_to = ram->offset;
 
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
 
 					if(go_back_to_first_rec == 0) go_back_to_first_rec = ram->offset;
 
-					update_pos = (off_t) swap64(update_off_ne);
+					update_pos = (file_offset) swap64(update_off_ne);
 					/*
 					 * if the update_pos is == 0 it means 
 					 * we need to move at the end of the file and write the remaining 
@@ -7699,8 +7704,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->offset += sizeof(uint64_t);
 				break;
 			}else{
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int sz = 0;
 				int k = 0;
 				int step = 0;
@@ -7837,14 +7842,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					if(padding > 0) ram->offset += (sizeof(long) * padding);
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = ram->offset;
+					file_offset go_back_to = ram->offset;
 
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
 
 					if(go_back_to_first_rec == 0) go_back_to_first_rec = ram->offset;
 
-					update_pos = (off_t) swap64(update_off_ne);
+					update_pos = (file_offset) swap64(update_off_ne);
 					/*
 					 * if the update_pos is == 0 it means 
 					 * we need to move at the end of the file and write the remaining 
@@ -8019,8 +8024,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->size += (sizeof(uint64_t));
 				ram->offset += sizeof(uint64_t);
 			}else{
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int sz = 0;
 				int k = 0;
 				int step = 0;
@@ -8157,14 +8162,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					if(padding > 0) ram->offset += (sizeof(uint8_t) * padding);
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = ram->offset;
+					file_offset go_back_to = ram->offset;
 
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
 
 					if(go_back_to_first_rec == 0) go_back_to_first_rec = ram->offset;
 
-					update_pos = (off_t) swap64(update_off_ne);
+					update_pos = (file_offset) swap64(update_off_ne);
 					/*
 					 * if the update_pos is == 0 it means 
 					 * we need to move at the end of the file and write the remaining 
@@ -8344,8 +8349,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->offset += sizeof(uint64_t);
 				break;
 		}else{
-			off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+			file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int sz = 0;
 				int k = 0;
 				int step = 0;
@@ -8480,14 +8485,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					if(padding > 0) ram->offset += (sizeof(float) * padding);
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = ram->offset;
+					file_offset go_back_to = ram->offset;
 
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
 
 					if(go_back_to_first_rec == 0) go_back_to_first_rec = ram->offset;
 
-					update_pos = (off_t) swap64(update_off_ne);
+					update_pos = (file_offset) swap64(update_off_ne);
 					/*
 					 * if the update_pos is == 0 it means 
 					 * we need to move at the end of the file and write the remaining 
@@ -8665,8 +8670,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->size += (sizeof(uint64_t));
 				ram->offset += sizeof(uint64_t);
 			}else{
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int sz = 0;
 				int k = 0;
 				int step = 0;
@@ -8801,14 +8806,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					if(padding > 0) ram->offset += (sizeof(double) * padding);
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = ram->offset;
+					file_offset go_back_to = ram->offset;
 
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
 
 					if(go_back_to_first_rec == 0) go_back_to_first_rec = ram->offset;
 
-					update_pos = (off_t) swap64(update_off_ne);
+					update_pos = (file_offset) swap64(update_off_ne);
 					/*
 					 * if the update_pos is == 0 it means 
 					 * we need to move at the end of the file and write the remaining 
@@ -8993,8 +8998,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				ram->offset += sizeof(uint64_t);
 				break;
 			}else{
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				int sz = 0;
 				int k = 0;
 				int step = 0;
@@ -9103,7 +9108,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 									/*
 									 * in the case of a regular buffer update we have
-									 *  to save the off_t to get back to it later
+									 *  to save the file_offset to get back to it later
 									 * */
 									move_to = ram->offset; 
 
@@ -9111,7 +9116,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
 									ram->offset +=  sizeof(uint16_t);	
 
-									buff_update = (off_t)swap16(bu_ne);
+									buff_update = (file_offset)swap16(bu_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.s) + 1; /*get new str length*/
@@ -9183,7 +9188,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								/*
 								 * if eof is bigger than 0 means we updated the string
-								 * we need to save the off_t of the new written data
+								 * we need to save the file_offset of the new written data
 								 * at the start of the original.
 								 * */
 								if (eof > 0){
@@ -9303,7 +9308,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 									/*
 									 * in the case of a regular buffer update we have
-									 *  to save the off_t to get back to it later
+									 *  to save the file_offset to get back to it later
 									 * */
 									move_to = ram->offset; 
 
@@ -9311,7 +9316,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
 									ram->offset +=  sizeof(uint16_t);	
 
-									buff_update = (off_t)swap16(bu_ne);
+									buff_update = (file_offset)swap16(bu_ne);
 								}
 
 								new_lt = strlen(rec->fields[i].data.v.elements.s[k]) + 1; /*get new str length*/
@@ -9383,7 +9388,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								/*
 								 * if eof is bigger than 0 means we updated the string
-								 * we need to save the off_t of the new written data
+								 * we need to save the file_offset of the new written data
 								 * at the start of the original.
 								 * */
 								if (eof > 0){
@@ -9442,14 +9447,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					}
 
 					uint64_t update_off_ne = 0;
-					off_t go_back_to = ram->offset;
+					file_offset go_back_to = ram->offset;
 
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
 
 					if(go_back_to_first_rec == 0) go_back_to_first_rec = ram->offset;
 
-					update_pos = (off_t) swap64(update_off_ne);
+					update_pos = (file_offset) swap64(update_off_ne);
 					/*
 					 * if the update_pos is == 0 it means 
 					 * we need to move at the end of the file and write the remaining 
@@ -9617,7 +9622,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								/*
 								 * in the case of a regular buffer update we have
-								 *  to save the off_t to get back to it later
+								 *  to save the file_offset to get back to it later
 								 * */
 								move_to = ram->offset; 
 
@@ -9625,7 +9630,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
 								ram->offset +=  sizeof(uint16_t);	
 
-								buff_update = (off_t)swap16(bu_ne);
+								buff_update = (file_offset)swap16(bu_ne);
 							}
 
 							new_lt = strlen(rec->fields[i].data.v.elements.s[j]) + 1; /*get new str length*/
@@ -9697,7 +9702,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							/*
 							 * if eof is bigger than 0 means we updated the string
-							 * we need to save the off_t of the new written data
+							 * we need to save the file_offset of the new written data
 							 * at the start of the original.
 							 * */
 							if (eof > 0){
@@ -9806,7 +9811,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								/*
 								 * in the case of a regular buffer update we have
-								 *  to save the off_t to get back to it later
+								 *  to save the file_offset to get back to it later
 								 * */
 								move_to = ram->offset; 
 
@@ -9814,7 +9819,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(uint16_t));
 								ram->offset +=  sizeof(uint16_t);	
 
-								buff_update = (off_t)swap16(bu_ne);
+								buff_update = (file_offset)swap16(bu_ne);
 							}
 
 							new_lt = strlen(rec->fields[i].data.v.elements.s[j]) + 1; /*get new str length*/
@@ -9886,7 +9891,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							/*
 							 * if eof is bigger than 0 means we updated the string
-							 * we need to save the off_t of the new written data
+							 * we need to save the file_offset of the new written data
 							 * at the start of the original.
 							 * */
 							if (eof > 0){
@@ -9979,8 +9984,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 				close(fd_schema);
 
 				/* update branch*/
-				off_t update_pos = 0;
-				off_t go_back_to_first_rec = 0;
+				file_offset update_pos = 0;
+				file_offset go_back_to_first_rec = 0;
 				uint32_t step = 0;
 				uint32_t sz = 0;
 				uint32_t k = 0;
@@ -10009,13 +10014,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int exit = 0;
 						
 						/*check if the array of type file is in the last block*/
-						off_t reset_pointer_here = ram->offset;
+						file_offset reset_pointer_here = ram->offset;
 
 						uint32_t y;
 						for(y = 0; y < sz;y++){
 							struct Record_f dummy;
 							memset(&dummy,0,sizeof(struct Record_f));
-							off_t offset = 0;
+							file_offset offset = 0;
 							if(read_ram_file(rec->file_name,
 											ram,
 											&dummy,
@@ -10027,7 +10032,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							free_record(&dummy,dummy.fields_num);
 
-							ram->offset += offset + sizeof(off_t);
+							ram->offset += offset + sizeof(file_offset);
 						}
 
 						uint64_t update_arr = 0;
@@ -10035,7 +10040,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						ram->offset = reset_pointer_here;
 
-						off_t up_he = (off_t) swap64(update_arr);
+						file_offset up_he = (file_offset) swap64(update_arr);
 						if(up_he == 0) array_last = 1;
 
 						if (rec->fields[i].data.file.count < (sz + step) && array_last)
@@ -10142,7 +10147,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 									free_record(&dummy,dummy.fields_num);
 
-									ram->offset += sizeof(off_t);
+									ram->offset += sizeof(file_offset);
 								}
 							}
 
@@ -10167,12 +10172,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							free_record(&dummy,dummy.fields_num);
 
-							ram->offset += sizeof(off_t);
+							ram->offset += sizeof(file_offset);
 						}
 
 					}
 
-					off_t go_back_to = ram->offset;
+					file_offset go_back_to = ram->offset;
 					uint64_t update_off_ne = 0;
 					memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(uint64_t));
 					ram->offset += sizeof(uint64_t);
@@ -10180,7 +10185,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					if (go_back_to_first_rec == 0)
 						go_back_to_first_rec = go_back_to + sizeof(update_off_ne);
 
-					update_pos = (off_t)swap64(update_off_ne);
+					update_pos = (file_offset)swap64(update_off_ne);
 					if (update_pos == 0)
 					{
 						/*go to EOF*/
@@ -10309,7 +10314,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						free_record(&dummy,dummy.fields_num);
 
-						ram->offset += sizeof(off_t);
+						ram->offset += sizeof(file_offset);
 					}
 
 					uint64_t update_arr_ne = 0;
@@ -10370,7 +10375,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							free_record(&dummy,dummy.fields_num);
 
-							ram->offset += sizeof(off_t);
+							ram->offset += sizeof(file_offset);
 						}
 
 					}
@@ -10404,7 +10409,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type)
 {
 	if(fd != -1){
-		off_t go_back_to = 0;
+		file_offset go_back_to = 0;
 		if ((go_back_to = get_file_offset(fd)) == -1)
 		{
 			__er_file_pointer(F, L - 1);
@@ -10429,7 +10434,7 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 		uint64_t update_off_ne = 0;
 		if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 		{
-			perror("failed read update off_t int array.\n");
+			perror("failed read update file_offset int array.\n");
 			return 0;
 		}
 
@@ -10439,14 +10444,14 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 			return -1;
 		}
 
-		off_t update_pos = (off_t)swap64(update_off_ne);
+		file_offset update_pos = (file_offset)swap64(update_off_ne);
 
 		return update_pos == 0;
 	}
 
 	if(ram){
 		if(ram->mem){
-			off_t go_back_to = ram->offset;
+			file_offset go_back_to = ram->offset;
 
 			if(type == TYPE_ARRAY_STRING){
 				int i;
@@ -10466,7 +10471,7 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 
 			ram->offset = go_back_to;
 
-			off_t update_pos = (off_t)swap64(update_off_ne);
+			file_offset update_pos = (file_offset)swap64(update_off_ne);
 
 			return update_pos == 0;
 
@@ -10478,9 +10483,9 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 }
 
 #if defined(__linux__)
-int buffered_write(int *fd, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)
+int buffered_write(int *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
 #elif defined(_WIN32)
-int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, off_t rec_ram_file_pos, off_t offset)
+int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
 #endif
 {
 	struct Ram_file ram;
@@ -10514,7 +10519,7 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, off_t 
 		strncpy(buf,rec->file_name,strlen(rec->file_name));
 		strncat(buf,".dat",strlen(".dat")+1);		
 
-#if define(__linux__)
+#if defined(__linux__)
 		close(*fd);
 		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
 		if(file_error_handler(1,*fd) != 0) 
@@ -10541,13 +10546,13 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, off_t 
 	}
 
 	if(update){
-#if define(__linux__)
+#if defined(__linux__)
 		close(*fd);
 		*fd = open_file(buf,0); /*open the file in nirmal mode*/
 		if(file_error_handler(1,*fd) != 0) 
 #elif defined(_WIN32)
 		CloseHandle(*file_handle);
-		*file_handle = open_file(buf,0)
+		*file_handle = open_file(buf,0);
 		if(file_error_handler(1,*file_handle) != 0) 
 #endif
 		{
@@ -10604,7 +10609,7 @@ static size_t get_string_size(struct Ram_file *ram)
 	return -1;
 }
 
-#elif defined(_WIN32) 
+#if defined(_WIN32) 
 #include <windows.h>
 #include "file.h"
 #include "types.h"
@@ -10700,7 +10705,7 @@ int delete_file(int count,...)
 
 }
 
-static off_t seek_file_win(HANDLE file_handle,long long offset, DWORD file_position)
+static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position)
 {
 	LARGE_INTEGER li;
 	li.QuadPart = offset;
@@ -10710,34 +10715,38 @@ static off_t seek_file_win(HANDLE file_handle,long long offset, DWORD file_posit
 		return -1;
 	}
 
-	return (off_t) new_file_ptr.QuadPart;
+	return (file_offset) new_file_ptr.QuadPart;
 }
 
-off_t begin_in_file(HANDLE file_handle)
+file_offset begin_in_file(HANDLE file_handle)
 {
 	return seek_file_win(file_handle,0,FILE_BEGIN);
 
 }
 
-off_t get_file_offset(HANDLE file_handle)
+file_offset get_file_offset(HANDLE file_handle)
 {
 	return seek_file_win(file_handle,0,FILE_CURRENT);
 }
 
-off_t find_record_position(HANDLE file_handle, long long offset)
+file_offset find_record_position(HANDLE file_handle, long long offset)
 {
 	return seek_file_win(file_handle,offset,FILE_BEGIN);
 
 }
 
-off_t go_to_EOF(HANDLE file_handle)
+file_offset go_to_EOF(HANDLE file_handle)
 {
 	return seek_file_win(file_handle,0,FILE_END);
 }
 
-off_t move_in_file_bytes(HANDLE file_handle, off_t offset)
+file_offset move_in_file_bytes(HANDLE file_handle, file_offset offset)
 {
 	return seek_file_win(file_handle,offset,FILE_CURRENT);
 }
 
+DWORD get_file_size(HANDLE file_handle)
+{
+	return GetFileSize(file_handle, NULL)
+}
 #endif
