@@ -1382,7 +1382,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 
 							char *p = NULL;
 							int index = 0;
-							int8_t is_array = 0;
+							uint8_t is_array = 0;
 							while((p = strstr((*values)[j],","))){
 								is_array = 1;
 								*p ='@';

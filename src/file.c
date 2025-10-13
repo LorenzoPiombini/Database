@@ -5256,7 +5256,6 @@ file_offset get_update_offset(HANDLE file_handle)
  *  reads a record from a file,
  *  the caller must inistialized the struct Record_f
  * */
-/*TODO WRITE READ RAM RECORD */
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 {
 	create_record(file_name, sch,rec);
