@@ -107,7 +107,7 @@ clean:
 	rm *core*
 	 
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -lmem -llog -fpie -pie -z relro -z now -z noexecstack -fsanitize=address
+	sudo gcc -o $@ $? -lmem -llog -lfree -fpie -pie -z relro -z now -z noexecstack -fsanitize=address
 
 obj/%.o : src/%.c
 	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address

@@ -116,7 +116,7 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 	}
 
         if (  !file_path.is_empty(&file_path)  || file_field){
-		if(file_path.allocated){
+		if(file_path.str){
 			if(!is_file_name_valid(file_path.str)){
 				printf("file name or path not valid.\n");
 				return 0;

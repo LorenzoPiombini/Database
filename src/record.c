@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include "record.h"
+#include "freestand.h"
 #include "debug.h"
 #include "str_op.h"
 #include "file.h"

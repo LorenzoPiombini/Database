@@ -12,6 +12,7 @@
 #include "parse.h"
 #include "common.h"
 #include "log.h"
+#include "freestand.h"
 
 static FILE *log = NULL;
 #define _LOG_ !log ? stderr : log

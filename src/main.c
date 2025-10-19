@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "journal.h"
+#include "freestand.h"
 #include "globals.h"
 #include "common.h"
 #include "file.h"
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
 			errno = 0;
 			long l = string_to_long(optarg);
 			if(errno == EINVAL && l < 0){
-				fprintf(stderr,"option -i value is not a valid number.\n");
+				display_to_stdout("option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
@@ -153,7 +154,7 @@ int main(int argc, char *argv[])
 			errno = 0;
 			long l = string_to_long(optarg);
 			if(errno == EINVAL){
-				fprintf(stderr,"option -i value is not a valid number.\n");
+				display_to_stdout("option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
@@ -167,7 +168,7 @@ int main(int argc, char *argv[])
 			errno = 0;
 			long l = string_to_long(optarg);
 			if(errno == EINVAL){
-				fprintf(stderr,"option -i value is not a valid number.\n");
+				display_to_stdout("option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
@@ -185,7 +186,7 @@ int main(int argc, char *argv[])
 			errno = 0;
 			long l = string_to_long(optarg);
 			if(errno == EINVAL){
-				fprintf(stderr,"option -i value is not a valid number.\n");
+				display_to_stdout("option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
@@ -202,7 +203,7 @@ int main(int argc, char *argv[])
 			only_dat = 1;
 			break;
 		default:
-			printf("Unknow option -%c\n", c);
+			display_to_stdout("Unknow option -%c\n", c);
 			close_prog_memory();
 			return 1;
 		}
@@ -217,7 +218,7 @@ int main(int argc, char *argv[])
 
 	if(journal_display){
 		if(show_journal() == -1){
-			fprintf(stderr,"show_journal() failed, %s:%d.\n",__FILE__,__LINE__-1);
+			display_to_stdout("show_journal() failed, %s:%d.\n",__FILE__,__LINE__-1);
 			close_prog_memory();
 			return -1;
 		}
@@ -225,7 +226,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	if (create){
-		if(txt_f.allocated){
+		if(txt_f.str){
 			if (!create_system_from_txt_file(txt_f.str)) {
 				txt_f.close(&txt_f);
 				close_prog_memory();
@@ -239,7 +240,7 @@ int main(int argc, char *argv[])
 			}
 
 		}
-		printf("system created!\n");
+		display_to_stdout("system created!\n");
 		txt_f.close(&txt_f);
 		close_prog_memory();
 		return 0;
@@ -259,16 +260,16 @@ int main(int argc, char *argv[])
 	}
 
 	if(import_from_data){
-		if(txt_f.allocated){
+		if(txt_f.str){
 			if(import_data_to_system(txt_f.str) == -1) {
-				fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f.str);
+				display_to_stdout("(%s): could not import data from '%s'.\n",prog,txt_f.str);
 				txt_f.close(&txt_f);
 				close_prog_memory();
 				return -1;
 			}
 		}else{
 			if(import_data_to_system(txt_f.base) == -1) {
-				fprintf(stderr,"(%s): could not import data from '%s'.\n",prog,txt_f.base);
+				display_to_stdout("(%s): could not import data from '%s'.\n",prog,txt_f.base);
 				txt_f.close(&txt_f);
 				close_prog_memory();
 				return -1;
@@ -284,7 +285,7 @@ int main(int argc, char *argv[])
 		/*creates three name from the file_path  "str_op.h" */
 		char cpy_fp[file_path.size + 1];
 		memset(cpy_fp,0,file_path.size + 1);
-		if(file_path.allocated)
+		if(file_path.str)
 			strncpy(cpy_fp,file_path.str,file_path.size);
 		else
 			strncpy(cpy_fp,file_path.base,file_path.size);
@@ -294,7 +295,7 @@ int main(int argc, char *argv[])
 		char cpy_sd[schema_def.size + 1];
 		memset(cpy_sd,0,schema_def.size + 1);
 		if(!schema_def.is_empty(&schema_def)){
-			if(schema_def.allocated)
+			if(schema_def.str)
 				strncpy(cpy_sd,schema_def.str,schema_def.size);
 			else
 				strncpy(cpy_sd,schema_def.base,schema_def.size);
@@ -305,7 +306,7 @@ int main(int argc, char *argv[])
 		char cpy_dta[data_to_add.size + 1];
 		memset(cpy_dta,0,data_to_add.size + 1);
 		if(!data_to_add.is_empty(&data_to_add)){
-			if(data_to_add.allocated)
+			if(data_to_add.str)
 				strncpy(cpy_dta,data_to_add.str,data_to_add.size);
 			else
 				strncpy(cpy_dta,data_to_add.base,data_to_add.size);
@@ -316,7 +317,7 @@ int main(int argc, char *argv[])
 		char kcpy[key.size+1];
 		memset(kcpy,0,key.size+1);
 		if(!key.is_empty(&key)){
-			if(key.allocated)
+			if(key.str)
 				strncpy(kcpy,key.str,key.size);
 			else
 				strncpy(kcpy,key.str,key.size);
@@ -326,7 +327,7 @@ int main(int argc, char *argv[])
 
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 		if(three_file_path(cpy_fp, files) == EFLENGTH){
-			fprintf(stderr,"(%s): file name or path '%s' too long",prog,cpy_fp);
+			display_to_stdout("(%s): file name or path '%s' too long",prog,cpy_fp);
 			close_prog_memory();
 			return STATUS_ERROR;
 		}
@@ -372,7 +373,7 @@ int main(int argc, char *argv[])
 
 			int mode = check_handle_input_mode(cpy_sd, FCRT) | DF;
 			if(mode == -1){
-				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+				display_to_stdout("(%s): check the input, value might be missng.\n",prog);
 				goto clean_on_error_1;
 			}
 			int fields_count = 0; 
@@ -385,18 +386,18 @@ int main(int argc, char *argv[])
 			{
 				fields_count = count_fields(cpy_sd,NULL);
 				if (fields_count == 0) {
-					fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
+					display_to_stdout("(%s): type syntax might be wrong.\n",prog);
 					goto clean_on_error_1;
 				}
 
 				if (fields_count > MAX_FIELD_NR) {
-					fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
+					display_to_stdout("(%s): too many fields, max %d fields each file definition.\n"
 							,prog, MAX_FIELD_NR);
 					goto clean_on_error_1;
 				}
 
 				if (!create_file_definition_with_no_value(mode,fields_count, cpy_sd, &sch)) {
-					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
+					display_to_stdout("(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 					goto clean_on_error_1;
 				}
 				break;
@@ -405,13 +406,13 @@ int main(int argc, char *argv[])
 			case NO_TYPE_DF	:	
 			{
 				if (!create_file_definition_with_no_value(mode,fields_count, cpy_sd, &sch)) {
-					fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
+					display_to_stdout("(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 					goto clean_on_error_1;
 				}
 				break;
 			}
 			default:
-				fprintf(stderr,"(%s):invalid input.\n",prog);
+				display_to_stdout("(%s):invalid input.\n",prog);
 				goto clean_on_error_1;
 			}
 
@@ -420,13 +421,13 @@ int main(int argc, char *argv[])
 			if (!create_header(&hd)) goto clean_on_error_1;
 
 			if (!write_header(fd_schema, &hd)) {
-				fprintf(stderr,"(%s): write schema failed, %s:%d.\n",prog, F, L - 1);
+				display_to_stdout("(%s): write schema failed, %s:%d.\n",prog, F, L - 1);
 				goto clean_on_error_1;
 			}
 
 
 			if (only_dat) {
-				fprintf(stdout,"(%s): File created successfully!\n",prog);
+				display_to_stdout("(%s): File created successfully!\n",prog);
 				free_schema(&sch);
 				close_prog_memory();
 				close_file(2, fd_data, fd_schema);
@@ -434,7 +435,7 @@ int main(int argc, char *argv[])
 			}
 
 			if(file_field){
-				fprintf(stdout,"(%s): File created successfully!\n",prog);
+				display_to_stdout("(%s): File created successfully!\n",prog);
 				close_file(1, fd_schema);
 				free_schema(&sch);
 				close_prog_memory();
@@ -446,7 +447,7 @@ int main(int argc, char *argv[])
 			int index_num = indexes > 0 ? indexes : 5;
 
 			if (!write_index_file_head(fd_index, index_num)) {
-				fprintf(stderr,"(%s) write index file head failed, %s:%d",prog, F, L - 2);
+				display_to_stdout("(%s) write index file head failed, %s:%d",prog, F, L - 2);
 				goto clean_on_error_1;
 			}
 
@@ -457,7 +458,7 @@ int main(int argc, char *argv[])
 				ht.write = write_ht;
 
 				if (!write_index_body(fd_index, i, &ht)) {
-					printf("write to file failed. %s:%d.\n", F, L - 2);
+					display_to_stdout("write to file failed. %s:%d.\n", F, L - 2);
 					destroy_hasht(&ht);
 					goto clean_on_error_1;
 				}
@@ -465,11 +466,11 @@ int main(int argc, char *argv[])
 				destroy_hasht(&ht);
 			}
 
-			fprintf(stdout,"(%s): File created successfully!\n",prog);
+			display_to_stdout("(%s): File created successfully!\n",prog);
 
 			close_file(3, fd_index, fd_data,fd_schema);
 			if(free_schema(&sch) == -1){
-				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+				display_to_stdout("could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
 				goto clean_on_error_1;
 			}
 			close_prog_memory();
@@ -479,7 +480,7 @@ int main(int argc, char *argv[])
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
 			if(free_schema(&sch) == -1){
-				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+				display_to_stdout("could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
 			}
 			close_prog_memory();
 			return STATUS_ERROR;
@@ -490,7 +491,7 @@ int main(int argc, char *argv[])
 			int mode = check_handle_input_mode(cpy_dta, FWRT) | WR;
 
 			if(mode == -1){
-				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+				display_to_stdout("(%s): check the input, value might be missng.\n",prog);
 				goto clean_on_error_2;
 			}
 
@@ -519,7 +520,7 @@ int main(int argc, char *argv[])
 							types_i,
 							&fields_count);
 					if(!values){
-						fprintf(stderr,"(%s): cannot extract value from input,%s:%d.\n",prog,
+						display_to_stdout("(%s): cannot extract value from input,%s:%d.\n",prog,
 								__FILE__,__LINE__-1);
 						goto clean_on_error_2;
 					}
@@ -547,7 +548,7 @@ int main(int argc, char *argv[])
 
 				if(parse_input_with_no_type(cpy_fp,fields_count, names, 
 							types_i, values,&sch,0,&rec) == -1){
-					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+					display_to_stdout("(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					free_strs(fields_count,1,values);
 					goto clean_on_error_2;
 				}
@@ -558,12 +559,12 @@ int main(int argc, char *argv[])
 			{ 
 				fields_count = count_fields(cpy_dta,NULL);
 				if (fields_count > MAX_FIELD_NR) {
-					fprintf(stderr,"(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
+					display_to_stdout("(%s): too many fields, max %d each file definition.",prog, MAX_FIELD_NR);
 					goto clean_on_error_2;
 				}
 
 				if(parse_d_flag_input(cpy_fp, fields_count,cpy_dta, &sch, 0,&rec,NULL) == -1) {
-					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
+					display_to_stdout("(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					goto clean_on_error_2;
 				}
 
@@ -575,21 +576,21 @@ int main(int argc, char *argv[])
 
 			struct Header_d hd = {0, 0, &sch};
 			if (!create_header(&hd)) {
-				fprintf(stderr,"%s:%d.\n", F, L - 1);
+				display_to_stdout("%s:%d.\n", F, L - 1);
 				goto clean_on_error_2;
 			}
 
 			if (!write_header(fd_schema, &hd)) {
-				printf("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
+				display_to_stdout("write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				goto clean_on_error_2;
 			}
 
 			if (only_dat) {
-				printf("File created successfully!\n");
+				display_to_stdout("File created successfully!\n");
 				free_record(&rec, fields_count);
 				close_file(2, fd_data,fd_schema);
 				if(free_schema(&sch) == -1){
-					fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+					display_to_stdout("could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
 				}
 				close_prog_memory();
 				return 0;
@@ -600,7 +601,7 @@ int main(int argc, char *argv[])
 			int index_num = indexes > 0 ? indexes : 5;
 
 			if (!write_index_file_head(fd_index, index_num)) {
-				printf("write to file failed, %s:%d", F, L - 2);
+				display_to_stdout("write to file failed, %s:%d", F, L - 2);
 				goto clean_on_error_2;
 			}
 
@@ -622,7 +623,7 @@ int main(int argc, char *argv[])
 					int key_type = 0;
 					void *key_conv = key_converter(kcpy, &key_type);
 					if (key_type == UINT && !key_conv) {
-						fprintf(stderr, "(%s): error to convert key.\n",prog);
+						display_to_stdout( "(%s): error to convert key.\n",prog);
 						goto clean_on_error_2;
 					} else if (key_type == UINT) {
 						if (key_conv) {
@@ -641,14 +642,14 @@ int main(int argc, char *argv[])
 					}
 
 					if (!write_file(fd_data, &rec, 0, update)) {
-						printf("write to file failed, %s:%d.\n", F, L - 1);
+						display_to_stdout("write to file failed, %s:%d.\n", F, L - 1);
 						destroy_hasht(&ht);
 						goto clean_on_error_2;
 					}
 				}
 
 				if (!write_index_body(fd_index, i, &ht)) {
-					printf("write to file failed. %s:%d.\n", F, L - 2);
+					display_to_stdout("write to file failed. %s:%d.\n", F, L - 2);
 					destroy_hasht(&ht);
 					goto clean_on_error_2;
 				}
@@ -656,11 +657,11 @@ int main(int argc, char *argv[])
 				destroy_hasht(&ht);
 			}
 
-			fprintf(stdout,"(%s): File created successfully.\n",prog);
+			display_to_stdout("(%s): File created successfully.\n",prog);
 			free_record(&rec, fields_count); 
 			close_file(3, fd_index, fd_data,fd_schema);
 			if(free_schema(&sch) == -1){
-				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+				display_to_stdout("could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
 			}
 			close_prog_memory();
 			return 0;
@@ -670,14 +671,14 @@ int main(int argc, char *argv[])
 			delete_file(3, files[0], files[1], files[2]);
 			free_record(&rec, fields_count);
 			if(free_schema(&sch) == -1){
-				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
+				display_to_stdout("could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
 			}
 			close_prog_memory();
 			return STATUS_ERROR;
 
 		}else {
-			fprintf(stderr,"(%s): no data to write to file %s.\n",prog,cpy_fp );
-			fprintf(stderr,"(%s): %s has been created, you can add to the file using option -a.\n",prog, cpy_fp);
+			display_to_stdout("(%s): no data to write to file %s.\n",prog,cpy_fp );
+			display_to_stdout("(%s): %s has been created, you can add to the file using option -a.\n",prog, cpy_fp);
 			print_usage(argv);
 
 			/* init the Schema structure*/
@@ -687,7 +688,7 @@ int main(int argc, char *argv[])
 			struct Header_d hd = {HEADER_ID_SYS, VS, &sch};
 
 			if (!write_empty_header(fd_schema, &hd)) {
-				printf("%s:%d.\n", F, L - 1);
+				display_to_stdout("%s:%d.\n", F, L - 1);
 				goto clean_on_error_3;
 			}
 
@@ -696,7 +697,7 @@ int main(int argc, char *argv[])
 			int index_num = indexes > 0 ? indexes : 5;
 
 			if (!write_index_file_head(fd_index, index_num)) {
-				printf("write to file failed, %s:%d", F, L - 2);
+				display_to_stdout("write to file failed, %s:%d", F, L - 2);
 				goto clean_on_error_3;
 			}
 
@@ -707,14 +708,14 @@ int main(int argc, char *argv[])
 				ht.write = write_ht;
 
 				if (!write_index_body(fd_index, i, &ht)) {
-					printf("write to file failed. %s:%d.\n", F, L - 2);
+					display_to_stdout("write to file failed. %s:%d.\n", F, L - 2);
 					goto clean_on_error_3;
 				}
 
 				destroy_hasht(&ht);
 			}
 
-			printf("File created successfully.\n");
+			display_to_stdout("File created successfully.\n");
 
 			close_file(3, fd_index, fd_data,fd_schema);
 			close_prog_memory();
@@ -733,7 +734,7 @@ int main(int argc, char *argv[])
 		/*freeing the String used for the input*/
 		char cpy_fp[file_path.size + 1];
 		memset(cpy_fp,0,file_path.size + 1);
-		if(file_path.allocated)
+		if(file_path.str)
 			strncpy(cpy_fp,file_path.str,file_path.size);
 		else
 			strncpy(cpy_fp,file_path.base,file_path.size);
@@ -743,7 +744,7 @@ int main(int argc, char *argv[])
 		char kcpy[key.size+1];
 		memset(kcpy,0,key.size+1);
 		if(!key.is_empty(&key)){
-			if(key.allocated)
+			if(key.str)
 				strncpy(kcpy,key.str,key.size);
 			else
 				strncpy(kcpy,key.base,key.size);
@@ -754,7 +755,7 @@ int main(int argc, char *argv[])
 		char cpy_sd[schema_def.size + 1];
 		memset(cpy_sd,0,schema_def.size + 1);
 		if(!schema_def.is_empty(&schema_def)){
-			if(schema_def.allocated)
+			if(schema_def.str)
 				strncpy(cpy_sd,schema_def.str,schema_def.size);
 			else
 				strncpy(cpy_sd,schema_def.base,schema_def.size);
@@ -765,7 +766,7 @@ int main(int argc, char *argv[])
 		char cpy_dta[data_to_add.size + 1];
 		memset(cpy_dta,0,data_to_add.size + 1);
 		if(!data_to_add.is_empty(&data_to_add)){
-			if(data_to_add.allocated)
+			if(data_to_add.str)
 				strncpy(cpy_dta,data_to_add.str,data_to_add.size);
 			else
 				strncpy(cpy_dta,data_to_add.base,data_to_add.size);
@@ -834,24 +835,24 @@ int main(int argc, char *argv[])
 			while(is_locked(3, fd_schema,fd_index,fd_schema) == LOCKED);
 			while((r = lock(fd_index,WLOCK)) == WTLK);
 			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
+				display_to_stdout("can't acquire or release proper lock.\n");
 				goto clean_on_error_4;
 			}
 
 			lock_f = 1;
 			
 			if (add_index(index_num, cpy_fp, bucket) == -1) {
-				fprintf(stderr, "can't add index %s:%d",F, L - 2);
+				display_to_stdout( "can't add index %s:%d",F, L - 2);
 				goto clean_on_error_4;
 			}
 
 			char *mes = (index_num > 1) ? "indexes" : "index";
-			printf("%d %s added.\n", index_num, mes);
+			display_to_stdout("%d %s added.\n", index_num, mes);
 
 			/*release the lock*/
 			while((r = lock(fd_index,UNLOCK)) == WTLK);
 			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
+				display_to_stdout("can't acquire or release proper lock.\n");
 				goto clean_on_error_4;
 			}	
 
@@ -873,7 +874,7 @@ int main(int argc, char *argv[])
 			while(is_locked(3, fd_schema,fd_index,fd_schema) == LOCKED);
 			while((r = lock(fd_index,WLOCK)) == WTLK);
 			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
+				display_to_stdout("can't acquire or release proper lock.\n");
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
@@ -882,7 +883,7 @@ int main(int argc, char *argv[])
 				for both the index and the data file */
 			struct stat st;
 			if(fstat(fd_index,&st) != 0){
-				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,cpy_fp);
+				display_to_stdout("(%s): delete file '%s' failed.\n",prog,cpy_fp);
 				while((r = lock(fd_index,UNLOCK)) == WTLK);
 				close_file(1, fd_index);
 				close_prog_memory();
@@ -891,7 +892,7 @@ int main(int argc, char *argv[])
 			
 			close_file(1, fd_index);
 			delete_file(3, files[0], files[1],files[2]);
-			printf("file %s, deleted.\n", cpy_fp);
+			display_to_stdout("file %s, deleted.\n", cpy_fp);
 
 			/*release the lock*/
 			size_t l = number_of_digit(st.st_ino) + strlen(".lock") + 1;
@@ -899,7 +900,7 @@ int main(int argc, char *argv[])
 			memset(buf,0,l);
 			
 			if(copy_to_string(buf,l,"%ld.lock",st.st_ino) < 0){
-				fprintf(stderr,"cannot release the lock");
+				display_to_stdout("cannot release the lock");
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
@@ -914,7 +915,7 @@ int main(int argc, char *argv[])
 			/* locks here are released that is why we do not have to release them if an error occurs*/
 			int mode = check_handle_input_mode(cpy_sd,FCRT) | WR;
 			if(mode == -1){
-				fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+				display_to_stdout("(%s): check the input, value might be missng.\n",prog);
 				goto clean_on_error_5;
 			}
 			int fields_count = 0; 
@@ -927,20 +928,20 @@ int main(int argc, char *argv[])
 			case TYPE_WR:
 				fields_count = count_fields(cpy_sd,NULL);
 				if (fields_count > MAX_FIELD_NR || hd.sch_d->fields_num + fields_count > MAX_FIELD_NR) {
-					printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
+					display_to_stdout("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 					goto clean_on_error_5;
 				}
 
 				/*add field provided to the schema*/
 				if (!add_fields_to_schema(mode, fields_count, cpy_sd, hd.sch_d)) {
-					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
+					display_to_stdout("(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
 
 				break;
 			case HYB_WR:
 				if (!add_fields_to_schema(mode, fields_count,cpy_sd, hd.sch_d)) {
-					fprintf(stderr,"(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
+					display_to_stdout("(%s): add_fields_to_schema() failed, %s:%d\n",prog,F,L-1);
 					goto clean_on_error_5;
 				}
 				break;
@@ -956,7 +957,7 @@ int main(int argc, char *argv[])
 			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 			while((r = lock(fd_schema,WLOCK)) == WTLK);
 			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
+				display_to_stdout("can't acquire or release proper lock.\n");
 				goto clean_on_error_5;
 			}	
 
@@ -970,7 +971,7 @@ int main(int argc, char *argv[])
 			}
 
 			if (!write_header(fd_schema, &hd)) {
-				printf("write to file failed, %s:%d.\n", F, L - 2);
+				display_to_stdout("write to file failed, %s:%d.\n", F, L - 2);
 				goto clean_on_error_5;
 			}
 
@@ -978,12 +979,12 @@ int main(int argc, char *argv[])
 			/*release lock */
 			while((r = lock(fd_schema,UNLOCK)) == WTLK);
 			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
+				display_to_stdout("can't acquire or release proper lock.\n");
 				goto clean_on_error_5;
 			}	
 			lock_f = 0;
 		
-			printf("data added to schema!\n");
+			display_to_stdout("data added to schema!\n");
 			close_file(3, fd_index, fd_data, fd_schema);
 			
 			close_prog_memory();
@@ -1006,7 +1007,7 @@ int main(int argc, char *argv[])
 			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 			while((r = lock(fd_index,WLOCK)) == WTLK);
 			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
+				display_to_stdout("can't acquire or release proper lock.\n");
 				goto clean_on_error_6;
 			}
 			lock_f = 1;
@@ -1018,19 +1019,19 @@ int main(int argc, char *argv[])
 					{
 						int ind = 0, *p_i_nr = &ind;
 						if (!indexes_on_file(fd_index, p_i_nr)) {
-							printf("er index nr,%s:%d.\n", F, L - 4);
+							display_to_stdout("er index nr,%s:%d.\n", F, L - 4);
 							goto option_clean_on_error;
 						}
 
 						int buc_t = 0, *pbuck = &buc_t;
 						if (!nr_bucket(fd_index, pbuck)) {
-							printf("er index nr,%s:%d.\n", F, L - 4);
+							display_to_stdout("er index nr,%s:%d.\n", F, L - 4);
 							goto option_clean_on_error;
 						}
 						/* create *p_i_nr of ht and write them to file*/
 						HashTable *ht = (HashTable*)ask_mem(*p_i_nr * sizeof(HashTable));
 						if (!ht) {
-							fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+							display_to_stdout("ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 							goto option_clean_on_error;
 						}
 						int i;
@@ -1050,14 +1051,14 @@ int main(int argc, char *argv[])
 						/*  write the index file */
 
 						if (!write_index_file_head(fd_index, *p_i_nr)) {
-							printf("write to file failed,%s:%d",F, L - 2);
+							display_to_stdout("write to file failed,%s:%d",F, L - 2);
 							cancel_memory(NULL,ht,sizeof(HashTable)* *p_i_nr);
 							goto option_clean_on_error;
 						}
 
 						for (i = 0; i < *p_i_nr; i++) {
 							if (!write_index_body(fd_index, i, &ht[i])) {
-								printf("write to file failed. %s:%d.\n", F, L - 2);
+								display_to_stdout("write to file failed. %s:%d.\n", F, L - 2);
 								cancel_memory(NULL,ht,sizeof(HashTable)* *p_i_nr);
 								goto option_clean_on_error;
 							}
@@ -1067,7 +1068,7 @@ int main(int argc, char *argv[])
 
 						close_file(3,fd_index,fd_data,fd_schema);
 						cancel_memory(NULL,ht,sizeof(HashTable) * *p_i_nr);
-						printf("all record deleted from %s file.\n", cpy_fp);
+						display_to_stdout("all record deleted from %s file.\n", cpy_fp);
 						close_prog_memory();
 						return 0;
 
@@ -1079,13 +1080,13 @@ int main(int argc, char *argv[])
 					}
 					case AAR:
 					case FRC:
-						fprintf(stderr,"option '%s' not valid for delete path,\n",option);
+						display_to_stdout("option '%s' not valid for delete path,\n",option);
 						if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
 						close_file(3,fd_index,fd_data,fd_schema);
 						close_prog_memory();
 						return STATUS_ERROR;
 					default:
-						fprintf(stderr,"options not valid.\n");
+						display_to_stdout("options not valid.\n");
 						if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
 						close_file(3,fd_index,fd_data,fd_schema);
 						close_prog_memory();
@@ -1105,13 +1106,13 @@ int main(int argc, char *argv[])
 
 			int indexes = 0;
 			if (!indexes_on_file(fd_index, &indexes)) {
-				printf("indexes_on_file() failed, %s:%d.\n", F, L - 2);
+				display_to_stdout("indexes_on_file() failed, %s:%d.\n", F, L - 2);
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
 
 			if (index_nr >= indexes) {
-				printf("index out of bound.\n");
+				display_to_stdout("index out of bound.\n");
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
@@ -1127,14 +1128,14 @@ int main(int argc, char *argv[])
 					record_del = delete ((void *)kcpy, &ht[index_nr], key_type);
 
 			} else {
-				fprintf(stderr, "error key_converter().\n");
+				display_to_stdout( "error key_converter().\n");
 				free_ht_array(ht, index);
 				goto clean_on_error_6;
 			}
 
 
 			if (!record_del) {
-				printf("record %s not found.\n", kcpy);
+				display_to_stdout("record %s not found.\n", kcpy);
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
@@ -1147,7 +1148,7 @@ int main(int argc, char *argv[])
 						(void*)record_del->key.k.s, 
 						record_del->key.type, 
 						J_DEL) == -1){
-					fprintf(stderr,"(%s): failed to save del data.\n",prog);
+					display_to_stdout("(%s): failed to save del data.\n",prog);
 				}
 			}else{
 				uint32_t kn = record_del->key.k.n;
@@ -1156,11 +1157,11 @@ int main(int argc, char *argv[])
 						(void*)&kn, 
 						record_del->key.type, 
 						J_DEL) == -1){
-					fprintf(stderr,"(%s): failed to save del data.\n",prog);
+					display_to_stdout("(%s): failed to save del data.\n",prog);
 				}
 			}
 
-			printf("record %s deleted!.\n", kcpy);
+			display_to_stdout("record %s deleted!.\n", kcpy);
 			
 
 			free_ht_node(record_del);
@@ -1170,7 +1171,7 @@ int main(int argc, char *argv[])
 			/*  write the index file */
 
 			if (!write_index_file_head(fd_index, index)) {
-				printf("write to file failed, %s:%d", F, L- 2);
+				display_to_stdout("write to file failed, %s:%d", F, L- 2);
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
@@ -1179,7 +1180,7 @@ int main(int argc, char *argv[])
 			for (i = 0; i < index; i++){
 
 				if (!write_index_body(fd_index, i, &ht[i])) {
-					printf("write to file failed. %s:%d.\n", F, L - 2);
+					display_to_stdout("write to file failed. %s:%d.\n", F, L - 2);
 					free_ht_array(ht,index);
 					goto clean_on_error_6;
 				}
@@ -1212,12 +1213,12 @@ int main(int argc, char *argv[])
 			if(option){
 				option_value= convert_options(option);
 				if(option_value == -1){
-					fprintf(stderr,"option '%s' not valid\n",option);
+					display_to_stdout("option '%s' not valid\n",option);
 					goto clean_on_error_7;
 				}
 			}
 			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) {
-				fprintf(stderr,"(%s): schema different than file definition or worng syntax\n",prog);
+				display_to_stdout("(%s): schema different than file definition or worng syntax\n",prog);
 				goto clean_on_error_7;
 			}
 
@@ -1225,7 +1226,7 @@ int main(int argc, char *argv[])
 				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 				while((r = lock(fd_index,WLOCK)) == WTLK);
 				if(r == -1){
-					fprintf(stderr,"can't acquire or release proper lock.\n");
+					display_to_stdout("can't acquire or release proper lock.\n");
 					goto clean_on_error_7;
 				}
 				lock_f = 1;
@@ -1233,13 +1234,13 @@ int main(int argc, char *argv[])
 
 
 			if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1)){
-				fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
+				display_to_stdout( "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
 				goto clean_on_error_7;
 			}
 
 			free_record(&rec, rec.fields_num);
 			close_file(3, fd_index, fd_data, fd_schema);
-			printf("record %s wrote succesfully.\n", kcpy);
+			display_to_stdout("record %s wrote succesfully.\n", kcpy);
 			close_prog_memory();
 			return 0;
 
@@ -1262,7 +1263,7 @@ int main(int argc, char *argv[])
 			if(option){
 				option_value = convert_options(option);
 				if(option_value == -1){
-					fprintf(stderr,"option '%s' not valid\n",option);
+					display_to_stdout("option '%s' not valid\n",option);
 					goto clean_on_error_7;
 				}
 			}
@@ -1271,7 +1272,7 @@ int main(int argc, char *argv[])
 
 			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f,option) == -1) goto clean_on_error;
 
-			printf("record %s updated!\n", kcpy);
+			display_to_stdout("record %s updated!\n", kcpy);
 			while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3,fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
@@ -1313,13 +1314,13 @@ int main(int argc, char *argv[])
 			memset(&keys_data,0,sizeof(struct Keys_ht));
 			int er = 0;
 			if((er = keys(p_ht,&keys_data)) == -1){
-				fprintf(stderr,"(%s): cannot get all keys from index file.\n",prog);
+				display_to_stdout("(%s): cannot get all keys from index file.\n",prog);
 				close_file(3,fd_schema, fd_index, fd_data);
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
 			if(er == NO_ELEMENT){
-				fprintf(stdout,"(%s): file is empty.\n",prog);
+				display_to_stdout("(%s): file is empty.\n",prog);
 				close_file(3,fd_schema, fd_index, fd_data);
 				close_prog_memory();
 				return 0;
@@ -1330,20 +1331,20 @@ int main(int argc, char *argv[])
 			for (i = 0, j = i; i < end; i++) {
 				switch (keys_data.keys[i].type){
 				case STR:
-					printf("%d. %s\n", ++j, keys_data.keys[i].k.s);
+					display_to_stdout("%d. %s\n", ++j, keys_data.keys[i].k.s);
 					break;
 				case UINT:
 				{
-					printf("%d. %u   ", ++j, keys_data.keys[i].k.n);
+					display_to_stdout("%d. %u   ", ++j, keys_data.keys[i].k.n);
 					print_pack_str(keys_data.keys[i].paked_k);
-					printf("\n");
+					display_to_stdout("\n");
 					break;
 				}
 				default:
 					break;
 				}
 				if (i > 0 && (i % 20 == 0)){
-					printf("press return key. . .\nenter q to quit . . .\n");
+					display_to_stdout("press return key. . .\nenter q to quit . . .\n");
 					keyboard = (char)getc(stdin);
 				}
 				if (keyboard == 'q')

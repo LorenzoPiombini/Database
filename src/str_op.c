@@ -6,6 +6,7 @@
 #include <assert.h>
 #include "str_op.h"
 #include "types.h"
+#include "freestand.h"
 #include "common.h"
 #include "globals.h"
 #include "debug.h"
@@ -15,10 +16,6 @@ static char prog[] = "db";
 static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
 static int search_string_for_types(char *str, int *types);
-/*static functions to manage String struct*/
-static void free_str(struct String *str);
-static uint8_t empty(struct String *str);
-static int append(struct String *str, const char *str_to_appen);
 
 #define BASE 247
 static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
@@ -2105,43 +2102,6 @@ unsigned char is_integer(char *str)
 	return 1;
 }
 
-size_t number_of_digit(int n)
-{
-	if (n < 10)
-	{
-		return 1;
-	}
-	else if (n >= 10 && n < 100)
-	{
-		return 2;
-	}
-	else if (n >= 100 && n < 1000)
-	{
-		return 3;
-	}
-	else if (n >= 1000 && n < 10000)
-	{
-		return 4;
-	}
-	else if (n >= 10000 && n < 100000)
-	{
-		return 5;
-	}
-	else if (n >= 100000 && n < 1000000)
-	{
-		return 6;
-	}
-	else if (n >= 1000000 && n < 1000000000)
-	{
-		return 7;
-	}
-	else if (n >= 1000000000)
-	{
-		return 10;
-	}
-
-	return -1;
-}
 
 float __round_alt(float n)
 {
@@ -2621,126 +2581,6 @@ long long unpack(uint8_t *digits_index)
 }
 
 
-static int append(struct String *str, const char *str_to_appen)
-{
-	if(!str_to_appen) return -1;
-
-	size_t nl = strlen(str_to_appen);
-	if(str->size < DEF_STR){
-		if((str->size + nl) < DEF_STR){
-			strncat(str->base,str_to_appen,nl);	
-			str->size += nl;
-			return 0;
-		}
-		goto allocate_new_mem;
-	}
-
-allocate_new_mem:
-	if(str->str){
-		errno = 0;
-		char *n = (char*)reask_mem(str->str,str->size,(str->size + nl) * sizeof(char));
-		if(!n){
-			fprintf(stderr,"(%s): reask_mem() failed with '%s', %s:%d\n",prog,strerror(errno), __FILE__,__LINE__-2);	
-			return -1;
-		}
-		str->str = n;
-		if(str->allocated != SET_OFF){
-			strncat(str->str,str_to_appen,nl);
-		}else{
-			strncpy(str->str,str->base,str->size);
-			strncat(str->str,str_to_appen,nl);
-			memset(str->base,0,DEF_STR);
-		}
-			
-		str->size += nl;
-		return 0;
-	}
-
-	errno = 0;
-	str->str = (char*)ask_mem((str->size + nl) * sizeof(char));
-	if(!str->str){
-		fprintf(stderr,"(%s): ask_mem failed, %s:%d\n",prog,__FILE__,__LINE__-2);	
-		return -1;
-	}
-
-	if(str->allocated != SET_OFF){
-		strncat(str->str,str_to_appen,nl);
-	}else{
-		strncpy(str->str,str->base,str->size);
-		strncat(str->str,str_to_appen,nl);
-		memset(str->base,0,DEF_STR);
-	}
-
-	str->size += nl;
-
-	return 0;
-}
-
-int init(struct String *str,const char *val)
-{
-	if(!str) return -1;
-	if(str->base[0] != '\0' || str->str){
-		fprintf(stderr,"(%s): string has been already initialized",prog);
-		return -1;
-	}
-	
-	if(!val){
-		memset(str->base,0,DEF_STR);
-		str->str = NULL;
-		str->append = append;
-		str->is_empty = empty;
-		str->close = free_str;
-		str->allocated |= SET_OFF;
-		str->size = 0;
-		return 0;
-	}
-
-	size_t l = strlen(val);
-	if(l >= DEF_STR){
-		errno = 0;
-		str->str = (char*)ask_mem((l+1)*sizeof(char));
-		if(!str->str){
-			fprintf(stderr,"(%s): ask_mem failed, %s:%d\n",prog, __FILE__,__LINE__-2);	
-			return -1;
-		}
-		memset(str->str,0,l+1);
-		strncpy(str->str,val,l);
-		str->append = append;
-		str->is_empty = empty;
-		str->allocated |= SET_ON;
-		str->size = l;
-		str->close = free_str;
-		memset(str->base,0,DEF_STR);
-		return 0;
-	}
-	strncpy(str->base,val,l);
-	str->allocated |= SET_OFF;
-	str->size = l;
-	str->append = append;
-	str->is_empty = empty;
-	str->close = free_str;
-	return 0;
-}
-
-static uint8_t empty(struct String *str)
-{
-	if(str->str) return *str->str == '\0';
-	return str->base[0] == '\0';
-}
-
-static void free_str(struct String *str)
-{
-	if(str->allocated){
-		cancel_memory(NULL,str->str,strlen(str->str)+1);
-		str->allocated |= SET_OFF;
-		str->append = NULL;
-		return;
-	}	
-
-	memset(str->base,0,DEF_STR);
-	str->allocated |= SET_OFF;
-	str->size = 0;
-}
 
 struct tok_handler{
 	char *original_tok;
@@ -2937,28 +2777,6 @@ double string_to_double(char *str)
 }
 
 
-int long_to_string(long n, char *buff){
-	
-	int pos = 0;
-	if(n < 0){
-		pos++;
-		buff[0] = '-';
-		n *= -1;
-	}
-	pos += number_of_digit(n)-1;
-	if(n == 0){
-		buff[pos] = (char)(n + (int)'0');
-	}
-	while(n > 0){
-		int m = n % 10;
-		if(pos >= 0)
-			buff[pos] = (char)(m + (int)'0');
-
-		n /= 10;	
-		pos--;
-	}
-	return 0;
-}
 
 int double_to_string(double d, char *buff){
 	

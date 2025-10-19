@@ -61,18 +61,6 @@ the number in e.i (int or long)*/
 #define SET_ON 1
 #define SET_OFF 0
 
-struct String{
-	uint8_t allocated : 1;
-	char base[DEF_STR];
-	char *str;	
-	size_t size;
-	int (*append)(struct String*,const char *);
-	uint8_t (*is_empty)(struct String*);
-	void (*close)(struct String*);
-};
-
-
-int init(struct String* str,const char *val);
 char *get_sub_str(char *start_delim, char *end_delim, char *str);
 int get_array_values(char *src, char ***values);
 int is_num(char *key);
@@ -86,17 +74,15 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 int get_value_types(char *fields_input, int fields_count, int steps, int *types);
 void free_strs(int fields_num, int count, ...);
 int get_values_hyb(char *buff,char ***values,  int fields_count);
-char ** get_values_with_no_types(char *buff,int fields_count);
+char **get_values_with_no_types(char *buff,int fields_count);
 char **get_values(char *fields_input, int fields_count);
 int is_file_name_valid(char *str);
 void strip(const char c, char *str);
 void replace(const char c, const char with, char *str);
-/*char return_first_char(char *str);*/
 char return_last_char(char *str);
 size_t digits_with_decimal(float n);
 unsigned char is_floaintg_point(char *str);
 unsigned char is_integer(char *str);
-size_t number_of_digit(int n);
 float __round_alt(float n);
 unsigned char is_number_in_limits(char *value);
 int find_last_char(const char c, char *src);
@@ -118,7 +104,6 @@ char *tok(char *str, char *delim);
 char *duplicate_str(char *str);
 long string_to_long(char *str);
 double string_to_double(char *str);
-int long_to_string(long n, char *buff);
 int double_to_string(double d, char *buff);
 int extract_numbers_from_string(char *buff,size_t size,char *format,...);
 int copy_to_string(char *buff,size_t size,char *format,...);
