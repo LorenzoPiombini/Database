@@ -56,7 +56,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	if(offset == KEY_NOT_FOUND){
 		fprintf(stderr,"(%s): record not found.\n",prog);
 		destroy_hasht(p_ht);
-		return STATUS_ERROR;
+		return KEY_NOT_FOUND;
 	}
 	rec->offset = offset;
 	destroy_hasht(p_ht);
@@ -440,8 +440,8 @@ int update_rec(char *file_path,
 		*lock_f = 1;
 	}
 
-	ui8 err = 0;
-	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds) == -1)){
+	i8 err = 0;
+	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds)) == -1){
 		return -1;
 	}
 
