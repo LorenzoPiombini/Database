@@ -1,15 +1,15 @@
 #ifndef __TYPES_H_
-#define __TYPES_H_
+#define __TYPES_H_ 1
 
 
-typedef 	char			int8_t;
-typedef 	unsigned char	uint8_t;
-typedef 	unsigned short	uint16_t;
-typedef 	short			int16_t;
-typedef 	unsigned int	uint32_t;
-typedef 	int				int32_t;
-typedef 	unsigned long	uint64_t;
-typedef 	long			int64_t;
+typedef 	char			i8;
+typedef 	unsigned char	ui8;
+typedef 	unsigned short	ui16;
+typedef 	short			i16;
+typedef 	unsigned int	ui32;
+typedef 	int				i32;
+typedef 	unsigned long	ui64;
+typedef 	long			i64;
 typedef 	unsigned long 	size_t;
 typedef		long int		file_offset;
 typedef 	long long		process_id;

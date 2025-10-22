@@ -628,10 +628,10 @@ int main(int argc, char *argv[])
 					} else if (key_type == UINT) {
 						if (key_conv) {
 							if (!set(key_conv, key_type, offset, &ht)) {
-								cancel_memory(NULL,key_conv,sizeof(uint32_t));
+								cancel_memory(NULL,key_conv,sizeof(ui32));
 								goto clean_on_error_2;
 							}
-							cancel_memory(NULL,key_conv,sizeof(uint32_t));
+							cancel_memory(NULL,key_conv,sizeof(ui32));
 						}
 					} else if (key_type == STR) {
 						/*create a new key value pair in the hash table*/
@@ -1123,7 +1123,7 @@ int main(int argc, char *argv[])
 			Node *record_del = NULL;
 			if (key_conv) {
 				record_del = delete (key_conv, &ht[index_nr], key_type);
-				cancel_memory(NULL,key_conv,sizeof(uint32_t));
+				cancel_memory(NULL,key_conv,sizeof(ui32));
 			}else if (key_type == STR) {
 					record_del = delete ((void *)kcpy, &ht[index_nr], key_type);
 
@@ -1151,7 +1151,7 @@ int main(int argc, char *argv[])
 					display_to_stdout("(%s): failed to save del data.\n",prog);
 				}
 			}else{
-				uint32_t kn = record_del->key.k.n;
+				ui32 kn = record_del->key.k.n;
 				if(journal(fd_index, 
 						record_del->value, 
 						(void*)&kn, 
@@ -1239,6 +1239,7 @@ int main(int argc, char *argv[])
 			}
 
 			free_record(&rec, rec.fields_num);
+			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_index, fd_data, fd_schema);
 			display_to_stdout("record %s wrote succesfully.\n", kcpy);
 			close_prog_memory();

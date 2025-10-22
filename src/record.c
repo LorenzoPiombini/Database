@@ -30,7 +30,7 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	rec->fields_num = sch.fields_num;
 	rec->count = 1;
 	rec->fields = (struct Field*)ask_mem((sizeof(struct Field)*sch.fields_num));
-	rec->field_set = (uint8_t*)ask_mem(sizeof(uint8_t)*sch.fields_num);
+	rec->field_set = (ui8*)ask_mem(sizeof(ui8)*sch.fields_num);
 	if(!rec->fields || !rec->field_set){
 		if(rec->field_set) cancel_memory(NULL,rec->field_set,sch.fields_num);
 		if(rec->fields) cancel_memory(NULL,rec->fields,sizeof(struct Field) * sch.fields_num);
@@ -40,7 +40,7 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	memset(rec->fields,0,sizeof(struct Field) * sch.fields_num);
 	memset(rec->field_set,0,sch.fields_num);
 
-	uint16_t i;
+	ui16 i;
 	for(i = 0; i < sch.fields_num;i++){
 		strncpy(rec->fields[i].field_name,sch.fields_name[i],strlen(sch.fields_name[i]));
 		memset(&rec->fields[i].field_name[strlen(rec->fields[i].field_name)],0,MAX_FILED_LT-strlen(rec->fields[i].field_name));
@@ -74,12 +74,12 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 		sch->types[i] = types_i[i];
 	}
 
-	sch->fields_num = (uint16_t)fields_c;
+	sch->fields_num = (ui16)fields_c;
 	return 0;
 }
 
 int free_schema(struct Schema *sch){
-	uint16_t i;
+	ui16 i;
 	for(i = 0; i < sch->fields_num;i++){
 		if(cancel_memory(NULL,sch->fields_name[i],strlen(sch->fields_name[i]))){
 			fprintf(stderr,"cancel_memory() failed, %s:%d.\n",__FILE__,__LINE__-1);
@@ -104,7 +104,7 @@ unsigned char set_field(struct Record_f *rec,
 				char *field_name, 
 				enum ValueType type, 
 				char *value,
-				uint8_t field_bit)
+				ui8 field_bit)
 {
 	strncpy(rec->fields[index].field_name,field_name,strlen(field_name));
 	rec->fields[index].type = type;
@@ -1207,7 +1207,7 @@ unsigned char set_field(struct Record_f *rec,
 				printf("pack value not allowed on this system.\n");
 				return 0;
 			}
-			rec->fields[index].data.p = (uint32_t)p;
+			rec->fields[index].data.p = (ui32)p;
 
 			break;
 	}
@@ -1373,7 +1373,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 	rec->field_set[index] = 0;
 	if(!rec->fields[index].data.file.recs) return;
 
-	uint32_t k;
+	ui32 k;
 	for(k = 0; k < rec->fields[index].data.file.count;k++){
 		if(!optimized)
 			free_record(&rec->fields[index].data.file.recs[k],rec->fields[index].data.file.recs[k].fields_num);
@@ -1503,7 +1503,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 			break;
 		case TYPE_PACK:
 		{
-			uint8_t packed[5];
+			ui8 packed[5];
 			pack(rec.fields[i].data.p,packed);
 			print_pack_str(packed);
 			printf("\n");
@@ -1621,7 +1621,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 
 			if(rec.fields[i].data.file.count == 0) break;
 				printf("\n");
-			uint32_t x;
+			ui32 x;
 			for(x = 0; x < rec.fields[i].data.file.count; x++){
 				/*the last parameters is 1,will serve for formatting reason*/
 					display_data(rec.fields[i].data.file.recs[x],max,1);
@@ -1697,7 +1697,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 	dest->fields_num = src->fields_num;
 
 	char data[30];
-	uint16_t i;
+	ui16 i;
 	for (i = 0; i < src->fields_num; i++)
 	{
 		switch (src->fields[i].type)
@@ -1965,7 +1965,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				dest->fields[i].data.file.count = src->fields[i].data.file.count;
 			}
 
-			uint32_t j;
+			ui32 j;
 			for (j = 0; j < src->fields[i].data.file.count; j++) {
 				if(!copy_rec(&src->fields[i].data.file.recs[j],&dest->fields[i].data.file.recs[j],sch)){
 					fprintf(stderr,"copy_rec() failed, %s:%d.\n",F,L-1);
@@ -2401,7 +2401,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 
 int schema_has_type(struct Header_d *hd)
 {
-	uint16_t i;
+	ui16 i;
 	for(i = 0;i < hd->sch_d->fields_num;i++)
 		if(hd->sch_d->types[i] == -1) return 0;
 
@@ -2422,7 +2422,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 		int af = 0;
 		int ad = 0;
 		int as = 0;
-		uint32_t tf = 0;
+		ui32 tf = 0;
 		int dif = 0;
 
 		int i;
@@ -2633,7 +2633,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 					if(src->fields[i].data.file.recs){
 						/*if the files have the same count*/
 						if(src->fields[i].data.file.count == dest->fields[i].data.file.count){
-							uint32_t k;
+							ui32 k;
 							for(k = 0; k < src->fields[i].data.file.count; k++){
 								if(compare_rec(&src->fields[i].data.file.recs[k],
 											&dest->fields[i].data.file.recs[k]) == -1){ 
@@ -2650,7 +2650,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 
 						if(src->fields[i].data.file.count > dest->fields[i].data.file.count){
 							/*compare the records*/
-							uint32_t u,y;
+							ui32 u,y;
 							for(u = 0; u < src->fields[i].data.file.count;u++){
 								for(y = 0;y < dest->fields[i].data.file.count;y++){
 									if(compare_rec(&src->fields[i].data.file.recs[u],

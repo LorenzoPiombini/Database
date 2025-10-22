@@ -110,11 +110,11 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			return STATUS_ERROR;
 		}
 
-		uint64_t up_r_pos_ne = 0; 
+		ui64 up_r_pos_ne = 0; 
 		struct Record_f *temp = NULL;
 		temp = rec;
 		do{
-			memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(uint64_t));
+			memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(ui64));
 			if(up_r_pos_ne == 0) break;
 
 			struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
@@ -167,7 +167,7 @@ int check_data(char *file_path,char *data_to_add,
 
 	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields(":",data_to_add,pos,*(hd->sch_d)); 
 	
-	uint8_t  cnt = (uint8_t) count_fields(data_to_add,":");
+	ui8  cnt = (ui8) count_fields(data_to_add,":");
 	if(cnt >= 3) cnt -= 1; 	
 
 	if((cnt == hd->sch_d->fields_num) && strstr(data_to_add,"{") && __UTILITY){
@@ -440,7 +440,7 @@ int update_rec(char *file_path,
 		*lock_f = 1;
 	}
 
-	uint8_t err = 0;
+	ui8 err = 0;
 	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds) == -1)){
 		return -1;
 	}
@@ -508,8 +508,8 @@ int update_rec(char *file_path,
 
 		/* write the update records to file */
 		int changed = 0;
-		uint16_t updates = 0; /* bool value if 0 no updates*/
-		uint32_t i;
+		ui16 updates = 0; /* bool value if 0 no updates*/
+		ui32 i;
 		for (i = 0; i < rec_old.count; i++) {
 			if (positions[i] == 'n') continue;
 
@@ -677,10 +677,10 @@ static int set_rec(struct HashTable *ht, void *key, file_offset offset, int key_
 	} else if (key_type == UINT) {
 		if (key_conv) {
 			if (!set(key_conv, key_type, offset, &ht[0])){
-				cancel_memory(NULL,key_conv,sizeof(uint32_t));
+				cancel_memory(NULL,key_conv,sizeof(ui32));
 				return -1;
 			}
-			cancel_memory(NULL,key_conv,sizeof(uint32_t));
+			cancel_memory(NULL,key_conv,sizeof(ui32));
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
@@ -700,7 +700,7 @@ static file_offset get_rec_position(struct HashTable *ht, void *key, int key_typ
 		} else if (key_type == UINT) {
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
-				cancel_memory(NULL,key_conv,sizeof(uint32_t));
+				cancel_memory(NULL,key_conv,sizeof(ui32));
 				if(offset == -1) return KEY_NOT_FOUND;
 
 				return offset;

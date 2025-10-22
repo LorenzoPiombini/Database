@@ -5,6 +5,7 @@
 #include "date.h"
 #include "debug.h"
 #include "str_op.h"
+#include "freestand.h"
 
 #define SEC_IN_A_DAY 60*60*24
 
@@ -207,7 +208,7 @@ int create_string_date(long time, char* date_str)
 	}
 
 
-	if(copy_to_string(date_str,9,"%s-%d-%d",date_t->tm_mon+1,
+	if(copy_to_string(date_str,9,"%d-%d-%d",date_t->tm_mon+1,
 											date_t->tm_mday,
 											date_t->tm_year-100) == -1){
 		printf("copy_to_string failed, %s:%d.\n",F,L-2);
@@ -245,9 +246,9 @@ int get_service()
 static int is_valid_date(char *date)
 {
 	char *p = date;
-	uint8_t dash = 0;
-	uint8_t slash = 0;
-	uint8_t dot = 0;
+	ui8 dash = 0;
+	ui8 slash = 0;
+	ui8 dot = 0;
 	for(; *p != '\0';p++){
 		if(isalpha(*p)) return -1;
 		if(*p == ' ' || *p == '\t') return -1;
@@ -265,7 +266,7 @@ static int is_valid_date(char *date)
 }
 
 
-uint32_t convert_date_to_number(char *date)
+ui32 convert_date_to_number(char *date)
 {
 	
 	long seconds = 0;

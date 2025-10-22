@@ -217,7 +217,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 				}
 			}
 			j -= fields_num;
-			uint8_t bitfield = 0; 
+			ui8 bitfield = 0; 
 			if (found == 0) rec->field_set[i] = bitfield;
 		}
 
@@ -300,7 +300,7 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 			char *number = "0";
 			char *fp = "0.0";
 			char *str = "null";
-			uint8_t bitfield = 0; 
+			ui8 bitfield = 0; 
 			if (found == 0) {
 				switch (sch->types[i]){
 				case -1:
@@ -400,7 +400,7 @@ int create_header(struct Header_d *hd)
 int write_empty_header(int fd, struct Header_d *hd)
 {
 
-	uint32_t id = swap32(hd->id_n); /*converting the endianess*/
+	ui32 id = swap32(hd->id_n); /*converting the endianess*/
 	if (write(fd, &id, sizeof(id)) == -1)
 	{
 		perror("write header id.\n");
@@ -408,7 +408,7 @@ int write_empty_header(int fd, struct Header_d *hd)
 		return 0;
 	}
 
-	uint16_t vs = swap16(hd->version);
+	ui16 vs = swap16(hd->version);
 	if (write(fd, &vs, sizeof(vs)) == -1)
 	{
 		perror("write header version.\n");
@@ -417,7 +417,7 @@ int write_empty_header(int fd, struct Header_d *hd)
 	}
 
 	/* important we need to write 0 field_number when the user creates a file with no data*/
-	uint16_t fn = swap16((uint16_t)hd->sch_d->fields_num);
+	ui16 fn = swap16((ui16)hd->sch_d->fields_num);
 	if (write(fd, &fn, sizeof(fn)) == -1)
 	{
 		perror("writing fields number header.");
@@ -435,21 +435,21 @@ int write_header(int fd, struct Header_d *hd)
 		return 0;
 	}
 
-	uint32_t id = swap32(hd->id_n); /*converting the endianness*/
+	ui32 id = swap32(hd->id_n); /*converting the endianness*/
 	if (write(fd, &id, sizeof(id)) == -1){
 		perror("write header id.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
-	uint16_t vs = swap16(hd->version);
+	ui16 vs = swap16(hd->version);
 	if (write(fd, &vs, sizeof(vs)) == -1){
 		perror("write header version.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
-	uint16_t fn = swap16((uint16_t)hd->sch_d->fields_num);
+	ui16 fn = swap16((ui16)hd->sch_d->fields_num);
 
 	if (write(fd, &fn, sizeof(fn)) == -1){
 		perror("writing fields number header.");
@@ -457,10 +457,10 @@ int write_header(int fd, struct Header_d *hd)
 		return 0;
 	}
 
-	uint16_t i = 0;
+	ui16 i = 0;
 	for (i = 0; i < hd->sch_d->fields_num; i++) {
 		size_t l = strlen(hd->sch_d->fields_name[i]) + 1;
-		uint32_t l_end = swap32((uint32_t)l);
+		ui32 l_end = swap32((ui32)l);
 
 		if (write(fd, &l_end, sizeof(l_end)) == -1) {
 			perror("write size of name in header.\n");
@@ -477,7 +477,7 @@ int write_header(int fd, struct Header_d *hd)
 
 	for (i = 0; i < hd->sch_d->fields_num; i++) {
 
-		uint32_t type = swap32((uint32_t)hd->sch_d->types[i]);
+		ui32 type = swap32((ui32)hd->sch_d->types[i]);
 		if (write(fd, &type, sizeof(type)) == -1){
 			fprintf(stderr,"(%s): writing types from header failed %s:%d.\n",prog, __FILE__, __LINE__ - 3);
 			return 0;
@@ -519,7 +519,7 @@ int read_header(int fd, struct Header_d *hd)
 	hd->id_n = id;
 	hd->version = vs;
 
-	uint16_t field_n = 0;
+	ui16 field_n = 0;
 	if (read(fd, &field_n, sizeof(field_n)) == -1) {
 		perror("reading field_number header.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
@@ -542,9 +542,9 @@ int read_header(int fd, struct Header_d *hd)
 		return 1;
 	} 
 
-	uint16_t i;
+	ui16 i;
 	for (i = 0; i < hd->sch_d->fields_num; i++) {
-		uint32_t l_end = 0;
+		ui32 l_end = 0;
 		if (read(fd, &l_end, sizeof(l_end)) == -1) {
 			perror("reading size of field name.\n");
 			printf("parse.c l %d.\n", __LINE__ - 3);
@@ -567,7 +567,7 @@ int read_header(int fd, struct Header_d *hd)
 	}
 
 	for (i = 0; i < hd->sch_d->fields_num; i++) {
-		uint32_t type = 0;
+		ui32 type = 0;
 		if (read(fd, &type, sizeof(type)) == -1) {
 			perror("reading types from header.");
 			printf("parse.c l %d.\n", __LINE__ - 3);
@@ -594,7 +594,7 @@ unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, s
 	char *names_array_for_sort[MAX_FIELD_NR];
 	memset(names_array_for_sort,0,MAX_FIELD_NR*sizeof(char*));
 
-	uint16_t i;
+	ui16 i;
 	for (i = 0; i < hd->sch_d->fields_num; i++) {
 		copy_sch[i] = hd->sch_d->fields_name[i];
 		types_cp[i] = hd->sch_d->types[i];
@@ -660,7 +660,7 @@ int check_schema_with_no_types(char names[][MAX_FILED_LT], struct Header_d hd, c
 	char *copy_sch[MAX_FILED_LT];
 	memset(copy_sch,0,MAX_FILED_LT*sizeof(char*));
 
-	uint16_t i;
+	ui16 i;
 	for (i = 0; i < hd.sch_d->fields_num; i++) {
 		copy_sch[i] = hd.sch_d->fields_name[i];
 		sorted_names[i] = names[i];
@@ -877,7 +877,7 @@ unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, 
 	int result = SCHEMA_CT;
 
 	int i;
-	uint16_t j;
+	ui16 j;
 	for (i = 0; i < fields_num; i++){
 		for (j = 0; j < hd->sch_d->fields_num; j++){
 			if (strncmp(names[i], hd->sch_d->fields_name[j],strlen(names[i])) == 0){
@@ -932,7 +932,7 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 	int pos[fields_num]; /* to store the field position that are already in the schema*/
 	memset(pos,-1,fields_num);
 	
-	uint16_t i;
+	ui16 i;
 	int j;
 	for (i = 0; i < sch->fields_num; i++) {
 		for (j = 0; j < fields_num; j++) {
@@ -1382,7 +1382,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 
 							char *p = NULL;
 							int index = 0;
-							uint8_t is_array = 0;
+							ui8 is_array = 0;
 							while((p = strstr((*values)[j],","))){
 								is_array = 1;
 								*p ='@';
@@ -1604,7 +1604,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 	char **values = NULL;
 	int count = 0;
 	int err = 0;
-	uint8_t sorted = 0;
+	ui8 sorted = 0;
 
 	if(mode == NO_TYPE_WR){
 		values = extract_fields_value_types_from_input(buffer,names,types_i, &count);
@@ -1764,7 +1764,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					if(pos[0] != -1){
 						char *field_n =	find_field_to_reset_delim(pos,buffer);
 						size_t fd_nl = strlen(field_n);
-						uint16_t i;
+						ui16 i;
 						for(i = 0; i < count; i++){
 							if(fd_nl != strlen(names[i])) continue;
 							if(strncmp(field_n,names[i], fd_nl) == 0){
@@ -1840,7 +1840,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					if(pos[0] != -1){
 						char *field_n =	find_field_to_reset_delim(pos,buffer);
 						size_t fd_nl = strlen(field_n);
-						uint16_t i;
+						ui16 i;
 						for(i = 0; i < count; i++){
 							if(fd_nl != strlen(names[i])) continue;
 							if(strncmp(field_n,names[i], fd_nl) == 0){
@@ -1893,7 +1893,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					if(pos[0] != -1){
 						char *field_n =	find_field_to_reset_delim(pos,buffer);
 						size_t fd_nl = strlen(field_n);
-						uint16_t i;
+						ui16 i;
 						for(i = 0; i < fields_count; i++){
 							if(fd_nl != strlen(names[i])) continue;
 							if(strncmp(field_n,names[i], fd_nl) == 0){
@@ -1929,7 +1929,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					if(pos[0] != -1){
 						char *field_n =	find_field_to_reset_delim(pos,buffer);
 						size_t fd_nl = strlen(field_n);
-						uint16_t i;
+						ui16 i;
 						for(i = 0; i < hd->sch_d->fields_num; i++){
 							if(fd_nl != strlen(names[i])) continue;
 							if(strncmp(field_n,names[i], fd_nl) == 0){
@@ -2060,7 +2060,7 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 					if(pos[0] != -1){
 						char *field_n =	find_field_to_reset_delim(pos,buffer);
 						size_t fd_nl = strlen(field_n);
-						uint16_t i;
+						ui16 i;
 						for(i = 0; i < hd->sch_d->fields_num; i++){
 							if(fd_nl != strlen(names[i])) continue;
 							if(strncmp(field_n,names[i], fd_nl) == 0){
@@ -2580,7 +2580,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						rec_old[0]->fields[j].data.file.recs = n_recs;
 						rec_old[0]->fields[j].data.file.count = n_size;
 						rec_old[0]->field_set[j] = 1;
-						uint32_t k,t;
+						ui32 k,t;
 						for(t = 0,k = rec->fields[0].data.file.count;
 								k < rec_old[0]->fields[j].data.file.count; 
 								k++,t++){
@@ -3039,7 +3039,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 {
 	int dif = 0;
 	
-	uint32_t i;
+	ui32 i;
 	for (i = 0; i < rec_old[0]->count; i++) {
 		if (positions[i] != 'y' || positions[i] != 'e')	positions[i] = 'n';
 
@@ -3456,7 +3456,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				rec_old[i]->fields[index].data.file.recs = n_recs;
 				rec_old[i]->fields[index].data.file.count = n_size;
 				rec_old[i]->field_set[index] = 1;
-				uint32_t k,t;
+				ui32 k,t;
 				for(t = 0,k = rec->fields[index].data.file.count;
 						k < rec_old[i]->fields[index].data.file.count; 
 						k++,t++){
@@ -3495,7 +3495,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 					rec_old[i]->fields[index].data.file.count = rec->fields[index].data.file.count;
 				}
 				rec_old[i]->field_set[index] = 1;
-				uint32_t k;
+				ui32 k;
 				for(k = 0; k < rec_old[i]->fields[index].data.file.count; k++){
 					if(!copy_rec(&rec->fields[index].data.file.recs[k],
 								&rec_old[i]->fields[index].data.file.recs[k],

@@ -12,13 +12,13 @@
 
 struct Key{
 	int type;
-	uint8_t size;
+	ui8 size;
 	union {
-		uint16_t n16;
-		uint32_t n;
+		ui16 n16;
+		ui32 n;
 		char *s;
 	}k;
-	uint8_t paked_k[5];
+	ui8 paked_k[5];
 };/* 25 bytes*/
 
 typedef struct Node {
@@ -45,7 +45,7 @@ struct Keys_ht{
  * this will be used along with a very large prime number ( 2^t - 1 )
  * the decison of using such a large number is mainly because i want to be able
  * to handle a very large system and the integer key for the hash table
- * will be of type uint32_t wich give us more than 4 billions of key for each hash table
+ * will be of type ui32 wich give us more than 4 billions of key for each hash table
  * this hash table will be used as index file in a file db,
  * so you will have the possibility to store billions of records.
  * */

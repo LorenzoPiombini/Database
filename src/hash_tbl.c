@@ -54,13 +54,13 @@ int write_ht(int fd, HashTable *ht)
 {
 	int i = 0;
 
-	uint32_t sz_n = swap32(ht->size);
+	ui32 sz_n = swap32(ht->size);
 	if (write(fd, &sz_n, sizeof(sz_n)) == -1) {
 		perror("writing index file");
 		return 0;
 	}
 
-	uint32_t ht_ln = swap32(len(*ht));
+	ui32 ht_ln = swap32(len(*ht));
 	if (write(fd, &ht_ln, sizeof(ht_ln)) == -1) {
 		perror("write ht length");
 		return 0;
@@ -80,9 +80,9 @@ int write_ht(int fd, HashTable *ht)
 			{
 			case STR:
 			{
-				uint32_t type = swap32(current->key.type);
-				uint64_t key_l = swap64(strlen(current->key.k.s));
-				uint64_t value = swap64(current->value);
+				ui32 type = swap32(current->key.type);
+				ui64 key_l = swap64(strlen(current->key.k.s));
+				ui64 value = swap64(current->value);
 
 				if (write(fd, &type, sizeof(type)) == -1 ||
 					write(fd, &key_l, sizeof(key_l)) == -1 ||
@@ -96,12 +96,12 @@ int write_ht(int fd, HashTable *ht)
 			}
 			case UINT:
 			{
-				uint32_t type = swap32(current->key.type);
-				uint8_t size = (uint8_t)current->key.size;
-				uint64_t value = swap64(current->value);
+				ui32 type = swap32(current->key.type);
+				ui8 size = (ui8)current->key.size;
+				ui64 value = swap64(current->value);
 				
-				uint32_t k = 0;
-				uint16_t k16 = 0;
+				ui32 k = 0;
+				ui16 k16 = 0;
 				if(current->key.size == 32)
 					k = swap32(current->key.k.n);
 				else
@@ -149,17 +149,17 @@ int hash(void *key, int size, int key_type)
 		return -1;
 	}
 
-	uint32_t integer_key = 0;
+	ui32 integer_key = 0;
 	char *string_key = NULL;
 	int hash = 0;
 	int number = 78;
 
 	/*compute the prime number */
-	uint32_t prime = (uint32_t)(power(2, 31) - 1);
+	ui32 prime = (ui32)(power(2, 31) - 1);
 	switch (key_type) {
 	case UINT:
 	{
-		integer_key = *(uint32_t *)key;
+		integer_key = *(ui32 *)key;
 		/*printf("size is %d, integer_key %u, coprime is %d, prime is %d\n",size,integer_key,COPRIME,prime);*/
 		hash = ((COPRIME * integer_key + number) % prime) % size;
 		break;
@@ -195,12 +195,12 @@ file_offset get(void *key, HashTable *tbl, int key_type)
 			break;
 		case UINT:
 		{
-			if(temp->key.size == 16 && *(uint16_t*)key < USHRT_MAX){
-				if(temp->key.k.n16 == *(uint16_t *)key)
+			if(temp->key.size == 16 && *(ui16*)key < USHRT_MAX){
+				if(temp->key.k.n16 == *(ui16 *)key)
 					return temp->value;
 
-			}else if (temp->key.size == 32 && *(uint32_t*)key < UINT_MAX){
-				if(temp->key.k.n == *(uint32_t*)key)		
+			}else if (temp->key.size == 32 && *(ui32*)key < UINT_MAX){
+				if(temp->key.k.n == *(ui32*)key)		
 					return temp->value;
 			}
 
@@ -228,11 +228,11 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 	switch (key_type){
 	case UINT:
 	{
-		if(*(uint32_t*)key < USHRT_MAX){ 
-			new_node->key.k.n16 = *(uint16_t *)key;
+		if(*(ui32*)key < USHRT_MAX){ 
+			new_node->key.k.n16 = *(ui16 *)key;
 			new_node->key.size = 16;
 		}else{ 
-			new_node->key.k.n = *(uint32_t *)key;
+			new_node->key.k.n = *(ui32 *)key;
 			new_node->key.size = 32;
 		}
 		break;
@@ -377,7 +377,7 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 		{
 
 			if(current->key.size == 16){
-				if (current->key.k.n16 == *(uint16_t *)key)
+				if (current->key.k.n16 == *(ui16 *)key)
 				{
 					if (previous == NULL)
 						tbl->data_map[index] = current->next;
@@ -387,7 +387,7 @@ Node *delete(void *key, HashTable *tbl, int key_type)
 					return current;
 				}
 			}else{
-				if (current->key.k.n == *(uint32_t *)key)
+				if (current->key.k.n == *(ui32 *)key)
 				{
 					if (previous == NULL)
 						tbl->data_map[index] = current->next;

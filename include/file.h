@@ -1,10 +1,9 @@
 #ifndef FILE_H
-#define FILE_H
+#define FILE_H 1
 
 #include "record.h"
 #include "hash_tbl.h"
 #include "parse.h"
-
 
 
 #if defined(__linux__)
@@ -12,10 +11,10 @@
 #define STD_RAM_FILE 4096*1000 /* 4 MiB */  
 
 struct Ram_file{
-	uint8_t *mem; /* memory */
-	uint64_t capacity; /*memory size*/
-	uint64_t size; /* size of the data written to memory*/
-	uint64_t offset; /* the place where we are in the file in memory */
+	ui8 *mem; /* memory */
+	ui64 capacity; /*memory size*/
+	ui64 size; /* size of the data written to memory*/
+	ui64 offset; /* the place where we are in the file in memory */
 };
 
 /*API end points*/
@@ -52,7 +51,7 @@ void close_ram_file(struct Ram_file *ram);
 
 #elif defined(_WIN32)
 
-HANDLE open_file(char *fileName, uint32_t use_trunc)
+HANDLE open_file(char *fileName, ui32 use_trunc)
 
 #endif /* os if*/
 #endif /* ifndef */

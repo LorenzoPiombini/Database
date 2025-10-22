@@ -95,17 +95,13 @@ int count_delim(char *delim, char *str);
 int find_double_delim(char *delim, char *str, int *pos, struct Schema sch);
 int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch);
 char *find_field_to_reset_delim(int *pos, char *buffer);
-void pack(uint32_t n, uint8_t *digits_indexes);
-uint32_t power(uint32_t n, int pow);
-long long unpack(uint8_t *digits_index);
-void print_pack_str(uint8_t *digits_index);
+void pack(ui32 n, ui8 *digits_indexes);
+ui32 power(ui32 n, int pow);
+long long unpack(ui8 *digits_index);
+void print_pack_str(ui8 *digits_index);
 void clear_tok();
 char *tok(char *str, char *delim);
 char *duplicate_str(char *str);
-long string_to_long(char *str);
-double string_to_double(char *str);
-int double_to_string(double d, char *buff);
 int extract_numbers_from_string(char *buff,size_t size,char *format,...);
-int copy_to_string(char *buff,size_t size,char *format,...);
 
 #endif /* STR_OP_H */

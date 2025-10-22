@@ -19,6 +19,6 @@ int create_string_date(long time, char* date_str);
 long convert_str_date_to_seconds(char* date);
 int get_service();
 int convert_number_to_date(char *date, int date_number);
-uint32_t convert_date_to_number(char *date);
+ui32 convert_date_to_number(char *date);
 
 #endif /* date.h */

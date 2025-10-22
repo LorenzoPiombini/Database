@@ -13,14 +13,15 @@
 #include "common.h"
 #include "globals.h"
 #include "memory.h"
+#include "freestand.h"
 
 static char prog[] = "db";
 int get_number_value_from_txt_file(FILE *fp)
 {
 
 	char buffer[250];
-	uint16_t i = 0;
-	uint8_t is_num = 1;
+	ui16 i = 0;
+	ui8 is_num = 1;
 	if (fgets(buffer, sizeof(buffer), fp))
 	{
 		buffer[strcspn(buffer, "\n")] = '\0';

@@ -14,15 +14,15 @@
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
 
 struct Schema {
-	uint16_t fields_num;
+	ui16 fields_num;
 	char **fields_name;
 	int *types;
 };/*20 b*/
 
 struct Header_d
 {
-	uint32_t id_n;
-	uint16_t version;
+	ui32 id_n;
+	ui16 version;
 	struct Schema *sch_d;
 };/*16 b*/
 
@@ -66,7 +66,7 @@ struct array
 
 struct File {
 	struct Record_f *recs;
-	uint32_t count;	
+	ui32 count;	
 };/*?? bytes*/
 	
 struct Field {
@@ -78,8 +78,8 @@ struct Field {
 		long l;
 		float f;
 		char *s;
-		uint32_t p;
-		uint32_t date;
+		ui32 p;
+		ui32 date;
 		unsigned char b;
 		double d;
 		struct array v;
@@ -91,9 +91,9 @@ struct Record_f {
 	char file_name[MAX_FILE_NAME_LEN];
 	file_offset offset;
 	int fields_num;
-	uint8_t *field_set;
+	ui8 *field_set;
 	struct Field *fields;
-	uint32_t count;
+	ui32 count;
 	struct Record_f *next;
 };
 
@@ -102,7 +102,7 @@ int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
 int create_record(char *file_name, struct Schema sch, struct Record_f *rec);
-unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value,uint8_t field_bit);
+unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value,ui8 field_bit);
 void free_record(struct Record_f *rec, int fields_num);
 void print_record(int count, struct Record_f recs);
 void free_record_array(int len, struct Record_f **recs);
