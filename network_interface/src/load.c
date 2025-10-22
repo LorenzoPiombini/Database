@@ -4,12 +4,13 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <ctype.h>
-#include <stdint.h>
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
 
 /* these are my library */
+#include <memory.h>
+#include <freestand.h>
 #include <types.h>
 #include <crud.h>
 #include <lock.h>
@@ -20,7 +21,6 @@
 #include "load.h"
 #include "request.h"
 #include "end_points.h"
-#include "memory.h"
 
 static char prog[] = "net_interface";
 static char *convert_json(char* body);
@@ -215,8 +215,8 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			return 0;
 #if 0
 
-			uint32_t k = 0;
-			uint8_t type = is_num(p);
+			ui32 k = 0;
+			ui8 type = is_num(p);
 
 			char *key = NULL;
 			switch(type){
@@ -229,7 +229,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 							/*log error*/
 							return -1;
 						}
-						k = (uint32_t) l;
+						k = (ui32) l;
 
 						int fds[3];
 						memset(fds,-1,sizeof(int)*3);

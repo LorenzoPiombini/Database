@@ -12,6 +12,7 @@
 #include <types.h>
 #include <memory.h>
 #include <file.h>
+#include <freestand.h>
 #include "end_points.h"
 #include "key.h"
 #include "handlesig.h"
@@ -137,9 +138,9 @@ int work_process(int sock)
 			struct Header_d hd_head = {0, 0, &sch_header};
 			struct Header_d hd_line = {0, 0, &sch_line};
 
-			uint32_t key = 0;
+			ui32 key = 0;
 			if(operation_to_perform == UPDATE_SORD){
-				uint8_t type = is_num(key_up);
+				ui8 type = is_num(key_up);
 
 				switch(type){
 					case UINT:
@@ -155,7 +156,7 @@ int work_process(int sock)
 								goto error;
 							}
 
-							key = (uint32_t)l;
+							key = (ui32)l;
 							break;
 						}
 					case STR:
@@ -208,7 +209,7 @@ int work_process(int sock)
 			memset(&rec,0,sizeof(struct Record_f));
 
 			char *sub_str = NULL;
-			uint16_t count = 1;
+			ui16 count = 1;
 			while((sub_str = get_sub_str("[","]",orders_line))){
 				struct String cpy_str;
 				memset(&cpy_str,0,sizeof(struct String));
@@ -390,8 +391,8 @@ error_s_ord:
 		case S_ORD_GET:
 		{
 			d_buff = NULL;
-			uint32_t k = 0;
-			uint8_t type = is_num(&buffer[1]);
+			ui32 k = 0;
+			ui8 type = is_num(&buffer[1]);
 
 			char *key = NULL;
 			switch(type){
@@ -408,7 +409,7 @@ error_s_ord:
 							close(data_sock);
 							continue;
 						}
-						k = (uint32_t) l;
+						k = (ui32) l;
 
 						int fds[3];
 						memset(fds,-1,sizeof(int)*3);

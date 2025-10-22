@@ -9,17 +9,19 @@
 #include "key.h"
 #include "end_points.h"
 #include "memory.h"
+#include "freestand.h"
 
 
 #define ORDER_BASE 100
 
-uint32_t generate_numeric_key(int *fds, int end_point)
+ui32 generate_numeric_key(int *fds, int end_point)
 {
-	uint32_t key = 0;
+	ui32 key = 0;
 	switch(end_point){
 	case NEW_SORD: 
 	{
-		HashTable ht = {0};
+		HashTable ht;
+		set_memory(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
 		if(!read_index_nr(0,fds[0],&p_ht)){
 			/*log failure*/
@@ -58,7 +60,7 @@ uint32_t generate_numeric_key(int *fds, int end_point)
 char *get_all_keys_for_file(int *fds,int index)
 {
 	HashTable ht;
-	memset(&ht,0,sizeof(HashTable));
+	set_memory(&ht,0,sizeof(HashTable));
 	HashTable *p_ht = &ht;
 
 	struct Keys_ht all_keys;
@@ -92,7 +94,7 @@ char *get_all_keys_for_file(int *fds,int index)
 		case STR:
 		{
 			if(all_keys.keys[i].k.s){
-				str_size += strlen(all_keys.keys[i].k.s);
+				str_size += string_length(all_keys.keys[i].k.s);
 			}
 			break;
 		}
@@ -120,17 +122,17 @@ char *get_all_keys_for_file(int *fds,int index)
 		return NULL;
 	}
 	
-	uint32_t ind_str = 0;
-	strncpy(str_keys,"[",2);
+	ui32 ind_str = 0;
+	string_copy(str_keys,"[",1);
 
 	ind_str= 2 -1;
 	for(int i = 0; i < all_keys.length; i++){
 		switch(all_keys.keys[i].type){
 		case STR:
 		{
-			size_t l = strlen(all_keys.keys[i].k.s);
+			size_t l = string_length(all_keys.keys[i].k.s);
 			if(all_keys.keys[i].k.s){
-				strncpy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
+				string_copy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
 				ind_str += l;
 				if(all_keys.length - i > 1){
 					str_keys[ind_str] = ',';
@@ -143,7 +145,7 @@ char *get_all_keys_for_file(int *fds,int index)
 		{
 			if(all_keys.keys[i].size == 16){
 				size_t n = number_of_digit(all_keys.keys[i].k.n16);
-				if(snprintf(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
+				if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
 					/*log failure*/						
 					cancel_memory(NULL,str_keys,str_size + 1);	
 					free_keys_data(&all_keys);
@@ -156,7 +158,7 @@ char *get_all_keys_for_file(int *fds,int index)
 				}
 			}else{
 				size_t n = number_of_digit(all_keys.keys[i].k.n);
-				if(snprintf(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n) == -1){
+				if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n) == -1){
 					/*log failure*/						
 					cancel_memory(NULL,str_keys,str_size + 1);	
 					free_keys_data(&all_keys);
@@ -178,7 +180,7 @@ char *get_all_keys_for_file(int *fds,int index)
 		}
 	}
 
-	strncpy(&str_keys[ind_str],"]",2);
+	string_copy(&str_keys[ind_str],"]",1);
 	ind_str += 1;
 	free_keys_data(&all_keys);
 	return str_keys;

@@ -2,7 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <str_op.h>
+#include <freestand.h>
 #include "request.h"
 #include "end_points.h"
 #include "memory.h"

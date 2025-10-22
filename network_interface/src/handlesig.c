@@ -1,12 +1,15 @@
 #include <signal.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "handlesig.h"
 #include "monitor.h"
 #include "network.h"
 #include "memory.h"
+
+#ifdef _STDINT_H
+#undef _STDINT_H
+#endif
+
+#include "freestand.h"
 
 static char prog[] = "net_interface";
 int hdl_sock = -1;
@@ -17,8 +20,8 @@ int handle_sig()
 	/*set up signal handler*/
 	struct sigaction act;
 	struct sigaction act_for_child;
-	memset(&act,0,sizeof (struct sigaction));
-	memset(&act_for_child,0,sizeof (struct sigaction));
+	set_memory(&act,0,sizeof (struct sigaction));
+	set_memory(&act_for_child,0,sizeof (struct sigaction));
 
 	act.sa_handler = &handler;
 	act_for_child.sa_handler = SIG_IGN;
@@ -27,7 +30,7 @@ int handle_sig()
 			sigaction(SIGINT,&act,NULL) == -1 || 
 			sigaction(SIGPIPE,&act,NULL) == -1  ||
 			sigaction(SIGCHLD,&act_for_child,NULL) == -1 ){ /*this is to avoid zombies*/
-		fprintf(stderr,"(%s): cannot handle the signal.\n",prog);
+		display_to_stdout("(%s): cannot handle the signal.\n",prog);
 		return -1;
 	}
 	return 0;
@@ -41,17 +44,16 @@ static void handler(int signo)
 	case SIGPIPE:
 		stop_monitor();	
 		stop_listening(hdl_sock);
-		//close_shared_memory();
 		close_prog_memory();
 		if(signo == SIGINT)
-			fprintf(stderr,"\b\b(%s):cleaning on interrupt, recived %s.\n",prog,"SIGINT");
+			display_to_stdout("\b\b(%s):cleaning on interrupt, recived %s.\n",prog,"SIGINT");
 		else if(signo== SIGPIPE)
-			fprintf(stderr,"(%s):cleaning on interrupt, recived %s.\n",prog,"SIGPIPE");
+			display_to_stdout("(%s):cleaning on interrupt, recived %s.\n",prog,"SIGPIPE");
 		else 
-			fprintf(stderr,"(%s):cleaning on interrupt, recived %s.\n",prog,"SIGSEGV");
+			display_to_stdout("(%s):cleaning on interrupt, recived %s.\n",prog,"SIGSEGV");
 		break;
 	default:
 		break;
 	}
-	exit(-1);
+	sys_exit(-1);
 }

@@ -11,7 +11,7 @@ clean:
 	rm $(TARGET)
 
 $(TARGET): $(OBJ)
-	gcc -o $@ $? -llog -lmem -lcrud -z relro -z now -z noexecstack -fsanitize=address 
+	gcc -o $@ $? -lfree -llog -lmem -lcrud -z relro -z now -z noexecstack -fsanitize=address 
 
 
 obj/%.o : src/%.c

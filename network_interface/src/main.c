@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
 /*mine libs*/
 #include <memory.h>
+#include <freestand.h>
 #include "network.h"
 #include "monitor.h"
 #include "request.h"
@@ -21,7 +21,7 @@ int main()
 	unsigned short port = 5043;
 	int con = -1;
 	if((con = listen_port_80(&port)) == -1){
-		fprintf(stderr,"can't connect to port '%d': %s.\n",port,strerror(errno));
+		fprintf(stderr,"can't connect to port '%d'\n",port);
 		return -1;
 	}
 
@@ -41,10 +41,10 @@ int main()
 
 	int cli_sock = -1;
 	struct Response res;
-	memset(&res,0,sizeof(struct Response));
+	set_memory(&res,0,sizeof(struct Response));
 
 	struct Request req;
-	memset(&req,0,sizeof(struct Request));
+	set_memory(&req,0,sizeof(struct Request));
 	req.method = -1;
 	int work_proc_data_sock = -1;
 	int parent_data_sock = -1;
@@ -102,7 +102,9 @@ int main()
 					}
 
 					if(r == BAD_REQ){
+						/*debug statement to be removed*/
 						print_request(req);
+
 						if(generate_response(&res,400,NULL,&req) == -1) break;
 
 						clear_request(&req);
@@ -165,14 +167,12 @@ int main()
 						}
 
 						struct Content cont;
-						memset(&cont,0,sizeof(struct Content));
+						set_memory(&cont,0,sizeof(struct Content));
 
 						switch(req.method){
 							case OPTIONS:
 								{
-									size_t s = strlen(req.origin);
-									if(s == strlen(ORIGIN_DEF)){
-										if(strncmp(req.origin,ORIGIN_DEF,strlen(ORIGIN_DEF)) != 0){
+										if(string_compare(req.origin,ORIGIN_DEF,string_length(ORIGIN_DEF)) != 0){
 											/*send a bed request response*/
 											printf("first brach 400 response ORIGIN FAILED\n");
 											if(generate_response(&res,400,NULL,&req) == -1) break;
@@ -259,7 +259,6 @@ int main()
 										clear_response(&res);
 										break;
 #endif
-									}
 									break;	
 								}
 							case GET:
@@ -495,16 +494,13 @@ int main()
 							}
 
 							struct Content cont;
-							memset(&cont,0,sizeof(struct Content));
+							set_memory(&cont,0,sizeof(struct Content));
 							switch(req.method){
 								case OPTIONS:
 									{
-										size_t s = strlen(req.origin);
-										if(s != strlen(ORIGIN_DEF)) goto bad_request;
 
-										if(strncmp(req.origin,ORIGIN_DEF,strlen(ORIGIN_DEF)) != 0){
+										if(string_compare(req.origin,ORIGIN_DEF,string_length(ORIGIN_DEF)) != 0){
 
-bad_request:
 											printf("\n\n\n\n\norigin failed\n\n\n");
 											if(generate_response(&res,400,NULL,&req) == -1) break;
 											//clear_request(&req);
