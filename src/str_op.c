@@ -2345,7 +2345,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 			continue;
 		}
 
-		while( *f != ':'){
+		while( *f != ':' && *f != '\0'){
 			*f = ' '; 
 			f++;
 		}
