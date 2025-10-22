@@ -60,6 +60,7 @@ int main()
 
 	if(work_proc_pid == 0){
 		/* start DB handle process */	
+		worker = work_proc_pid;
 		if((work_proc_data_sock = listen_UNIX_socket()) == -1) exit(1);
 
 		work_process(work_proc_data_sock);

@@ -5,14 +5,12 @@
 #include "network.h"
 #include "memory.h"
 
-#ifdef _STDINT_H
-#undef _STDINT_H
-#endif
 
 #include "freestand.h"
 
 static char prog[] = "net_interface";
 int hdl_sock = -1;
+pid_t worker = 0;
 static void handler(int signo);
 
 int handle_sig()
@@ -55,5 +53,6 @@ static void handler(int signo)
 	default:
 		break;
 	}
+	kill(worker,SIGINT);
 	sys_exit(-1);
 }

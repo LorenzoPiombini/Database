@@ -1,10 +1,7 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/socket.h>
-#include <errno.h>
 
 /*my libs*/
 #include <crud.h>
@@ -32,17 +29,17 @@ int work_process(int sock)
 
 	if(init_prog_memory() == -1){
 		kill(getppid(),SIGINT);
-		exit(1);
+		sys_exit(1);
 	}
 
-	memset(buffer,0,EIGTH_Kib);
+	set_memory(buffer,0,EIGTH_Kib);
 	for(;;){
 		/*accept connection*/
 		if((data_sock = accept(sock,NULL,NULL)) == -1){
 			break;
 		}
 
-		memset(buffer,0,EIGTH_Kib);
+		set_memory(buffer,0,EIGTH_Kib);
 		if(read(data_sock,buffer,sizeof(buffer)) == -1){
 			break;
 		}
@@ -58,13 +55,13 @@ int work_process(int sock)
 					char *t = NULL;
 
 					char key_up[1024];
-					memset(key_up,0,1024);
+					set_memory(key_up,0,1024);
 					if(operation_to_perform == UPDATE_SORD){
 						t = tok(&buffer[1],"^");
 						if(t){
-							len = strlen(t);	
+							len = string_length(t);	
 						}else{
-							memset(err,0,1024);
+							set_memory(err,0,1024);
 							write(data_sock,err,sizeof(err));
 							close(data_sock);
 							data_sock = -1;
@@ -74,7 +71,7 @@ int work_process(int sock)
 
 						if(len > 1024){
 							fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__- 10);
-							memset(err,0,1024);
+							set_memory(err,0,1024);
 							write(data_sock,err,sizeof(err));
 							close(data_sock);
 							data_sock = -1;
@@ -82,13 +79,13 @@ int work_process(int sock)
 							continue;
 
 						}
-						strncpy(key_up,t,len);
+						string_copy(key_up,t,len);
 					}
 					t = tok(&buffer[1],"^");
 			if(t){
-				len = strlen(t);	
+				len = string_length(t);	
 			}else{
-				memset(err,0,1024);
+				set_memory(err,0,1024);
 				write(data_sock,err,sizeof(err));
 				close(data_sock);
 				data_sock = -1;
@@ -97,14 +94,14 @@ int work_process(int sock)
 			}
 
 			char orders_head[len+1];
-			memset(orders_head,0,len+1);
-			strncpy(orders_head,t,len);
+			set_memory(orders_head,0,len+1);
+			string_copy(orders_head,t,len);
 
 			t = tok(NULL,"^");
 			if(t){
-				len = strlen(t);	
+				len = string_length(t);	
 			}else{
-				memset(err,0,1024);
+				set_memory(err,0,1024);
 				write(data_sock,err,sizeof(err));
 				close(data_sock);
 				data_sock = -1;
@@ -113,27 +110,27 @@ int work_process(int sock)
 			}
 
 			char orders_line[len+1];
-			memset(orders_line,0,len+1);
-			strncpy(orders_line,t,len);
+			set_memory(orders_line,0,len+1);
+			string_copy(orders_line,t,len);
 
 			/* writing to database*/
 			int fds_order_header[3];
-			memset(fds_order_header,-1,sizeof(int)*3);
+			set_memory(fds_order_header,-1,sizeof(int)*3);
 			int fds_order_line[3];
-			memset(fds_order_line,-1,sizeof(int)*3);
+			set_memory(fds_order_line,-1,sizeof(int)*3);
 			int lock_f = 1;
 			char files_order_head[3][1024];
 			char files_order_line[3][1024];
-			memset(files_order_head,0,1024*3);
-			memset(files_order_line,0,1024*3);
+			set_memory(files_order_head,0,1024*3);
+			set_memory(files_order_line,0,1024*3);
 
 			struct Record_f rec;
-			memset(&rec,0,sizeof(struct Record_f));
+			set_memory(&rec,0,sizeof(struct Record_f));
 			struct Schema sch_header;
-			memset(&sch_header,0,sizeof(struct Schema));
+			set_memory(&sch_header,0,sizeof(struct Schema));
 
 			struct Schema sch_line;
-			memset(&sch_line,0,sizeof(struct Schema));
+			set_memory(&sch_line,0,sizeof(struct Schema));
 
 			struct Header_d hd_head = {0, 0, &sch_header};
 			struct Header_d hd_line = {0, 0, &sch_line};
@@ -145,12 +142,12 @@ int work_process(int sock)
 				switch(type){
 					case UINT:
 						{
-							errno = 0;
 							long l = string_to_long(key_up);
-							if(errno == EINVAL){
+							if(error_value == INVALID_VALUE){
 								fprintf(stderr,"cannot convert string to long %s:%d.\n",__FILE__,__LINE__);
 								goto error;
 							}
+
 							if(l > MAX_KEY){
 								fprintf(stderr,"key value is too big for the system %s:%d.\n",__FILE__,__LINE__);
 								goto error;
@@ -206,19 +203,19 @@ int work_process(int sock)
 			}
 
 			free_record(&rec,rec.fields_num);
-			memset(&rec,0,sizeof(struct Record_f));
+			set_memory(&rec,0,sizeof(struct Record_f));
 
 			char *sub_str = NULL;
 			ui16 count = 1;
 			while((sub_str = get_sub_str("[","]",orders_line))){
 				struct String cpy_str;
-				memset(&cpy_str,0,sizeof(struct String));
+				set_memory(&cpy_str,0,sizeof(struct String));
 				init(&cpy_str,sub_str);
 
 				/*create the key for each line*/
 				size_t line_key_sz = number_of_digit(count) + number_of_digit(key) + 1;
 				struct String key_each_line;
-				memset(&key_each_line,0,sizeof(struct String));
+				set_memory(&key_each_line,0,sizeof(struct String));
 
 				init(&key_each_line,NULL);
 				if(copy_to_string(key_each_line.base,line_key_sz+1,"%u/%u",key,count) == -1)goto error;
@@ -277,13 +274,13 @@ int work_process(int sock)
 				}
 
 				free_record(&rec,rec.fields_num);
-				memset(&rec,0,sizeof(struct Record_f));
+				set_memory(&rec,0,sizeof(struct Record_f));
 				key_each_line.close(&key_each_line);
 
 				/*clear the order_line_array to make sure we get the right result*/
-				char *find = strstr(orders_line,"[");
+				char *find = find_needle(orders_line,"[");
 				if(find) *find = ' ';
-				find = strstr(orders_line,"]");
+				find = find_needle(orders_line,"]");
 				if(find) *find = ' ';
 				count++;
 			}
@@ -296,7 +293,7 @@ int work_process(int sock)
 					fds_order_line[2]);
 			/*write to socket*/
 			if(operation_to_perform == NEW_SORD){
-				memset(succ,0,1024);
+				set_memory(succ,0,1024);
 				if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1){
 					/*log error*/
 					clear_memory();
@@ -308,7 +305,7 @@ int work_process(int sock)
 				if(write(data_sock,succ,sizeof(succ)) == -1) goto error;
 
 			}else if(operation_to_perform == UPDATE_SORD){
-				memset(succ,0,1024);
+				set_memory(succ,0,1024);
 				if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, updated!\"}",key) == -1){
 					/*log error*/
 					goto error;
@@ -323,7 +320,7 @@ int work_process(int sock)
 			continue;
 error:
 			clear_memory();
-			memset(err,0,1024);
+			set_memory(err,0,1024);
 			write(data_sock,err,sizeof(err));
 			close(data_sock);
 			data_sock = -1;
@@ -333,7 +330,7 @@ error:
 		{
 			/*get the all keys for the sales order file*/
 			int fds[3];
-			memset(fds,-1,sizeof(int)*3);
+			set_memory(fds,-1,sizeof(int)*3);
 			char files[3][1024] = {0};
 			if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
 
@@ -341,26 +338,26 @@ error:
 			if(!keys){
 				/*log errors*/	
 				char erro_message[] = "{\"message\": \"there are no orders\"}";
-				memset(err,0,1024);
-				strncpy(err,erro_message,strlen(erro_message));
+				set_memory(err,0,1024);
+				string_copy(err,erro_message,string_length(erro_message));
 				write(data_sock,err,sizeof(err));
 				clear_memory();
 				close(fds[0]);
 				continue;
 			}
 
-			size_t l = strlen(keys);
-			size_t mes_l = strlen("{\"message\" : ") + l + strlen(" }");
+			size_t l = string_length(keys);
+			size_t mes_l = string_length("{\"message\" : ") + l + string_length(" }");
 			if((mes_l) >= 1024) {
 
 				d_buff = (char *)ask_mem(mes_l+1);
 				if(!d_buff) goto error_s_ord;
 
-				memset(d_buff, 0,mes_l+1);
+				set_memory(d_buff, 0,mes_l+1);
 				if(copy_to_string(d_buff,mes_l+1,"{ \"message\" : %s}",keys) == -1) goto error_s_ord;
 
-				if(write(data_sock,d_buff,strlen(d_buff)) == -1) goto error_s_ord;
-				//cancel_memory(NULL,keys,strlen(key));
+				if(write(data_sock,d_buff,string_length(d_buff)) == -1) goto error_s_ord;
+				//cancel_memory(NULL,keys,string_length(key));
 				
 				clear_memory();
 				close(data_sock);
@@ -368,10 +365,10 @@ error:
 				continue;
 			}else{
 
-				memset(succ,0,1024);
+				set_memory(succ,0,1024);
 				if(copy_to_string(succ,mes_l,"{ \"message\" : %s}",keys) == -1) goto error_s_ord;
 
-				if(write(data_sock,succ,strlen(succ)) == -1) goto error_s_ord;
+				if(write(data_sock,succ,string_length(succ)) == -1) goto error_s_ord;
 				
 				clear_memory();
 				close(data_sock);
@@ -382,7 +379,7 @@ error:
 
 error_s_ord:
 					close(fds[0]);
-					memset(err,0,1024);
+					set_memory(err,0,1024);
 					write(data_sock,err,sizeof(err));
 					clear_memory();
 					close(fds[0]);
@@ -399,11 +396,10 @@ error_s_ord:
 				case UINT:
 					{
 						/*convert to number */	
-						errno = 0;
 						long l = string_to_long(&buffer[1]);
-						if(errno == EINVAL){
+						if(error_value == INVALID_VALUE){
 							/*log error*/
-							memset(err,0,1024);
+							set_memory(err,0,1024);
 							write(data_sock,err,sizeof(err));
 							clear_memory();
 							close(data_sock);
@@ -412,17 +408,17 @@ error_s_ord:
 						k = (ui32) l;
 
 						int fds[3];
-						memset(fds,-1,sizeof(int)*3);
+						set_memory(fds,-1,sizeof(int)*3);
 						char files[3][1024];
-						memset(files,0,3*1024);
+						set_memory(files,0,3*1024);
 						struct Record_f rec;
-						memset(&rec,0,sizeof(struct Record_f));
+						set_memory(&rec,0,sizeof(struct Record_f));
 						struct Schema sch;
-						memset(&sch,0,sizeof(struct Schema));
+						set_memory(&sch,0,sizeof(struct Schema));
 						struct Header_d hd = {0, 0, &sch};
 
 						if(open_files(SALES_ORDERS_H,fds, files, -1) == -1){
-							memset(err,0,1024);
+							set_memory(err,0,1024);
 							write(data_sock,err,sizeof(err));
 							clear_memory();
 							close(data_sock);
@@ -449,34 +445,34 @@ error_s_ord:
 						}
 
 						/*message formatting*/
-						size_t position_in_the_message = strlen("{ ");
-						strncpy(d_buff,"{ ",strlen("{ ")+1);
-						strncpy(&d_buff[position_in_the_message],"\"message\" : { ",strlen("\"message\" : { ") + 1);
-						position_in_the_message += strlen("\"message\" : { ");
+						size_t position_in_the_message = string_length("{ ");
+						string_copy(d_buff,"{ ",string_length("{ ")+1);
+						string_copy(&d_buff[position_in_the_message],"\"message\" : { ",string_length("\"message\" : { ") + 1);
+						position_in_the_message += string_length("\"message\" : { ");
 
-						strncpy(&d_buff[position_in_the_message],"\"sales_orders_head\"",strlen("\"sales_orders_head\"") + 1);
-						position_in_the_message += strlen("\"sales_orders_head\"");
-						strncpy(&d_buff[position_in_the_message]," : { ",strlen(" : { ")+1);
-						position_in_the_message += strlen(" : { ");
+						string_copy(&d_buff[position_in_the_message],"\"sales_orders_head\"",string_length("\"sales_orders_head\"") + 1);
+						position_in_the_message += string_length("\"sales_orders_head\"");
+						string_copy(&d_buff[position_in_the_message]," : { ",string_length(" : { ")+1);
+						position_in_the_message += string_length(" : { ");
 
 						if(data_to_json(&d_buff,&rec,S_ORD_GET) == -1) goto s_ord_get_exit_error;
 
-						position_in_the_message = strlen(d_buff);
-						strncpy(&d_buff[position_in_the_message],", ",3);
+						position_in_the_message = string_length(d_buff);
+						string_copy(&d_buff[position_in_the_message],", ",3);
 						position_in_the_message += 2;
 
-						strncpy(&d_buff[position_in_the_message],"\"sales_orders_lines\"",strlen("\"sales_orders_lines\"")+1);
-						position_in_the_message += strlen("\"sales_orders_lines\"");
-						strncpy(&d_buff[position_in_the_message]," : { ",strlen(" : { ")+1);
-						position_in_the_message += strlen(" : { ");
+						string_copy(&d_buff[position_in_the_message],"\"sales_orders_lines\"",string_length("\"sales_orders_lines\"")+1);
+						position_in_the_message += string_length("\"sales_orders_lines\"");
+						string_copy(&d_buff[position_in_the_message]," : { ",string_length(" : { ")+1);
+						position_in_the_message += string_length(" : { ");
 
 						free_record(&rec,rec.fields_num);
 						close_file(3,fds[0],fds[1],fds[2]);
-						memset(&rec,0,sizeof(struct Record_f));
-						memset(&sch,0,sizeof(struct Schema));
-						memset(&hd,0,sizeof(struct Header_d));
-						memset(files,0,3*1024);
-						memset(fds,-1,sizeof(int)*3);
+						set_memory(&rec,0,sizeof(struct Record_f));
+						set_memory(&sch,0,sizeof(struct Schema));
+						set_memory(&hd,0,sizeof(struct Header_d));
+						set_memory(files,0,3*1024);
+						set_memory(fds,-1,sizeof(int)*3);
 						hd.sch_d = &sch;
 
 						if(open_files(SALES_ORDERS_L,fds, files, -1) == -1) goto s_ord_get_exit_error;
@@ -505,42 +501,42 @@ error_s_ord:
 							if(get_record(-1,SALES_ORDERS_L,&rec,
 										(void *)key,STR, hd,fds) == -1) goto s_ord_get_exit_error; 
 
-							position_in_the_message = strlen(d_buff);
-							strncpy(&d_buff[position_in_the_message],line_title,strlen(line_title));
-							position_in_the_message += strlen(line_title);
-							strncpy(&d_buff[position_in_the_message]," : { ",strlen(" : { ")+1);
-							position_in_the_message += strlen(" : { ");
+							position_in_the_message = string_length(d_buff);
+							string_copy(&d_buff[position_in_the_message],line_title,string_length(line_title));
+							position_in_the_message += string_length(line_title);
+							string_copy(&d_buff[position_in_the_message]," : { ",string_length(" : { ")+1);
+							position_in_the_message += string_length(" : { ");
 
 
 							/*put the line in the bigger string */
 							if(data_to_json(&d_buff,&rec,S_ORD_GET) == -1) goto s_ord_get_exit_error;
 
 							free_record(&rec,rec.fields_num);
-							memset(&rec,0,sizeof(struct Record_f));
+							set_memory(&rec,0,sizeof(struct Record_f));
 							cancel_memory(NULL,key,l+1);
 
 							if(lines - i > 1){
-								position_in_the_message = strlen(d_buff);
-								strncpy(&d_buff[position_in_the_message],", ",strlen(", ") + 1);
+								position_in_the_message = string_length(d_buff);
+								string_copy(&d_buff[position_in_the_message],", ",string_length(", ") + 1);
 							}
 						}
 
 						close_file(3,fds[0],fds[1],fds[2]);
 						/*close the message*/
-						position_in_the_message = strlen(d_buff);
-						strncpy(&d_buff[position_in_the_message],"}}}",strlen("}}}")+1);
+						position_in_the_message = string_length(d_buff);
+						string_copy(&d_buff[position_in_the_message],"}}}",string_length("}}}")+1);
 						position_in_the_message+=2;
-						memset(&d_buff[strlen(d_buff)],0,(1024*4) - strlen(d_buff));	
+						set_memory(&d_buff[string_length(d_buff)],0,(1024*4) - string_length(d_buff));	
 
 
-						if(write(data_sock,d_buff,strlen(d_buff)) == -1 ) goto s_ord_get_exit_error;
-						/*printf("%s\nsize is %ld\nlast char is '%c'\n",message,strlen(message),message[strlen(message)-1]);*/
+						if(write(data_sock,d_buff,string_length(d_buff)) == -1 ) goto s_ord_get_exit_error;
+						/*printf("%s\nsize is %ld\nlast char is '%c'\n",message,string_length(message),message[string_length(message)-1]);*/
  						
 						clear_memory();
 						close(data_sock);
 						continue;
 s_ord_get_exit_error:
-						memset(err,0,1024);
+						set_memory(err,0,1024);
 						write(data_sock,err,2);
 						close_file(3,fds[0],fds[1],fds[2]);
 						clear_memory();
@@ -549,14 +545,14 @@ s_ord_get_exit_error:
 
 					}
 				default:
-					memset(err,0,1024);
+					set_memory(err,0,1024);
 					write(data_sock,err,sizeof(err));
 					close(data_sock);
 					continue;
 			}
 		}
 		default:
-		memset(err,0,1024);
+		set_memory(err,0,1024);
 				write(data_sock,err,sizeof(err));
 					close(data_sock);
 		continue;
@@ -565,7 +561,8 @@ s_ord_get_exit_error:
 	}
 		close_prog_memory();
 		kill(getppid(),SIGINT);
-		exit(1);
+		sys_exit(1);
+		return 0;/*unrechable*/
 }
 
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point)

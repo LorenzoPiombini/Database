@@ -3,6 +3,7 @@
 
 
 extern int hdl_sock; 
+extern pid_t worker; 
 int handle_sig();
 
 #endif
