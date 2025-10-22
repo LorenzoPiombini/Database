@@ -446,10 +446,7 @@ int update_rec(char *file_path,
 	}
 
 	if(err == KEY_NOT_FOUND){
-		if(__UTILITY)
 			return KEY_NOT_FOUND;
-		else
-			return -1;
 	}
 
 	struct Record_f *recs[rec_old.count];
