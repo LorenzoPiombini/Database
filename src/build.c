@@ -1,7 +1,4 @@
 #include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <errno.h>
 #include <unistd.h>
 #include "build.h"
 #include "file.h"
@@ -24,11 +21,11 @@ int get_number_value_from_txt_file(FILE *fp)
 	ui8 is_num = 1;
 	if (fgets(buffer, sizeof(buffer), fp))
 	{
-		buffer[strcspn(buffer, "\n")] = '\0';
+		buffer[complementary_span(buffer, "\n")] = '\0';
 
 		for (i = 0; buffer[i] != '\0'; i++)
 		{
-			if (!isdigit(buffer[i]))
+			if (!is_digit(buffer[i]))
 			{
 				is_num = 0;
 				break;
@@ -42,9 +39,8 @@ int get_number_value_from_txt_file(FILE *fp)
 		return 0;
 	}
 
-	errno = 0;
 	long l = string_to_long(buffer);
-	if(errno == EINVAL) 
+	if(error_value == INVALID_VALUE) 
 		return 0;
 	else 
 		return l;
@@ -74,16 +70,15 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	int buckets[lines];
 	int indexes[lines];
 	int file_field[lines];
-	memset(buckets,0,lines);
-	memset(indexes,0,lines);
-	memset(file_field,0,lines);
+	set_memory(buckets,0,lines);
+	set_memory(indexes,0,lines);
+	set_memory(file_field,0,lines);
 
 
 	while (fgets(buffer, sizeof(buffer), fp))
 	{
-		buffer[strcspn(buffer, "\n")] = '\0';
-		if (buffer[0] == '\0')
-			continue;
+		buffer[complementary_span(buffer, "\n")] = '\0';
+		if (buffer[0] == '\0' || buffer[0] == '#' || buffer[0] == ' ')continue;
 
 		char *t = tok(buffer, "|"); 
 		if(t){ 
@@ -115,28 +110,25 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		}
 
 		t = tok(NULL,"|");
-		errno = 0;
 		long l = string_to_long(t);
-		if(errno == EINVAL)
-			buckets[i] = (int) l; 
-		else 
+		if(error_value == INVALID_VALUE)
 			buckets[i] = 0;
+		else 
+			buckets[i] = (int) l; 
 
 
 		t = tok(NULL, "|");
 
-		errno = 0;
 		l = string_to_long(t);
-		if(errno == EINVAL)
-			indexes[i] = (int) l; 
-		else 
+		if(error_value == INVALID_VALUE)
 			indexes[i] = 0; 
+		else 
+			indexes[i] = (int) l; 
 
 		t = tok(NULL,"|");
 
-		errno = 0;
 		l = string_to_long(t);
-		if(errno == EINVAL)
+		if(error_value == INVALID_VALUE)
 			file_field[i] = 0; 
 		else 
 			file_field[i] = (int) l; 
@@ -206,7 +198,7 @@ int return_bigger_buffer(FILE *fp, int *lines)
 	{
 		(*lines)++;
 		int temp = 0;
-		if ((temp = (strcspn(buffer, "\n") + 1)) > max)
+		if ((temp = (complementary_span(buffer, "\n") + 1)) > max)
 			max = temp;
 	}
 	rewind(fp);
@@ -236,7 +228,7 @@ int import_data_to_system(char *data_file)
 		return -1;
 	}
 
-	memset(content,0,size+1);
+	set_memory(content,0,size+1);
 	if(fread(content,size,1,fp) != 1){
 		fprintf(stderr,"fread() failed, %s:%d.\n",F,L-1);
 		cancel_memory(NULL,content,sizeof(char)*(size+1));
@@ -252,13 +244,13 @@ int import_data_to_system(char *data_file)
 	__IMPORT_EZ = 1;
 
 	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	set_memory(fds,-1,sizeof(int)*3);
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 	/* init the Schema structure*/
 	struct Schema sch;
-	memset(&sch,0,sizeof(struct Schema));
+	set_memory(&sch,0,sizeof(struct Schema));
 	struct Record_f rec;
-	memset(&rec,-1,sizeof(struct Record_f));
+	set_memory(&rec,-1,sizeof(struct Record_f));
 	struct Header_d hd = {0, 0, &sch};
 
 
@@ -266,7 +258,7 @@ int import_data_to_system(char *data_file)
 	file_offset start = 0;
 	char file_name[MAX_FILE_PATH_LENGTH] = {0};
 	int lock_f = 0;
-	while((delim = strstr(&content[start],"\n"))){
+	while((delim = find_needle(&content[start],"\n"))){
 		size_t l = 0;
 		file_offset end = delim - content;		
 		if(start != 0) 
@@ -275,15 +267,15 @@ int import_data_to_system(char *data_file)
 			l = end + 1;
 
 		char buf[l];				
-		memset(buf,0,l);
-		strncpy(buf,&content[start],l-1);
+		set_memory(buf,0,l);
+		string_copy(buf,&content[start],l-1);
 		/* set the new start */
 		start = (delim +1) - content;
 	        *delim = ' ';	
 		
 
 		if(buf[0] == '@'){
-			memset(file_name,0,MAX_FILE_PATH_LENGTH);
+			set_memory(file_name,0,MAX_FILE_PATH_LENGTH);
 			if(open_files(&buf[1],fds,files,0) == -1){
 				cancel_memory(NULL,content,sizeof(char)*(size+1));
 				return STATUS_ERROR;
@@ -292,7 +284,7 @@ int import_data_to_system(char *data_file)
 				cancel_memory(NULL,content,sizeof(char)*(size+1));
 				return STATUS_ERROR;
 			}
-			strncpy(file_name,&buf[1],strlen(&buf[1]));
+			string_copy(file_name,&buf[1],string_length(&buf[1]));
 			printf("importing '%s' ...\n",file_name);
 			continue;
 		}
@@ -329,7 +321,7 @@ int import_data_to_system(char *data_file)
 
 			g_index = 0;
 			g_ht = NULL;
-			memset(&sch,0,sizeof(struct Schema));
+			set_memory(&sch,0,sizeof(struct Schema));
 			clear_ram_file(&ram);
 			if(lock_f) {
 				while(lock(fds[0],UNLOCK) == WTLK);
@@ -342,7 +334,7 @@ int import_data_to_system(char *data_file)
 		if(buf[0] == ' ' || buf[0] == '\0' || buf[0] == '\n' || buf[0] == '#') continue;
 
 		/*write to file*/
-		char *d = strstr(buf,":{@");
+		char *d = find_needle(buf,":{@");
 		if(!d){
 			fprintf(stderr,"(%s): delim ':{@' not found, import of '%s' aborted.\n",prog,file_name);
 			close_file(3,fds[0],fds[1],fds[2]);
@@ -355,16 +347,16 @@ int import_data_to_system(char *data_file)
 		char *dd = d;
 		d += 3;
 		*dd = '\0';
-		size_t sz = strlen(buf);
+		size_t sz = string_length(buf);
 		char cpy[sz+1];
-		memset(cpy,0,sz+1);
-		strncpy(cpy,buf,sz);
+		set_memory(cpy,0,sz+1);
+		string_copy(cpy,buf,sz);
 
 		
-		size_t key_sz = strlen(d) + 1;
+		size_t key_sz = string_length(d) + 1;
 		char key[key_sz];
-		memset(key,0,key_sz);
-		strncpy(key,d,key_sz -1);
+		set_memory(key,0,key_sz);
+		string_copy(key,d,key_sz -1);
 		
 		printf("key: '%s' - '%s'\n",key,file_name);
 		/*check data (schema) and writing to file*/
@@ -383,12 +375,12 @@ int import_data_to_system(char *data_file)
 
 		if(write_record(fds,(void*)key,key_type,&rec, 0,files,&lock_f,IMPORT) == -1) {
 			free_record(&rec,rec.fields_num);
-			memset(&rec,0,sizeof(struct Record_f));
+			set_memory(&rec,0,sizeof(struct Record_f));
 			continue;
 		}
 	
 		free_record(&rec,rec.fields_num);
-		memset(&rec,0,sizeof(struct Record_f));
+		set_memory(&rec,0,sizeof(struct Record_f));
 	}
 	cancel_memory(NULL,content,sizeof(char)*(size+1));
 	close_ram_file(&ram);

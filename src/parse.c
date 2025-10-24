@@ -1118,21 +1118,22 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "TYPE ARRAY FLOAT") ||
 					strstr(names[i], "TYPE ARRAY BYTE") ||
 					strstr(names[i], "TYPE ARRAY STRING") ||
-					strstr(names[i], "t_s") ||
-					strstr(names[i], "t_l") ||
-					strstr(names[i], "t_i") ||
-					strstr(names[i], "t_b") ||
-					strstr(names[i], "t_pk") ||
-					strstr(names[i], "t_f") ||
-					strstr(names[i], "t_d") ||
-					strstr(names[i], "t_ad") ||
-					strstr(names[i], "t_ai") ||
-					strstr(names[i], "t_al") ||
-					strstr(names[i], "t_af") ||
-					strstr(names[i], "t_ab") ||
-					strstr(names[i], "t_as") || 
-					strstr(names[i], "t_fl")) { 
+					strstr(names[i], ":t_s") ||
+					strstr(names[i], ":t_l") ||
+					strstr(names[i], ":t_i") ||
+					strstr(names[i], ":t_b") ||
+					strstr(names[i], ":t_pk") ||
+					strstr(names[i], ":t_f") ||
+					strstr(names[i], ":t_d") ||
+					strstr(names[i], ":t_ad") ||
+					strstr(names[i], ":t_ai") ||
+					strstr(names[i], ":t_al") ||
+					strstr(names[i], ":t_af") ||
+					strstr(names[i], ":t_ab") ||
+					strstr(names[i], ":t_as") || 
+					strstr(names[i], ":t_fl")) { 
 						printf("invalid input.\ninput syntax: fieldName:TYPE:value\n");
+						printf("name field is %s\n",names[i]);
 						return 0;
 					}
 

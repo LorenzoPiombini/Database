@@ -1021,6 +1021,57 @@ static int search_string_for_types(char *str, int *types)
 			}
 			break;
 		}
+		case TYPE_FILE:
+		{
+			char *p = 0x0;
+			while((p = find_needle(str,"@t_fl:"))){
+				char *p_end = find_needle(p,":");
+				if(!p_end){
+					int p_size = (int)string_length(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			while((p = find_needle(str,"@TYPE_FILE:"))){
+
+				char *p_end = find_needle(p,":");
+				if(!p_end){
+					int p_size = (int)string_length(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+		
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			break;
+		}
 		default:
 			display_to_stdout("type not valid. %s:%d.\n",__FILE__,__LINE__);
 			return -1;
