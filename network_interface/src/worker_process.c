@@ -51,6 +51,11 @@ int work_process(int sock)
 			case NEW_SORD:
 			case UPDATE_SORD:
 				{
+					/* when insert new order
+					 * if the customer is known, the program should check
+					 * if it's past due, if it's on credit hold
+					 * */
+
 					size_t len = 0;
 					char *t = NULL;
 
@@ -69,7 +74,7 @@ int work_process(int sock)
 							continue;
 						}
 
-						if(len > 1024){
+						if(len >= 1024){/*if they length is >= than 1024 we need a code refactor*/
 							fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__- 10);
 							set_memory(err,0,1024);
 							write(data_sock,err,sizeof(err));
@@ -81,88 +86,89 @@ int work_process(int sock)
 						}
 						string_copy(key_up,t,len);
 					}
+
 					t = tok(&buffer[1],"^");
-			if(t){
-				len = string_length(t);	
-			}else{
-				set_memory(err,0,1024);
-				write(data_sock,err,sizeof(err));
-				close(data_sock);
-				data_sock = -1;
-				clear_memory();
-				continue;
-			}
-
-			char orders_head[len+1];
-			set_memory(orders_head,0,len+1);
-			string_copy(orders_head,t,len);
-
-			t = tok(NULL,"^");
-			if(t){
-				len = string_length(t);	
-			}else{
-				set_memory(err,0,1024);
-				write(data_sock,err,sizeof(err));
-				close(data_sock);
-				data_sock = -1;
-				clear_memory();
-				continue;
-			}
-
-			char orders_line[len+1];
-			set_memory(orders_line,0,len+1);
-			string_copy(orders_line,t,len);
-
-			/* writing to database*/
-			int fds_order_header[3];
-			set_memory(fds_order_header,-1,sizeof(int)*3);
-			int fds_order_line[3];
-			set_memory(fds_order_line,-1,sizeof(int)*3);
-			int lock_f = 1;
-			char files_order_head[3][1024];
-			char files_order_line[3][1024];
-			set_memory(files_order_head,0,1024*3);
-			set_memory(files_order_line,0,1024*3);
-
-			struct Record_f rec;
-			set_memory(&rec,0,sizeof(struct Record_f));
-			struct Schema sch_header;
-			set_memory(&sch_header,0,sizeof(struct Schema));
-
-			struct Schema sch_line;
-			set_memory(&sch_line,0,sizeof(struct Schema));
-
-			struct Header_d hd_head = {0, 0, &sch_header};
-			struct Header_d hd_line = {0, 0, &sch_line};
-
-			ui32 key = 0;
-			if(operation_to_perform == UPDATE_SORD){
-				ui8 type = is_num(key_up);
-
-				switch(type){
-					case UINT:
-						{
-							long l = string_to_long(key_up);
-							if(error_value == INVALID_VALUE){
-								fprintf(stderr,"cannot convert string to long %s:%d.\n",__FILE__,__LINE__);
-								goto error;
-							}
-
-							if(l > MAX_KEY){
-								fprintf(stderr,"key value is too big for the system %s:%d.\n",__FILE__,__LINE__);
-								goto error;
-							}
-
-							key = (ui32)l;
-							break;
-						}
-					case STR:
-						/*TODO*/
-					default:
-						clear_memory();
+					if(t){
+						len = string_length(t);	
+					}else{
+						set_memory(err,0,1024);
+						write(data_sock,err,sizeof(err));
 						close(data_sock);
 						data_sock = -1;
+						clear_memory();
 						continue;
+					}
+
+					char orders_head[len+1];
+					set_memory(orders_head,0,len+1);
+					string_copy(orders_head,t,len);
+
+					t = tok(NULL,"^");
+					if(t){
+						len = string_length(t);	
+					}else{
+						set_memory(err,0,1024);
+						write(data_sock,err,sizeof(err));
+						close(data_sock);
+						data_sock = -1;
+						clear_memory();
+						continue;
+					}
+
+					char orders_line[len+1];
+					set_memory(orders_line,0,len+1);
+					string_copy(orders_line,t,len);
+
+					/* writing to database*/
+					int fds_order_header[3];
+					set_memory(fds_order_header,-1,sizeof(int)*3);
+					int fds_order_line[3];
+					set_memory(fds_order_line,-1,sizeof(int)*3);
+					int lock_f = 1;
+					char files_order_head[3][1024];
+					char files_order_line[3][1024];
+					set_memory(files_order_head,0,1024*3);
+					set_memory(files_order_line,0,1024*3);
+
+					struct Record_f rec;
+					set_memory(&rec,0,sizeof(struct Record_f));
+					struct Schema sch_header;
+					set_memory(&sch_header,0,sizeof(struct Schema));
+
+					struct Schema sch_line;
+					set_memory(&sch_line,0,sizeof(struct Schema));
+
+					struct Header_d hd_head = {0, 0, &sch_header};
+					struct Header_d hd_line = {0, 0, &sch_line};
+
+					ui32 key = 0;
+					if(operation_to_perform == UPDATE_SORD){
+						ui8 type = is_num(key_up);
+
+						switch(type){
+							case UINT:
+								{
+									long l = string_to_long(key_up);
+									if(error_value == INVALID_VALUE){
+										fprintf(stderr,"cannot convert string to long %s:%d.\n",__FILE__,__LINE__);
+										goto error;
+									}
+
+									if(l > MAX_KEY){
+										fprintf(stderr,"key value is too big for the system %s:%d.\n",__FILE__,__LINE__);
+										goto error;
+									}
+
+									key = (ui32)l;
+									break;
+								}
+							case STR:
+								/*TODO*/
+							default:
+								clear_memory();
+								close(data_sock);
+								data_sock = -1;
+								continue;
 				}
 			}
 

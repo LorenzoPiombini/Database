@@ -1,3 +1,27 @@
-sales_orders_head|date:customer_id:price_level:lines_nr|0|0|0
-sales_orders_lines|head_id:TYPE_LONG:item:TYPE_STRING:uom:TYPE_STRING:qty:TYPE_DOUBLE:disc:TYPE_DOUBLE:unit_price:TYPE_DOUBLE:total:TYPE_DOUBLE|0|0|0
+#sales_orders files I wrote, not from TPT system
+
+sales_orders_head|date:TYPE_DATE:customer_id:price_level:TYPE_STRING:lines_nr:TYPE_INT|0|0|0
+sales_orders_lines|item:TYPE_STRING:uom:TYPE_STRING:qty:TYPE_DOUBLE:disc:TYPE_DOUBLE:unit_price:TYPE_DOUBLE:total:TYPE_DOUBLE|0|0|0
+
+#current_order_file ???? do i need it ???
+
+sales_orders_history|date:TYPE_STRING:customer_id:price_level:lines_nr:item:TYPE_STRING:uom:TYPE_STRING:qty:TYPE_DOUBLE:disc:TYPE_DOUBLE:unit_price:TYPE_DOUBLE:total:TYPE_DOUBLE|0|0|0
+
+#TODO combine the two customers file definitions
+#this is my customer definition
 customers|id:name:c_contat:c_street:c_city:c_zip_code:c_country:price_level:c_term:c_credit_hold:c_mail:c_phone|8|0|0
+
+#this is old system
+cust_info_file|en:c_code:c_name:c_number:c_addr1:c_addr2:c_csz:c_phone:c_contact:ena_code:c_stmt_addr:c_tax_#:c_tax_number:c_s_number:c_terms:zip_code:c_balance:c_limit:c_class:c_invn_level:c_udf:c_subs:c_part_numbers:TYPE_FILE:invn_class_exceptions:due_table:credit_hold_notes:c_city:c_state:c_country:c_invn_class_discounts:c_fax:cust_date:inactive:c_forecast_table:c_forcast_m_percents:c_os_number:dont_change_slsm:is_inside_customer:c_geo_location:on_credit_hold:alt_c_code:c_ship_notes:c_payable_contact:c_payable_phone:c_payable_fax:c_market_group:c_cash_gl_number:c_ar_gl_number:cust_pl_gl_table:dont_use_hdq_for_billing:exclusive_cust_po:c_bill_to_number:has_taxable_orders:c_whse_number:c_rental_terms:don't_fax_invoices:extra_c_code:c_out_of_business:c_auto_email_invoices|8|0|0
+
+customer_part_number_file|cp_number:c_part_number_table:cp_start_num_date:cp_expiration_num_date:c_contract_price:c_contract_min_quantity|0|0|1
+#customer open invoice file from TPT system
+
+#cust_open_inv|ehdr:c_number:order_nr:c_inv_nr:c_due_date:tot_com:ord_by:oi_s_number:date_rec:via:ena_seq:c_inv_date:coi_pkd:c_inv_cost:c_inv_std_cost:c_inv_net:c_inv_amt:c_inv_frt:c_inv_tax:coi_tax_number:c_inv_jday:direct_ship_po_ref:c_inv_type:c_date_amt:mc_desc:misc_amt:pack_mes:coi_hist:coi_rev_hist:coi_taxes:inv_comments:coi_ar:tot_qty:packed_ref:wnumber:bol_number:alt_inv_head:non_tax_sales:updated:coi_tracking_table:oi_os_number:ship_to_location:market_group:gl_transaction_file:TYPE_FILE:internal_clearing_file:TYPE_FILE:real_contat_nr:billable_components_file:TYPE_FILE:rental_contract_invoice_count:rental_misc_charges:rental_misc_amt:rental_rain_days:coi_freight_vendor:c_inv_vendor_frt:vendor_invoice_applied_freighth:taxable_job_number:order_is_taxable:coi_direct_ship_freight_amount:coi_direct_ship_freight_vendor:coi_direct_ship_tracking_number:cod_payment_file:TYPE_FILE:alt_inv_nr:quote_entered_by:coi_fax_no:coi_fax_job_no:coi_email_address|0|0|0
+
+
+#cod_payment_file|
+#internal_clearing_file|
+#gl_transaction_file|
+#billable_components_file||0|0|1
+
