@@ -7,6 +7,7 @@
 #define MAX_CONT_SZ 1024*8 /* 8 Kib */
 #define SALES_ORDERS_H "./db/sales_orders_head"
 #define SALES_ORDERS_L "./db/sales_orders_lines"
+#define CUSTOMER_FILE "./db/customers"
 struct Content{
 	char cnt_st[MAX_CONT_SZ];
 	char *cnt_dy;

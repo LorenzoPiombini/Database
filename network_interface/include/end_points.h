@@ -5,12 +5,12 @@
 enum endp{
 	NEW_SORD,
 	NEW_SORD_LINES,
-	CUSTOMER,
+	CUSTOMER_GET,
 	S_ORD,
 	S_ORD_GET,
-	UPDATE_SORD
+	UPDATE_SORD,
+	CUSTOMER_GET_ALL
 };
-
 
 #define NEW_S_ORDER "/new_sales_order"
 #define CUSTOMERS "/customers"

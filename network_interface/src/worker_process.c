@@ -332,18 +332,33 @@ error:
 			data_sock = -1;
 			continue;
 		}	
+		case CUSTOMER_GET_ALL: 
 		case S_ORD:
 		{
 			/*get the all keys for the sales order file*/
 			int fds[3];
 			set_memory(fds,-1,sizeof(int)*3);
 			char files[3][1024] = {0};
-			if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
+			if(operation_to_perform == S_ORD){
+				if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
+			}else if(operation_to_perform == CUSTOMER_GET_ALL){
+				if(open_files(CUSTOMER_FILE,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
+			}
 
-			char *keys = get_all_keys_for_file(fds,0);
+			char *keys = 0x0;
+			if(operation_to_perform == S_ORD)
+				keys = get_all_keys_for_file(fds,0);
+			else if (operation_to_perform == CUSTOMER_GET_ALL)
+				keys = get_all_keys_for_file(fds,1);
+
 			if(!keys){
 				/*log errors*/	
-				char erro_message[] = "{\"message\": \"there are no orders\"}";
+				char *erro_message = 0x0;
+				if(operation_to_perform == S_ORD)
+					erro_message = "{\"message\": \"there are no orders\"}";
+				else if(operation_to_perform == CUSTOMER_GET_ALL)
+					erro_message = "{\"message\": \"there are no customers\"}";
+				
 				set_memory(err,0,1024);
 				string_copy(err,erro_message,string_length(erro_message));
 				write(data_sock,err,sizeof(err));
@@ -363,7 +378,6 @@ error:
 				if(copy_to_string(d_buff,mes_l+1,"{ \"message\" : %s}",keys) == -1) goto error_s_ord;
 
 				if(write(data_sock,d_buff,string_length(d_buff)) == -1) goto error_s_ord;
-				//cancel_memory(NULL,keys,string_length(key));
 				
 				clear_memory();
 				close(data_sock);
@@ -549,7 +563,7 @@ s_ord_get_exit_error:
 						close(data_sock);
 						continue;
 
-					}
+				}
 				default:
 					set_memory(err,0,1024);
 					write(data_sock,err,sizeof(err));

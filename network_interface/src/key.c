@@ -11,7 +11,7 @@
 #include "memory.h"
 #include "freestand.h"
 
-
+/*order starting number*/
 #define ORDER_BASE 100
 
 ui32 generate_numeric_key(int *fds, int end_point)

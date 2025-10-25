@@ -132,10 +132,6 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			cont->size = strlen(cont->cnt_st);
 			return 0;
 		}
-		case CUSTOMER:
-		{
-			break;
-		}
 		case S_ORD:
 		{
 			break;
@@ -148,12 +144,17 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 	case GET:
 	{
 		switch(resource){
+		case CUSTOMER_GET_ALL:
 		case S_ORD:
 		{		
 			/*send data to the worker process*/
 			char buffer[2];
 			memset(buffer,0,2);
-			buffer[0] = S_ORD + '0';
+			if(resource == S_ORD)
+				buffer[0] = S_ORD + '0';
+			else
+				buffer[0] = CUSTOMER_GET_ALL + '0';
+
 			if(write(data_sock,buffer,sizeof(buffer)) == -1){
 				return -1;
 			}
