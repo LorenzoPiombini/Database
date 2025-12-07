@@ -21,6 +21,7 @@
 #include "build.h"
 #include "crud.h"
 #include "memory.h"
+#include "start_lua.h"
 
 
 char prog[] = "db";
@@ -32,6 +33,8 @@ int main(int argc, char *argv[])
 	}
 
 	init_prog_memory();
+	lua_init();	
+
 	__UTILITY = 1;
 	/* file descriptors */
 	int fd_index = -1; 
