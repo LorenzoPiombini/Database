@@ -63,6 +63,8 @@ int parse_d_flag_input(char *file_path, int fields_num,
 				 strstr(names[i], "TYPE FLOAT") ||
 				 strstr(names[i], "TYPE PACK") ||
 				 strstr(names[i], "TYPE DOUBLE") ||
+				 strstr(names[i], "TYPE DATE") ||
+				 strstr(names[i], "TYPE KEY") ||
 				 strstr(names[i], "TYPE ARRAY INT") ||
 				 strstr(names[i], "TYPE ARRAY FLOAT") ||
 				 strstr(names[i], "TYPE ARRAY LONG") ||
@@ -265,12 +267,16 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 		 * when we order the fields in the case of SCHEMA_CT 
 		 * can cause issue because in some cases we have only one fields
 		 * and it might be a position 3 in the name array and this can cause wrong results
+		 *
 		 * the loop 
+		 *
 		 * 		while(names[j][0] == '\0') j++;
+		 *
 		 * is fixing the issue 
 		 * */
 
 		while(names[j][0] == '\0') j++;			
+
 		int start = j;
 		for (i = 0; i < sch->fields_num; i++) {
 			found = 0;
@@ -297,6 +303,7 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					}
 				}
 			}
+#if 0
 			char *number = "0";
 			char *fp = "0.0";
 			char *str = "null";
@@ -365,6 +372,7 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 					return -1;
 				}
 			}
+#endif /*i think we can safely remove this code*/
 		}
 
 		return 0;
@@ -1027,7 +1035,8 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 	case TYPE_DF:
 	{
 		get_fileds_name(buffer, fields_num, 2,names);
-		get_value_types(buffer, fields_num, 2,types_i);
+		if(get_value_types(buffer, fields_num, 2,types_i) == -1) return 0;
+
 		int i;
 		for (i = 0; i < fields_num; i++) {
 			if (types_i[i] != TYPE_INT &&
@@ -1039,6 +1048,7 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					types_i[i] != TYPE_STRING &&
 					types_i[i] != TYPE_FILE &&
 					types_i[i] != TYPE_DATE &&
+					types_i[i] != TYPE_KEY &&
 					types_i[i] != TYPE_ARRAY_INT &&
 					types_i[i] != TYPE_ARRAY_LONG &&
 					types_i[i] != TYPE_ARRAY_FLOAT &&
@@ -1060,28 +1070,32 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					strstr(names[i], "TYPE BYTE") ||
 					strstr(names[i], "TYPE FLOAT") ||
 					strstr(names[i], "TYPE DOUBLE") ||
+					strstr(names[i], "TYPE DATE") ||
 					strstr(names[i], "TYPE FILE") ||
 					strstr(names[i], "TYPE PACK") ||
+					strstr(names[i], "TYPE KEY") ||
 					strstr(names[i], "TYPE ARRAY DOUBLE") ||
 					strstr(names[i], "TYPE ARRAY INT") ||
 					strstr(names[i], "TYPE ARRAY LONG") ||
 					strstr(names[i], "TYPE ARRAY FLOAT") ||
 					strstr(names[i], "TYPE ARRAY BYTE") ||
 					strstr(names[i], "TYPE ARRAY STRING") ||
-					strstr(names[i], "t_s") ||
-					strstr(names[i], "t_l") ||
-					strstr(names[i], "t_i") ||
-					strstr(names[i], "t_b") ||
-					strstr(names[i], "t_pk") ||
-					strstr(names[i], "t_f") ||
-					strstr(names[i], "t_d") ||
-					strstr(names[i], "t_ad") ||
-					strstr(names[i], "t_ai") ||
-					strstr(names[i], "t_al") ||
-					strstr(names[i], "t_af") ||
-					strstr(names[i], "t_ab") ||
-					strstr(names[i], "t_as") || 
-					strstr(names[i], "t_fl")) { 
+					strstr(names[i], ":t_s") ||
+					strstr(names[i], ":t_l") ||
+					strstr(names[i], ":t_i") ||
+					strstr(names[i], ":t_b") ||
+					strstr(names[i], ":t_pk") ||
+					strstr(names[i], ":t_f") ||
+					strstr(names[i], ":t_d") ||
+					strstr(names[i], ":t_ad") ||
+					strstr(names[i], ":t_ai") ||
+					strstr(names[i], ":t_al") ||
+					strstr(names[i], ":t_af") ||
+					strstr(names[i], ":t_ab") ||
+					strstr(names[i], ":t_as") || 
+					strstr(names[i], ":t_dt") || 
+					strstr(names[i], ":t_ky") || 
+					strstr(names[i], ":t_fl")) { 
 						printf("invalid input.\ninput syntax: fieldName:TYPE:value\n");
 						return 0;
 					}
@@ -3537,6 +3551,9 @@ void print_schema(struct Schema sch)
 		{
 			case TYPE_INT:
 				printf("int.\n");
+				break;
+			case TYPE_KEY:
+				printf("key.\n");
 				break;
 			case TYPE_FLOAT:
 				printf("float.\n");

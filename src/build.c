@@ -78,7 +78,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	while (fgets(buffer, sizeof(buffer), fp))
 	{
 		buffer[complementary_span(buffer, "\n")] = '\0';
-		if (buffer[0] == '\0' || buffer[0] == '#' || buffer[0] == ' ')continue;
+		if (buffer[0] == '\0' || buffer[0] == '#' || buffer[0] == ' ' || buffer[0] == '\t')continue;
 
 		char *t = tok(buffer, "|"); 
 		if(t){ 

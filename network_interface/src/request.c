@@ -31,7 +31,8 @@ int handle_request(struct Request *req)
 		if((req->size - h_end) == 0) return BDY_MISS;
 
 		if((req->size - h_end) < STD_REQ_BDY_CNT){
-			strncpy(req->req_body.content,&req->d_req[h_end],(req->size - h_end) - 1 );
+			/*CHECK IF YOU NEED (req->size - h_end) -1 */
+			strncpy(req->req_body.content,&req->d_req[h_end],(req->size - h_end));
 			return 0;
 		}else{
 			req->req_body.d_cont = (char *)ask_mem(req->size - h_end);

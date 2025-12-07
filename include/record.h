@@ -44,7 +44,8 @@ enum ValueType
 	TYPE_ARRAY_BYTE,
 	TYPE_ARRAY_DOUBLE,
 	TYPE_FILE,
-	TYPE_DATE
+	TYPE_DATE,
+	TYPE_KEY
 };
 
 struct Record_f;	
@@ -69,15 +70,17 @@ struct File {
 	ui32 count;	
 };/*?? bytes*/
 	
+/*TODO think if it make sense find a way to make the type flexable,
+ * and that can change from each write to file */
 struct Field {
 	char field_name[MAX_FIELD_LT];
 	int type;
-
 	union {
 		int i;
 		long l;
 		float f;
 		char *s;
+		ui32 k;
 		ui32 p;
 		ui32 date;
 		unsigned char b;
@@ -98,6 +101,7 @@ struct Record_f {
 };
 
 
+int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int type);
 int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
@@ -108,7 +112,7 @@ void print_record(int count, struct Record_f recs);
 void free_record_array(int len, struct Record_f **recs);
 void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int size_ia);
 unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schema *sch);
-unsigned char get_index_rec_field(char *field_name, struct Record_f **recs, int recs_len,int *field_i_r, int *rec_index);
+unsigned char get_index_rec_field(char *field_name, struct Record_f *rec,int *field_i_r, int *rec_index);
 int schema_has_type(struct Header_d *hd);
 int compare_rec(struct Record_f *src, struct Record_f *dest);
 int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);

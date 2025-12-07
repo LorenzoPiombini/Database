@@ -47,7 +47,7 @@ the number in e.i (int or long)*/
 
 
 #define is_number_type(type) (type == TYPE_LONG || type == TYPE_FLOAT \
-				|| type == TYPE_DOUBLE || type == TYPE_INT \
+				|| type == TYPE_DOUBLE || type == TYPE_INT || type == TYPE_DATE || type == TYPE_KEY \
 				|| type == TYPE_BYTE) 
 
 #define is_number_array(type) (type == TYPE_ARRAY_DOUBLE || type == TYPE_ARRAY_LONG \
@@ -56,10 +56,6 @@ the number in e.i (int or long)*/
 
 #define return_first_char(str) str[0]
 
-
-#define DEF_STR 1024 /*1 kb*/
-#define SET_ON 1
-#define SET_OFF 0
 
 char *get_sub_str(char *start_delim, char *end_delim, char *str);
 int get_array_values(char *src, char ***values);
@@ -96,7 +92,6 @@ int find_double_delim(char *delim, char *str, int *pos, struct Schema sch);
 int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch);
 char *find_field_to_reset_delim(int *pos, char *buffer);
 void pack(ui32 n, ui8 *digits_indexes);
-ui32 power(ui32 n, int pow);
 long long unpack(ui8 *digits_index);
 void print_pack_str(ui8 *digits_index);
 void clear_tok();

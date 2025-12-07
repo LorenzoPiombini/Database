@@ -8,6 +8,7 @@
 #include "endian.h"
 #include "memory.h"
 #include "types.h"
+#include "freestand.h"
 #include "common.h"
 
 

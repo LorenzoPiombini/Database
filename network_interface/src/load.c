@@ -35,6 +35,43 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 	case POST:
 	{
 		switch(resource){
+		case NEW_CUST:
+		{
+			/*convert json in db_string*/
+			char *db = 0x0;
+			if(req->req_body.d_cont)
+				db = convert_json(req->req_body.d_cont);
+			else
+				db = convert_json(req->req_body.content);
+
+			assert(db != NULL);
+			if(db[0] == '\0') return -1;
+
+			/*2 stands for  1 '\0', and 1 for the operation*/
+			size_t size_buffer = string_length(db) + 2;
+			char *buffer = (char *) ask_mem(size_buffer);
+
+			buffer[0] = resource + '0';
+			string_copy(&buffer[1],db,size_buffer-1);
+
+			/*send data to the worker process*/
+			if(write(data_sock,buffer,strlen(buffer)) == -1) return -1;
+
+			/*TODO refactor the socket comunication so that you read once with 
+			 * the size of the next message then you allocate a buffer accordangly so 
+			 * you can be eficient*/
+			char read_buffer[MAX_CONT_SZ];
+			if(read(data_sock,read_buffer,MAX_CONT_SZ) == -1) return -1;
+
+			if(read_buffer[0] == '\0') return -1;
+
+			if(copy_to_string(cont->cnt_st,1024,"%s",read_buffer) == -1){
+				/*log error*/
+				return -1;
+			}
+			cont->size = strlen(cont->cnt_st);
+			return 0;
+		}
 		case NEW_SORD:
 		case UPDATE_SORD:
 		{
@@ -47,7 +84,6 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 				db = convert_json(req->req_body.content);
 
 			assert(db != NULL);
-
 
 			if(db[0] == '\0') return -1;
 

@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include "record.h"
 #include "freestand.h"
 #include "debug.h"
@@ -23,6 +23,128 @@ static char prog[] = "db";
 
 static void display_data(struct Record_f rec,int max,int tab);
 static void clean_input(char *value);
+
+int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int type)
+{
+	int field_index = 0;
+	int rec_index = 0;	
+	if(!get_index_rec_field(field_name,rec,&field_index,&rec_index)) return -1;
+
+	if(type != rec->fields[field_index].type && rec->fields[field_index].type != TYPE_STRING) return -1;
+
+	rec->field_set[field_index] = 1;
+	switch(rec->fields[field_index].type){
+	case TYPE_INT:
+		rec->fields[field_index].data.i = *(int *)data;
+		break;
+	case TYPE_KEY:
+		rec->fields[field_index].data.k = *(ui32 *)data;
+		break;
+	case TYPE_LONG:
+		rec->fields[field_index].data.l = *(long *)data;
+		break;
+	case TYPE_BYTE:
+		rec->fields[field_index].data.b = *(unsigned char *)data;
+		break;
+	case TYPE_DOUBLE:
+		rec->fields[field_index].data.d = *(double *)data;
+		break;
+	case TYPE_FLOAT:
+		rec->fields[field_index].data.f = *(float *)data;
+		break;
+	case TYPE_DATE:
+		break;
+	case TYPE_STRING:
+	{
+		if(is_number_type(type)){
+			switch(type){
+			case TYPE_INT:
+			{
+				int l = *(int*)data;
+				size_t size = 20;				
+				char number[size];
+				set_memory(number,0,size);
+				long_to_string(l,number);
+				rec->fields[field_index].data.s = (char *)ask_mem(size);
+				if(!rec->fields[field_index].data.s) return -1;
+				string_copy(rec->fields[field_index].data.s,number,size-1);
+				return 0;
+			}
+			case TYPE_LONG:
+			case TYPE_BYTE:
+			{
+				long l = *((long*)data);
+				size_t size = 20;
+				char number[size];
+				set_memory(number,0,size);
+				long_to_string(l,number);
+				rec->fields[field_index].data.s = (char *)ask_mem(size);
+				if(!rec->fields[field_index].data.s) return -1;
+				string_copy(rec->fields[field_index].data.s,number,size-1);
+				return 0;
+			}
+			case TYPE_DATE:
+			case TYPE_KEY:
+			{
+				ui32 l = 0;
+				if(type == TYPE_DATE){
+					l = *(ui32*)data;
+					if(((ui8)((l >> 16) & 0xff) == 0x2d) || ((ui8)((l >> 8) & 0xff) == 0x2d)){
+						if(!is_integer(data)){
+							l = convert_date_to_number((char*)data);	
+						}
+					}else{
+						l = *((ui32*)data);
+					}
+				}else{
+					l = *((ui32*)data);
+				}
+				size_t size = 20;
+				char number[size];
+				set_memory(number,0,size);
+				long_to_string(l,number);
+				rec->fields[field_index].data.s = (char *)ask_mem(size);
+				if(!rec->fields[field_index].data.s){
+					display_to_stdout("ask_mem() failed, %s:%d\n",__FILE__,__LINE__-2);
+					return -1;
+				}
+				string_copy(rec->fields[field_index].data.s,number,size-1);
+				return 0;
+			}
+			case TYPE_FLOAT:
+			case TYPE_DOUBLE:
+			{
+				double d = *(double *)data;
+				size_t size = 25;
+				char number[size];
+				set_memory(number,0,size);
+				double_to_string(d,number);
+
+				size_t number_size = string_length(number);
+				rec->fields[field_index].data.s = (char *)ask_mem(number_size+1);
+				if(!rec->fields[field_index].data.s) return -1;
+				string_copy(rec->fields[field_index].data.s,number,number_size);
+				return 0;
+			}
+			default:
+			break;
+			}
+		}
+
+		size_t data_size = string_length((char *)data);
+		rec->fields[field_index].data.s = (char *) ask_mem(data_size+1);
+		if(!rec->fields[field_index].data.s) return -1;
+		
+		string_copy(rec->fields[field_index].data.s,data,data_size);
+		break;
+	}
+	/*TODO add arrays and file type*/
+	default:
+	return -1;
+	}
+
+	return 0;
+}
 
 int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
@@ -123,6 +245,25 @@ unsigned char set_field(struct Record_f *rec,
 			return 0;
 		}
 		break;
+	case TYPE_KEY:
+		if(!is_integer(value)){
+			printf("invalid value for key type: %s.\n", value);
+			return 0;
+		}
+		
+		long l = string_to_long(value);
+		if(error_value == INVALID_VALUE){
+			printf("conversion ERROR type KEY value:%s, %s:%d.\n",value,__FILE__, __LINE__ - 2);
+			return 0;
+		}
+
+		if(l > MAX_KEY){
+			printf("KEY exceed the limit value %s:%d.\n",__FILE__, __LINE__ - 2);
+			return 0;
+		}
+
+		rec->fields[index].data.k = (ui32)l;
+		break;
 	case TYPE_FILE:
 	{	
 		/*validate the input*/
@@ -146,7 +287,6 @@ unsigned char set_field(struct Record_f *rec,
 			*close_c = '@';
 			count++;	
 		}
-		
 
 		/*count should never be 0*/
 		assert(count > 0);
@@ -642,7 +782,7 @@ unsigned char set_field(struct Record_f *rec,
 							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(count *sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!rec->fields[index].data.file.recs){
-								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
 								return 0;
 							}
 							check = perform_checks_on_schema(mode,&values[i][2], -1,
@@ -840,9 +980,8 @@ unsigned char set_field(struct Record_f *rec,
 
 				if (range == IN_INT) {
 					/*convert the value to long and then cast it to int */
-					errno = 0;
 					long n = string_to_long(t);
-					if (errno == EINVAL) {
+					if (error_value == INVALID_VALUE) {
 						printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -874,9 +1013,8 @@ unsigned char set_field(struct Record_f *rec,
 			if (range == IN_INT){
 				/*convert the value to long and then cast it to int */
 				/*i do not want to use atoi*/
-				errno = 0;
 				long n = string_to_long(value);
-				if (errno == EINVAL) {
+				if (error_value == INVALID_VALUE) {
 					printf("conversion ERROR type int %s:%d.\n", F, L - 2);
 					return 0;
 				}
@@ -913,9 +1051,8 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if (range == IN_INT || range == IN_LONG) {
-					errno = 0;
 					long n = string_to_long(t);
-					if (errno == EINVAL){
+					if (error_value == INVALID_VALUE){
 						printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -938,9 +1075,8 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			if (range == IN_INT || range == IN_LONG) {
-				errno = 0;
 				long n = string_to_long(value);
-				if (errno == EINVAL) {
+				if (error_value == INVALID_VALUE) {
 					printf("conversion ERROR type long %s:%d.\n", F, L - 2);
 					return 0;
 				}
@@ -979,9 +1115,8 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if (range == IN_FLOAT){
-							errno = 0;
 							float f = (float)string_to_double(cpy);
-							if (errno == EINVAL){
+							if (error_value == INVALID_VALUE){
 								printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 								return 0;
 							}
@@ -1008,9 +1143,8 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if (range == IN_FLOAT){
-					errno = 0;
 					float f = (float)string_to_double(t);
-					if (errno == EINVAL){
+					if (error_value == INVALID_VALUE){
 						printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -1040,9 +1174,8 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					if (range == IN_FLOAT){
-						errno = 0;
 						float f = (float)string_to_double(cpy);
-						if (errno == EINVAL){
+						if (error_value == INVALID_VALUE){
 							printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 							return 0;
 						}
@@ -1066,9 +1199,8 @@ unsigned char set_field(struct Record_f *rec,
 
 			if (range == IN_FLOAT)
 			{
-				errno = 0;
 				float f = (float)string_to_double(value);
-				if (errno == EINVAL)
+				if (error_value == INVALID_VALUE)
 				{
 					printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 					return 0;
@@ -1136,9 +1268,8 @@ unsigned char set_field(struct Record_f *rec,
 				}
 				
 				
-				errno = 0;	
 				long l = string_to_long(t);
-				if (errno == EINVAL)
+				if (error_value == INVALID_VALUE)
 				{
 					printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 					return 0;
@@ -1173,9 +1304,8 @@ unsigned char set_field(struct Record_f *rec,
 				return 0;
 			}
 
-			errno = 0;
 			long l = string_to_long(value);
-			if (errno == EINVAL)
+			if (error_value == INVALID_VALUE)
 			{
 				printf("conversion ERROR type float %s:%d.\n", F, L - 2);
 				return 0;
@@ -1196,9 +1326,8 @@ unsigned char set_field(struct Record_f *rec,
 				return 0;
 			}
 
-			errno = 0;
 			long p = string_to_long(value);
-			if (errno == EINVAL){
+			if (error_value == INVALID_VALUE){
 				printf("conversion ERROR type pack %s:%d.\n", F, L - 2);
 				return 0;
 			}
@@ -1243,9 +1372,8 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if (range == IN_DOUBLE || range == IN_FLOAT) {
-							errno = 0;
 							double d = string_to_double(cpy);
-							if (errno == EINVAL) {
+							if (error_value == INVALID_VALUE) {
 								printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 								return 0;
 							}
@@ -1272,9 +1400,8 @@ unsigned char set_field(struct Record_f *rec,
 				}
 
 				if (range == IN_DOUBLE || range == IN_FLOAT) {
-					errno = 0;
 					double d = string_to_double(t);
-					if (errno == EINVAL) {
+					if (error_value == INVALID_VALUE) {
 						printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 						return 0;
 					}
@@ -1308,9 +1435,8 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					if (range == IN_DOUBLE || range == IN_FLOAT) {
-						errno = 0;
 						double d = string_to_double(cpy);
-						if (errno == EINVAL) {
+						if (error_value == INVALID_VALUE) {
 							printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 							return 0;
 						}
@@ -1333,9 +1459,8 @@ unsigned char set_field(struct Record_f *rec,
 			}
 
 			if (range == IN_DOUBLE || range == IN_FLOAT) {
-				errno = 0;
 				double d = string_to_double(value);
-				if (errno == EINVAL)
+				if (error_value == INVALID_VALUE)
 				{
 					printf("conversion ERROR type double %s:%d.\n", F, L - 2);
 					return 0;
@@ -1395,6 +1520,7 @@ void free_record(struct Record_f *rec, int fields_num)
 		switch (t) {
 		case -1:
 		case TYPE_INT:
+		case TYPE_KEY:
 		case TYPE_LONG:
 		case TYPE_FLOAT:
 		case TYPE_BYTE:
@@ -1487,6 +1613,9 @@ static void display_data(struct Record_f rec, int max,int tab)
 			break;
 		case TYPE_INT:
 			printf("%d\n", rec.fields[i].data.i);
+			break;
+		case TYPE_KEY:
+			printf("%u\n", rec.fields[i].data.k);
 			break;
 		case TYPE_LONG:
 			printf("%ld\n", rec.fields[i].data.l);
@@ -1984,22 +2113,33 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 	return 1;
 }
 
-unsigned char get_index_rec_field(char *field_name, 
-					struct Record_f **recs,
-					int recs_len, 
-					int *field_i_r, 
-					int *rec_index)
+unsigned char get_index_rec_field(char *field_name, struct Record_f *rec,int *field_i_r, int *rec_index)
 {
 	size_t field_name_len = strlen(field_name);
 	int i;
 	int j;
-	for (i = 0; i < recs_len; i++){
-		for (j = 0; j < recs[i]->fields_num; j++){
-			if (strncmp(field_name, recs[i]->fields[j].field_name, field_name_len) == 0){
-				*field_i_r = j;
-				*rec_index = i;
-				return 1;
+	if(rec->count > 1){
+		i = 0;
+		struct Record_f *r = rec;
+		while(r){
+			for (j = 0; j < r->fields_num; j++){
+				if (strncmp(field_name, r->fields[j].field_name, field_name_len) == 0){
+					*field_i_r = j;
+					*rec_index = i;
+					return 1;
+				}
 			}
+			i++;
+			r = r->next;
+		}
+		return 0;
+	}
+
+	for (j = 0, i = 0; j < rec->fields_num; j++){
+		if (strncmp(field_name, rec->fields[j].field_name, field_name_len) == 0){
+			*field_i_r = j;
+			*rec_index = i;
+			return 1;
 		}
 	}
 
@@ -2010,18 +2150,18 @@ int init_array(struct array **v, enum ValueType type)
 {
 	(*(*v)).size = DEF_SIZE;
 	switch (type){
-	case TYPE_ARRAY_INT:
-	{
-		(*(*v)).elements.i = (int*)ask_mem(DEF_SIZE * sizeof(int));
-		if (!(*(*v)).elements.i){
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-			return -1;
-		}
+		case TYPE_ARRAY_INT:
+			{
+				(*(*v)).elements.i = (int*)ask_mem(DEF_SIZE * sizeof(int));
+				if (!(*(*v)).elements.i){
+					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+					return -1;
+				}
 
-		break;
-	}
-	case TYPE_ARRAY_LONG:
-	{
+				break;
+			}
+		case TYPE_ARRAY_LONG:
+			{
 		(*(*v)).elements.l = (long*)ask_mem(DEF_SIZE * sizeof(long));
 		if (!(*(*v)).elements.l)
 		{

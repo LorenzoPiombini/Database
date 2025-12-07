@@ -58,15 +58,15 @@ int main(int argc, char *argv[])
 	/* parameters populated with the flag from getopt()*/
 	int c = 0;
 	struct String file_path;
-	init(&file_path,NULL);
+	init(&file_path,NULL,NULL);
 	struct String data_to_add;
-	init(&data_to_add,NULL);
+	init(&data_to_add,NULL,NULL);
 	struct String key;
-	init(&key,NULL);
+	init(&key,NULL,NULL);
 	struct String schema_def;
-	init(&schema_def,NULL);
+	init(&schema_def,NULL,NULL);
 	struct String txt_f;
-	init(&txt_f,NULL);
+	init(&txt_f,NULL,NULL);
 
 	char *option = NULL;
 	int bucket_ht = 0;
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 		}
 		case 'a':
 		{
-			init(&data_to_add,optarg);
+			init(&data_to_add,optarg,NULL);
 			break;
 		}
 		case 'n':
@@ -92,18 +92,18 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 		{
-			init(&file_path,optarg);
+			init(&file_path,optarg,NULL);
 			break;
 		}
 		case 'F':
 		{
-			init(&file_path,optarg);
+			init(&file_path,optarg,NULL);
 			file_field = 1;
 			break;
 		}
 		case 'k':
 		{
-			init(&key,optarg);
+			init(&key,optarg,NULL);
 			break;
 		}
 		case 'D':
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 			return 0;
 		case 'R':
 		{
-			init(&schema_def,optarg);
+			init(&schema_def,optarg,NULL);
 			break;
 		}
 		case 'u':
@@ -140,13 +140,13 @@ int main(int argc, char *argv[])
 		case 'b':
 		{
 			build = 1;
-			init(&txt_f,optarg);
+			init(&txt_f,optarg,NULL);
 			break;
 		}
 		case 'B':
 		{
 			import_from_data = 1;
-			init(&txt_f,optarg);
+			init(&txt_f,optarg,NULL);
 			break;
 		}
 		case 's':
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 		case 'c':
 		{
 			create = 1;
-			init(&txt_f,optarg);
+			init(&txt_f,optarg,NULL);
 			break;
 		}
 		case 'i':
@@ -228,20 +228,17 @@ int main(int argc, char *argv[])
 	if (create){
 		if(txt_f.str){
 			if (!create_system_from_txt_file(txt_f.str)) {
-				txt_f.close(&txt_f);
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
 		}else{
 			if (!create_system_from_txt_file(txt_f.base)) {
-				txt_f.close(&txt_f);
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
 
 		}
 		display_to_stdout("system created!\n");
-		txt_f.close(&txt_f);
 		close_prog_memory();
 		return 0;
 	}
@@ -254,7 +251,6 @@ int main(int argc, char *argv[])
 		}
 
 		*/
-		txt_f.close(&txt_f);
 		close_prog_memory();
 		return STATUS_ERROR;
 	}
@@ -263,20 +259,17 @@ int main(int argc, char *argv[])
 		if(txt_f.str){
 			if(import_data_to_system(txt_f.str) == -1) {
 				display_to_stdout("(%s): could not import data from '%s'.\n",prog,txt_f.str);
-				txt_f.close(&txt_f);
 				close_prog_memory();
 				return -1;
 			}
 		}else{
 			if(import_data_to_system(txt_f.base) == -1) {
 				display_to_stdout("(%s): could not import data from '%s'.\n",prog,txt_f.base);
-				txt_f.close(&txt_f);
 				close_prog_memory();
 				return -1;
 			}
 		}
 
-		txt_f.close(&txt_f);
 		close_prog_memory();
 		return 0;
 	}
@@ -290,7 +283,6 @@ int main(int argc, char *argv[])
 		else
 			strncpy(cpy_fp,file_path.base,file_path.size);
 
-		file_path.close(&file_path);
 
 		char cpy_sd[schema_def.size + 1];
 		memset(cpy_sd,0,schema_def.size + 1);
@@ -300,7 +292,6 @@ int main(int argc, char *argv[])
 			else
 				strncpy(cpy_sd,schema_def.base,schema_def.size);
 
-			schema_def.close(&schema_def);
 		}
 
 		char cpy_dta[data_to_add.size + 1];
@@ -311,7 +302,6 @@ int main(int argc, char *argv[])
 			else
 				strncpy(cpy_dta,data_to_add.base,data_to_add.size);
 
-			data_to_add.close(&data_to_add);
 		}
 
 		char kcpy[key.size+1];
@@ -322,7 +312,6 @@ int main(int argc, char *argv[])
 			else
 				strncpy(kcpy,key.str,key.size);
 
-			key.close(&key);
 		}
 
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
@@ -739,7 +728,6 @@ int main(int argc, char *argv[])
 		else
 			strncpy(cpy_fp,file_path.base,file_path.size);
 
-		file_path.close(&file_path);
 
 		char kcpy[key.size+1];
 		memset(kcpy,0,key.size+1);
@@ -749,7 +737,6 @@ int main(int argc, char *argv[])
 			else
 				strncpy(kcpy,key.base,key.size);
 
-			key.close(&key);
 		}
 
 		char cpy_sd[schema_def.size + 1];
@@ -760,7 +747,6 @@ int main(int argc, char *argv[])
 			else
 				strncpy(cpy_sd,schema_def.base,schema_def.size);
 
-			schema_def.close(&schema_def);
 		}
 
 		char cpy_dta[data_to_add.size + 1];
@@ -771,7 +757,6 @@ int main(int argc, char *argv[])
 			else
 				strncpy(cpy_dta,data_to_add.base,data_to_add.size);
 
-			data_to_add.close(&data_to_add);
 		}
 
 
@@ -1366,8 +1351,15 @@ int main(int argc, char *argv[])
 			struct Record_f rec;
 			memset(&rec,0,sizeof(struct Record_f));
 
-			if(get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds) == -1){
+			int err = 0;
+			if((err = get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds)) == -1){
 				free_record(&rec,rec.fields_num);
+				close_file(3, fd_schema,fd_index, fd_data);
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
+
+			if( err == KEY_NOT_FOUND){
 				close_file(3, fd_schema,fd_index, fd_data);
 				close_prog_memory();
 				return STATUS_ERROR;

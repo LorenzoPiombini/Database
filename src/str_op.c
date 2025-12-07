@@ -359,7 +359,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		for(x = 0; x < i; x++){
 			size_t sz = string_length(names_s[j]);
 			if(sz != string_length(names[x])) continue;
-			if(string_compare(names_s[j],names[x],sz) == 0){
+			if(string_compare(names_s[j],names[x],sz,-1) == 0){
 				skip = j;
 				b = 1;
 				break;
@@ -382,6 +382,58 @@ static int search_string_for_types(char *str, int *types)
 	for(i = 0;*str != '\0';str++,i++){
 		if(types[i] == -1) break;
 		switch(types[i]){
+		case TYPE_KEY:
+		{
+			char *p = 0x0;
+			while((p = find_needle(str,"@t_ky:"))){
+				char *p_end = find_needle(p,":");
+				if(!p_end){
+					int p_size = (int)string_length(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+			while((p = find_needle(str,"@TYPE_KEY:"))){
+
+				char *p_end = find_needle(p,":");
+				if(!p_end){
+					int p_size = (int)string_length(p); 
+
+					int k;
+					for(k = 0; k < p_size; k++){
+						*p = ' ';
+						p++;
+					}
+					break;
+				}
+
+				int p_size =(int) (p_end - str) - (p - str); 
+				if(p_size < 0) return -1;
+
+				int k;
+				for(k = 0; k < p_size; k++){
+					*p = ' ';
+					p++;
+				}
+			}
+
+			break;
+
+		}
 		case TYPE_INT:
 		{
 			char *p = 0x0;
@@ -400,7 +452,7 @@ static int search_string_for_types(char *str, int *types)
 
 				int p_size =(int) (p_end - str) - (p - str); 
 				if(p_size < 0) return -1;
-		
+
 				int k;
 				for(k = 0; k < p_size; k++){
 					*p = ' ';
@@ -423,7 +475,7 @@ static int search_string_for_types(char *str, int *types)
 
 				int p_size =(int) (p_end - str) - (p - str); 
 				if(p_size < 0) return -1;
-		
+
 				int k;
 				for(k = 0; k < p_size; k++){
 					*p = ' ';
@@ -448,7 +500,7 @@ static int search_string_for_types(char *str, int *types)
 				}
 				int p_size = (int)(p_end - str) - (p - str);
 				if(p_size < 0)return -1;
-				
+
 				int k;
 				for(k = 0; k < p_size; k++,p++)
 					*p = ' ';
@@ -495,7 +547,7 @@ static int search_string_for_types(char *str, int *types)
 
 				int p_size =(int) (p_end - str) - (p - str); 
 				if(p_size < 0) return -1;
-		
+
 				int k;
 				for(k = 0; k < p_size; k++){
 					*p = ' ';
@@ -518,7 +570,7 @@ static int search_string_for_types(char *str, int *types)
 
 				int p_size =(int) (p_end - str) - (p - str); 
 				if(p_size < 0) return -1;
-		
+
 				int k;
 				for(k = 0; k < p_size; k++){
 					*p = ' ';
@@ -1320,116 +1372,121 @@ int count_fields(char *fields, const char *user_target)
 
 int get_type(char *s){
 
-	if (string_compare(s, "TYPE_INT",8) == 0) {
+	if (string_compare(s, "TYPE_INT",8,-1) == 0) {
 		return 0;
-	} else if (string_compare(s, "TYPE_LONG",9) == 0){
+	} else if (string_compare(s, "TYPE_LONG",9,-1) == 0){
 		return 1;
-	} else if (string_compare(s, "TYPE_FLOAT",10) == 0) {
+	} else if (string_compare(s, "TYPE_FLOAT",10,-1) == 0) {
 		return 2;
 	}
-	else if (string_compare(s, "TYPE_STRING",11) == 0)
+	else if (string_compare(s, "TYPE_STRING",11,-1) == 0)
 	{
 		return 3;
 	}
-	else if (string_compare(s, "TYPE_BYTE",9) == 0)
+	else if (string_compare(s, "TYPE_BYTE",9,-1) == 0)
 	{
 		return 4;
 	}
-	else if(string_compare(s, "TYPE_PACK",9) == 0)
+	else if(string_compare(s, "TYPE_PACK",9,-1) == 0)
 	{
 		return 5;
 	}
-	else if (string_compare(s, "TYPE_DOUBLE",11) == 0)
+	else if (string_compare(s, "TYPE_DOUBLE",11,-1) == 0)
 	{
 		return 6;
+	}else if (string_compare(s, "TYPE_KEY",8,-1) == 0)
+	{
+		return 15;
 	}
-	else if (string_compare(s, "t_i",3) == 0)
+	else if (string_compare(s, "t_i",3,-1) == 0)
 	{
 		return 0;
 	}
-	else if (string_compare(s, "t_l",3) == 0)
+	else if (string_compare(s, "t_l",3,-1) == 0)
 	{
 		return 1;
 	}
-	else if (string_compare(s, "t_f",3) == 0)
+	else if (string_compare(s, "t_f",3,-1) == 0)
 	{
 		return 2;
 	}
-	else if (string_compare(s, "t_s",3) == 0)
+	else if (string_compare(s, "t_s",3,-1) == 0)
 	{
 		return 3;
 	}
-	else if (string_compare(s, "t_b",3) == 0)
+	else if (string_compare(s, "t_b",3,-1) == 0)
 	{
 		return 4;
 	}
-	else if (string_compare(s, "t_pk",4) == 0)
+	else if (string_compare(s, "t_pk",4,-1) == 0)
 	{
 		return 5;
 	}
-	else if (string_compare(s, "t_d",3) == 0)
+	else if (string_compare(s, "t_d",3,-1) == 0)
 	{
 		return 6;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_INT",14) == 0)
+	else if (string_compare(s, "TYPE_ARRAY_INT",14,-1) == 0)
 	{
 		return 7;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_LONG",15) == 0)
+	else if (string_compare(s, "TYPE_ARRAY_LONG",15,-1) == 0)
 	{
 		return 8;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_FLOAT",16) == 0)
+	else if (string_compare(s, "TYPE_ARRAY_FLOAT",16,-1) == 0)
 	{
 		return 9;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_STRING",17) == 0)
+	else if (string_compare(s, "TYPE_ARRAY_STRING",17,-1) == 0)
 	{
 		return 10;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_BYTE",15) == 0)
+	else if (string_compare(s, "TYPE_ARRAY_BYTE",15,-1) == 0)
 	{
 		return 11;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_DOUBLE",17) == 0)
+	else if (string_compare(s, "TYPE_ARRAY_DOUBLE",17,-1) == 0)
 	{
 		return 12;
 	}
-	else if (string_compare(s, "TYPE_FILE",9) == 0)
+	else if (string_compare(s, "TYPE_FILE",9,-1) == 0)
 	{
 		return 13;
 	}
-	else if (string_compare(s, "TYPE_DATE",9) == 0){
+	else if (string_compare(s, "TYPE_DATE",9,-1) == 0){
 		return 14;
-	}else if (string_compare(s, "t_ai",4) == 0)
+	}else if (string_compare(s, "t_ai",4,-1) == 0)
 	{
 		return 7;
 	}
-	else if (string_compare(s, "t_al",4) == 0)
+	else if (string_compare(s, "t_al",4,-1) == 0)
 	{
 		return 8;
 	}
-	else if (string_compare(s, "t_af",4) == 0)
+	else if (string_compare(s, "t_af",4,-1) == 0)
 	{
 		return 9;
 	}
-	else if (string_compare(s, "t_as",4) == 0)
+	else if (string_compare(s, "t_as",4,-1) == 0)
 	{
 		return 10;
 	}
-	else if (string_compare(s, "t_ab",4) == 0)
+	else if (string_compare(s, "t_ab",4,-1) == 0)
 	{
 		return 11;
 	}
-	else if (string_compare(s, "t_ad",4) == 0)
+	else if (string_compare(s, "t_ad",4,-1) == 0)
 	{
 		return 12;
 	}
-	else if (string_compare(s, "t_fl",4) == 0)
+	else if (string_compare(s, "t_fl",4,-1) == 0)
 	{
 		return 13;
-	}else if (string_compare(s, "t_dt",4) == 0){
+	}else if (string_compare(s, "t_dt",4,-1) == 0){
 		return 14;
+	}else if (string_compare(s, "t_ky",4,-1) == 0){
+		return 15;
 	}
 
 	return -1;
@@ -1516,7 +1573,7 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 
 				if (l_i == l_j)
 				{
-					if (string_compare(names[i], names[j], l_j) == 0)
+					if (string_compare(names[i], names[j], l_j,-1) == 0)
 						return 0;
 				}
 			}
@@ -2377,7 +2434,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 				set_memory(cpy,0,size+1);
 				string_copy(cpy,f,size);
 				if(string_length(sch.fields_name[i]) == (size_t)size){
-					if(string_compare(cpy,sch.fields_name[i],size) == 0){
+					if(string_compare(cpy,sch.fields_name[i],size,-1) == 0){
 						while(*f != ':'){
 							*f = ' ';
 							f++;
@@ -2530,21 +2587,21 @@ static int is_target_db_type(char *target)
 			*tg = ':';
 			string_copy(&tg[1],target,size);
 		}
-		if(string_length(tg) == string_length(":t_s")) if(string_compare(tg,":t_s",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_l")) if(string_compare(tg,":t_l",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_b")) if(string_compare(tg,":t_b",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_d")) if(string_compare(tg,":t_d",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_i")) if(string_compare(tg,":t_i",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_f")) if(string_compare(tg,":t_f",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_p")) if(string_compare(tg,":t_p",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_ai")) if(string_compare(tg,":t_ai",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_al")) if(string_compare(tg,":t_al",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_af")) if(string_compare(tg,":t_af",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_ad")) if(string_compare(tg,":t_ad",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_as")) if(string_compare(tg,":t_as",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_ab")) if(string_compare(tg,":t_ab",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_fl")) if(string_compare(tg,":t_fl",size) == 0) return 0;
-		if(string_length(tg) == string_length(":t_dt")) if(string_compare(tg,":t_dt",size) == 0) return 0;
+		if(string_length(tg) == string_length(":t_s")) if(string_compare(tg,":t_s",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_l")) if(string_compare(tg,":t_l",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_b")) if(string_compare(tg,":t_b",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_d")) if(string_compare(tg,":t_d",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_i")) if(string_compare(tg,":t_i",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_f")) if(string_compare(tg,":t_f",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_p")) if(string_compare(tg,":t_p",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_ai")) if(string_compare(tg,":t_ai",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_al")) if(string_compare(tg,":t_al",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_af")) if(string_compare(tg,":t_af",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_ad")) if(string_compare(tg,":t_ad",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_as")) if(string_compare(tg,":t_as",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_ab")) if(string_compare(tg,":t_ab",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_fl")) if(string_compare(tg,":t_fl",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_dt")) if(string_compare(tg,":t_dt",size,-1) == 0) return 0;
 
 		return -1;
 
@@ -2660,7 +2717,7 @@ char *tok(char *str, char *delim)
 				goto tok_process;
 			}else{
 				replace('\n',*delim,t_hndl.original_tok);	
-				if(string_compare(str,t_hndl.original_tok,string_size) == 0){
+				if(string_compare(str,t_hndl.original_tok,string_size,-1) == 0){
 					if(cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok)+1) == -1){
 						/*log the error*/
 					}
@@ -2703,7 +2760,7 @@ tok_process:
 		t_hndl.last = t_hndl.original_tok;
 	}
 	
-	if(string_compare(t_hndl.delim,delim,string_length(t_hndl.delim)) != 0) {
+	if(string_compare(t_hndl.delim,delim,string_length(t_hndl.delim),-1) != 0) {
 		cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok));
 		t_hndl.original_tok = 0x0;
 		return 0x0;

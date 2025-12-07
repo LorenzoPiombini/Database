@@ -5291,6 +5291,17 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		if(rec->field_set[i] == 0) continue;
 
 		switch (rec->fields[i].type) {
+		case TYPE_KEY:
+		{
+			ui32 i_ne = 0;
+			if (read(fd, &i_ne, sizeof(ui32)) < 0) {
+				printf("could not read type key %s:%d\n",__FILE__,__LINE__-2);
+				free_record(rec, rec->fields_num);
+				return -1;
+			}
+			rec->fields[i].data.k = (ui32)swap32(i_ne);
+			break;
+		}
 		case TYPE_INT:
 		{
 			ui32 i_ne = 0;
@@ -6423,6 +6434,7 @@ static size_t get_disk_size_record(struct Record_f *rec)
 		switch(rec->fields[i].type){
 		case -1:
 			break;
+		case TYPE_KEY:
 		case TYPE_INT:
 			size += sizeof(ui32);
 			break;
@@ -7089,6 +7101,17 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 		case TYPE_INT:
 		{
 			ui32 value = swap32((ui32)rec->fields[i].data.i);
+			if(ram->size == ram->capacity && ram->offset != ram->size)
+				memcpy(&ram->mem[ram->offset],&value,sizeof(ui32));
+			else
+				memcpy(&ram->mem[ram->size],&value,sizeof(ui32));
+
+			move_ram_file_ptr(ram,sizeof(ui32));
+			break;
+		}
+		case TYPE_KEY:
+		{
+			ui32 value = swap32(rec->fields[i].data.k);
 			if(ram->size == ram->capacity && ram->offset != ram->size)
 				memcpy(&ram->mem[ram->offset],&value,sizeof(ui32));
 			else

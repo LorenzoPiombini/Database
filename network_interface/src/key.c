@@ -18,6 +18,20 @@ ui32 generate_numeric_key(int *fds, int end_point)
 {
 	ui32 key = 0;
 	switch(end_point){
+	case NEW_CUST:
+	{
+		HashTable ht;
+		set_memory(&ht,0,sizeof(HashTable));
+		HashTable *p_ht = &ht;
+		if(!read_index_nr(0,fds[0],&p_ht)){
+			/*log failure*/
+			return 0;
+		}
+
+		key = len(ht);
+		destroy_hasht(p_ht);
+		break;
+	}
 	case NEW_SORD: 
 	{
 		HashTable ht;
@@ -28,8 +42,7 @@ ui32 generate_numeric_key(int *fds, int end_point)
 			return 0;
 		}
 
-		int elements = len(ht);
-		key = elements + ORDER_BASE;
+		key = len(ht) + ORDER_BASE;
 
 		destroy_hasht(p_ht);
 		break;

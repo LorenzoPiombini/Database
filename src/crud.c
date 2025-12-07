@@ -251,13 +251,14 @@ int check_data(char *file_path,char *data_to_add,
 	return check;
 }
 
-int write_record(int *fds,void *key,
-		int key_type,
-		struct Record_f *rec, 
-		int update,
-		char files[3][MAX_FILE_PATH_LENGTH],
-		int *lock_f,
-		int mode)
+int write_record(int *fds,
+					void *key,
+					int key_type,
+					struct Record_f *rec, 
+					int update,
+					char files[3][MAX_FILE_PATH_LENGTH],
+					int *lock_f,
+					int mode)
 {
 	if(mode == IMPORT){
 		if(!__IMPORT_EZ) return -1;
@@ -390,8 +391,8 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 
 			return STATUS_ERROR;
 		}
-
-		break;
+		fds[0] = fd_index;
+		return 0;
 	}
 	default:
 		fd_index = open_file(files[0], 0);
