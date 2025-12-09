@@ -28,34 +28,6 @@ int g_index = 0;
 int *p_gi = &g_index;
 struct Ram_file ram = {0, 0, 0, 0};
 
-/*exporting to Lua*/
-static void push_record_as_a_table(lua_State *L, struct Record_f *rec)
-{
-	int was_null = 0;
-	if(!L) {
-		lua_init();
-		was_null = 1;
-	}
-
-	lua_newtable(L);
-
-
-	lua_pushstring(L,rec->file_name);
-	lua_setfield(L,-2,"File_name");
-	lua_pushinteger(L,rec->offset);
-	lua_setfield(L,-2,"Offset");
-	lua_pushinteger(L,rec->fields_num);
-	lua_setfield(L,-2,"fields_num");
-
-	int i;
-	lua_newtable(L)
-	for(i =k 0; i < rec->fields_num;i++){
-		lua_pushinteger(L,*rec->field_set);
-	} 
-	lua_setfield(L,"active_fields");
-	
-	if(was_null) close_lua();
-}
 int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, int *fds)
 {
 	int e = 0;
