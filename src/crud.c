@@ -15,9 +15,6 @@
 #include "types.h"
 #include "memory.h"
 #include "input.h"
-#include "start_lua.h"
-#include "lua5.1/lua.h"
-#include "lua5.1/lauxlib.h"
 
 static char prog[] = "db";
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type);
@@ -146,6 +143,53 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	return 0;
 }
 
+int get_all_records(char *file_name,int *fds,struct Record_f *rec,struct Header_d hd)
+{
+	if(get_all_record(fds[1],&ram) == -1){
+		fprintf(stderr,"cannot get all the record from '%s'.\n",file_name);
+		return -1;
+	}
+
+	file_offset pos_after_read = 0;
+	if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
+		fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
+		clear_ram_file(&ram);
+		return STATUS_ERROR;
+	}
+
+	ui64 up_r_pos_ne = 0; 
+	struct Record_f *temp = NULL;
+	temp = rec;
+	do{
+		memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(ui64));
+		if(up_r_pos_ne == 0) break;
+
+		struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+		if(!n){		
+			fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			clear_ram_file(&ram);
+			return STATUS_ERROR;
+		}
+
+		file_offset update_rec_pos = swap64(up_r_pos_ne);
+		n->offset = update_rec_pos;
+		ram.offset = update_rec_pos;
+		if(( pos_after_read = read_ram_file(file_name,&ram, n,*(hd.sch_d))) == -1){
+			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
+			clear_ram_file(&ram);
+			return STATUS_ERROR;
+		}
+
+		temp->next = n;
+		while(temp->next) temp = temp->next; 
+		rec->count++;
+
+	}while(up_r_pos_ne != 0); 
+
+	clear_ram_file(&ram);
+	return 0;
+}
+
 int is_db_file(struct Header_d *hd, int *fds)
 {
 
@@ -169,7 +213,7 @@ int check_data(char *file_path,char *data_to_add,
 	memset(pos,-1,sizeof(int)*200);
 
 	if(__IMPORT_EZ || __UTILITY) find_delim_in_fields(":",data_to_add,pos,*(hd->sch_d)); 
-	
+
 	ui8  cnt = (ui8) count_fields(data_to_add,":");
 	if(cnt >= 3) cnt -= 1; 	
 
@@ -200,7 +244,7 @@ int check_data(char *file_path,char *data_to_add,
 		check = perform_checks_on_schema(mode,data_to_add, fields_count,file_path, rec, hd,pos,option);
 
 	} else {
-			
+
 		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd, pos,option);
 	}
 
@@ -255,13 +299,13 @@ int check_data(char *file_path,char *data_to_add,
 }
 
 int write_record(int *fds,
-					void *key,
-					int key_type,
-					struct Record_f *rec, 
-					int update,
-					char files[3][MAX_FILE_PATH_LENGTH],
-					int *lock_f,
-					int mode)
+		void *key,
+		int key_type,
+		struct Record_f *rec, 
+		int update,
+		char files[3][MAX_FILE_PATH_LENGTH],
+		int *lock_f,
+		int mode)
 {
 	if(mode == IMPORT){
 		if(!__IMPORT_EZ) return -1;
@@ -282,7 +326,7 @@ int write_record(int *fds,
 			free_ht_array(g_ht,g_index);
 			return STATUS_ERROR;
 		}
-	
+
 		return 0;
 	}
 
@@ -297,7 +341,7 @@ int write_record(int *fds,
 		}
 		*lock_f = 1;
 	}
-	
+
 	file_offset eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
 		__er_file_pointer(F, L - 1);

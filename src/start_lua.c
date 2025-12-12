@@ -1,11 +1,7 @@
 #include <stdio.h>
-#include "lua5.1/lua.h"
-#include "lua5.1/lauxlib.h"
-#include "lua5.1/lualib.h"
-#include "start_lua.h"
 
 
-static lua_State *L = NULL;
+lua_State *L = NULL;
 int lua_init(void)
 {
 	L = luaL_newstate();	

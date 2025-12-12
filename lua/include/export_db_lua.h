@@ -7,5 +7,4 @@
 #include "crud.h"
 #include "record.h"
 
-int port_record();
 #endif
