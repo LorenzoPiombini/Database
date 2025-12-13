@@ -33,7 +33,7 @@ int write_record(int *fds,void *key,
 		char files[3][MAX_FILE_PATH_LENGTH],
 		int *lock,
 		int mode);
-int get_all_records(char *file_name,int *fds,struct Record_f *rec,struct Header_d hd);
+int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Header_d hd);
 int is_db_file(struct Header_d *hd, int *fds);
 int write_index(int *fds, int index, HashTable *ht, char *file_name);
 int update_rec(char *file_path,

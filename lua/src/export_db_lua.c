@@ -117,15 +117,14 @@ static int l_get_all_records(lua_State *L)
 	char *file_name = (char*)luaL_checkstring(L,1);
 	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
 
-	struct Record_f rec;
-	memset(&rec,0,sizeof(struct Record_f));
 
+	struct Record_f **recs = NULL;
 	struct Schema sch;
 	memset(&sch,0,sizeof(struct Schema));
 	struct Header_d hd = {0,0,&sch};
 		
-	int fds[3];
-	memset(fds,-1,3*sizeof(int));
+	int fds[4];/*last file descriptor used for size record array*/
+	memset(fds,-1,4*sizeof(int));
 	char file_names[3][1024] = {0};
 
 	if(is_memory_allocated() == NULL)
@@ -133,15 +132,17 @@ static int l_get_all_records(lua_State *L)
 
 	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
-	int result = -1;
-	if((result = get_all_records(file_name,fds,&rec,hd)) == -1) goto err_get_record_failed;
+	if(get_all_records(file_name,fds,&recs,hd) == -1) goto err_get_record_failed;
 	close_file(3,fds[0],fds[1],fds[2]);
 
-	struct Record_f* t = &rec;
-	while(t){
-		if(port_record(L,t)) goto err_exp_data_to_lua;
-		t = t->next;
+	int i = 0;
+	lua_newtable(L);
+	for(i = 0;i < fds[3]; i++){
+		if(!recs[i])break;
+		port_record(L,recs[i]);
+		lua_rawseti(L, -2, i + 1);
 	}
+	
 	if(close_arena() == -1) goto err_memory;
 
 	return 1;
@@ -169,13 +170,6 @@ err_memory:
 		lua_pushnil(L);
 		lua_pushstring(L,"cannot allocate memory.");
 		return 2;
-err_exp_data_to_lua:
-		lua_pushnil(L);
-		lua_pushstring(L,"cannot export record data.");
-		close_arena();
-		return 2;
-
-
 }
 /*static functions definition*/
 
@@ -193,13 +187,8 @@ static int port_record(lua_State *L, struct Record_f* r){
 	lua_newtable(L);
 	int i;
 	for(i = 0; i < r->fields_num; i++){
-		lua_pushinteger(L,r->field_set[i]);
-		lua_rawseti(L, -2, i + 1);
-	}
-	lua_setfield(L,-2,"active_fields");
+		if(r->field_set[i] == 0) continue;
 
-	lua_newtable(L);	
-	for(i = 0; i < r->fields_num; i++){
 		switch(r->fields[i].type){
 		case TYPE_INT:
 			lua_pushinteger(L,r->fields[i].data.i);
@@ -236,6 +225,7 @@ static int port_record(lua_State *L, struct Record_f* r){
 			break;
 		case TYPE_FILE:
 		{
+			lua_newtable(L);
 			struct Record_f *t;
 			int j;
 			for(j = 1, t = r->fields[i].data.file.recs; t != NULL; t = t->next){
@@ -253,5 +243,20 @@ static int port_record(lua_State *L, struct Record_f* r){
 		}
 	}
 	lua_setfield(L,-2,"fields");
+	
+	lua_pushinteger(L,r->count);
+	lua_setfield(L,-2,"count");
+
+	if(r->next) {
+		lua_newtable(L);
+		struct Record_f *t;
+		for(i = 1,t = r->next; t != NULL; t = t->next){
+			port_record(L,t);
+			lua_rawseti(L, -2, i);
+			i++;
+		}
+		lua_setfield(L,-2,"next");
+		return 0;
+	}
 	return 0;
 }

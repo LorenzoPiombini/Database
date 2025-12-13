@@ -143,26 +143,48 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	return 0;
 }
 
-int get_all_records(char *file_name,int *fds,struct Record_f *rec,struct Header_d hd)
+int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Header_d hd)
 {
 	if(get_all_record(fds[1],&ram) == -1){
 		fprintf(stderr,"cannot get all the record from '%s'.\n",file_name);
 		return -1;
 	}
 
-	file_offset pos_after_read = 0;
-	if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
-		fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
+	
+	fds[3] = (ram.size/sizeof(struct Record_f*)) +1;
+	*recs = (struct Record_f**)ask_mem(sizeof(struct Record_f*)*fds[3]);
+	if(!recs){ 
+		fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
 		clear_ram_file(&ram);
 		return STATUS_ERROR;
 	}
 
-	ui64 up_r_pos_ne = 0; 
-	struct Record_f *temp = NULL;
-	temp = rec;
+	i32 i = 0;
 	do{
+		file_offset pos_after_read = 0;
+		struct Record_f* rec = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+		memset(rec,0,sizeof(struct Record_f));
+
+		if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
+			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
+			clear_ram_file(&ram);
+			return STATUS_ERROR;
+		}
+
+		ui64 up_r_pos_ne = 0; 
+		struct Record_f *temp = NULL;
+		temp = rec;
 		memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(ui64));
-		if(up_r_pos_ne == 0) break;
+		ram.offset += sizeof(ui64);
+		(*recs)[i] = rec;
+		i++;
+		if(up_r_pos_ne == 0){
+			if(ram.size > ram.offset){
+				continue;
+			}else{
+				break;
+			}
+		}
 
 		struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
 		if(!n){		
@@ -183,8 +205,7 @@ int get_all_records(char *file_name,int *fds,struct Record_f *rec,struct Header_
 		temp->next = n;
 		while(temp->next) temp = temp->next; 
 		rec->count++;
-
-	}while(up_r_pos_ne != 0); 
+	}while(ram.size != ram.offset); 
 
 	clear_ram_file(&ram);
 	return 0;
