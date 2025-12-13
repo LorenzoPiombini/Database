@@ -6583,6 +6583,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 {
 	create_record(file_name, sch,rec);
 
+	rec->offset = ram->offset; 
 	ui8 fields_on_file = 0;
 	memcpy(&fields_on_file,&ram->mem[ram->offset],sizeof(ui8));
 	move_ram_file_ptr(ram,sizeof(ui8));

@@ -106,8 +106,15 @@ clean:
 	#rm *.dat *.inx *.sch
 	rm *core*
 	 
+lua: lua_obj
+	gcc -shared -g3 -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4 -lm -ldl -lfree -fsanitize=address -lmem -llog
+
+lua_obj:
+	sudo gcc -fPIC -Wall -c lua/src/export_db_lua.c    -Iinclude -Ilua/include -I/usr/incl=ude/lua5.4     -o obj/export_db_lua.o
+
+	
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -lmem -llog -lfree -fpie -pie -z relro -z now -z noexecstack -fsanitize=address
+	sudo gcc -o $@ $? -llua5.4 -lm -ldl -lmem -llog -lfree -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 
 obj/%.o : src/%.c
 	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
