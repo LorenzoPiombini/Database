@@ -5,6 +5,7 @@
 #include "common.h"
 #include "memory.h"
 #include "file.h"
+#include "key.h"
 #include "lua5.4/lua.h"
 #include "lua5.4/lauxlib.h"
 
@@ -64,7 +65,7 @@ static int l_get_record(lua_State *L)
 		
 	int fds[3];
 	memset(fds,-1,3*sizeof(int));
-	char file_names[3][1024] = {0};
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
 	int m_al = 0;
 	if(is_memory_allocated() == NULL){
@@ -144,7 +145,7 @@ static int l_get_all_records(lua_State *L)
 		
 	int fds[4];/*last file descriptor used for size record array*/
 	memset(fds,-1,4*sizeof(int));
-	char file_names[3][1024] = {0};
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
 	int m_al = 0;
 	if(is_memory_allocated() == NULL){
@@ -204,11 +205,14 @@ static int l_write_record(lua_State *L)
 	
 	lua_Integer write_to_name_file = (int)luaL_optinteger(L,3,0); 
 	
-	int type = lua_type(L,4);
-	if(type == LUA_TNIL) /*we have to generate a key*/
-	
+	int m_al = 0;
+
+	int fds[3];
+	memset(fds,-1,3*sizeof(int));
+
 	if(write_to_name_file){
 		/*TODO*/
+		return 1;
 
 	}else{
 
@@ -216,29 +220,63 @@ static int l_write_record(lua_State *L)
 		struct Schema sch;
 		memset(&sch,0,sizeof(struct Schema));
 		struct Header_d hd = {0,0,&sch};
-		
-		int fds[3];
-		memset(fds,-1,3*sizeof(int));
-		char file_names[3][256] = {0};
 
-		int m_al = 0;
+		char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+		
 		if(is_memory_allocated() == NULL){
 			if(create_arena(EIGTH_Kib) == -1) goto err_memory;
 			m_al = 1;
 		}
 
-		/* TODO generate the key*/
-			// move key logic from network_interface to db engine
-			// and make it general!
-		int lock = 0;
+		int lock = 1;
 		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+
+		int type = lua_type(L,4);
+		void* k = NULL;
+		int key_type = -1;
+		long long n = 0;
+	
+		if(type == LUA_TNIL || type == -1) {/*we have to generate a key*/
+
+			if(type == -1){
+				if ((n = generate_numeric_key(fds,0,-1)) == -1) goto err_key_gen;
+				k = (void*)&n;
+
+			}else{
+				int key_gen_mode = (int)luaL_checkinteger(L,5);
+				int base = 0;
+				if(key_gen_mode == BASE){
+					base = (int)luaL_checkinteger(L,6);
+					if ((n = generate_numeric_key(fds,key_gen_mode,base)) == -1) goto err_key_gen;
+					k = (void*)&n;
+				}else{
+					if((n = generate_numeric_key(fds,key_gen_mode,-1)) == -1) goto err_key_gen;	
+					printf("key is %lld\n",n);
+					k = (void*)&n;
+				}
+			}
+			
+		}else if(type == LUA_TNUMBER){
+			key_type = UINT; 
+			n = (long long)luaL_checkinteger(L,2);
+			if( n < 0) goto err_key;
+			k = (void*)&n;
+		}else if(type == LUA_TSTRING){
+			key_type = STR; 
+			k = (void*)luaL_checkstring(L,2);
+		}else{
+			goto err_key;
+		}
+
 		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) goto err_invalid_data;
-		if(write_record(fds,)
-	}
+		if(write_record(fds,k,key_type,&rec,-1,file_names,&lock,-1) == -1) goto err_write_rec;
+		if(m_al) close_arena();
+		close_file(3,fds[0],fds[1],fds[2]);
 
-	return 1;
-
+		return 1;
+	}	
 err_open_file:
 		lua_pushnil(L);
 		lua_pushstring(L,"could not open the file.");
@@ -254,6 +292,24 @@ err_not_db_file:
 		close_file(3,fds[0],fds[1],fds[2]);
 		if(m_al) close_arena();
 		return 2;
+err_key:
+		lua_pushnil(L);
+		lua_pushstring(L,"error detecting key.");
+		close_file(3,fds[0],fds[1],fds[2]);
+		if(m_al) close_arena();
+		return 2;
+err_key_gen:
+		lua_pushnil(L);
+		lua_pushstring(L,"key generation failed");
+		close_file(3,fds[0],fds[1],fds[2]);
+		if(m_al) close_arena();
+		return 2;
+err_write_rec:
+		lua_pushnil(L);
+		lua_pushstring(L,"write record failed");
+		close_file(3,fds[0],fds[1],fds[2]);
+		if(m_al) close_arena();
+		return 2;
 err_invalid_data:
 		lua_pushnil(L);
 		lua_pushstring(L,"not a db file.");
@@ -261,91 +317,91 @@ err_invalid_data:
 		if(m_al) close_arena();
 		return 2;
 
-}
-/*static functions definition*/
-static int port_record(lua_State *L, struct Record_f* r){
-	lua_newtable(L);
-	lua_pushstring(L,r->file_name);
-	lua_setfield(L,-2,"file_name");
+	}
+	/*static functions definition*/
+	static int port_record(lua_State *L, struct Record_f* r){
+		lua_newtable(L);
+		lua_pushstring(L,r->file_name);
+		lua_setfield(L,-2,"file_name");
 
-	lua_pushinteger(L,r->offset);
-	lua_setfield(L,-2,"file_offset");
-	lua_pushinteger(L,r->fields_num);
-	lua_setfield(L,-2,"fields_number");
+		lua_pushinteger(L,r->offset);
+		lua_setfield(L,-2,"file_offset");
+		lua_pushinteger(L,r->fields_num);
+		lua_setfield(L,-2,"fields_number");
 
-	lua_newtable(L);
-	int i;
-	for(i = 0; i < r->fields_num; i++){
-		if(r->field_set[i] == 0) continue;
+		lua_newtable(L);
+		int i;
+		for(i = 0; i < r->fields_num; i++){
+			if(r->field_set[i] == 0) continue;
 
-		switch(r->fields[i].type){
-		case TYPE_INT:
-			lua_pushinteger(L,r->fields[i].data.i);
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
-		case TYPE_LONG:
-			lua_pushinteger(L,r->fields[i].data.l);
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
-		case TYPE_BYTE:
-			lua_pushinteger(L,r->fields[i].data.b);
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
-		case TYPE_STRING:
-			lua_pushstring(L,r->fields[i].data.s);
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
-		case TYPE_DATE:
-		{
-			char date[11];
-			memset(date,0,11);
-			if(convert_number_to_date(date,r->fields[i].data.date) == -1) return -1;
-			lua_pushstring(L,date);
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
+			switch(r->fields[i].type){
+				case TYPE_INT:
+					lua_pushinteger(L,r->fields[i].data.i);
+					lua_setfield(L,-2,r->fields[i].field_name);
+					break;
+				case TYPE_LONG:
+					lua_pushinteger(L,r->fields[i].data.l);
+					lua_setfield(L,-2,r->fields[i].field_name);
+					break;
+				case TYPE_BYTE:
+					lua_pushinteger(L,r->fields[i].data.b);
+					lua_setfield(L,-2,r->fields[i].field_name);
+					break;
+				case TYPE_STRING:
+					lua_pushstring(L,r->fields[i].data.s);
+					lua_setfield(L,-2,r->fields[i].field_name);
+					break;
+				case TYPE_DATE:
+					{
+						char date[11];
+						memset(date,0,11);
+						if(convert_number_to_date(date,r->fields[i].data.date) == -1) return -1;
+						lua_pushstring(L,date);
+						lua_setfield(L,-2,r->fields[i].field_name);
+						break;
+					}
+				case TYPE_FLOAT:
+					lua_pushnumber(L,r->fields[i].data.f);
+					lua_setfield(L,-2,r->fields[i].field_name);
+					break;
+				case TYPE_DOUBLE:
+					lua_pushnumber(L,r->fields[i].data.f);
+					lua_setfield(L,-2,r->fields[i].field_name);
+					break;
+				case TYPE_FILE:
+					{
+						lua_newtable(L);
+						struct Record_f *t;
+						int j;
+						for(j = 1, t = r->fields[i].data.file.recs; t != NULL; t = t->next){
+							if(port_record(L,t) == -1) return -1;
+							lua_rawseti(L, -2, j);
+							j++;
+						}
+
+						lua_setfield(L,-2,r->fields[i].field_name);
+						break;
+					}
+				default:
+					/*TODO*/
+					break;
+			}
 		}
-		case TYPE_FLOAT:
-			lua_pushnumber(L,r->fields[i].data.f);
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
-		case TYPE_DOUBLE:
-			lua_pushnumber(L,r->fields[i].data.f);
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
-		case TYPE_FILE:
-		{
+		lua_setfield(L,-2,"fields");
+
+		lua_pushinteger(L,r->count);
+		lua_setfield(L,-2,"count");
+
+		if(r->next) {
 			lua_newtable(L);
 			struct Record_f *t;
-			int j;
-			for(j = 1, t = r->fields[i].data.file.recs; t != NULL; t = t->next){
-				if(port_record(L,t) == -1) return -1;
-				lua_rawseti(L, -2, j);
-				j++;
+			for(i = 1,t = r->next; t != NULL; t = t->next){
+				port_record(L,t);
+				lua_rawseti(L, -2, i);
+				i++;
 			}
-
-			lua_setfield(L,-2,r->fields[i].field_name);
-			break;
+			lua_setfield(L,-2,"next");
+			return 0;
 		}
-		default:
-			/*TODO*/
-		break;
-		}
-	}
-	lua_setfield(L,-2,"fields");
-	
-	lua_pushinteger(L,r->count);
-	lua_setfield(L,-2,"count");
-
-	if(r->next) {
-		lua_newtable(L);
-		struct Record_f *t;
-		for(i = 1,t = r->next; t != NULL; t = t->next){
-			port_record(L,t);
-			lua_rawseti(L, -2, i);
-			i++;
-		}
-		lua_setfield(L,-2,"next");
 		return 0;
 	}
-	return 0;
-}

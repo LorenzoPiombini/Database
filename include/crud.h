@@ -7,6 +7,7 @@
 #define IMPORT 0
 #define RAM_FILE 1
 
+#include "common.h"
 #include "hash_tbl.h"
 #include "str_op.h"
 

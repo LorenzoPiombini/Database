@@ -3,6 +3,7 @@
 #include "helper.h"
 #include "record.h"
 #include "parse.h"
+#include "globals.h"
 #include "common.h"
 #include "file.h"
 #include "str_op.h"

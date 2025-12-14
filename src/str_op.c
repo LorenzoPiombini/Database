@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <assert.h>
+#include <stdio.h>
 #include "str_op.h"
 #include "types.h"
 #include "freestand.h"

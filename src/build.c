@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include "common.h"
 #include "build.h"
 #include "file.h"
 #include "lock.h"
@@ -7,7 +8,6 @@
 #include "str_op.h"
 #include "debug.h"
 #include "crud.h"
-#include "common.h"
 #include "globals.h"
 #include "memory.h"
 #include "freestand.h"

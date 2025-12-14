@@ -1,13 +1,13 @@
 #ifndef STR_OP_H
 #define STR_OP_H
 #include "record.h"
+#include "common.h"
 
 #define TYPE_ ":TYPE_"
 #define T_ ":t_"
 
 #define MAX_KEY 4294967296
 
-#define MAX_FILE_PATH_LENGTH 1024
 #define MAX_FILED_LT 32
 
 /*operations on files */

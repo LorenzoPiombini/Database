@@ -2,6 +2,7 @@
 #define COMMON_H
 
 
+#define MAX_FILE_PATH_LENGTH 256
 #define STATUS_ERROR -1
 #define SCHEMA_ERR 2
 #define SCHEMA_EQ 3

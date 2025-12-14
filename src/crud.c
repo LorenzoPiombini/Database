@@ -7,7 +7,6 @@
 #include "lock.h"
 #include "globals.h"
 #include "str_op.h"
-#include "common.h"
 #include "debug.h"
 #include "hash_tbl.h"
 #include "parse.h"
