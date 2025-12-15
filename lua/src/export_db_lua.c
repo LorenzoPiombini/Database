@@ -271,7 +271,7 @@ static int l_write_record(lua_State *L)
 		}
 
 		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) goto err_invalid_data;
-		if(write_record(fds,k,key_type,&rec,-1,file_names,&lock,-1) == -1) goto err_write_rec;
+		if(write_record(fds,k,key_type,&rec,0,file_names,&lock,-1) == -1) goto err_write_rec;
 		if(m_al) close_arena();
 		close_file(3,fds[0],fds[1],fds[2]);
 

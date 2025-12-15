@@ -107,10 +107,10 @@ clean:
 	rm *core*
 	 
 lua: lua_obj
-	gcc -shared -g3 -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4 -lm -ldl -lfree -fsanitize=address -lmem -llog
+	gcc -shared -g3 -o db.so obj/export_db_lua.o obj/key.o  -L/usr/local/lib -lcrud -llua5.4 -lm -ldl -lfree -fsanitize=address -lmem -llog
 
 lua_obj:
-	sudo gcc -fPIC -Wall -c lua/src/export_db_lua.c    -Iinclude -Ilua/include -I/usr/incl=ude/lua5.4     -o obj/export_db_lua.o
+	sudo gcc -fPIC -Wall -c lua/src/export_db_lua.c    -Iinclude -Ilua/include -I/usr/include/lua5.4     -o obj/export_db_lua.o
 
 	
 $(TARGET): $(OBJ)
