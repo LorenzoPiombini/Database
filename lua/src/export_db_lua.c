@@ -219,7 +219,9 @@ err_memory:
  *
  * 		write_record(file_name,data_to_add,0,23)
  * 		--@@ will write a record in the file (file_name) with 23 as a key.
-=======
+ * 		
+ * 		write_record(file_name,data_to_add,0,"base",100)
+ * 		--@@ will write a record in the file (file_name) with 100 + nr of records in the file, as a key.
  * */
 static int l_write_record(lua_State *L)
 {
