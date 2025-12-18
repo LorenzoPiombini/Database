@@ -195,7 +195,6 @@ err_memory:
 		lua_pushstring(L,"cannot allocate memory.");
 		return 2;
 }
-
 /*
  * calling from lua write_record(file_name,data_to_add)
  * --@param file_name
@@ -220,6 +219,7 @@ err_memory:
  *
  * 		write_record(file_name,data_to_add,0,23)
  * 		--@@ will write a record in the file (file_name) with 23 as a key.
+=======
  * */
 static int l_write_record(lua_State *L)
 {
