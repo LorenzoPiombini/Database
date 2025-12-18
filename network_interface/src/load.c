@@ -17,7 +17,6 @@
 #include <file.h>
 #include <str_op.h>
 #include <common.h>
-#include "key.h"
 #include "load.h"
 #include "request.h"
 #include "end_points.h"

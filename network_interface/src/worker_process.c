@@ -5,16 +5,17 @@
 
 /*my libs*/
 #include <crud.h>
+#include <key.h>
 #include <str_op.h>
 #include <types.h>
 #include <memory.h>
 #include <file.h>
 #include <freestand.h>
 #include "end_points.h"
-#include "key.h"
 #include "handlesig.h"
 #include "load.h"
 #include "common.h"
+#include "lua_start.h"
 
 
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
@@ -31,6 +32,8 @@ int work_process(int sock)
 		kill(getppid(),SIGINT);
 		sys_exit(1);
 	}
+
+	init_lua(); /*start the Lua interpreter*/
 
 	set_memory(buffer,0,EIGTH_Kib);
 	for(;;){
@@ -57,10 +60,10 @@ int work_process(int sock)
 				set_memory(fds,-1,sizeof(int)*3);
 				set_memory(name_file_fds,-1,sizeof(int)*3);
 
-				char files[3][1024];
-				char files_name_file[3][1024];
-				set_memory(files,0,3*1024);
-				set_memory(files_name_file,0,3*1024);
+				char files[3][256];
+				char files_name_file[3][256];
+				set_memory(files,0,3*256);
+				set_memory(files_name_file,0,3*256);
 
 				/*customer file*/
 				struct Record_f cust_rec;
@@ -99,7 +102,7 @@ int work_process(int sock)
 				}
 
 
-				ui32 key = generate_numeric_key(name_file_fds,NEW_CUST);
+				ui32 key = generate_numeric_key(name_file_fds,0,-1);
 
 				if(open_files(CUSTOMER_FILE,fds,files,-1) == -1){
 					close_file(3,fds[0],fds[1],fds[2]);
@@ -268,10 +271,10 @@ new_cust_error:
 				int fds_order_line[3];
 				set_memory(fds_order_line,-1,sizeof(int)*3);
 				int lock_f = 1;
-				char files_order_head[3][1024];
-				char files_order_line[3][1024];
-				set_memory(files_order_head,0,1024*3);
-				set_memory(files_order_line,0,1024*3);
+				char files_order_head[3][256];
+				char files_order_line[3][256];
+				set_memory(files_order_head,0,256*3);
+				set_memory(files_order_line,0,256*3);
 
 				struct Record_f rec;
 				set_memory(&rec,0,sizeof(struct Record_f));
@@ -338,7 +341,7 @@ new_cust_error:
 								&lock_f,-1)) == -1) goto error;
 
 				if(operation_to_perform == NEW_SORD){
-					key = generate_numeric_key(fds_order_header,NEW_SORD);
+					key = generate_numeric_key(fds_order_header,BASE,100);
 					if(!key) goto error; 
 				}
 
@@ -511,7 +514,7 @@ error:
 				/*get the all keys for the sales order file or the CUSTOMER*/
 				int fds[3];
 				set_memory(fds,-1,sizeof(int)*3);
-				char files[3][1024] = {0};
+				char files[3][256] = {0};
 
 				if(operation_to_perform == S_ORD){
 					if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
@@ -603,8 +606,8 @@ error_s_ord:
 
 							int fds[3];
 							set_memory(fds,-1,sizeof(int)*3);
-							char files[3][1024];
-							set_memory(files,0,3*1024);
+							char files[3][256];
+							set_memory(files,0,3*256);
 							struct Record_f rec;
 							set_memory(&rec,0,sizeof(struct Record_f));
 							struct Schema sch;
@@ -664,7 +667,7 @@ error_s_ord:
 							set_memory(&rec,0,sizeof(struct Record_f));
 							set_memory(&sch,0,sizeof(struct Schema));
 							set_memory(&hd,0,sizeof(struct Header_d));
-							set_memory(files,0,3*1024);
+							set_memory(files,0,3*256);
 							set_memory(fds,-1,sizeof(int)*3);
 							hd.sch_d = &sch;
 

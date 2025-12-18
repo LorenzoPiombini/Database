@@ -481,7 +481,6 @@ int main()
 								/*log error*/
 								/*NOT SURE ABOUT REMOVE HERE*/
 								//remove_socket_from_monitor(events[i].data.fd);
-								stop_listening(
 								exit(1);
 							}
 

@@ -16,7 +16,7 @@ OBJlibpPR = obj/debug_prod.o  obj/sort_prod.o obj/parse_prod.o
 OBJlibl = obj/debug.o  obj/lock.o
 OBJliblPR = obj/debug_prod.o  obj/lock_prod.o
 OBJlibbstPR = obj/debug_prod.o  obj/bst_prod.o obj/str_op_prod.o
-OBJlibcrud = obj/crud.o obj/file.o obj/date.o obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o obj/input.o
+OBJlibcrud = obj/crud.o obj/file.o obj/date.o obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o obj/input.o obj/key.o
 
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
@@ -250,7 +250,7 @@ $(BINDIR)/DELa:
 
 install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/globals.h include/hash_tbl.h include/file.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
+	install -m 644 include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
