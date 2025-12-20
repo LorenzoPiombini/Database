@@ -204,23 +204,21 @@ err_memory:
  * if no other @params are passed, the funtion will compute a key for the record
  * that you want to write.
  *
- * --@param write_to_name_file #OPTIONAL#, but must be the 3rd param, if present.
- *  this will write one entry in the Name File, in the db.
  *
- * --@param key #OPTIONAL# but must be the 4th param, if present.
+ * --@param key #OPTIONAL# but must be the 3th param, if present.
  *  this will be the key, or a key mode.
  *
  * exmaple (from lua):
  * 		write_record(file_name,data_to_add) 
  * 		--@@ will write a record in the file (file_name) with automatic numeric key.
  *
- * 		write_record(file_name,data_to_add,0,"hey")
+ * 		write_record(file_name,data_to_add,"hey")
  * 		--@@ will write a record in the file (file_name) with "hey" as a key.
  *
- * 		write_record(file_name,data_to_add,0,23)
+ * 		write_record(file_name,data_to_add,23)
  * 		--@@ will write a record in the file (file_name) with 23 as a key.
  * 		
- * 		write_record(file_name,data_to_add,0,"base",100)
+ * 		write_record(file_name,data_to_add,"base",100)
  * 		--@@ will write a record in the file (file_name) with 100 + nr of records in the file, as a key.
  * */
 static int l_write_record(lua_State *L)
@@ -271,15 +269,15 @@ static int l_write_record(lua_State *L)
 		}
 	}else if(type == LUA_TNUMBER){
 		key_type = UINT; 
-		n = (long long)luaL_checkinteger(L,4);
+		n = (long long)luaL_checkinteger(L,3);
 		if( n < 0) goto err_key;
 		k = (void*)&n;
 		lua_pushinteger(L,n);
 	}else if(type == LUA_TSTRING){
-		char *param = (char*)luaL_checkstring(L,4);
+		char *param = (char*)luaL_checkstring(L,3);
 		if(strlen(param) == strlen(BASE_SELECTOR) &&
 				strncmp(BASE_SELECTOR,param,strlen(BASE_SELECTOR)) == 0){
-			int base = luaL_checkinteger(L,5); 
+			int base = luaL_checkinteger(L,4); 
 			if ((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
 			k = (void*)&n;
 			lua_pushinteger(L,n);
@@ -287,7 +285,6 @@ static int l_write_record(lua_State *L)
 			key_type = STR; 
 			k = (void*)param;
 			lua_pushstring(L,param);
-		}
 	}else{
 		goto err_key;
 	}
