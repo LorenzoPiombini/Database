@@ -735,7 +735,7 @@ static int set_rec(struct HashTable *ht, void *key, file_offset offset, int key_
 		return 0;
 	}
 
-	void *key_conv = key_converter(key, &key_type);
+	void *key_conv = key_converter((char*)key, &key_type);
 	if (key_type == UINT && !key_conv) {
 		fprintf(stderr, "error to convert key");
 		return -1;
