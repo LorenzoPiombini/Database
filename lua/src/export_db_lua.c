@@ -68,7 +68,7 @@ static int l_get_record(lua_State *L)
 	memset(fds,-1,3*sizeof(int));
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-	int m_al = 0;
+	int m_al= 0;
 	if(is_memory_allocated() == NULL){
 		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
 		m_al = 1;
@@ -231,112 +231,114 @@ static int l_write_record(lua_State *L)
 	char *data_to_add = (char*)luaL_checkstring(L,2);
 	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
 	
-	lua_Integer write_to_name_file = (int)luaL_optinteger(L,3,0); 
-	
 	int m_al = 0;
 
 	int fds[3];
 	memset(fds,-1,3*sizeof(int));
 
-	if(write_to_name_file){
-		/*TODO*/
-		return 1;
+	struct Record_f rec = {0};
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {0,0,&sch};
 
-	}else{
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-		struct Record_f rec = {0};
-		struct Schema sch;
-		memset(&sch,0,sizeof(struct Schema));
-		struct Header_d hd = {0,0,&sch};
 
-		char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+	if(is_memory_allocated() == NULL){
+		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
+		m_al = 1;
+	}
 
-		
-		if(is_memory_allocated() == NULL){
-			if(create_arena(EIGTH_Kib) == -1) goto err_memory;
-			m_al = 1;
-		}
+	int lock = 1;
+	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 
-		int lock = 1;
-		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
-		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	int type = lua_type(L,3);
+	void* k = NULL;
+	int key_type = -1;
+	long long n = 0;
 
-		int type = lua_type(L,4);
-		void* k = NULL;
-		int key_type = -1;
-		long long n = 0;
-	
-		if(type == LUA_TNIL || type == -1) {	/*we have to generate a key*/
-			if(type == -1){
-				if ((n = generate_numeric_key(fds,0,-1)) == -1) goto err_key_gen;
-				k = (void*)&n;
+	if(type == LUA_TNIL || type == -1) {	/*we have to generate a key*/
+		if(type == -1){
+			key_type = UINT;
+			if ((n = generate_numeric_key(fds,REG,-1)) == -1) goto err_key_gen;
+			if((unsigned short)n < USHRT_MAX){
+				k = (void*)(uint16_t*)&n;
+			} else{
+				k = (void*)(uint32_t*)&n;
 			}
-		}else if(type == LUA_TNUMBER){
-			key_type = UINT; 
-			n = (long long)luaL_checkinteger(L,4);
-			if( n < 0) goto err_key;
-			k = (void*)&n;
-		}else if(type == LUA_TSTRING){
-			char *param = (char*)luaL_checkstring(L,4);
-			if(strlen(param) == strlen(BASE_SELECTOR) &&
+			lua_pushinteger(L,n);
+		}
+	}else if(type == LUA_TNUMBER){
+		key_type = UINT; 
+		n = (long long)luaL_checkinteger(L,4);
+		if( n < 0) goto err_key;
+		k = (void*)&n;
+		lua_pushinteger(L,n);
+	}else if(type == LUA_TSTRING){
+		char *param = (char*)luaL_checkstring(L,4);
+		if(strlen(param) == strlen(BASE_SELECTOR) &&
 				strncmp(BASE_SELECTOR,param,strlen(BASE_SELECTOR)) == 0){
-				int base = luaL_checkinteger(L,5); 
-				if ((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
-				k = (void*)&n;
-			}else{
-				key_type = STR; 
-				k = (void*)param;
-			}
+			int base = luaL_checkinteger(L,5); 
+			if ((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
+			k = (void*)&n;
+			lua_pushinteger(L,n);
 		}else{
-			goto err_key;
+			key_type = STR; 
+			k = (void*)param;
+			lua_pushstring(L,param);
 		}
+	}else{
+		goto err_key;
+	}
 
-		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) goto err_invalid_data;
-		if(write_record(fds,k,key_type,&rec,0,file_names,&lock,-1) == -1) goto err_write_rec;
-		if(m_al) close_arena();
-		close_file(3,fds[0],fds[1],fds[2]);
+	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) goto err_invalid_data;
+	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1) == -1) goto err_write_rec;
+	port_record(L,&rec);
+	if(m_al) close_arena();
+	close_file(3,fds[0],fds[1],fds[2]);
 
-		return 1;
-	}	
+	return 2;
+
 err_open_file:
-		lua_pushnil(L);
-		lua_pushstring(L,"could not open the file.");
-		if(m_al) close_arena();
-		return 2;
+	lua_pushnil(L);
+	lua_pushstring(L,"could not open the file.");
+	if(m_al) close_arena();
+	return 2;
 err_memory:
-		lua_pushnil(L);
-		lua_pushstring(L,"cannot allocate memory.");
-		return 2;
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot allocate memory.");
+	return 2;
 err_not_db_file:
-		lua_pushnil(L);
-		lua_pushstring(L,"not a db file.");
-		close_file(3,fds[0],fds[1],fds[2]);
-		if(m_al) close_arena();
-		return 2;
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 2;
 err_key:
-		lua_pushnil(L);
-		lua_pushstring(L,"error detecting key.");
-		close_file(3,fds[0],fds[1],fds[2]);
-		if(m_al) close_arena();
-		return 2;
+	lua_pushnil(L);
+	lua_pushstring(L,"error detecting key.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 2;
 err_key_gen:
-		lua_pushnil(L);
-		lua_pushstring(L,"key generation failed");
-		close_file(3,fds[0],fds[1],fds[2]);
-		if(m_al) close_arena();
-		return 2;
+	lua_pushnil(L);
+	lua_pushstring(L,"key generation failed");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 2;
 err_write_rec:
-		lua_pushnil(L);
-		lua_pushstring(L,"write record failed");
-		close_file(3,fds[0],fds[1],fds[2]);
-		if(m_al) close_arena();
-		return 2;
+	lua_pushnil(L);
+	lua_pushstring(L,"write record failed");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 3;
 err_invalid_data:
-		lua_pushnil(L);
-		lua_pushstring(L,"not a db file.");
-		close_file(3,fds[0],fds[1],fds[2]);
-		if(m_al) close_arena();
-		return 2;
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 2;
 
 }
 
