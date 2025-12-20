@@ -14,12 +14,17 @@
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
 static int l_write_record(lua_State *L);
+static int l_create_record(lua_State *L);
+static int l_string_data_to_add_template(lua_State *L);
 
 /* functions that will be callable from Lua scripts*/
 static const luaL_Reg db_funcs[] = {
 	{"get_record",l_get_record}, 			/* get_record(file_name,key) */
 	{"get_all_records",l_get_all_records},	/* get_all_records(file_name) */
-	{"write_record",l_write_record},		/* write_record(file_name,data,write_to_name_file) */
+	{"write_record",l_write_record},		/* write_record(file_name,data) -- some optional args -- */
+	{"create_record",l_create_record},		/* create_record(file_name,data) */
+	{"string_data_to_add_template",
+		l_string_data_to_add_template},		/* string_data_to_add_template(file_name) */
 	{NULL,NULL}
 };
 
@@ -285,6 +290,7 @@ static int l_write_record(lua_State *L)
 			key_type = STR; 
 			k = (void*)param;
 			lua_pushstring(L,param);
+		}
 	}else{
 		goto err_key;
 	}
@@ -332,13 +338,159 @@ err_write_rec:
 	return 3;
 err_invalid_data:
 	lua_pushnil(L);
+	lua_pushstring(L,"data not valid.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 3;
+
+}
+
+/*
+ * this function return a record (table) to Lua,
+ * without writing to the file.
+ * */
+static int l_create_record(lua_State *L)
+{
+	char *file_name = (char*)luaL_checkstring(L,1);
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+	char *data_to_add = (char*)luaL_checkstring(L,2);
+	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
+	
+	int m_al = 0;
+
+	int fds[3];
+	memset(fds,-1,3*sizeof(int));
+
+	struct Record_f rec = {0};
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {0,0,&sch};
+
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+	if(is_memory_allocated() == NULL){
+		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
+		m_al = 1;
+	}
+
+	int lock = 1;
+	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) goto err_invalid_data;
+
+	port_record(L,&rec);
+	if(m_al) close_arena();
+	close_file(3,fds[0],fds[1],fds[2]);
+
+	return 1;
+
+err_memory:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot allocate memory.");
+	return 2;
+err_open_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not open the file.");
+	if(m_al) close_arena();
+	return 2;
+err_not_db_file:
+	lua_pushnil(L);
 	lua_pushstring(L,"not a db file.");
 	close_file(3,fds[0],fds[1],fds[2]);
 	if(m_al) close_arena();
 	return 2;
-
+err_invalid_data:
+	lua_pushnil(L);
+	lua_pushstring(L,"data not valid.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 2;
 }
 
+static int l_string_data_to_add_template(lua_State *L)
+{
+	char *file_name = (char*)luaL_checkstring(L,1);
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+	int m_al = 0;
+
+	int fds[3];
+	memset(fds,-1,3*sizeof(int));
+
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {0,0,&sch};
+
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+	if(is_memory_allocated() == NULL){
+		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
+		m_al = 1;
+	}
+
+	if(open_files(file_name,fds,file_names,ONLY_SCHEMA) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	
+
+	int i, sum = 0; 
+	for(i = 0; i < hd.sch_d->fields_num; i++)
+		sum += strlen(hd.sch_d->fields_name[i]);
+	
+	int colon_nr = (i * 2 ) - 1;
+	int place_order = i * 2;
+	char *st = (char*)ask_mem(colon_nr+sum+place_order+1);
+	if(!st) goto err_ask_mem;
+
+	memset(st,0,colon_nr+sum+place_order+1);
+
+
+	int bwritten = 0;
+	for(i = 0; i < hd.sch_d->fields_num; i++){
+		size_t sz = strlen(hd.sch_d->fields_name[i]);
+		memcpy(&st[bwritten],hd.sch_d->fields_name[i],sz);
+		bwritten += sz;
+		memcpy(&st[bwritten],":",1);
+		bwritten += 1;
+		memcpy(&st[bwritten],"%s",2);
+		bwritten += 2;
+		if((hd.sch_d->fields_num - i) > 1) {
+			memcpy(&st[bwritten],":",1);
+			bwritten += 1;
+		}
+	}
+
+	lua_pushstring(L,st);
+	close_file(1,fds[2]);
+	if(m_al)
+		close_arena();
+	else
+		cancel_memory(NULL,st,colon_nr+place_order+colon_nr+1);
+
+	return 1;
+
+err_memory:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot allocate memory.");
+	return 2;
+err_open_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not open the file.");
+	if(m_al) close_arena();
+	return 2;
+err_not_db_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(1,fds[2]);
+	if(m_al) close_arena();
+	return 2;
+err_ask_mem:
+	lua_pushnil(L);
+	lua_pushstring(L,"ask_mem() failed");
+	close_file(1,fds[2]);
+	if(m_al) close_arena();
+	return 2;
+}
 /*static functions definition*/
 static int port_record(lua_State *L, struct Record_f* r){
 	lua_newtable(L);
