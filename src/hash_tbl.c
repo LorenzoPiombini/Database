@@ -297,6 +297,16 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 			}
 			temp = temp->next;
 		}
+		if ((key_len = strlen(temp->next->key.k.s)) == strlen(new_node->key.k.s)) {
+			if (strncmp(temp->next->key.k.s, new_node->key.k.s, ++key_len) == 0) {
+				printf("could not insert new node \"%s\"\n", new_node->key.k.s);
+				printf("key already exist. Choose another key value.\n");
+				cancel_memory(NULL,new_node->key.k.s,strlen(new_node->key.k.s)+1);
+				cancel_memory(NULL,new_node,sizeof(Node));
+				return 0;
+			}
+		}
+
 		/*
 		 * the key is unique
 		 * we add the node to the list
@@ -344,6 +354,25 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 				temp = temp->next;
 			}
 		}
+
+		if(temp->key.size == new_node->key.size){
+			if(new_node->key.size == 16){
+				if(temp->key.k.n16 == new_node->key.k.n16) {
+					printf("could not insert new node '%u'\n", new_node->key.k.n16);
+					printf("key already exist. Choose another key value.\n");
+					cancel_memory(NULL,new_node,sizeof(Node));
+					return 0;
+				}
+			}else{
+				if (temp->key.k.n == new_node->key.k.n) {
+					printf("could not insert new node '%u'\n", new_node->key.k.n);
+					printf("key already exist. Choose another key value.\n");
+					cancel_memory(NULL,new_node,sizeof(Node));
+					return 0;
+				}
+			}
+		}
+
 		temp->next = new_node;
 	}
 
