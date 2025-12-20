@@ -1219,7 +1219,7 @@ int main(int argc, char *argv[])
 			}
 
 
-			if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1)){
+			if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1) == -1){
 				display_to_stdout( "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
 				goto clean_on_error_7;
 			}
