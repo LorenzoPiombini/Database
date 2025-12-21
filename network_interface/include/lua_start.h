@@ -7,7 +7,7 @@
 
 extern lua_State *L;
 
-void init_lua();
+int init_lua();
 int execute_lua_script(char *buf);
 
 
