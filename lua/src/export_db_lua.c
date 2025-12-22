@@ -33,10 +33,6 @@ int luaopen_db(lua_State *L){
 	return 1;
 }
 
-/*static function prototype*/
-static int port_record(lua_State *L, struct Record_f*);
-
-
 /* 
  * from lua:
  * .get_record(file_name,key)
@@ -491,8 +487,9 @@ err_ask_mem:
 	if(m_al) close_arena();
 	return 2;
 }
-/*static functions definition*/
-static int port_record(lua_State *L, struct Record_f* r){
+
+
+int port_record(lua_State *L, struct Record_f* rec){
 	lua_newtable(L);
 	lua_pushstring(L,r->file_name);
 	lua_setfield(L,-2,"file_name");
@@ -525,14 +522,14 @@ static int port_record(lua_State *L, struct Record_f* r){
 				lua_setfield(L,-2,r->fields[i].field_name);
 				break;
 			case TYPE_DATE:
-				{
+			{
 					char date[11];
 					memset(date,0,11);
 					if(convert_number_to_date(date,r->fields[i].data.date) == -1) return -1;
 					lua_pushstring(L,date);
 					lua_setfield(L,-2,r->fields[i].field_name);
 					break;
-				}
+			}
 			case TYPE_FLOAT:
 				lua_pushnumber(L,r->fields[i].data.f);
 				lua_setfield(L,-2,r->fields[i].field_name);
@@ -542,7 +539,7 @@ static int port_record(lua_State *L, struct Record_f* r){
 				lua_setfield(L,-2,r->fields[i].field_name);
 				break;
 			case TYPE_FILE:
-				{
+			{
 					lua_newtable(L);
 					struct Record_f *t;
 					int j;
@@ -554,7 +551,7 @@ static int port_record(lua_State *L, struct Record_f* r){
 
 					lua_setfield(L,-2,r->fields[i].field_name);
 					break;
-				}
+			}
 			default:
 				/*TODO*/
 				break;
@@ -577,4 +574,126 @@ static int port_record(lua_State *L, struct Record_f* r){
 		return 0;
 	}
 	return 0;
+}
+
+/*assume the record is on top of the stack*/
+int port_table_to_record(lua_Status *L, struct Record_f *rec)
+{
+	if(lua_getfield(L,-1,"offset") != LUA_TNUMBER) return -1;
+	int is_num;
+	rec->offset = (file_offset) lua_tonumberx(L,-1,&is_num);
+	if(!is_num){
+		/*TODO: error*/
+		return -1;
+	}
+	lua_pop(L,1);
+
+	if(lua_getfields(L,-1,"fields") != LUA_TTABLE){
+		/*TODO: error*/
+		return -1;
+	}
+		
+	int i;
+	for(i = 0; i < rec->fields_num; i++){
+		if(!rec->field_set[i]) continue;
+	
+		switch(rec->fields[i].type){
+		case TYPE_INT:
+		{
+			is_num = 0;
+			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
+			rec->fields[i].data.i = (int) lua_tonumberx(L,-1,&is_num); 
+			if(!is_num){
+				/*TODO: error*/
+				return -1;
+			}
+			lua_pop(L,1);
+			break;
+		}
+		case TYPE_LONG:
+		{
+			is_num = 0;
+			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
+			rec->fields[i].data.l = (long) lua_tonumberx(L,-1,&is_num); 
+			if(!is_num){
+				/*TODO: error*/
+				return -1;
+			}
+			lua_pop(L,1);
+			break;
+		}
+		case TYPE_BYTE:
+		{
+			is_num = 0;
+			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
+			rec->fields[i].data.b = (unsigned char) lua_tonumberx(L,-1,&is_num); 
+			if(!is_num){
+				/*TODO: error*/
+				return -1;
+			}
+			lua_pop(L,1);
+			break;
+		}
+		case TYPE_FLOAT:
+		{
+			is_num = 0;
+			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
+			rec->fields[i].data.f = (float) lua_tonumberx(L,-1,&is_num); 
+			if(!is_num){
+				/*TODO: error*/
+				return -1;
+			}
+			lua_pop(L,1);
+			break;
+		}
+		case TYPE_DOUBLE:
+		{
+			is_num = 0;
+			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
+			rec->fields[i].data.b = (double) lua_tonumberx(L,-1,&is_num); 
+			if(!is_num){
+				/*TODO: error*/
+				return -1;
+			}
+			lua_pop(L,1);
+			break;
+		}
+		case TYPE_STRING:
+		{
+			
+			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
+			char *s = lua_tostring(L,-1);
+			if(!s){
+				/*TODO: error*/
+				return -1;
+			}
+			size_t sz = strlen(s);
+			rec->fields[i].data.s = (char *)ask_mem(sz+1);
+			memset(rec->fields[i].data.s,0,sz+1);
+			memcpy(rec->fields[i].data.s,s,sz);
+			lua_pop(L,1);
+		}
+		case TYPE_DATE:
+		{
+
+			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
+			char *s = lua_tostring(L,-1);
+			if(!s){
+				/*TODO: error*/
+				return -1;
+			}
+			if((rec->fields[index].data.date = convert_date_to_number(s)) == 0){
+			lua_pop(L,1);
+		}
+		case TYPE_FILE:
+		{
+			if(port_table_to_record(L,rec->fields[i].data.file.recs) == -1){
+				/*TODO: error*/
+				return -1;
+			}
+		}
+		default:
+		}
+	}
+
 }

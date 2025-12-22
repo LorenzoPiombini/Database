@@ -53,6 +53,7 @@ int work_process(int sock)
 		switch(operation_to_perform){
 			case NEW_CUST:
 			{
+				/*TODO: load script to write NEW CUSTOMER*/
 				int lock_f = 1;
 				char *cust_data = &buffer[1];
 				int fds[3];
