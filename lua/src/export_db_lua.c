@@ -1,13 +1,11 @@
 #include <string.h>
-#include <stdio.h>
+
 #include "export_db_lua.h"
 #include "date.h"
 #include "common.h"
 #include "memory.h"
 #include "file.h"
 #include "key.h"
-#include "lua5.4/lua.h"
-#include "lua5.4/lauxlib.h"
 
 #define BASE_SELECTOR "base"
 
@@ -489,7 +487,7 @@ err_ask_mem:
 }
 
 
-int port_record(lua_State *L, struct Record_f* rec){
+int port_record(lua_State *L, struct Record_f* r){
 	lua_newtable(L);
 	lua_pushstring(L,r->file_name);
 	lua_setfield(L,-2,"file_name");
@@ -577,7 +575,7 @@ int port_record(lua_State *L, struct Record_f* rec){
 }
 
 /*assume the record is on top of the stack*/
-int port_table_to_record(lua_Status *L, struct Record_f *rec)
+int port_table_to_record(lua_State *L, struct Record_f *rec)
 {
 	if(lua_getfield(L,-1,"offset") != LUA_TNUMBER) return -1;
 	int is_num;
@@ -588,7 +586,7 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 	}
 	lua_pop(L,1);
 
-	if(lua_getfields(L,-1,"fields") != LUA_TTABLE){
+	if(lua_getfield(L,-1,"fields") != LUA_TTABLE){
 		/*TODO: error*/
 		return -1;
 	}
@@ -604,7 +602,7 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.i = (int) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
 			lua_pop(L,1);
@@ -616,7 +614,7 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.l = (long) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
 			lua_pop(L,1);
@@ -628,7 +626,7 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.b = (unsigned char) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
 			lua_pop(L,1);
@@ -640,7 +638,7 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.f = (float) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
 			lua_pop(L,1);
@@ -652,7 +650,7 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.b = (double) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
 			lua_pop(L,1);
@@ -662,9 +660,9 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 		{
 			
 			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
-			char *s = lua_tostring(L,-1);
+			char *s = (char*)lua_tostring(L,-1);
 			if(!s){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
 			size_t sz = strlen(s);
@@ -675,25 +673,29 @@ int port_table_to_record(lua_Status *L, struct Record_f *rec)
 		}
 		case TYPE_DATE:
 		{
-
 			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
-			char *s = lua_tostring(L,-1);
+			char *s = (char*)lua_tostring(L,-1);
 			if(!s){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
-			if((rec->fields[index].data.date = convert_date_to_number(s)) == 0){
+			if((rec->fields[i].data.date = convert_date_to_number(s)) == 0){
+				lua_settop(L,0);
+				return -1;
+			}
 			lua_pop(L,1);
 		}
 		case TYPE_FILE:
 		{
 			if(port_table_to_record(L,rec->fields[i].data.file.recs) == -1){
-				/*TODO: error*/
+				lua_settop(L,0);
 				return -1;
 			}
 		}
+		/*TYPE ARRAYS*/
 		default:
 		}
 	}
 
+	return 0;
 }
