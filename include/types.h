@@ -14,6 +14,7 @@ typedef 	unsigned long 	size_t;
 typedef		long int		file_offset;
 typedef 	long long		process_id;
 
+#ifndef _LIBC_LIMITS_H_
 /*signed short max and min*/
 #  define SHRT_MIN	(-32768)
 #  define SHRT_MAX	32767
@@ -47,5 +48,7 @@ typedef 	long long		process_id;
 #   define ULONG_MAX	4294967295UL
 #  endif
 
+
+#endif 
 
 #endif /*types.h*/
