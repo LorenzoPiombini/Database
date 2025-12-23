@@ -303,7 +303,7 @@ unsigned char set_field(struct Record_f *rec,
 						stop = close_c - value;
 
 						if(stop > 500){
-							/* handle this hedge case*/
+							/* TODO: handle this hedge case*/
 
 						}
 						if(i < count)
@@ -400,7 +400,7 @@ unsigned char set_field(struct Record_f *rec,
 		}
 
 		if(cr){
-			/*here the file is new*/	
+			/*file is new*/	
 			int mode = 0;
 			if(count == 1){
 				if(value[0] == 'w')
