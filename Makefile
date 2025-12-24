@@ -15,11 +15,17 @@ OBJlibp = obj/debug.o  obj/sort.o obj/parse.o
 OBJlibpPR = obj/debug_prod.o  obj/sort_prod.o obj/parse_prod.o
 OBJlibl = obj/debug.o  obj/lock.o
 OBJliblPR = obj/debug_prod.o  obj/lock_prod.o
-OBJlibbstPR = obj/debug_prod.o  obj/bst_prod.o obj/str_op_prod.o
 OBJlibcrud = obj/crud.o obj/file.o obj/date.o obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o obj/input.o obj/key.o
+OBJlibexpl = obj/export_db_lua.o 
+OBJlibexplPR = obj/export_db_lua_prod.o 
 
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
+
+LIBNAMEexpl = dblua
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBexpl = lib$(LIBNAMEexpl).so
 
 LIBNAMEht = ht
 LIBDIR = /usr/local/lib
@@ -85,6 +91,7 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
+	sudo gcc -Wall -fPIC -shared -llua5.4 -o $(SHAREDLIBexpl) $(OBJlibexpl)
 
 libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBht) $(OBJlibhtPR)
@@ -93,6 +100,7 @@ libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibfPR)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibpPR)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJliblPR)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBexpl) $(OBJlibexplPR)
 
 clean:
 	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
@@ -106,19 +114,21 @@ clean:
 	#rm *.dat *.inx *.sch
 	rm *core*
 	 
-lua: lua_obj
-	gcc -shared -g3 -o db.so obj/export_db_lua.o obj/key.o  -L/usr/local/lib -lcrud -llua5.4 -lm -ldl -lfree -fsanitize=address -lmem -llog
-
-lua_obj:
-	sudo gcc -fPIC -Wall -c lua/src/export_db_lua.c    -Iinclude -Ilua/include -I/usr/include/lua5.4     -o obj/export_db_lua.o
 
 	
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $? -llua5.4 -lm -ldl -lmem -llog -lfree -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
+	sudo gcc -o $@ $?  -lm -ldl -lmem -llog -lfree -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
+	make lua
 
-obj/%.o : src/%.c
+obj/%.o : src/%.c 
 	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
+
+lua: lua_obj
+	gcc -shared -g3 -o db.so obj/export_db_lua.o obj/key.o  -L/usr/local/lib -lcrud -llua5.4 -lm -ldl -lfree -fsanitize=address -lmem -llog
+
+lua_obj: 
+	sudo gcc -fPIC -Wall -c lua/src/export_db_lua.c    -Iinclude -Ilua/include -I/usr/include/lua5.4     -o obj/export_db_lua.o
 
 $(TARGET)_prod: $(OBJ_PROD)
 	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack
@@ -250,7 +260,7 @@ $(BINDIR)/DELa:
 
 install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
+	install -m 644 lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
@@ -258,6 +268,7 @@ install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $
 	install -m 755 $(SHAREDLIBr) $(LIBDIR)
 	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
 	install -m 755 $(SHAREDLIBl) $(LIBDIR)
+	install -m 755 $(SHAREDLIBexpl) $(LIBDIR)
 	ldconfig
 	
 
@@ -270,6 +281,7 @@ install_prod: $(TARGET)_prod $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BIND
 	install -m 755 $(SHAREDLIBr) $(LIBDIR)
 	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
 	install -m 755 $(SHAREDLIBl) $(LIBDIR)
+	install -m 755 $(SHAREDLIBexpl) $(LIBDIR)
 	ldconfig
 build: object-dir default library install
 
