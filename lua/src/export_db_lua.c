@@ -17,6 +17,7 @@ static int l_write_record(lua_State *L);
 static int l_create_record(lua_State *L);
 static int l_string_data_to_add_template(lua_State *L);
 static int l_get_numeric_key(lua_State *L);
+static int l_save_key_at_index(lua_State *L);
 
 /* functions that will be callable from Lua scripts*/
 static const luaL_Reg db_funcs[] = {
@@ -27,6 +28,8 @@ static const luaL_Reg db_funcs[] = {
 	{"string_data_to_add_template",
 		l_string_data_to_add_template},		/* string_data_to_add_template(file_name) */
 	{"get_numeric_key",l_get_numeric_key},	/* get_numeric_key(file_name,mode) -- some optional args --  */
+	{"save_key_at_index",
+		l_save_key_at_index},
 	{NULL,NULL}
 };
 
@@ -299,6 +302,7 @@ static int l_write_record(lua_State *L)
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) goto err_invalid_data;
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1) == -1) goto err_write_rec;
 	port_record(L,&rec);
+
 	if(m_al) close_arena();
 	close_file(3,fds[0],fds[1],fds[2]);
 
@@ -538,7 +542,7 @@ static int l_get_numeric_key(lua_State *L)
 	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
 
 	int mode = (int)luaL_checkinteger(L,2);
-	luaL_argcheck(L, mode < 0, 2,"mode must be bigger than 0");
+	luaL_argcheck(L, mode >= 0, 2,"mode must be bigger than 0");
 	long long n = 0;
 
 	int m_al = 0;
@@ -613,6 +617,18 @@ err_key_gen:
 }
 
 
+static int l_save_key_at_index(lua_State *L)
+{
+	
+	int type = lua_type(L,1);
+	if(type == -1){
+		lua_pushnil(L);
+		lua_pushstring(L,"key must be present.");
+		return 1;
+	}
+}
+
+/* external functions*/
 int port_record(lua_State *L, struct Record_f* r){
 	lua_newtable(L);
 	lua_pushstring(L,r->file_name);

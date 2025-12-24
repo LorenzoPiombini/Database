@@ -17,7 +17,6 @@
 #include "common.h"
 #include "lua_start.h"
 
-#define LUA 1
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
 int work_process(int sock)
@@ -55,129 +54,13 @@ int work_process(int sock)
 			{
 				char *cust_data = &buffer[1];
 
-				int res = -1;
-				if(execute_lua_function("write_customers","s>d",cust_data,&res) == -1 || res == 2 ){
+				long long res = -1, key = -1;
+				if(execute_lua_function("write_customers","s>ii",cust_data,&res,&key) == -1 || res == 2 ){
 					/*send error and resume*/
-					set_memory(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					clear_memory();
-					continue;
+					goto new_cust_error;
 				}
-#if 0
-				int lock_f = 1;
-				int fds[3];
-				int name_file_fds[3];
-				set_memory(fds,-1,sizeof(int)*3);
-				set_memory(name_file_fds,-1,sizeof(int)*3);
+				clear_lua_stack();
 
-				char files[3][256];
-				char files_name_file[3][256];
-				set_memory(files,0,3*256);
-				set_memory(files_name_file,0,3*256);
-
-				/*customer file*/
-				struct Record_f cust_rec;
-				struct Schema cust_sch;
-				struct Header_d cust_hd = {0,0,&cust_sch};
-
-				/*name file*/
-				struct Record_f name_file_rec;
-				struct Schema name_file_sch;
-				struct Header_d name_file_hd = {0,0,&name_file_sch};
-
-				set_memory(&cust_rec,0,sizeof(struct Record_f));
-				set_memory(&cust_sch,0,sizeof(struct Schema));
-				set_memory(&name_file_sch,0,sizeof(struct Schema));
-				set_memory(&name_file_rec,0,sizeof(struct Record_f));
-				
-
-				if(open_files(NAME_FILE,name_file_fds,files_name_file,-1) == -1){
-					set_memory(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					clear_memory();
-					continue;
-				}
-
-				if(is_db_file(&name_file_hd,name_file_fds) == -1){
-					close_file(3,fds[0],fds[1],fds[2]);
-					set_memory(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					clear_memory();
-					continue;
-				}
-
-
-				ui32 key = generate_numeric_key(name_file_fds,0,-1);
-
-				if(open_files(CUSTOMER_FILE,fds,files,-1) == -1){
-					close_file(3,fds[0],fds[1],fds[2]);
-					set_memory(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					clear_memory();
-					continue;
-				}
-
-				if(is_db_file(&cust_hd,fds) == -1) goto new_cust_error;
-				
-				int check = 0;
-				if((check = check_data(CUSTOMER_FILE,
-								cust_data,
-								fds,
-								files,
-								&cust_rec,
-								&cust_hd,
-								&lock_f,-1)) == -1) goto new_cust_error;
-
-
-				if(write_field_to_record("c_number",&cust_rec,&key,TYPE_KEY) == -1)goto new_cust_error;
-				if(write_record(fds,&key,UINT,&cust_rec,0,files,&lock_f,-1) == -1) goto new_cust_error;
-			
-
-				/*create the name file record*/
-				
-				if(create_record(NAME_FILE, name_file_sch, &name_file_rec) == -1) goto new_cust_error;
-
-				int c_code_index = 0;
-				int c_name_index = 0;
-				int rec_index_ccode = 0;
-				int rec_index_cname = 0;
-				if(!get_index_rec_field("c_code",&cust_rec,&c_code_index,&rec_index_ccode)) goto new_cust_error;
-				if(!get_index_rec_field("c_name",&cust_rec,&c_name_index,&rec_index_cname)) goto new_cust_error;
-
-
-				if(rec_index_cname == 0 && rec_index_ccode == 0){
-					if(write_field_to_record("n_code",&name_file_rec,
-								(void*)cust_rec.fields[c_code_index].data.s,
-								cust_rec.fields[c_code_index].type) == -1) goto new_cust_error;
-
-					if(write_field_to_record("n_name",&name_file_rec,
-								(void*)cust_rec.fields[c_name_index].data.s,
-								cust_rec.fields[c_name_index].type) == -1) goto new_cust_error;
-					
-					if(write_field_to_record("reference",
-												&name_file_rec,
-												(void*)&key,
-												TYPE_INT) == -1) goto new_cust_error;
-				}
-
-				if(write_record(name_file_fds,
-							&key,
-							UINT,
-							&name_file_rec,
-							0,
-							files_name_file,
-							&lock_f,-1))goto new_cust_error;
-
-				/*write to the data socket*/
-#endif
 				set_memory(succ,0,1024);
 				if(copy_to_string(succ,
 									1024,
@@ -192,7 +75,6 @@ int work_process(int sock)
 				continue;
 
 new_cust_error:
-				close_file(6,fds[0],fds[1],fds[2],name_file_fds[0],name_file_fds[1],name_file_fds[2]);
 				set_memory(err,0,1024);
 				write(data_sock,err,sizeof(err));
 				close(data_sock);
@@ -214,6 +96,7 @@ new_cust_error:
 				char key_up[1024];
 				set_memory(key_up,0,1024);
 				if(operation_to_perform == UPDATE_SORD){
+					/*get the key of the record that we have to update*/
 					t = tok(&buffer[1],"^");
 					if(t){
 						len = string_length(t);	
@@ -226,7 +109,7 @@ new_cust_error:
 						continue;
 					}
 
-					if(len >= 1024){/*if they length is >= than 1024 we need a code refactor*/
+					if(len >= 1024){/*if the length is >= than 1024 we need a code refactor*/
 						fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__- 10);
 						set_memory(err,0,1024);
 						write(data_sock,err,sizeof(err));

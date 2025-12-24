@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include <record.h>
-#include "../../lua/include/export_lua_db.h"
+#include "export_db_lua.h"
 #include "lua_start.h"
 
 lua_State *L = NULL;
@@ -32,7 +33,7 @@ int execute_lua_function(char *func_name, char *func_sig, ...)
 	va_list vl;
 	int narg, nres;
 
-	va_start(vl,func_sig)
+	va_start(vl,func_sig);
 	lua_getglobal(L,func_name);
 
 	for(narg = 0; *func_sig != '\0'; narg++,func_sig++){
@@ -41,23 +42,25 @@ int execute_lua_function(char *func_name, char *func_sig, ...)
 
 		switch(*func_sig){
 		case 'r': /* Record_f */	
-			if(port_record(L,va_args(vl,struct Record_f*)) == -1){
+			if(port_record(L,va_arg(vl,struct Record_f*)) == -1){
 				return -1;
 			}
 			break;
 		case 'd': /* double */	
-			lua_pushnumber(L,va_args(vl,double));
+			lua_pushnumber(L,va_arg(vl,double));
 			break;
 		case 'i': /* integer*/	
-			lua_pushinteger(L,va_args(vl,int));
+			lua_pushinteger(L,va_arg(vl,int));
 			break;
 		case 'l': /* long integer*/	
-			lua_pushinteger(L,va_args(vl,long));
+			lua_pushinteger(L,va_arg(vl,long));
 			break;
 		case 's': /* string*/	
-			lua_pushstring(L,va_args(vl,char*));
+			char *s = va_arg(vl,char*);
+			lua_pushstring(L,s);
 			break;
 		case '>': /*end of input*/
+			func_sig++;
 			goto fcall;
 		default:
 			return -1;
@@ -79,51 +82,53 @@ fcall:
 		nres = -nres;
 		while(*func_sig){
 			switch(*func_sig){
-				case 'r':
-				{
-					/*record*/
-					if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
-						clear_lua_stack();
-						return -1;
-					}
-					break;
+			case 'r':
+			{
+				/*record*/
+				if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
+					clear_lua_stack();
+					return -1;
 				}
-				case 'd':
-				{
-					int is_num;
-					double d = lua_tonumberx(L,nres,is_num);
-					if(!is_num){
-						clear_lua_stack();
-						return -1;
-					}
-					*va_arg(vl, double *) = d;
-					break;
+				break;
+			}
+			case 'd':
+			{
+				int is_num;
+				double d = lua_tonumberx(L,nres,&is_num);
+				if(!is_num){
+					clear_lua_stack();
+					return -1;
 				}
-				case 'i':
-				{
-					int is_num;
-					long long l = (long long)lua_tonumberx(L,nres,is_num);
-					if(!is_num){
-						clear_lua_stack();
-						return -1;
-					}
-					*va_arg(vl, long long*) = l;
-					break;
+				*va_arg(vl, double *) = d;
+				break;
+			}
+			case 'i':
+			{
+				int is_num;
+				long long l = (long long)lua_tonumberx(L,nres,&is_num);
+				if(!is_num || l < 0){
+					clear_lua_stack();
+					return -1;
 				}
-				case 's':
-				{
-					char *s = lua_tostring(L,nres);
-					if(!s){
-						clear_lua_stack();
-						return -1;
-					}
-					*va(va_arg(vl,char **) = s;
-					break;
+				*va_arg(vl, long long*) = l;
+				break;
+			}
+			case 's':
+			{
+				char *s = (char*)lua_tostring(L,nres);
+				if(!s){
+					clear_lua_stack();
+					return -1;
 				}
-				default:
-					break;
+				*va_arg(vl,char **) = s;
+				break;
+			}
+			default:
+				clear_lua_stack();
+				return -1;
 			}
 			nres++;
+			func_sig++;
 		}
 	}
 	va_end(vl);
