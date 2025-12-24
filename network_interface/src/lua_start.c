@@ -22,6 +22,11 @@ void close_lua()
 	lua_close(L);
 }
 
+void clear_lua_stack()
+{
+	lua_settop(L,0);
+}
+
 int execute_lua_function(char *func_name, char *func_sig, ...)
 {
 	va_list vl;
@@ -77,14 +82,20 @@ fcall:
 				case 'r':
 				{
 					/*record*/
+					if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
+						clear_lua_stack();
+						return -1;
+					}
 					break;
 				}
 				case 'd':
 				{
 					int is_num;
 					double d = lua_tonumberx(L,nres,is_num);
-					if(!is_num)
+					if(!is_num){
+						clear_lua_stack();
 						return -1;
+					}
 					*va_arg(vl, double *) = d;
 					break;
 				}
@@ -92,16 +103,20 @@ fcall:
 				{
 					int is_num;
 					long long l = (long long)lua_tonumberx(L,nres,is_num);
-					if(!is_num)
+					if(!is_num){
+						clear_lua_stack();
 						return -1;
+					}
 					*va_arg(vl, long long*) = l;
 					break;
 				}
 				case 's':
 				{
 					char *s = lua_tostring(L,nres);
-					if(!s)
+					if(!s){
+						clear_lua_stack();
 						return -1;
+					}
 					*va(va_arg(vl,char **) = s;
 					break;
 				}
