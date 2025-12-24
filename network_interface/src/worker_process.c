@@ -17,7 +17,7 @@
 #include "common.h"
 #include "lua_start.h"
 
-
+#define LUA 1
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
 int work_process(int sock)
@@ -53,9 +53,20 @@ int work_process(int sock)
 		switch(operation_to_perform){
 			case NEW_CUST:
 			{
-				/*TODO: load script to write NEW CUSTOMER*/
-				int lock_f = 1;
 				char *cust_data = &buffer[1];
+
+				int res = -1;
+				if(execute_lua_function("write_customers","s>d",cust_data,&res) == -1 || res == 2 ){
+					/*send error and resume*/
+					set_memory(err,0,1024);
+					write(data_sock,err,sizeof(err));
+					close(data_sock);
+					data_sock = -1;
+					clear_memory();
+					continue;
+				}
+#if 0
+				int lock_f = 1;
 				int fds[3];
 				int name_file_fds[3];
 				set_memory(fds,-1,sizeof(int)*3);
@@ -90,7 +101,6 @@ int work_process(int sock)
 					clear_memory();
 					continue;
 				}
-
 
 				if(is_db_file(&name_file_hd,name_file_fds) == -1){
 					close_file(3,fds[0],fds[1],fds[2]);
@@ -167,6 +177,7 @@ int work_process(int sock)
 							&lock_f,-1))goto new_cust_error;
 
 				/*write to the data socket*/
+#endif
 				set_memory(succ,0,1024);
 				if(copy_to_string(succ,
 									1024,
@@ -175,12 +186,6 @@ int work_process(int sock)
 
 				if(write(data_sock,succ,sizeof(succ)) == -1) goto new_cust_error;
 
-				close_file(6,fds[0],
-							fds[1],
-							fds[2],
-							name_file_fds[0],
-							name_file_fds[1],
-							name_file_fds[2]);
 				close(data_sock);
 				data_sock = -1;
 				clear_memory();
@@ -757,6 +762,7 @@ s_ord_get_exit_error:
 
 	}
 	close_prog_memory();
+	close_lua();
 	kill(getppid(),SIGINT);
 	sys_exit(1);
 	return 0;/*unrechable*/

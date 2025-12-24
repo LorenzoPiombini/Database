@@ -7,13 +7,16 @@
 #include "file.h"
 #include "key.h"
 
-#define BASE_SELECTOR "base"
+#define LOWER_STR(s) for(char *p = &s[0]; p && ((int)*p >= 65 || (int)*p <= 90) ;*p = (int)*p + 22,p++)
+#define UPPER_STR(s) for(char *p = &s[0]; p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
+
 
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
 static int l_write_record(lua_State *L);
 static int l_create_record(lua_State *L);
 static int l_string_data_to_add_template(lua_State *L);
+static int l_get_numeric_key(lua_State *L);
 
 /* functions that will be callable from Lua scripts*/
 static const luaL_Reg db_funcs[] = {
@@ -23,6 +26,7 @@ static const luaL_Reg db_funcs[] = {
 	{"create_record",l_create_record},		/* create_record(file_name,data) */
 	{"string_data_to_add_template",
 		l_string_data_to_add_template},		/* string_data_to_add_template(file_name) */
+	{"get_numeric_key",l_get_numeric_key},	/* get_numeric_key(file_name,mode) -- some optional args --  */
 	{NULL,NULL}
 };
 
@@ -274,12 +278,15 @@ static int l_write_record(lua_State *L)
 		lua_pushinteger(L,n);
 	}else if(type == LUA_TSTRING){
 		char *param = (char*)luaL_checkstring(L,3);
-		if(strlen(param) == strlen(BASE_SELECTOR) &&
-				strncmp(BASE_SELECTOR,param,strlen(BASE_SELECTOR)) == 0){
+		LOWER_STR(param);
+		if(strlen(param) == strlen("base") &&
+			strncmp("base",param,strlen("base")) == 0){
+
 			int base = luaL_checkinteger(L,4); 
 			if ((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
 			k = (void*)&n;
 			lua_pushinteger(L,n);
+
 		}else{
 			key_type = STR; 
 			k = (void*)param;
@@ -428,15 +435,32 @@ static int l_string_data_to_add_template(lua_State *L)
 	
 
 	int i, sum = 0; 
-	for(i = 0; i < hd.sch_d->fields_num; i++)
+	for(i = 0; i < hd.sch_d->fields_num; i++){
 		sum += strlen(hd.sch_d->fields_name[i]);
+		switch(hd.sch_d->types[i]){
+			case TYPE_FLOAT:
+			case TYPE_DOUBLE:
+				sum += 4;
+				break;
+			case TYPE_FILE:
+				sum += 6;
+				break;
+			case TYPE_INT:
+			case TYPE_BYTE:
+			case TYPE_LONG:
+			case TYPE_STRING:
+			case TYPE_DATE:
+			default:
+				sum += 2;
+				break;
+		}
+	}
 	
 	int colon_nr = (i * 2 ) - 1;
-	int place_order = i * 2;
-	char *st = (char*)ask_mem(colon_nr+sum+place_order+1);
+	char *st = (char*)ask_mem(colon_nr+sum+1);
 	if(!st) goto err_ask_mem;
 
-	memset(st,0,colon_nr+sum+place_order+1);
+	memset(st,0,colon_nr+sum+1);
 
 
 	int bwritten = 0;
@@ -446,8 +470,28 @@ static int l_string_data_to_add_template(lua_State *L)
 		bwritten += sz;
 		memcpy(&st[bwritten],":",1);
 		bwritten += 1;
-		memcpy(&st[bwritten],"%s",2);
-		bwritten += 2;
+		switch(hd.sch_d->types[i]){
+		case TYPE_INT:
+		case TYPE_LONG:
+		case TYPE_BYTE:
+			memcpy(&st[bwritten],"%d",2);
+			bwritten += 2;
+			break;
+		case TYPE_DOUBLE:
+		case TYPE_FLOAT:
+			memcpy(&st[bwritten],"%.2d",4);
+			bwritten += 4;
+			break;
+		case TYPE_FILE:
+			memcpy(&st[bwritten],"[w|%s]",6);
+			bwritten += 6;
+			break;
+		case TYPE_STRING:
+		default:
+			memcpy(&st[bwritten],"%s",2);
+			bwritten += 2;
+			break;
+		}
 		if((hd.sch_d->fields_num - i) > 1) {
 			memcpy(&st[bwritten],":",1);
 			bwritten += 1;
@@ -459,7 +503,7 @@ static int l_string_data_to_add_template(lua_State *L)
 	if(m_al)
 		close_arena();
 	else
-		cancel_memory(NULL,st,colon_nr+place_order+colon_nr+1);
+		cancel_memory(NULL,st,colon_nr+colon_nr+1);
 
 	return 1;
 
@@ -482,6 +526,88 @@ err_ask_mem:
 	lua_pushnil(L);
 	lua_pushstring(L,"ask_mem() failed");
 	close_file(1,fds[2]);
+	if(m_al) close_arena();
+	return 2;
+}
+
+
+
+static int l_get_numeric_key(lua_State *L)
+{		
+	char *file_name = (char*)luaL_checkstring(L,1);
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+	int mode = (int)luaL_checkinteger(L,2);
+	luaL_argcheck(L, mode < 0, 2,"mode must be bigger than 0");
+	long long n = 0;
+
+	int m_al = 0;
+	if(is_memory_allocated() == NULL){
+		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
+		m_al = 1;
+	}
+
+	int fds[3];
+	memset(fds,-1,3*sizeof(int));
+
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {0,0,&sch};
+
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+
+	switch(mode){
+	case REG:
+	{
+		if((n = generate_numeric_key(fds,REG,-1)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	case BASE:
+	{
+		int base = (int)luaL_checkinteger(L,3);
+		if((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	case INCREM:
+	{
+		if((n = generate_numeric_key(fds,INCREM,-1)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	default:
+		/*error*/
+		lua_pushnil(L);
+		lua_pushstring(L,"key mode unknown");
+		return 2;
+	}
+
+	close_file(1,fds[0]);
+	if(m_al) close_arena();
+	return 1;
+
+err_memory:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot allocate memory.");
+	return 2;
+err_open_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not open the file.");
+	if(m_al) close_arena();
+	return 2;
+err_not_db_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(1,fds[0]);
+	if(m_al) close_arena();
+	return 2;
+err_key_gen:
+	lua_pushnil(L);
+	lua_pushstring(L,"error detecting key.");
+	close_file(1,fds[0]);
 	if(m_al) close_arena();
 	return 2;
 }
