@@ -620,7 +620,11 @@ err_key_gen:
 static int l_save_key_at_index(lua_State *L)
 {
 	char *file_name = (char*)luaL_checkstring(L,1);	
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+	void *key = NULL;
 	int key_type = 0;
+	unsigned int n = 0; /*to store key as a  number before casting*/
 	int type = lua_type(L,2);
 	switch(type){
 	case -1:
@@ -630,6 +634,7 @@ static int l_save_key_at_index(lua_State *L)
 		return 1;
 	case LUA_TSTRING:
 		key_type = STR;	
+		key = (void*)luaL_checkstring(L,2);
 		break;
 	case LUA_TNUMBER:
 		if(!lua_isinteger(L,2)){
@@ -638,6 +643,9 @@ static int l_save_key_at_index(lua_State *L)
 			return 1;
 		}
 		key_type = UINT;
+
+		n = (unsigned int)luaL_checkinteger(L,2);
+		key = (void*)&n;
 		break;
 	default:
 		lua_pushnil(L);
@@ -651,8 +659,8 @@ static int l_save_key_at_index(lua_State *L)
 	long long record_offset = (int)luaL_checkinteger(L,3);
 	luaL_argcheck(L, record_offset >= 0, 4,"offset cannot be negative");
 
-	int fds[3] = {0};
-	memset(fds,-1,(sizeof int)*3);
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
 	int m_al = 0;
@@ -665,18 +673,17 @@ static int l_save_key_at_index(lua_State *L)
 
 
 	HashTable *ht = NULL;
-	int index = 0;
-	int *p_index = &index;
+	int tbl_ix = 0;
 	/* load all indexes in memory */
-	if (!read_all_index_file(fds[0], &ht, p_index)) goto err_load_index;
+	if (!read_all_index_file(fds[0], &ht, &tbl_ix)) goto err_load_index;
 
-	if(set_rec(&ht[index],key,record_offset,key_type) == -1) goto err_set_index;
+	if(set_tbl(&ht[index],key,record_offset,key_type) == -1) goto err_set_index;
 
-	if(write_index(fds,index,ht,files[0]) == -1) goto err_write_index;
+	if(write_index(fds,tbl_ix,ht,file_names[0]) == -1) goto err_write_index;
 
 
 	if(m_al)
-		close_arena()
+		close_arena();
 	else
 		cancel_memory(NULL,ht,sizeof(HashTable));
 	
@@ -698,7 +705,7 @@ err_load_index:
 	lua_pushstring(L,"could not load index file.");
 	if(m_al) close_arena();
 	return 2;
-err_set_rec:
+err_set_index:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not set index.");
 	if(m_al) close_arena();

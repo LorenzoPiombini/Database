@@ -17,7 +17,6 @@
 
 static char prog[] = "db";
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type);
-static int set_rec(struct HashTable *ht, void *key, file_offset offset, int key_type);
 
 HashTable *g_ht = NULL;
 int g_index = 0;
@@ -242,11 +241,12 @@ int check_data(char *file_path,char *data_to_add,
 		return -1;
 	}
 
+	
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
 
 
 	if(mode == -1){
-		fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
+		fprintf(stderr,"(%s): check the input, value might be missng.\ndata_to_add:%s\n",prog,data_to_add);
 		return -1;
 	}
 	/*check schema*/
@@ -339,7 +339,7 @@ int write_record(int *fds,
 			}
 		}
 
-		if(set_rec(g_ht,key,(file_offset)ram.size,key_type) == -1) return 0;
+		if(set_tbl(g_ht,key,(file_offset)ram.size,key_type) == -1) return 0;
 
 		if(write_ram_record(&ram,rec,0,0,0) == -1){
 			fprintf(stderr,"write_ram_record() failed. %s:%d.\n",__FILE__,__LINE__-1);
@@ -377,7 +377,7 @@ int write_record(int *fds,
 		return STATUS_ERROR;
 	}
 
-	if(set_rec(ht,key,eof,key_type) == -1){
+	if(set_tbl(ht,key,eof,key_type) == -1){
 		free_ht_array(ht, index);
 		return STATUS_ERROR;
 	}
@@ -723,7 +723,7 @@ clean_on_error:
 
 }
 
-static int set_rec(struct HashTable *ht, void *key, file_offset offset, int key_type)
+int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type)
 {
 	if(key_type == UINT){
 		if(!set(key, key_type, offset, &ht[0])) return -1;

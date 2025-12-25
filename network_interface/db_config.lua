@@ -1,10 +1,14 @@
 db = require("db")
 
-name_file = "network_interface/db/name_file"
+--- database files
+name_file = "db/name_file"
+customers = "db/customers"
 
+--- database crud functions
 write_record = db.write_record
 get_numeric_key = db.get_numeric_key
 string_data_to_add_template = db.string_data_to_add_template
+indexing = db.save_key_at_index
 
 --- look for documentation in lua/src/export_db_lua.c
 --- return two results, the record created and its key, if the key is not passed
@@ -32,14 +36,25 @@ function write_to_name_file(data)
 end
 
 function write_customers(data)
-	local k, cli_rec = w_rec("network_interface/db/customers", data)
+	local key = get_numeric_key(name_file, 0)
+	local data_with_c_number = string.format("%s:c_number:%d", data, key)
+
+	local k, cli_rec = w_rec("db/customers", data_with_c_number)
+	local f = cli_rec.fields
+
+	-- indexing function
+	-- we are saving the same record with a different key, to get better
+	-- searching performance and user experience
+	local res = indexing("db/customers", f.c_name, 1, cli_rec.offset)
+	if res ~= 1 then
+		return -1
+	end
+
 	local name_file_data = string_data_to_add_template(name_file)
 	if cli_rec == nil or k == nil then
 		return -1
 	end
 
-	local key = get_numeric_key(name_file, 0)
-	local f = cli_rec.fields
 	local res = write_to_name_file(string.format(name_file_data, f.c_name, f.c_code, key))
 	print(key, res)
 	if key == res then
