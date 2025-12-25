@@ -1353,7 +1353,7 @@ int main(int argc, char *argv[])
 			memset(&rec,0,sizeof(struct Record_f));
 
 			int err = 0;
-			if((err = get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds)) == -1){
+			if((err = get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds,-1)) == -1){
 				free_record(&rec,rec.fields_num);
 				close_file(3, fd_schema,fd_index, fd_data);
 				close_prog_memory();

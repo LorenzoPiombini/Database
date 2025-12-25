@@ -23,7 +23,7 @@ int g_index = 0;
 int *p_gi = &g_index;
 struct Ram_file ram = {0, 0, 0, 0};
 
-int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, int *fds)
+int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, int *fds, int index)
 {
 	int e = 0;
 	if(mode == RAM_FILE){
@@ -39,7 +39,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	memset(&ht,0,sizeof(HashTable));
 
 	HashTable *p_ht = &ht;
-	if (!read_index_nr(0, fds[0], &p_ht)) {
+	if (!read_index_nr(index >= 0 ? index : 0, fds[0], &p_ht)) {
 		printf("reading index file failed, %s:%d.\n", F, L - 1);
 		return STATUS_ERROR;
 	}
@@ -509,7 +509,7 @@ int update_rec(char *file_path,
 	}
 
 	i8 err = 0;
-	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds)) == -1){
+	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds,-1)) == -1){
 		return -1;
 	}
 

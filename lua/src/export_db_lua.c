@@ -62,6 +62,11 @@ static int l_get_record(lua_State *L)
 		goto err_key;
 	}
 
+	int index = 0;
+	type = lua_type(L,3);
+	if(type == LUA_TNUMBER){
+		index = luaL_checkinteger(L,3);               
+	}
 
 	struct Record_f rec;
 	memset(&rec,0,sizeof(struct Record_f));
@@ -83,7 +88,7 @@ static int l_get_record(lua_State *L)
 	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	int result = -1;
-	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds)) == -1) goto err_get_record_failed;
+	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds,index >=0 ? index : 0)) == -1) goto err_get_record_failed;
 	if(result == KEY_NOT_FOUND) goto err_rec_not_found;
 	if(port_record(L,&rec)) goto err_exp_data_to_lua;
 	if(m_al && close_arena() == -1) goto err_close_memory;
@@ -637,13 +642,7 @@ static int l_save_key_at_index(lua_State *L)
 		key = (void*)luaL_checkstring(L,2);
 		break;
 	case LUA_TNUMBER:
-		if(!lua_isinteger(L,2)){
-			lua_pushnil(L);
-			lua_pushstring(L,"key must be present.");
-			return 1;
-		}
 		key_type = UINT;
-
 		n = (unsigned int)luaL_checkinteger(L,2);
 		key = (void*)&n;
 		break;
