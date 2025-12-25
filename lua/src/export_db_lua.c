@@ -610,7 +610,7 @@ err_not_db_file:
 	return 2;
 err_key_gen:
 	lua_pushnil(L);
-	lua_pushstring(L,"error detecting key.");
+	lua_pushstring(L,"error generating  key.");
 	close_file(1,fds[0]);
 	if(m_al) close_arena();
 	return 2;
@@ -619,13 +619,95 @@ err_key_gen:
 
 static int l_save_key_at_index(lua_State *L)
 {
-	
-	int type = lua_type(L,1);
-	if(type == -1){
+	char *file_name = (char*)luaL_checkstring(L,1);	
+	int key_type = 0;
+	int type = lua_type(L,2);
+	switch(type){
+	case -1:
+	case LUA_TNIL:
+		lua_pushnil(L);
+		lua_pushstring(L,"key must be present.");
+		return 1;
+	case LUA_TSTRING:
+		key_type = STR;	
+		break;
+	case LUA_TNUMBER:
+		if(!lua_isinteger(L,2)){
+			lua_pushnil(L);
+			lua_pushstring(L,"key must be present.");
+			return 1;
+		}
+		key_type = UINT;
+		break;
+	default:
 		lua_pushnil(L);
 		lua_pushstring(L,"key must be present.");
 		return 1;
 	}
+
+	int index = (int)luaL_checkinteger(L,3);
+	luaL_argcheck(L, index >= 0, 3,"index cannot be negative");
+
+	long long record_offset = (int)luaL_checkinteger(L,3);
+	luaL_argcheck(L, record_offset >= 0, 4,"offset cannot be negative");
+
+	int fds[3] = {0};
+	memset(fds,-1,(sizeof int)*3);
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+	int m_al = 0;
+	if(is_memory_allocated() == NULL){
+		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
+		m_al = 1;
+	}
+
+	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1) goto err_open_file;
+
+
+	HashTable *ht = NULL;
+	int index = 0;
+	int *p_index = &index;
+	/* load all indexes in memory */
+	if (!read_all_index_file(fds[0], &ht, p_index)) goto err_load_index;
+
+	if(set_rec(&ht[index],key,record_offset,key_type) == -1) goto err_set_index;
+
+	if(write_index(fds,index,ht,files[0]) == -1) goto err_write_index;
+
+
+	if(m_al)
+		close_arena()
+	else
+		cancel_memory(NULL,ht,sizeof(HashTable));
+	
+	/*if indexing succseed return the index number*/
+	lua_pushinteger(L,index);
+	return 1;
+
+err_memory:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot allocate memory.");
+	return 2;
+err_open_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not open the file.");
+	if(m_al) close_arena();
+	return 2;
+err_load_index:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not load index file.");
+	if(m_al) close_arena();
+	return 2;
+err_set_rec:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not set index.");
+	if(m_al) close_arena();
+	return 2;
+err_write_index:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not write index file.");
+	if(m_al) close_arena();
+	return 2;
 }
 
 /* external functions*/
