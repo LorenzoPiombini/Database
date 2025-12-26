@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	int index_nr = 0;
 	int only_dat = 0;
 
-	while ((c = getopt(argc, argv, "jnItAf:F:a:k:D:R:uleB:b:s:x:c:i:o:")) != -1)
+	while ((c = getopt(argc, argv, "jnItAf:F:a:k:D:R:uleB:b:s:x:c:i:o:X:")) != -1)
 	{
 		switch (c){
 		case 'j':
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 			del = 1;
 			errno = 0;
 			long l = string_to_long(optarg);
-			if(errno == EINVAL && l < 0){
+			if(error_value == INVALID_VALUE || l < 0){
 				display_to_stdout("option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
@@ -154,8 +154,8 @@ int main(int argc, char *argv[])
 		{
 			errno = 0;
 			long l = string_to_long(optarg);
-			if(errno == EINVAL){
-				display_to_stdout("option -i value is not a valid number.\n");
+			if(error_value == INVALID_VALUE){
+				display_to_stdout("option -s value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
@@ -163,13 +163,25 @@ int main(int argc, char *argv[])
 			break;
 
 		}
+		case 'X':
+		{
+			error_value = 0;
+			long l = string_to_long(optarg);
+			if(error_value == INVALID_VALUE){
+				display_to_stdout("option -X value is not a valid number.\n");
+				close_prog_memory();
+				return -1;
+			}
+			index_nr = (int)l;
+			break;
+		}
 		case 'x':
 		{
 			list_keys = 1;
-			errno = 0;
+			error_value = 0;
 			long l = string_to_long(optarg);
-			if(errno == EINVAL){
-				display_to_stdout("option -i value is not a valid number.\n");
+			if(error_value == INVALID_VALUE){
+				display_to_stdout("option -x value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
 			}
@@ -186,7 +198,7 @@ int main(int argc, char *argv[])
 		{
 			errno = 0;
 			long l = string_to_long(optarg);
-			if(errno == EINVAL){
+			if(error_value == INVALID_VALUE){
 				display_to_stdout("option -i value is not a valid number.\n");
 				close_prog_memory();
 				return -1;
@@ -1353,7 +1365,7 @@ int main(int argc, char *argv[])
 			memset(&rec,0,sizeof(struct Record_f));
 
 			int err = 0;
-			if((err = get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds,-1)) == -1){
+			if((err = get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds,index_nr >= 0 ? index_nr : -1)) == -1){
 				free_record(&rec,rec.fields_num);
 				close_file(3, fd_schema,fd_index, fd_data);
 				close_prog_memory();

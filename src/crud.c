@@ -339,7 +339,7 @@ int write_record(int *fds,
 			}
 		}
 
-		if(set_tbl(g_ht,key,(file_offset)ram.size,key_type) == -1) return 0;
+		if(set_tbl(g_ht,key,(file_offset)ram.size,key_type,0) == -1) return 0;
 
 		if(write_ram_record(&ram,rec,0,0,0) == -1){
 			fprintf(stderr,"write_ram_record() failed. %s:%d.\n",__FILE__,__LINE__-1);
@@ -377,11 +377,12 @@ int write_record(int *fds,
 		return STATUS_ERROR;
 	}
 
-	if(set_tbl(ht,key,eof,key_type) == -1){
+	if(set_tbl(ht,key,eof,key_type,0) == -1){
 		free_ht_array(ht, index);
 		return STATUS_ERROR;
 	}
 
+	rec->offset = eof;
 /*int buffered_write(int fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)*/
 	if(buffered_write(&fds[1],rec,update,eof,0) == -1){
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
@@ -723,14 +724,14 @@ clean_on_error:
 
 }
 
-int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type)
+int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,int indexing)
 {
 	if(key_type == UINT){
-		if(!set(key, key_type, offset, &ht[0])) return -1;
+		if(!set(key, key_type, offset, indexing == 1 ? ht : &ht[0])) return -1;
 
 		return 0;
 	} else if (key_type == STR) {
-		if(!set((void *)key, key_type, offset, &ht[0])) return -1;
+		if(!set((void *)key, key_type, offset,indexing == 1 ? ht : &ht[0])) return -1;
 
 		return 0;
 	}
@@ -741,7 +742,7 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type)
 		return -1;
 	} else if (key_type == UINT) {
 		if (key_conv) {
-			if (!set(key_conv, key_type, offset, &ht[0])){
+			if (!set(key_conv, key_type, offset,indexing == 1 ? ht : &ht[0])){
 				cancel_memory(NULL,key_conv,sizeof(ui32));
 				return -1;
 			}
@@ -749,7 +750,7 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type)
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
-		if (!set((void *)key, key_type, offset, &ht[0])) return -1;
+		if (!set((void *)key, key_type, offset, indexing == 1 ? ht : &ht[0])) return -1;
 	}
 	return 0;
 }
