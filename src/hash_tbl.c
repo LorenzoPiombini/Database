@@ -236,7 +236,7 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 			new_node->key.k.n = *(ui32 *)key;
 			new_node->key.size = 32;
 		}
-		if(*(ui64)key > MAX_KEY){
+		if(*(ui64*)key > MAX_KEY){
 			fprintf(stderr,"key out of range, %s:%d.\n",F, L - 2);
 			return 0;
 		}
@@ -301,8 +301,8 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 			}
 			temp = temp->next;
 		}
-		if ((key_len = strlen(temp->next->key.k.s)) == strlen(new_node->key.k.s)) {
-			if (strncmp(temp->next->key.k.s, new_node->key.k.s, ++key_len) == 0) {
+		if ((key_len = strlen(temp->key.k.s)) == strlen(new_node->key.k.s)) {
+			if (strncmp(temp->key.k.s, new_node->key.k.s, ++key_len) == 0) {
 				printf("could not insert new node \"%s\"\n", new_node->key.k.s);
 				printf("key already exist. Choose another key value.\n");
 				cancel_memory(NULL,new_node->key.k.s,strlen(new_node->key.k.s)+1);
