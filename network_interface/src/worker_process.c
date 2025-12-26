@@ -138,6 +138,7 @@ new_cust_error:
 				set_memory(orders_head,0,len+1);
 				string_copy(orders_head,t,len);
 
+				display_to_stdout("%s\n",orders_head);
 				t = tok(NULL,"^");
 				if(t){
 					len = string_length(t);	
@@ -154,6 +155,16 @@ new_cust_error:
 				set_memory(orders_line,0,len+1);
 				string_copy(orders_line,t,len);
 
+				display_to_stdout("%s\n",orders_line);
+
+				long long key_ord = -1;
+				if(operation_to_perform == NEW_SORD){
+					if(execute_lua_function("write_orders","ss>i",orders_head,orders_line,&key_ord) == -1){
+						/*send error and resume*/
+						goto new_up_ords_err;
+					}
+				}
+ #if 0
 				/* writing to database*/
 				int fds_order_header[3];
 				set_memory(fds_order_header,-1,sizeof(int)*3);
@@ -186,12 +197,12 @@ new_cust_error:
 								long l = string_to_long(key_up);
 								if(error_value == INVALID_VALUE){
 									fprintf(stderr,"cannot convert string to long %s:%d.\n",__FILE__,__LINE__);
-									goto error;
+									goto new_up_ords_err;
 								}
 
 								if(l > MAX_KEY){
 									fprintf(stderr,"key value is too big for the system %s:%d.\n",__FILE__,__LINE__);
-									goto error;
+									goto new_up_ords_err;
 								}
 
 								key = (ui32)l;
@@ -215,10 +226,9 @@ new_cust_error:
 					continue;
 				}
 
-				if(is_db_file(&hd_head,fds_order_header) == -1) goto error; 
-
-				if(open_files(SALES_ORDERS_L,fds_order_line, files_order_line, -1) == -1) goto error;
-				if(is_db_file(&hd_line,fds_order_line) == -1) goto error; 
+				if(is_db_file(&hd_head,fds_order_header) == -1) goto new_up_ords_err;
+				if(open_files(SALES_ORDERS_L,fds_order_line, files_order_line, -1) == -1) goto new_up_ords_err;
+				if(is_db_file(&hd_line,fds_order_line) == -1) goto new_up_ords_err;
 
 				int check = 0;
 				if((check = check_data(SALES_ORDERS_H,
@@ -227,20 +237,20 @@ new_cust_error:
 								files_order_head,
 								&rec,
 								&hd_head,
-								&lock_f,-1)) == -1) goto error;
+								&lock_f,-1)) == -1) goto new_up_ords_err;
 
 				if(operation_to_perform == NEW_SORD){
 					key = generate_numeric_key(fds_order_header,BASE,100);
-					if(!key) goto error; 
+					if(!key) goto new_up_ords_err;
 				}
 
 				if(operation_to_perform == NEW_SORD){
 					if(write_record(fds_order_header,&key,UINT,&rec, 0,files_order_head,&lock_f,-1) == -1) {
 						fprintf(stderr,"write_record failed! %s:%d.\n",__FILE__,__LINE__-1);
-						goto error;
+						goto new_up_ords_err;
 					}
 				}else if(operation_to_perform == UPDATE_SORD){
-					if(update_rec(SALES_ORDERS_H,fds_order_header,&key,UINT,&rec,hd_head,check,&lock_f,NULL) == -1 )goto error;
+					if(update_rec(SALES_ORDERS_H,fds_order_header,&key,UINT,&rec,hd_head,check,&lock_f,NULL) == -1 ) goto new_up_ords_err;
 				}
 
 				free_record(&rec,rec.fields_num);
@@ -363,9 +373,10 @@ new_cust_error:
 						fds_order_line[1],
 						fds_order_line[2]);
 				/*write to socket*/
+#endif
 				if(operation_to_perform == NEW_SORD){
 					set_memory(succ,0,1024);
-					if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, created!\"}",key) == -1){
+					if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, created!\"}",key_ord) == -1){
 						/*log error*/
 						clear_memory();
 						close(data_sock);
@@ -373,15 +384,15 @@ new_cust_error:
 						continue;
 					}
 
-					if(write(data_sock,succ,sizeof(succ)) == -1) goto error;
+					if(write(data_sock,succ,sizeof(succ)) == -1) goto new_up_ords_err;
 
 				}else if(operation_to_perform == UPDATE_SORD){
 					set_memory(succ,0,1024);
-					if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, updated!\"}",key) == -1){
+					if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, updated!\"}",key_ord) == -1){
 						/*log error*/
-						goto error;
+						goto new_up_ords_err;
 					}
-					if(write(data_sock,succ,sizeof(succ)) == -1) goto error;
+					if(write(data_sock,succ,sizeof(succ)) == -1) goto new_up_ords_err;
 				}
 
 
@@ -389,7 +400,7 @@ new_cust_error:
 				close(data_sock);
 				data_sock = -1;
 				continue;
-error:
+new_up_ords_err:
 				clear_memory();
 				set_memory(err,0,1024);
 				write(data_sock,err,sizeof(err));
@@ -514,7 +525,7 @@ error_s_ord:
 
 							if(is_db_file(&hd,fds) == -1) goto s_ord_get_exit_error; 
 
-							if(get_record(-1,SALES_ORDERS_H,&rec,(void *)&k,type, hd,fds) == -1) goto s_ord_get_exit_error; 
+							if(get_record(-1,SALES_ORDERS_H,&rec,(void *)&k,type, hd,fds,-1) == -1) goto s_ord_get_exit_error; 
 
 							int field_ix = 0;
 							int rec_index = 0;
@@ -584,7 +595,7 @@ error_s_ord:
 
 
 								if(get_record(-1,SALES_ORDERS_L,&rec,
-											(void *)key,STR, hd,fds) == -1) goto s_ord_get_exit_error; 
+											(void *)key,STR, hd,fds,-1) == -1) goto s_ord_get_exit_error; 
 
 								position_in_the_message = string_length(d_buff);
 								string_copy(&d_buff[position_in_the_message],line_title,string_length(line_title));

@@ -7,8 +7,8 @@
 #include "file.h"
 #include "key.h"
 
-#define LOWER_STR(s) for(char *p = &s[0]; p && ((int)*p >= 65 || (int)*p <= 90) ;*p = (int)*p + 22,p++)
-#define UPPER_STR(s) for(char *p = &s[0]; p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
+#define LOWER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 65 || (int)*p <= 90) ;*p = ((int)*p) + 22,p++)
+#define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
 
 static int l_get_record(lua_State *L);
@@ -286,7 +286,6 @@ static int l_write_record(lua_State *L)
 		lua_pushinteger(L,n);
 	}else if(type == LUA_TSTRING){
 		char *param = (char*)luaL_checkstring(L,3);
-		LOWER_STR(param);
 		if(strlen(param) == strlen("base") &&
 			strncmp("base",param,strlen("base")) == 0){
 
@@ -294,7 +293,7 @@ static int l_write_record(lua_State *L)
 			if ((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
 			k = (void*)&n;
 			lua_pushinteger(L,n);
-
+			key_type = UINT;
 		}else{
 			key_type = STR; 
 			k = (void*)param;

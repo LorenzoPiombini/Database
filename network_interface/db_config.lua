@@ -1,8 +1,13 @@
 db = require("db")
 
+--- DB GLOBALS
+ORDER_BASE = 100
 --- database files
 name_file = "db/name_file"
 customers = "db/customers"
+sales_orders ={} 
+sales_orders['head'] = "db/sales_orders_head"
+sales_orders['lines'] = "db/sales_orders_lines"
 
 --- database crud functions
 write_record = db.write_record
@@ -26,7 +31,7 @@ function w_rec(file_name, data, key, number)
 	end
 end
 
---- return the key of the record
+--- return the key of the name_file record
 function write_to_name_file(data)
 	local key, rec = write_record(name_file, data)
 	if key == nil or rec == nil then
@@ -44,7 +49,7 @@ function write_customers(data)
 
 	-- indexing function
 	-- we are saving the same record with a different key, to get better
-	-- searching performance and user experience
+	-- searching performance,data integrety  and user experience
 	local res = indexing("db/customers", f.c_name, 1, cli_rec.offset)
 	if res ~= 1 then
 		return -1
@@ -56,7 +61,6 @@ function write_customers(data)
 	end
 
 	local res = write_to_name_file(string.format(name_file_data, f.c_name, f.c_code, key))
-	print(key, res)
 	if key == res then
 		return 0, key
 	end
@@ -65,3 +69,28 @@ function write_customers(data)
 end
 
 --write_customers('c_code:E00001:c_name:test srl:c_addr1:via corassori 72:c_csz:Formigne Modena Italy:c_phone:+1973-609-9071:c_contact:Lorenzo')
+
+
+function write_orders(orders_head,orders_lines)
+	local kh, ord_head = w_rec(sales_orders.head, orders_head,"base",ORDER_BASE)
+
+	if ord_head == nil then return nil end
+
+	local f = ord_head.fields
+	if f.lines_nr == 1 then
+		local key_line = string.format("%d/%d",kh,f.lines_nr)
+		local line = string.sub(orders_lines,2,-2)
+		local data = string.sub(line,3,#line)
+		local kl, ord_lines = w_rec(sales_orders.lines,data,key_line)
+	else
+		for i = 1, f.lines_nr do
+			local key_line = string.format("%d/%d",k,i)
+			local kh, ord_lines = w_rec(sales_orders.lines,orders_line,key_line)
+			if ord_lines == nil then return nil end
+		end
+	end
+	
+
+	return kh
+end
+
