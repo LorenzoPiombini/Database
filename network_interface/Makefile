@@ -11,8 +11,8 @@ clean:
 	rm $(TARGET)
 
 $(TARGET): $(OBJ)
-	gcc -o $@ $? -llua5.4 -lfree -llog -lmem -lcrud -z relro -z now -z noexecstack -fsanitize=address 
+	gcc -o $@ $? -ldblua -llua5.4 -lfree -llog -lmem -lcrud -z relro -z now -z noexecstack -fsanitize=address 
 
 
 obj/%.o : src/%.c
-	gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fsanitize=address 
+	gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -I../lua/include -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -fsanitize=address 
