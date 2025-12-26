@@ -149,7 +149,12 @@ $(BINDIR)/SHOW:
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
 		echo "" >> $@; \
-		echo "$(TARGET) -f \"\$$1\" -k \"\$$2\"" >> $@; \
+		echo "value=\"\$$3\"" >> $@; \
+		echo "if [ -z \"\$$3\" ]; then" >> $@; \
+		echo "value=0" >> $@; \
+		echo "fi" >> $@; \
+		echo "" >> $@; \
+		echo "$(TARGET) -f \"\$$1\" -k \"\$$2\" -X \"\$$value\"">> $@; \
 		chmod +x $@; \
 	fi
 $(BINDIR)/LIST:

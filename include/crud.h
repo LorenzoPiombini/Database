@@ -42,6 +42,6 @@ int update_rec(char *file_path,
 		int key_type,struct Record_f *rec,
 		struct Header_d hd,int check,
 		int *lock_f, char *options);
-int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type);
+int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,int indexing);
 
 #endif
