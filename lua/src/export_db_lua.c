@@ -655,7 +655,7 @@ static int l_save_key_at_index(lua_State *L)
 	int index = (int)luaL_checkinteger(L,3);
 	luaL_argcheck(L, index >= 0, 3,"index cannot be negative");
 
-	long long record_offset = (int)luaL_checkinteger(L,3);
+	long long record_offset = (int)luaL_checkinteger(L,4);
 	luaL_argcheck(L, record_offset >= 0, 4,"offset cannot be negative");
 
 	int fds[3];
@@ -676,7 +676,7 @@ static int l_save_key_at_index(lua_State *L)
 	/* load all indexes in memory */
 	if (!read_all_index_file(fds[0], &ht, &tbl_ix)) goto err_load_index;
 
-	if(set_tbl(&ht[index],key,record_offset,key_type) == -1) goto err_set_index;
+	if(set_tbl(&ht[index],key,record_offset,key_type,1) == -1) goto err_set_index;
 
 	if(write_index(fds,tbl_ix,ht,file_names[0]) == -1) goto err_write_index;
 
@@ -723,7 +723,7 @@ int port_record(lua_State *L, struct Record_f* r){
 	lua_setfield(L,-2,"file_name");
 
 	lua_pushinteger(L,r->offset);
-	lua_setfield(L,-2,"file_offset");
+	lua_setfield(L,-2,"offset");
 	lua_pushinteger(L,r->fields_num);
 	lua_setfield(L,-2,"fields_number");
 
