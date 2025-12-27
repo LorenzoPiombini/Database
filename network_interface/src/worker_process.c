@@ -37,6 +37,7 @@ int work_process(int sock)
 	set_memory(buffer,0,EIGTH_Kib);
 	for(;;){
 		/*accept connection*/
+		check_config_file();
 		if((data_sock = accept(sock,NULL,NULL)) == -1){
 			break;
 		}
@@ -161,9 +162,12 @@ new_cust_error:
 				if(operation_to_perform == NEW_SORD){
 					if(execute_lua_function("write_orders","ss>i",orders_head,orders_line,&key_ord) == -1){
 						/*send error and resume*/
+						clear_lua_stack();
 						goto new_up_ords_err;
 					}
 				}
+
+				clear_lua_stack();
  #if 0
 				/* writing to database*/
 				int fds_order_header[3];

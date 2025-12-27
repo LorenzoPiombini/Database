@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 
 #include <record.h>
 #include "export_db_lua.h"
 #include "lua_start.h"
 
 lua_State *L = NULL;
+static time_t sec = 0; 
 
 static int load(lua_State *L, char *file_config);
 
@@ -15,6 +18,7 @@ int init_lua()
 	L = luaL_newstate();
 	luaL_openlibs(L);
 	if(load(L,"db_config.lua") == -1) return -1;
+	check_config_file();
 	return 0;
 }
 
@@ -23,6 +27,24 @@ void close_lua()
 	lua_close(L);
 }
 
+void check_config_file()
+{
+	struct stat file_data;
+	if(stat("db_config.lua",&file_data) == -1) {
+		return;
+	}
+	
+	if(sec == 0){
+		sec = file_data.st_mtim.tv_sec;
+		return;
+	}
+	if(file_data.st_mtim.tv_sec > sec){
+		clear_lua_stack();
+		if(load(L,"db_config.lua") == -1) return;
+		sec = file_data.st_mtim.tv_sec;
+	}
+
+}
 void clear_lua_stack()
 {
 	lua_settop(L,0);
