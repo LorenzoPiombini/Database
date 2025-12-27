@@ -14,6 +14,7 @@ write_record = db.write_record
 get_numeric_key = db.get_numeric_key
 string_data_to_add_template = db.string_data_to_add_template
 indexing = db.save_key_at_index
+create_rec = db.create_record
 
 --- look for documentation in lua/src/export_db_lua.c
 --- return two results, the record created and its key, if the key is not passed
@@ -41,22 +42,29 @@ function write_to_name_file(data)
 end
 
 function write_customers(data)
+	-- TODO: write a function that look for a key in the hash table
+	-- to determine if e record already exist.
+	
 	local key = get_numeric_key(name_file, 0)
 	local data_with_c_number = string.format("%s:c_number:%d", data, key)
 
-	local k, cli_rec = w_rec("db/customers", data_with_c_number)
+	local cli_rec = create_rec("db/customers", data_with_c_number)
+	if cli_rec == nil then return nil end
+
 	local f = cli_rec.fields
 
 	-- indexing function
 	-- we are saving the same record with a different key, to get better
 	-- searching performance,data integrety  and user experience
+	-- if this one fails, it means that we have this customer in the DB already
 	local res = indexing("db/customers", f.c_name, 1, cli_rec.offset)
 	if res ~= 1 then
 		return -1
 	end
 
+	local k, rec = w_rec("db/customers", data_with_c_number)
 	local name_file_data = string_data_to_add_template(name_file)
-	if cli_rec == nil or k == nil then
+	if rec == nil or k == nil then
 		return -1
 	end
 
