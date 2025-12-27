@@ -179,12 +179,13 @@ int create_string_date(long time, char* date_str)
 		month[0] = '0';
 		month[1] = (date_t->tm_mon + 1) + '0';
 		if(copy_to_string(date_str,9,"%s-%s-%d",
-									day,
 									month,
+									day,
 									(date_t->tm_year + 1900) - 2000) == -1){
 			printf("copy_to_string failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
+		return 0;
 	}else if(date_t->tm_mday < 10){
 		day[0] = '0';	
 		day[1] = date_t->tm_mday + '0';
