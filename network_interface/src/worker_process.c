@@ -428,9 +428,9 @@ new_up_ords_err:
 
 				char *keys = 0x0;
 				if(operation_to_perform == S_ORD)
-					keys = get_all_keys_for_file(fds,0);
+					keys = get_all_keys_for_file(fds,0,0);
 				else if (operation_to_perform == CUSTOMER_GET_ALL)
-					keys = get_all_keys_for_file(fds,1);
+					keys = get_all_keys_for_file(fds,1,MAKE_KEY_JS_STRING);
 
 				if(!keys){
 					/*log errors*/	
@@ -486,6 +486,7 @@ error_s_ord:
 				close(fds[0]);
 				continue;
 			}
+			case CUSTOMER_GET:
 			case S_ORD_GET:
 			{
 				d_buff = NULL;
@@ -644,6 +645,10 @@ s_ord_get_exit_error:
 							continue;
 
 						}
+					case STR:
+					{
+						/*TODO:*/
+					}
 					default:
 						set_memory(err,0,1024);
 						write(data_sock,err,sizeof(err));

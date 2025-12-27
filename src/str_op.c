@@ -1949,7 +1949,7 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 	
 	char **values = (char**)ask_mem(fields_count * sizeof(char *));
 	if (!values) {
-		display_to_stdout("memory get values %s:%d",__FILE__,__LINE__-2);
+		display_to_stdout("memory get values %s:%d\n",__FILE__,__LINE__-2);
 		return 0x0;
 	}
 

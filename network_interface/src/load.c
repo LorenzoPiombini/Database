@@ -179,6 +179,49 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 	case GET:
 	{
 		switch(resource){
+		case CUSTOMER_GET:
+		{
+
+			/*get the Key from the request*/
+			char *p = req->resource;
+			p += strlen(SALES_ORDERS) + 1;
+
+			size_t key_size = strlen(p);
+			char buffer[key_size+2];
+			memset(buffer,0,key_size+2);
+
+			buffer[0] = resource + '0';
+			strncpy(&buffer[1],p,key_size);
+
+			if(write(data_sock,buffer,sizeof(buffer)) == -1){
+				return -1;
+			}
+
+			char *read_buffer = (char*)ask_mem(EIGTH_Kib*4);
+			if(!read_buffer) return -1;
+
+			/*read data from worker proc*/
+
+			memset(read_buffer,0,EIGTH_Kib*4);
+			ssize_t bread = 0;
+			if((bread = read(data_sock,read_buffer,(EIGTH_Kib*4)-1)) == -1) return -1;
+
+			if(bread == ((EIGTH_Kib * 4) - 1)){
+					fprintf(stderr,"code refactor neened %s:%d\n",__FILE__,__LINE__-1);
+					return -1;
+			}
+
+			if(read_buffer[0] == '\0') return -1;
+
+			size_t mem_size = strlen(read_buffer) + 1;
+			cont->cnt_dy = (char*) ask_mem(mem_size);
+			if(!cont->cnt_dy) return -1;
+
+			cont->capacity =mem_size;
+			cont->size = mem_size;
+			if(copy_to_string(cont->cnt_dy,strlen(read_buffer)+1,"%s",read_buffer) == -1) return -1;
+			return 0;
+		}
 		case CUSTOMER_GET_ALL:
 		case S_ORD:
 		{		

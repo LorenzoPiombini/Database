@@ -235,10 +235,10 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 		}else{ 
 			new_node->key.k.n = *(ui32 *)key;
 			new_node->key.size = 32;
-		}
-		if(*(ui64*)key > MAX_KEY){
-			fprintf(stderr,"key out of range, %s:%d.\n",F, L - 2);
-			return 0;
+			if(new_node->key.k.n > (ui32)UINT_MAX){
+				fprintf(stderr,"key out of range, %s:%d.\n",F, L - 2);
+				return 0;
+			}
 		}
 		break;
 	}

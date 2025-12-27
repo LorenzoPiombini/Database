@@ -70,7 +70,7 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 	return key;
 }
 
-char *get_all_keys_for_file(int *fds,int index)
+char *get_all_keys_for_file(int *fds,int index,int mode)
 {
 	HashTable ht;
 	set_memory(&ht,0,sizeof(HashTable));
@@ -128,7 +128,12 @@ char *get_all_keys_for_file(int *fds,int index)
 	}
 
 	/* 2 is for '[' and ']' */
-	str_size += (2 + all_keys.length);
+	if(mode == MAKE_KEY_JS_STRING){
+									/*times 2 each key is for "" */
+		str_size += (2 + all_keys.length + (2*all_keys.length));
+	}else{
+		str_size += (2 + all_keys.length);
+	}
 	char *str_keys = (char *)ask_mem(str_size + 1);
 	if(!str_keys){
 		/*log failure*/
@@ -146,11 +151,24 @@ char *get_all_keys_for_file(int *fds,int index)
 		{
 			size_t l = string_length(all_keys.keys[i].k.s);
 			if(all_keys.keys[i].k.s){
-				string_copy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
-				ind_str += l;
-				if(all_keys.length - i > 1){
-					str_keys[ind_str] = ',';
+				if(mode == MAKE_KEY_JS_STRING){
+					string_copy(&str_keys[ind_str],"\"",1);
 					ind_str++;
+					string_copy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
+					ind_str += l;
+					string_copy(&str_keys[ind_str],"\"",1);
+					ind_str++;
+					if(all_keys.length - i > 1){
+						str_keys[ind_str] = ',';
+						ind_str++;
+					}
+				}else{
+					string_copy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
+					ind_str += l;
+					if(all_keys.length - i > 1){
+						str_keys[ind_str] = ',';
+						ind_str++;
+					}
 				}
 			}
 			break;
@@ -158,17 +176,38 @@ char *get_all_keys_for_file(int *fds,int index)
 		case UINT:
 		{
 			if(all_keys.keys[i].size == 16){
-				size_t n = number_of_digit(all_keys.keys[i].k.n16);
-				if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
-					/*log failure*/						
-					cancel_memory(NULL,str_keys,str_size + 1);	
-					free_keys_data(&all_keys);
-					return NULL;
-				}
-				ind_str += n;
-				if(all_keys.length - i > 1){
-					str_keys[ind_str] = ',';
+				if(mode == MAKE_KEY_JS_STRING){
+					string_copy(&str_keys[ind_str],"\"",1);
 					ind_str++;
+					size_t n = number_of_digit(all_keys.keys[i].k.n16);
+					if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
+						/*log failure*/						
+						cancel_memory(NULL,str_keys,str_size + 1);	
+						free_keys_data(&all_keys);
+						return NULL;
+					}
+
+					ind_str += n;
+					string_copy(&str_keys[ind_str],"\"",1);
+					ind_str++;
+					if(all_keys.length - i > 1){
+						str_keys[ind_str] = ',';
+						ind_str++;
+					}
+
+				}else{
+					size_t n = number_of_digit(all_keys.keys[i].k.n16);
+					if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
+						/*log failure*/						
+						cancel_memory(NULL,str_keys,str_size + 1);	
+						free_keys_data(&all_keys);
+						return NULL;
+					}
+					ind_str += n;
+					if(all_keys.length - i > 1){
+						str_keys[ind_str] = ',';
+						ind_str++;
+					}
 				}
 			}else{
 				size_t n = number_of_digit(all_keys.keys[i].k.n);
