@@ -1295,6 +1295,22 @@ unsigned char set_field(struct Record_f *rec,
 					if(p == 'n') value = "0";
 					if(p == 'y') value = "1";
 				}
+			}else{
+						
+				char *p = &value[0];
+				for(; *p != '\0'; p++){
+					*p = tolower(*p);
+				}
+				
+				if(strncmp(value,"false",strlen(p)) == 0){
+					value[0] = '0';
+					value[1] = '\0';
+				}
+
+				if(strncmp(value,"true",strlen(p)) == 0){
+					value[0] = '1';
+					value[1] = '\0';
+				}
 			}
 
 

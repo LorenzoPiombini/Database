@@ -14,6 +14,10 @@ static char *find_needle_last(char *src, char delim);
 static int is_target_db_type(char *target);
 static int search_string_for_types(char *str, int *types);
 
+#define TO_LOWER(c) do { \
+						if((int)*c >= 65 && (int)*c <= 90) *c = (int)*c + 32;\
+					}while(0);
+
 #define BASE 247
 static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","_J","_K","_L","_M","_N","_O","_P","_Q","_R","_S","_T","_U",
 				"_V","_W","_X","_Y","_Z","_[","_\\","_]","_^","__"," ","!","\"","#","$","%","&","'","(",")","*","+",
@@ -1671,6 +1675,25 @@ int assign_type(char *value)
 		return -1;
 	}
 
+	if(string_length(value) > 1){
+		
+		size_t sz = string_length(value);
+		char cpy[sz+1];
+		set_memory(cpy,0,sz+1);
+		copy_memory(cpy,value,sz);
+
+		char *p = &cpy[0];
+		for(;*p != '\0';p++){
+			TO_LOWER(p)			
+		}
+		if(string_compare(cpy,"false",string_length(p),COMPARE_STANDARD) == 0) return TYPE_BYTE;
+		if(string_compare(cpy,"true",string_length(p),COMPARE_STANDARD) == 0) return TYPE_BYTE;
+	}else{
+		char c = *value;
+		char *p = &c;
+		TO_LOWER(p)
+		if(c == 'n' || c == 'y') return TYPE_BYTE;
+	}
 	return TYPE_STRING;
 }
 
