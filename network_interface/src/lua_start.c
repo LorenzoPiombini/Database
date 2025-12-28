@@ -74,6 +74,9 @@ int execute_lua_function(char *func_name, char *func_sig, ...)
 		case 'i': /* integer*/	
 			lua_pushinteger(L,va_arg(vl,int));
 			break;
+		case 'I': /*unsigned integer*/	
+			lua_pushinteger(L,va_arg(vl,uint32_t));
+			break;
 		case 'l': /* long integer*/	
 			lua_pushinteger(L,va_arg(vl,long));
 			break;
