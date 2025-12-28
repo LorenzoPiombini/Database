@@ -14,6 +14,7 @@
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
 static int l_write_record(lua_State *L);
+static int l_update_record(lua_State *L);
 static int l_create_record(lua_State *L);
 static int l_string_data_to_add_template(lua_State *L);
 static int l_get_numeric_key(lua_State *L);
@@ -30,6 +31,7 @@ static const luaL_Reg db_funcs[] = {
 	{"get_numeric_key",l_get_numeric_key},	/* get_numeric_key(file_name,mode) -- some optional args --  */
 	{"save_key_at_index",
 		l_save_key_at_index},               /* save_key_at_index(file_name,key,index,offset)*/
+	{"update_record",l_update_record},		/* update_record(file_name,data,key) */
 	{NULL,NULL}
 };
 
@@ -352,6 +354,100 @@ err_invalid_data:
 	if(m_al) close_arena();
 	return 3;
 
+}
+
+static int l_update_record(lua_State *L)
+{
+	char *file_name = (char*)luaL_checkstring(L,1);
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+	char *data_to_add = (char*)luaL_checkstring(L,2);
+	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
+	
+	char *k_str = NULL;
+	void *key = NULL;
+	uint32_t n = 0;
+
+	int key_type = 0;
+	int type = lua_type(L,3);
+	switch(type){
+	case -1:
+	case LUA_TNIL:
+		lua_pushnil(L);
+		lua_pushstring(L,"key is missing for update functions.");
+		return 2;
+	case LUA_TNUMBER:
+		n = (uint32_t) luaL_checkinteger(L,3);
+		key = (void*)&n;
+		key_type = UINT;
+		break;
+	case LUA_TSTRING:
+		k_str = (char*)luaL_checkstring(L,3);
+		key = (void*)k_str;
+		key_type = STR;
+		break;
+	default:
+		lua_pushnil(L);
+		lua_pushstring(L,"wrong key type");
+		return 2;
+	}
+
+	int fds[3];
+	memset(fds,-1,3*sizeof(int));
+
+	struct Record_f rec = {0};
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {0,0,&sch};
+
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+	int m_al = 0;
+	if(is_memory_allocated() == NULL){
+		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
+		m_al = 1;
+	}
+
+	int lock = 1;
+	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	int check = -1;
+	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1)) == -1) goto err_invalid_data;
+	if(update_rec(file_name,fds,key,key_type,&rec,hd,check,&lock,NULL) == -1) goto err_update_rec;
+	port_record(L,&rec);
+
+	if(m_al) close_arena();
+	close_file(3,fds[0],fds[1],fds[2]);
+
+	return 1;
+
+err_open_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not open the file.");
+	if(m_al) close_arena();
+	return 2;
+err_memory:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot allocate memory.");
+	return 2;
+err_not_db_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 2;
+err_update_rec:
+	lua_pushnil(L);
+	lua_pushstring(L,"write record failed");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 3;
+err_invalid_data:
+	lua_pushnil(L);
+	lua_pushstring(L,"data not valid.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	if(m_al) close_arena();
+	return 3;
 }
 
 /*
@@ -762,7 +858,7 @@ int port_record(lua_State *L, struct Record_f* r){
 				lua_setfield(L,-2,r->fields[i].field_name);
 				break;
 			case TYPE_DOUBLE:
-				lua_pushnumber(L,r->fields[i].data.f);
+				lua_pushnumber(L,r->fields[i].data.d);
 				lua_setfield(L,-2,r->fields[i].field_name);
 				break;
 			case TYPE_FILE:
