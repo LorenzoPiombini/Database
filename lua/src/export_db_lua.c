@@ -484,6 +484,8 @@ static int l_create_record(lua_State *L)
 	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) goto err_invalid_data;
 
+	rec.offset = go_to_EOF(fds[1]);
+	
 	port_record(L,&rec);
 	if(m_al) close_arena();
 	close_file(3,fds[0],fds[1],fds[2]);

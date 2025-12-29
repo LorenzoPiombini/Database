@@ -190,7 +190,8 @@ end
 function get_customer(key)
 	local cust
 	if type(key) == 'string' then
-		cust = g_rec(customers,key,1); -- 1 is the index number in the file	
+		local sanitized_key = string.gsub(key,"%%%d+"," ") -- decode URL encoding
+		cust = g_rec(customers,sanitized_key,1); -- 1 is the index number in the file	
 	else
 		cust = g_rec(customers,key)
 	end

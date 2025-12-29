@@ -184,7 +184,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 
 			/*get the Key from the request*/
 			char *p = req->resource;
-			p += strlen(SALES_ORDERS) + 1;
+			p += strlen(CUSTOMERS) + 1;
 
 			size_t key_size = strlen(p);
 			char buffer[key_size+2];
