@@ -6622,6 +6622,14 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					rec->fields[indexes[i]].data.b = n;
 					break;
 				}
+			case TYPE_KEY:
+				{
+					ui32 k = 0;
+					memcpy(&k,&ram->mem[ram->offset],sizeof(ui32));
+					move_ram_file_ptr(ram,sizeof(ui32));
+					rec->fields[indexes[i]].data.k = (ui32)swap32(k);
+					break;
+				}
 			case TYPE_STRING:
 				{
 					ui32 str_loc_ne = 0;
@@ -6629,11 +6637,10 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					move_ram_file_ptr(ram,sizeof(ui32));
 					file_offset str_loc = (file_offset)swap32(str_loc_ne);
 
-
 					ui16 buf_up_ne = 0;
 					memcpy(&buf_up_ne,&ram->mem[ram->offset],sizeof(ui16));
 					move_ram_file_ptr(ram,sizeof(ui16));
-					size_t buf_up = swap16(buf_up_ne);
+					size_t buf_up = (size_t)swap16(buf_up_ne);
 
 					file_offset move_back_to = 0;
 					if(str_loc > 0){
@@ -6656,6 +6663,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					memcpy(rec->fields[indexes[i]].data.s,&ram->mem[ram->offset],buf_up);
 					move_ram_file_ptr(ram,buf_up);
 					if(str_loc > 0) ram->offset = move_back_to;
+
 
 					break;
 				}
@@ -7020,6 +7028,11 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 			case TYPE_FILE:
 				/*coming soon*/
 				break;
+			default:
+				fprintf(stdout,"wrong type or not handled,type -> %s, %s:%d.\n",
+						type_to_str(rec->fields[indexes[i]].type),__FILE__,__LINE__);
+				return -1;
+
 		}
 	}
 
