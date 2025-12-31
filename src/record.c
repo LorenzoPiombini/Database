@@ -24,6 +24,66 @@ static char prog[] = "db";
 static void display_data(struct Record_f rec,int max,int tab);
 static void clean_input(char *value);
 
+static char str_type[512];
+char *type_to_str(int type)
+{
+	memset(str_type,0,512);
+
+	switch(type){
+	case TYPE_INT:
+		memcpy(str_type,"TYPE_INT",strlen("TYPE_INT"));
+		return &str_type[0];
+	case TYPE_LONG:
+		memcpy(str_type,"TYPE_LONG",strlen("TYPE_LONG"));
+		return &str_type[0];
+	case TYPE_FLOAT:
+		memcpy(str_type,"TYPE_FLOAT",strlen("TYPE_FLOAT"));
+		return &str_type[0];
+	case TYPE_STRING:
+		memcpy(str_type,"TYPE_STRING",strlen("TYPE_STRING"));
+		return &str_type[0];
+	case TYPE_BYTE:
+		memcpy(str_type,"TYPE_BYTE",strlen("TYPE_BYTE"));
+		return &str_type[0];
+	case TYPE_PACK:
+		memcpy(str_type,"TYPE_PACK",strlen("TYPE_PACK"));
+		return &str_type[0];
+	case TYPE_DOUBLE:
+		memcpy(str_type,"TYPE_DOUBLE",strlen("TYPE_DOUBLE"));
+		return &str_type[0];
+	case TYPE_ARRAY_INT:
+		memcpy(str_type,"TYPE_ARRAY_INT",strlen("TYPE_ARRAY_INT"));
+		return &str_type[0];
+	case TYPE_ARRAY_LONG:
+		memcpy(str_type,"TYPE_ARRAY_LONG",strlen("TYPE_ARRAY_LONG"));
+		return &str_type[0];
+	case TYPE_ARRAY_FLOAT:
+		memcpy(str_type,"TYPE_ARRAY_FLOAT",strlen("TYPE_ARRAY_FLOAT"));
+		return &str_type[0];
+	case TYPE_ARRAY_STRING:
+		memcpy(str_type,"TYPE_ARRAY_STRING",strlen("TYPE_ARRAY_STRING"));
+		return &str_type[0];
+	case TYPE_ARRAY_BYTE:
+		memcpy(str_type,"TYPE_ARRAY_BYTE",strlen("TYPE_ARRAY_BYTE"));
+		return &str_type[0];
+	case TYPE_ARRAY_DOUBLE:
+		memcpy(str_type,"TYPE_ARRAY_DOUBLE",strlen("TYPE_ARRAY_DOUBLE"));
+		return &str_type[0];
+	case TYPE_FILE:
+		memcpy(str_type,"TYPE_FILE",strlen("TYPE_FILE"));
+		return &str_type[0];
+	case TYPE_DATE:
+		memcpy(str_type,"TYPE_DATE",strlen("TYPE_DATE"));
+		return &str_type[0];
+	case TYPE_KEY:
+		memcpy(str_type,"TYPE_KEY",strlen("TYPE_KEY"));
+		return &str_type[0];
+	default:
+		memcpy(str_type,"unrecognized type",strlen("unrecognized type"));
+		return &str_type[0];
+	}
+	return &str_type[0];
+}
 int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int type)
 {
 	int field_index = 0;

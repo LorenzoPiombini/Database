@@ -101,6 +101,7 @@ struct Record_f {
 };
 
 
+char *type_to_str(int type);
 int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int type);
 int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
