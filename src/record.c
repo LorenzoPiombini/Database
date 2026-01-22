@@ -1716,8 +1716,8 @@ static void display_data(struct Record_f rec, int max,int tab)
 		}
 		case TYPE_DATE:
 		{
-			char date_buff[10];
-			memset(date_buff,0,10);
+			char date_buff[11];
+			memset(date_buff,0,11);
 			convert_number_to_date(date_buff,(int)rec.fields[i].data.date);
 			printf("%s\n",date_buff);
 			break;
@@ -3077,8 +3077,8 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 				}
 				case TYPE_DATE:
 				{
-					char date_buff[10];
-					memset(date_buff,0,10);
+					char date_buff[11];
+					memset(date_buff,0,11);
 					if(convert_number_to_date(date_buff,(int)rec->fields[i].data.date) == -1){
 						fprintf(stderr,"cannot convert date");
 						return -1;
