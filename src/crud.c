@@ -164,7 +164,7 @@ int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Head
 		memset(rec,0,sizeof(struct Record_f));
 
 		if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
-			fprintf(stderr,"cannot read from ram file '%s'.\n",file_name);
+			fprintf(stderr,"cannot read from ram file '%s', %s:%d.\n",file_name,__FILE__,__LINE__);
 			clear_ram_file(&ram);
 			return STATUS_ERROR;
 		}
