@@ -158,12 +158,17 @@ long now_seconds()
 	return(long)time(NULL);
 }
 
-int create_string_date(long time, char* date_str)
+/*
+ * if format with 4 digits year the date_str must be  11 char
+ * 	pass 11 char array all the time!
+ * */
+int create_string_date(long time, char* date_str, int format)
 {
 	time_t time_tm = (time_t) time + (60*60*5);
 	struct tm *date_t = localtime(&time_tm);
 	
-	memset(date_str,0,9); /* 9 is the size of "mm-gg-yy" plus the '\0'*/
+	
+	memset(date_str,0,11); 
 
 	char day[3];
 	char month[3];
@@ -178,42 +183,114 @@ int create_string_date(long time, char* date_str)
 		day[1] = date_t->tm_mday + '0';
 		month[0] = '0';
 		month[1] = (date_t->tm_mon + 1) + '0';
-		if(copy_to_string(date_str,9,"%s-%s-%d",
-									month,
-									day,
-									(date_t->tm_year + 1900) - 2000) == -1){
-			printf("copy_to_string failed, %s:%d.\n",F,L-2);
-			return -1;
+		if(format == YYYY_MM_DD){
+			if(copy_to_string(date_str,10,"%d-%s-%s",
+						date_t->tm_year + 1900, 
+						month,
+						day) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
+		}else if(format == DD_MM_YYYY){
+			if(copy_to_string(date_str,10,"%s-%s-%d",
+						day,
+						month,
+						date_t->tm_year + 1900) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
+		}else{
+			if(copy_to_string(date_str,9,"%s-%s-%d",
+						month,
+						day,
+						date_t->tm_year - 100) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
 		}
 		return 0;
 	}else if(date_t->tm_mday < 10){
 		day[0] = '0';	
 		day[1] = date_t->tm_mday + '0';
-		if(copy_to_string(date_str,9,"%d-%s-%d",date_t->tm_mon + 1,
-												day,
-												date_t->tm_year - 100) == -1){
-                        printf("copy_to_string failed, %s:%d.\n",F,L-2);
-                        return -1;
+
+		if(format == YYYY_MM_DD){
+			if(copy_to_string(date_str,10,"%d-%d-%s",
+						date_t->tm_year + 1900,
+						date_t->tm_mon + 1,
+						day) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
+		}else if(format == DD_MM_YYYY){
+			if(copy_to_string(date_str,10,"%s-%d-%d",
+						day,
+						date_t->tm_mon + 1,
+						date_t->tm_year + 1900) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
+		}else{
+			if(copy_to_string(date_str,9,"%d-%s-%d",date_t->tm_mon + 1,
+						day,
+						date_t->tm_year - 100) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
 		}
 		return 0;
 	}else if(date_t->tm_mon < 9){
 		month[0] = '0';
 		month[1] = (date_t->tm_mon + 1) + '0';
-		if(copy_to_string(date_str,9,"%s-%d-%d",month,
-											date_t->tm_mday,
-											date_t->tm_year -100) == -1){
-                        printf("copy_to_string failed, %s:%d.\n",F,L-2);
-                        return -1;
+		if(format == YYYY_MM_DD){
+			if(copy_to_string(date_str,10,"%d-%s-%d",
+						date_t->tm_year +1900,
+						month,
+						date_t->tm_mday) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
+		}else if(format == DD_MM_YYYY){
+			if(copy_to_string(date_str,10,"%s-%d-%d",month,
+						date_t->tm_mday,
+						date_t->tm_year +1900) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
+		}else{
+			if(copy_to_string(date_str,9,"%s-%d-%d",month,
+						date_t->tm_mday,
+						date_t->tm_year -100) == -1){
+				printf("copy_to_string failed, %s:%d.\n",F,L-2);
+				return -1;
+			}
 		}
 		return 0;
 	}
 
 
-	if(copy_to_string(date_str,9,"%d-%d-%d",date_t->tm_mon+1,
-											date_t->tm_mday,
-											date_t->tm_year-100) == -1){
-		printf("copy_to_string failed, %s:%d.\n",F,L-2);
-		return -1;
+	if(format == YYYY_MM_DD){
+		if(copy_to_string(date_str,10,"%d-%d-%d",
+					date_t->tm_year+1900,
+					date_t->tm_mon+1,
+					date_t->tm_mday) == -1){
+			printf("copy_to_string failed, %s:%d.\n",F,L-2);
+			return -1;
+		}
+	}else if(format == DD_MM_YYYY){
+		if(copy_to_string(date_str,10,"%d-%d-%d",
+					date_t->tm_mday,
+					date_t->tm_mon+1,
+					date_t->tm_year+1900) == -1){
+			printf("copy_to_string failed, %s:%d.\n",F,L-2);
+			return -1;
+		}
+	}else{
+		if(copy_to_string(date_str,9,"%d-%d-%d",date_t->tm_mon+1,
+					date_t->tm_mday,
+					date_t->tm_year-100) == -1){
+			printf("copy_to_string failed, %s:%d.\n",F,L-2);
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -281,7 +358,7 @@ ui32 convert_date_to_number(char *date)
 int convert_number_to_date(char *date, int date_number)
 {
 	long second = date_number * SEC_IN_A_DAY;		
-	/*date MUST be 10 char long (MM-DD-YYYY\0)*/
-	if(create_string_date(second,date) == -1 ) return -1;
+	/*date MUST be 11 char long (MM-DD-YYYY\0)*/
+	if(create_string_date(second,date,-1) == -1 ) return -1;
 	return 0;
 }

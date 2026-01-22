@@ -5,6 +5,8 @@
 #include "types.h"
 
 #define ISO_W_ADJ 10
+#define DD_MM_YYYY 0
+#define YYYY_MM_DD 1
 
 unsigned char is_date_this_week(char* str_d);
 int get_week_number(struct tm* time_in);
@@ -15,7 +17,7 @@ struct tm* get_now(void);
 struct tm* mk_tm_from_seconds(long time);
 unsigned char is_today(long time);
 long now_seconds();
-int create_string_date(long time, char* date_str);
+int create_string_date(long time, char* date_str, int format);
 long convert_str_date_to_seconds(char* date);
 int get_service();
 int convert_number_to_date(char *date, int date_number);
