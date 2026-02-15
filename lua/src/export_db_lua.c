@@ -1006,7 +1006,7 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 				lua_settop(L,0);
 				return -1;
 			}
-			if((rec->fields[i].data.date = convert_date_to_number(s)) == 0){
+			if((rec->fields[i].data.date = convert_date_to_number(-1,s)) == 0){
 				lua_settop(L,0);
 				return -1;
 			}

@@ -151,7 +151,7 @@ int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int 
 					l = *(ui32*)data;
 					if(((ui8)((l >> 16) & 0xff) == 0x2d) || ((ui8)((l >> 8) & 0xff) == 0x2d)){
 						if(!is_integer(data)){
-							l = convert_date_to_number((char*)data);	
+							l = convert_date_to_number(-1,(char*)data);	
 						}
 					}else{
 						l = *((ui32*)data);
@@ -300,7 +300,7 @@ unsigned char set_field(struct Record_f *rec,
 	case -1:
 		break;
 	case TYPE_DATE:
-		if((rec->fields[index].data.date = convert_date_to_number(value)) == 0){
+		if((rec->fields[index].data.date = convert_date_to_number(-1,value)) == 0){
 			fprintf(stderr,"cannot convert date\n");
 			return 0;
 		}

@@ -2,6 +2,7 @@
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 #include "date.h"
 #include "debug.h"
 #include "str_op.h"
@@ -17,7 +18,7 @@ enum date_delim{
 
 static int is_valid_date(char *date);
 
-unsigned char is_date_this_week(char* str_d)
+unsigned char is_date_this_week(char* str_d,int format)
 {
 	/* take current time to understand which week are we in*/
 	struct tm* current_t = get_now(); 
@@ -26,7 +27,7 @@ unsigned char is_date_this_week(char* str_d)
 	struct tm input_date;
 	memset(&input_date,0,sizeof(struct tm));
 
-	if(!convert_date_str(str_d, &input_date)){
+	if(!convert_date_str(format,str_d, &input_date)){
 		printf("error date convert. %s:%d.\n",F,L-2);
 		return 0;
 	}	
@@ -59,15 +60,26 @@ int get_week_number(struct tm* time_in)
 }
 
 
-int convert_date_str(char *str, struct tm* input_date)
+int convert_date_str(int format, char *str, struct tm* input_date)
 {
 	int year = 0, day = 0, month = 0;
 	if(is_valid_date(str) == -1) return -1;
 
-	if(extract_numbers_from_string(str,strlen(str),"%d-%d-%d",&month, &day, &year) == -1)
-	{
-		printf("date convert failed, %s:%d.\n", F,L-2);
-		return -1;
+	if(format == YYYY_MM_DD){
+		if(extract_numbers_from_string(str,strlen(str),"%d-%d-%d",&year,&month, &day) == -1){
+			printf("date convert failed, %s:%d.\n", F,L-2);
+			return -1;
+		}
+	}else if(format == DD_MM_YYYY){
+		if(extract_numbers_from_string(str,strlen(str),"%d-%d-%d",&day,&month, &year) == -1){
+			printf("date convert failed, %s:%d.\n", F,L-2);
+			return -1;
+		}
+	} else{
+		if(extract_numbers_from_string(str,strlen(str),"%d-%d-%d",&month, &day, &year) == -1) {
+			printf("date convert failed, %s:%d.\n", F,L-2);
+			return -1;
+		}
 	}
 
 	input_date->tm_mday = day;
@@ -164,7 +176,7 @@ long now_seconds()
  * */
 int create_string_date(long time, char* date_str, int format)
 {
-	time_t time_tm = (time_t) time + (60*60*5);
+	time_t time_tm = (time_t) time;
 	struct tm *date_t = localtime(&time_tm);
 	
 	
@@ -295,30 +307,13 @@ int create_string_date(long time, char* date_str, int format)
 	return 0;
 }
 
-long convert_str_date_to_seconds(char* date)
+long convert_str_date_to_seconds(char* date,int format)
 {
 	struct tm input_date;
-	memset(&input_date,0,sizeof(input_date));
-	if(convert_date_str(date, &input_date) == -1) return -1;
+	memset(&input_date,0,sizeof(struct tm));
+	if(convert_date_str(format,date, &input_date) == -1) return -1;
 
 	return (long) mktime(&input_date);
-}
-
-/*this is ment to be used only in timecard operation*/
-int get_service()
-{
-	struct tm *now = get_now();
-	if(now->tm_hour > 11 && now->tm_hour < 16){
-		if(now->tm_hour == 3 && now->tm_min > 30)
-			return 2; /*DINNER*/
-		else
-			return 1; /*LUNCH*/
-		
-	}else if(now->tm_hour >= 16){
-		return 2; /*DINNER*/
-	}
-
-	return 0; /*BREAKFAST*/
 }
 
 static int is_valid_date(char *date)
@@ -340,15 +335,14 @@ static int is_valid_date(char *date)
 	if (dot == 2) return DOT;
 	if (dash == 2) return DASH;
 	return -1;
-
 }
 
 
-ui32 convert_date_to_number(char *date)
+ui32 convert_date_to_number(int format, char *date)
 {
 	
 	long seconds = 0;
-	if((seconds = convert_str_date_to_seconds(date)) == -1){
+	if((seconds = convert_str_date_to_seconds(date,format)) == -1){
 		fprintf(stderr,"convert_str_date_to_seconds failed, %s:%d\n",__FILE__,__LINE__-1);
 		return 0;
 	}
@@ -361,4 +355,71 @@ int convert_number_to_date(char *date, int date_number)
 	/*date MUST be 11 char long (MM-DD-YYYY\0)*/
 	if(create_string_date(second,date,-1) == -1 ) return -1;
 	return 0;
+}
+
+long next_friday(long seconds)
+{
+	struct tm *date = localtime(&seconds);	
+	switch(date->tm_wday){
+	case 0: return (long) (seconds + (SEC_IN_A_DAY * 5));
+	case 1: return (long) (seconds + (SEC_IN_A_DAY * 4));
+	case 2: return (long) (seconds + (SEC_IN_A_DAY * 3));
+	case 3: return (long) (seconds + (SEC_IN_A_DAY * 2));
+	case 4: return (long) (seconds + (SEC_IN_A_DAY * 1));
+	case 5: return (long) (seconds + (SEC_IN_A_DAY * 7));
+	case 6: return (long) (seconds + (SEC_IN_A_DAY * 6));
+	}
+	return 0;
+}
+
+long third_friday_of_the_month()
+{
+	int day_to_3th_friday = 19;
+	long now = now_seconds();
+	struct tm *date = localtime(&now);
+
+	/*rewind to first day of the month*/
+	time_t first_day_of_this_month = now - (SEC_IN_A_DAY * (date->tm_mday - 1));
+
+	date = localtime(&first_day_of_this_month);
+	assert(date->tm_mday == 1);
+
+	switch(date->tm_wday){
+	case 0: return first_day_of_this_month + (day_to_3th_friday * SEC_IN_A_DAY);
+	case 1: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
+	case 2: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
+	case 3: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
+	case 4: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
+	case 5: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
+	case 6: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
+	}
+
+	return 0;
+}
+char *display_today(){
+	time_t t = time(NULL);
+	char *d = ctime(&t);
+	d[strlen(d)-1] = '\0';
+	return &d[0];
+}
+
+int is_past(int h,int m)
+{
+	time_t t = time(NULL);
+	struct tm *date = localtime(&t);	
+	if(date->tm_hour > h)
+		return 1;
+	else if(date->tm_hour == h && date->tm_min >= m)
+		return 1;
+
+	return 0;
+}
+
+int is_date_today(char *date, int format)
+{
+
+	time_t t = (time_t)convert_str_date_to_seconds(date,format);
+	time_t now = time(NULL);
+	
+	return (now - t )<= SEC_IN_A_DAY;
 }
