@@ -88,6 +88,8 @@ int convert_date_str(int format, char *str, struct tm* input_date)
 		year += 2000;
 	
 	input_date->tm_year = year - 1900;
+	input_date->tm_isdst = -1;
+	input_date->__tm_zone = "EST";
 
 	return 0;
 }
@@ -377,6 +379,8 @@ long third_friday_of_the_month()
 	int day_to_3th_friday = 19;
 	long now = now_seconds();
 	struct tm *date = localtime(&now);
+	struct tm today = {0};
+	memcpy(&today,date,sizeof(struct tm));
 
 	/*rewind to first day of the month*/
 	time_t first_day_of_this_month = now - (SEC_IN_A_DAY * (date->tm_mday - 1));
@@ -384,18 +388,47 @@ long third_friday_of_the_month()
 	date = localtime(&first_day_of_this_month);
 	assert(date->tm_mday == 1);
 
-	switch(date->tm_wday){
-	case 0: return first_day_of_this_month + (day_to_3th_friday * SEC_IN_A_DAY);
-	case 1: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
-	case 2: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
-	case 3: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
-	case 4: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
-	case 5: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
-	case 6: return first_day_of_this_month + ((day_to_3th_friday - date->tm_wday) * SEC_IN_A_DAY);
+	time_t third_friday = 0;
+	if(date->tm_wday == 0)
+		third_friday = first_day_of_this_month + (day_to_3th_friday * SEC_IN_A_DAY);
+	else
+		third_friday = first_day_of_this_month + ((day_to_3th_friday - (date->tm_wday + 1)) * SEC_IN_A_DAY);
+
+
+	if(now > third_friday){
+		/*compute next month 3rd friday*/
+		time_t next_month_1st_day = 0;
+		switch(today.tm_mon){
+		case 0: next_month_1st_day += ((31 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 1:
+		{
+			int february_days = (today.tm_year + 1900) % 4 == 0 ? 29 : 28;
+			next_month_1st_day += ((february_days - today.tm_mon) +1) * SEC_IN_A_DAY; 
+			break;
+		}
+		case 2: next_month_1st_day += ((31 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 3: next_month_1st_day += ((30 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 4: next_month_1st_day += ((31 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 5: next_month_1st_day += ((30 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 6: next_month_1st_day += ((31 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 7: next_month_1st_day += ((31 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 8: next_month_1st_day += ((30 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 9: next_month_1st_day += ((31 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 10: next_month_1st_day += ((30 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		case 11: next_month_1st_day += ((31 - today.tm_mon) +1) * SEC_IN_A_DAY; break;
+		}
+		date = localtime(&next_month_1st_day);
+		assert(date->tm_mday == 1);
+
+		if(date->tm_wday == 0)
+			third_friday = next_month_1st_day + (day_to_3th_friday * SEC_IN_A_DAY);
+		else
+			third_friday = next_month_1st_day + ((day_to_3th_friday - (date->tm_wday + 1)) * SEC_IN_A_DAY);
 	}
 
-	return 0;
+	return (long)third_friday; 
 }
+
 char *display_today(){
 	time_t t = time(NULL);
 	char *d = ctime(&t);
@@ -421,5 +454,6 @@ int is_date_today(char *date, int format)
 	time_t t = (time_t)convert_str_date_to_seconds(date,format);
 	time_t now = time(NULL);
 	
-	return (now - t )<= SEC_IN_A_DAY;
+	long diff = (long) (now - t);
+	return diff < 0 ? (diff * -1) <= SEC_IN_A_DAY : diff <= SEC_IN_A_DAY;
 }
