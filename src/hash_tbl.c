@@ -269,17 +269,19 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 		 * the base  element of the index
 		 * */
 		size_t key_len = 0;
-		if ((key_len = strlen(tbl->data_map[index]->key.k.s)) == strlen(new_node->key.k.s))
-		{
-			if (strncmp(tbl->data_map[index]->key.k.s, new_node->key.k.s, ++key_len) == 0)
+		if(tbl->data_map[index]->key.type == STR){
+			if ((key_len = strlen(tbl->data_map[index]->key.k.s)) == strlen(new_node->key.k.s))
 			{
-				printf("key %s, already exist.\n", new_node->key.k.s);
-				cancel_memory(NULL,new_node->key.k.s,strlen(new_node->key.k.s)+1);
-				cancel_memory(NULL,new_node,sizeof(Node));
-				return 0;
+				if (strncmp(tbl->data_map[index]->key.k.s, new_node->key.k.s, ++key_len) == 0)
+				{
+					printf("key %s, already exist.\n", new_node->key.k.s);
+					cancel_memory(NULL,new_node->key.k.s,strlen(new_node->key.k.s)+1);
+					cancel_memory(NULL,new_node,sizeof(Node));
+					return 0;
+				}
 			}
-		}
 
+		}
 		/*
 		 * check all the nodes in the index
 		 * for duplicates keys
@@ -301,13 +303,15 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 			}
 			temp = temp->next;
 		}
-		if ((key_len = strlen(temp->key.k.s)) == strlen(new_node->key.k.s)) {
-			if (strncmp(temp->key.k.s, new_node->key.k.s, ++key_len) == 0) {
-				printf("could not insert new node \"%s\"\n", new_node->key.k.s);
-				printf("key already exist. Choose another key value.\n");
-				cancel_memory(NULL,new_node->key.k.s,strlen(new_node->key.k.s)+1);
-				cancel_memory(NULL,new_node,sizeof(Node));
-				return 0;
+		if(temp->key.type == STR){
+			if ((key_len = strlen(temp->key.k.s)) == strlen(new_node->key.k.s)) {
+				if (strncmp(temp->key.k.s, new_node->key.k.s, ++key_len) == 0) {
+					printf("could not insert new node \"%s\"\n", new_node->key.k.s);
+					printf("key already exist. Choose another key value.\n");
+					cancel_memory(NULL,new_node->key.k.s,strlen(new_node->key.k.s)+1);
+					cancel_memory(NULL,new_node,sizeof(Node));
+					return 0;
+				}
 			}
 		}
 
