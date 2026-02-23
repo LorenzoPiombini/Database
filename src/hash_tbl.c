@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "hash_tbl.h"
 #include "str_op.h"
 #include "debug.h"
@@ -55,43 +56,66 @@ int write_ht(int fd, HashTable *ht)
 {
 	int i = 0;
 
-	ui32 sz_n = swap32(ht->size);
-	if (write(fd, &sz_n, sizeof(sz_n)) == -1) {
-		perror("writing index file");
+	
+	/*NOTE: you have to write the data about the size and len of HashTable
+	 * even if it is empty*/
+
+	long bwritten = 0;
+	long msize = (long) EIGTH_Kib;
+	ui8 *buff = malloc(msize);
+	if(!buff)
 		return 0;
-	}
+
+	ui32 sz_n = swap32(ht->size);
+	memcpy(&buff[bwritten],&sz_n,sizeof(sz_n));
+	bwritten += sizeof(sz_n);
 
 	ui32 ht_ln = swap32(len(*ht));
-	if (write(fd, &ht_ln, sizeof(ht_ln)) == -1) {
-		perror("write ht length");
-		return 0;
-	}
+	memcpy(&buff[bwritten],&ht_ln,sizeof(ht_ln));
+	bwritten += sizeof(ht_ln);
 
-	if (len(*ht) == 0) {
+	if(len(*ht) == 0) {
+		if(write(fd,buff,bwritten) == -1){
+			free(buff);
+			return 0;
+		}
+		free(buff);
 		return 1;
 	}
 
-	for (i = 0; i < ht->size; i++) {
-		if (ht->data_map[i] == NULL)
+	for(i = 0; i < ht->size; i++) {
+		if(ht->data_map[i] == NULL)
 			continue;
 
 		Node *current = ht->data_map[i];
 		while (current != NULL) {
-			switch (current->key.type)
-			{
+			switch (current->key.type){
 			case STR:
 			{
 				ui32 type = swap32(current->key.type);
 				ui64 key_l = swap64(strlen(current->key.k.s));
 				ui64 value = swap64(current->value);
 
-				if (write(fd, &type, sizeof(type)) == -1 ||
-					write(fd, &key_l, sizeof(key_l)) == -1 ||
-					write(fd, current->key.k.s, strlen(current->key.k.s) + 1) == -1 ||
-					write(fd, &value, sizeof(value)) < 0){
-					perror("write index:");
-					return 0; /*false*/
+				if(bwritten + (sizeof(ui32) + (sizeof(ui64) * 2)) > EIGTH_Kib){
+					ui8 *new = realloc(buff,msize + EIGTH_Kib);
+					if(!new){
+						free(buff);
+						return 0;
+					}
+
+					buff = new;
+					msize += EIGTH_Kib;
 				}
+
+				memcpy(&buff[bwritten],&type,sizeof(type));
+				bwritten += sizeof(type);
+				memcpy(&buff[bwritten],&key_l,sizeof(key_l));
+				bwritten += sizeof(key_l);
+				memcpy(&buff[bwritten],current->key.k.s,strlen(current->key.k.s)+1);
+				bwritten += strlen(current->key.k.s)+1;
+				memcpy(&buff[bwritten],&value,sizeof(value));
+				bwritten += sizeof(value);
+
 				current = current->next;
 				break;
 			}
@@ -108,38 +132,64 @@ int write_ht(int fd, HashTable *ht)
 				else
 					k16 = swap16(current->key.k.n16);
 
-				if (write(fd, &type, sizeof(type)) == -1 ||
-						write(fd, &size, sizeof(size)) == -1) {
-					perror("write index:");
-					return 0; /*false*/
-				}
+				if(k){
+					if(bwritten + (sizeof(k) + sizeof(ui32) + (sizeof(ui8) + sizeof(ui64))) > EIGTH_Kib){
+						ui8 *new = realloc(buff,msize + EIGTH_Kib);
+						if(!new){
+							free(buff);
+							return 0;
+						}
 
-				if(current->key.size == 16){
-					if (write(fd, &k16, sizeof(k16)) == -1) {
-						perror("write index:");
-						return 0; /*false*/
+						buff = new;
+						msize += EIGTH_Kib;
 					}
 				}else{
-					if (write(fd, &k, sizeof(k)) == -1) {
-						perror("write index:");
-						return 0; /*false*/
+					if(bwritten + (sizeof(k16) + sizeof(ui32) + (sizeof(ui64) * 2)) > EIGTH_Kib){
+						ui8 *new = realloc(buff,msize + EIGTH_Kib);
+						if(!new){
+							free(buff);
+							return 0;
+						}
 
+						buff = new;
+						msize += EIGTH_Kib;
 					}
 				}
-				if (write(fd, &value, sizeof(value)) == -1) {
-					perror("write index:");
-					return 0; /*false*/
+
+				memcpy(&buff[bwritten],&type,sizeof(type));
+				bwritten += sizeof(type);
+				memcpy(&buff[bwritten],&size,sizeof(size));
+				bwritten += sizeof(size);
+
+				if(current->key.size == 16){
+					memcpy(&buff[bwritten],&k16,sizeof(k16));
+					bwritten += sizeof(k16);
+				}else{
+					memcpy(&buff[bwritten],&k,sizeof(k));
+					bwritten += sizeof(k);
 				}
+
+				memcpy(&buff[bwritten],&value,sizeof(value));
+				bwritten += sizeof(value);
+
 				current = current->next;
 				break;
 			}
 			default:
 				fprintf(stderr, "key type not supported.\n");
+				free(buff);
 				return 0;
 			}
 		}
 	}
 
+	if(write(fd, buff, bwritten) == -1) {
+		perror("writing index file");
+		free(buff);
+		return 0;
+	}
+
+	free(buff);
 	return 1;
 }
 
