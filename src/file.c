@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "file.h"
 #include "str_op.h"
 #include "common.h"
@@ -200,34 +201,39 @@ file_offset get_file_size(int fd, char *file_name)
 #endif
 {
 
-	int i = 0;
 	file_offset pos = 0;
 
+	long bwritten = 0;
+	long msize = (long)(sizeof(pos) * index_num) + sizeof(index_num);
+	ui8 *buff = malloc(msize);
+	if(!buff)
+		return 0;
+	
+	memset(buff,0,msize);
+
 	ui32 in = swap32(index_num);
+	memcpy(&buff[bwritten],&in,sizeof(ui32));
+	bwritten += sizeof(ui32);
+
+	int i = 0;
+	for (i = 0; i < index_num; i++){
+		ui64 p_n = swap64(pos);
+		memcpy(&buff[bwritten],&p_n,sizeof(ui64));
+		bwritten += sizeof(ui64);
+	}
+
 #if defined(__linux__)
-	if (write(fd, &in, sizeof(in)) == -1){
+	if (write(fd, buff, bwritten) == -1){
 #elif defined(_WIN32)
 	DWORD written = 0;
-	if(!WriteFile(file_handle,&in,sizeof(ui32),&written,NULL)){
+	if(!WriteFile(file_handle,buff,bwritten,&written,NULL)){
 #endif
 		printf("write to file failed. %s:%d.\n", F, L - 2);
+		free(buff);
 		return 0;
 	}
 
-	for (i = 0; i < index_num; i++)
-	{
-		ui64 p_n = swap64(pos);
-#if defined(__linux__)
-		if (write(fd, &p_n, sizeof(p_n)) == -1){
-#elif defined(_WIN32)
-		written = 0;
-		if(!WriteFile(file_handle,&p_n,sizeof(ui64),&written,NULL)){
-#endif
-			printf("write to file failed, %s:%d.\n", F, L - 2);
-			return 0;
-		}
-	}
-
+	free(buff);
 	return 1;
 }
 #if defined(__linux__)
