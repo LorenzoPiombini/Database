@@ -22,7 +22,6 @@ static char prog[] = "db";
 static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);
 static size_t get_string_size(int fd, struct Ram_file *ram);
 static size_t get_disk_size_record(struct Record_f *rec);
-static int init_ram_file(struct Ram_file *ram, size_t size);
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 #if defined(_WIN32)
 static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
@@ -6515,9 +6514,9 @@ static size_t get_disk_size_record(struct Record_f *rec)
 	return size;
 }
 
-static int init_ram_file(struct Ram_file *ram, size_t size)
+int init_ram_file(struct Ram_file *ram, size_t size)
 {
-	if(size <= 0){
+	if(size == 0){
 		ram->mem = (ui8*)ask_mem(STD_RAM_FILE*sizeof(ui8)); 
 		if(!ram->mem){
 			fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);

@@ -48,10 +48,11 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 int get_all_record(int fd, struct Ram_file *ram);
 void clear_ram_file(struct Ram_file *ram);
 void close_ram_file(struct Ram_file *ram);
+int init_ram_file(struct Ram_file *ram, size_t size);
 
 #elif defined(_WIN32)
 
-HANDLE open_file(char *fileName, ui32 use_trunc)
+HANDLE open_file(char *fileName, ui32 use_trunc);
 
 #endif /* os if*/
 #endif /* ifndef */
