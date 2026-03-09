@@ -49,7 +49,7 @@ int create_file(char *fileName)
 	if (fd != STATUS_ERROR) {
 		printf("File already exist.\n");
 		close(fd);
-		return STATUS_ERROR;
+		return EEXIST;
 	}
 
 	fd = open(fileName, O_RDWR | O_CREAT, S_IRWXU);
@@ -6282,7 +6282,7 @@ int file_error_handler(int count, ...)
 #endif
 	int i = 0, j = 0;
 
-	int err = 0;
+	int err = 0, exist = 0;
 	for (i = 0; i < count; i++) {
 #if defined(__linux__)
 		int fd = va_arg(args, int);
@@ -6297,6 +6297,7 @@ int file_error_handler(int count, ...)
 		}
 #if defined(__linux__)
 		if (fd == ENOENT) err++;
+		if (fd == EEXIST) exist++;
 		fds[i] = fd;
 #elif defined(_WIN32)
 		if (file_handle == ERROR_FILE_NOT_FOUND) err++;
@@ -6317,6 +6318,7 @@ int file_error_handler(int count, ...)
 	}
 #if defined(__linux__)
 	if(err > 0) return ENOENT;	
+	if(exist > 0) return EEXIST;	
 #elif defined(_WIN32)
 	if(err > 0) return ERROR_FILE_NOT_FOUND;	
 #endif

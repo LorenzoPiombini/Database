@@ -462,6 +462,24 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		fds[0] = fd_index;
 		return 0;
 	}
+	case CREATE_FILE:
+	{
+		fd_index = create_file(files[0]);
+		fd_data = create_file(files[1]);
+		fd_schema = create_file(files[2]);
+		if ((err = file_error_handler(3, fd_index, fd_data,fd_schema)) != 0) {
+			if(err == ENOENT)
+				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+			else if(err == EEXIST)
+				fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
+			else
+				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+
+			return STATUS_ERROR;
+		}
+
+		break;
+	}
 	default:
 		fd_index = open_file(files[0], 0);
 		fd_data = open_file(files[1], 0);
