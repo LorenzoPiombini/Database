@@ -6547,7 +6547,8 @@ void clear_ram_file(struct Ram_file *ram)
 
 void close_ram_file(struct Ram_file *ram)
 {
-	cancel_memory(NULL,ram->mem,ram->capacity);
+	if(ram->mem)
+		cancel_memory(NULL,ram->mem,ram->capacity);
 	ram->size = 0;
 	ram->capacity = 0;
 }
