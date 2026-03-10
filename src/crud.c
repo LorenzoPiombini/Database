@@ -476,8 +476,25 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
 
 			return STATUS_ERROR;
+		}	
+
+		/*  write the index file */
+		if (!write_index_file_head(fd_index, 5)) {
+			return STATUS_ERROR;
 		}
 
+		int i = 0;
+		for (i = 0; i < 5; i++) {
+			HashTable ht = {0};
+			ht.size = 7;
+			ht.write = write_ht;
+			if (!write_index_body(fd_index, i, &ht)) {
+				destroy_hasht(&ht);
+				return STATUS_ERROR;
+			}
+
+			destroy_hasht(&ht);
+		}
 		break;
 	}
 	default:
@@ -533,7 +550,7 @@ int update_rec(char *file_path,
 	}
 
 	if(err == KEY_NOT_FOUND){
-			return KEY_NOT_FOUND;
+		return KEY_NOT_FOUND;
 	}
 
 	struct Record_f *recs[rec_old.count];
@@ -713,8 +730,8 @@ int update_rec(char *file_path,
 
 		/* update the old record */
 		if(buffered_write(&fds[1], recs[0], 1,recs[0]->offset,eof) == -1){
-				printf("error write file, %s:%d.\n", F, L - 1);
-				goto clean_on_error;
+			printf("error write file, %s:%d.\n", F, L - 1);
+			goto clean_on_error;
 		}
 
 		eof = go_to_EOF(fds[1]);
