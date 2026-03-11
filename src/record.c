@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
@@ -12,7 +13,6 @@
 #include "parse.h"
 #include "lock.h"
 #include "common.h"
-#include "memory.h"
 #include "types.h"
 #include "date.h"
 
@@ -125,8 +125,10 @@ int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int 
 				char number[size];
 				set_memory(number,0,size);
 				long_to_string(l,number);
-				rec->fields[field_index].data.s = (char *)ask_mem(size);
-				if(!rec->fields[field_index].data.s) return -1;
+				rec->fields[field_index].data.s = (char *)malloc(size);
+				if(!rec->fields[field_index].data.s) 
+					return -1;
+				memset(rec->fields[field_index].data.s,0,size);
 				string_copy(rec->fields[field_index].data.s,number,size-1);
 				return 0;
 			}
@@ -138,8 +140,11 @@ int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int 
 				char number[size];
 				set_memory(number,0,size);
 				long_to_string(l,number);
-				rec->fields[field_index].data.s = (char *)ask_mem(size);
-				if(!rec->fields[field_index].data.s) return -1;
+				rec->fields[field_index].data.s = (char *)malloc(size);
+				if(!rec->fields[field_index].data.s) 
+					return -1;
+
+				memset(rec->fields[field_index].data.s,0,size);
 				string_copy(rec->fields[field_index].data.s,number,size-1);
 				return 0;
 			}
@@ -163,11 +168,12 @@ int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int 
 				char number[size];
 				set_memory(number,0,size);
 				long_to_string(l,number);
-				rec->fields[field_index].data.s = (char *)ask_mem(size);
+				rec->fields[field_index].data.s = (char *)malloc(size);
 				if(!rec->fields[field_index].data.s){
-					display_to_stdout("ask_mem() failed, %s:%d\n",__FILE__,__LINE__-2);
+					display_to_stdout("malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
 					return -1;
 				}
+				memset(rec->fields[field_index].data.s,0,size);
 				string_copy(rec->fields[field_index].data.s,number,size-1);
 				return 0;
 			}
@@ -181,8 +187,10 @@ int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int 
 				double_to_string(d,number);
 
 				size_t number_size = string_length(number);
-				rec->fields[field_index].data.s = (char *)ask_mem(number_size+1);
-				if(!rec->fields[field_index].data.s) return -1;
+				rec->fields[field_index].data.s = (char *)malloc(number_size+1);
+				if(!rec->fields[field_index].data.s) 
+					return -1;
+				memset(rec->fields[field_index].data.s,0,number_size+1);
 				string_copy(rec->fields[field_index].data.s,number,number_size);
 				return 0;
 			}
@@ -192,9 +200,11 @@ int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int 
 		}
 
 		size_t data_size = string_length((char *)data);
-		rec->fields[field_index].data.s = (char *) ask_mem(data_size+1);
-		if(!rec->fields[field_index].data.s) return -1;
+		rec->fields[field_index].data.s = (char *) malloc(data_size+1);
+		if(!rec->fields[field_index].data.s)
+			return -1;
 		
+		memset(rec->fields[field_index].data.s,0,data_size+1);
 		string_copy(rec->fields[field_index].data.s,data,data_size);
 		break;
 	}
@@ -211,12 +221,14 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	strncpy(rec->file_name,file_name,strlen(file_name));
 	rec->fields_num = sch.fields_num;
 	rec->count = 1;
-	rec->fields = (struct Field*)ask_mem((sizeof(struct Field)*sch.fields_num));
-	rec->field_set = (ui8*)ask_mem(sizeof(ui8)*sch.fields_num);
+	rec->fields = (struct Field*)malloc((sizeof(struct Field)*sch.fields_num));
+	rec->field_set = (ui8*)malloc(sizeof(ui8)*sch.fields_num);
 	if(!rec->fields || !rec->field_set){
-		if(rec->field_set) cancel_memory(NULL,rec->field_set,sch.fields_num);
-		if(rec->fields) cancel_memory(NULL,rec->fields,sizeof(struct Field) * sch.fields_num);
-		fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+		if(rec->field_set)
+			free(rec->field_set);
+		if(rec->fields) 
+			free(rec->fields);
+		fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 		return -1;
 	}
 	memset(rec->fields,0,sizeof(struct Field) * sch.fields_num);
@@ -233,23 +245,31 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 }
 
 int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c){
-	sch->types = (int*)ask_mem(sizeof(int)*fields_c);
+	sch->types = (int*)malloc(sizeof(int)*fields_c);
 	if(!sch->types){
-		fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+		fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 		return -1;
 	}
 
-	sch->fields_name = (char**)ask_mem((sizeof(char*)*MAX_FIELD_LT)*fields_c);
-	memset(sch->fields_name,0,sizeof(char*)*MAX_FIELD_LT*fields_c);
+	sch->fields_name = (char**)malloc((sizeof(char*)*MAX_FIELD_LT)*fields_c);
 
 	if(!sch->fields_name){
-		fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+		free(sch->types);
+		fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 		return -1;
 	}
 		
+	memset(sch->fields_name,0,sizeof(char*)*MAX_FIELD_LT*fields_c);
+	memset(sch->types,-1,sizeof(int)*fields_c);
 	int i;
 	for(i = 0; i < fields_c; i++){
-		sch->fields_name[i] = (char*)ask_mem(strlen(names[i])+1);
+		sch->fields_name[i] = (char*)malloc(strlen(names[i])+1);
+		if(!sch->fields_name[i]){
+			free(sch->fields_name);
+			free(sch->types);
+			return -1;
+		}
+
 		memset(sch->fields_name[i],0,sizeof(char)*strlen(names[i])+1);
 
 		strncpy(sch->fields_name[i],names[i],strlen(names[i]));
@@ -260,25 +280,16 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 	return 0;
 }
 
-int free_schema(struct Schema *sch){
+int free_schema(struct Schema *sch)
+{
 	ui16 i;
 	for(i = 0; i < sch->fields_num;i++){
-		if(cancel_memory(NULL,sch->fields_name[i],strlen(sch->fields_name[i]))){
-			fprintf(stderr,"cancel_memory() failed, %s:%d.\n",__FILE__,__LINE__-1);
-			return -1;
-		}
+		free(sch->fields_name[i]);
 	}
 
-	if(cancel_memory(NULL,sch->types,sizeof(int) * sch->fields_num)){
-		fprintf(stderr,"cancel_memory() failed, %s:%d.\n",__FILE__,__LINE__-1);
-		return -1;
-	}
+	free(sch->types);
 
-	if(cancel_memory(NULL,sch->fields_name,sizeof(char*) * sch->fields_num)){
-		fprintf(stderr,"cancel_memory() failed, %s:%d.\n",__FILE__,__LINE__-1);
-		return -1;
-	}
-
+	free(sch->fields_name);
 	return 0;
 }
 unsigned char set_field(struct Record_f *rec, 
@@ -523,14 +534,15 @@ unsigned char set_field(struct Record_f *rec,
 					}
 					set_schema(names,types_i,&sch,fields_count);	
 
-					rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+					rec->fields[index].data.file.recs = (struct Record_f*)malloc(sizeof(struct Record_f));
 					rec->fields[index].data.file.count = 1;
 					if(!rec->fields[index].data.file.recs){
-						fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+						fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-3);
 						free_strs(fields_count,1,values_in);
 						close_file(1,fd_schema);	
 						return 0;
 					}
+					memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 					if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
 								types_i, values_in,&sch,0,rec->fields[index].data.file.recs) == -1){
 						fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
@@ -582,15 +594,16 @@ unsigned char set_field(struct Record_f *rec,
 						set_schema(names,types_i,&sch,fields_count);	
 
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)malloc(sizeof(struct Record_f));
 							rec->fields[index].data.file.count = 1;
 							if(!rec->fields[index].data.file.recs){
-								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+								fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-3);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
+							memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 							if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
 										types_i, values_in,&sch,0,&rec->fields[index].data.file.recs[0]) == -1){
 								fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
@@ -602,13 +615,12 @@ unsigned char set_field(struct Record_f *rec,
 
 						}else{
 							int new_count = rec->fields[index].data.file.count + 1;
-							struct Record_f *new_rec = (struct Record_f*)reask_mem(
+							struct Record_f *new_rec = (struct Record_f*)realloc(
 									rec->fields[index].data.file.recs,
-									rec->fields[index].data.file.count * sizeof(struct Record_f),
 									new_count * sizeof(struct Record_f));
 
 							if(!new_rec){
-								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+								fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								free_strs(fields_count,1,values_in);
 								close_file(1,fd_schema);	
 								return 0;
@@ -654,14 +666,15 @@ unsigned char set_field(struct Record_f *rec,
 						close_file(1,fd_schema);	
 						return 0;
 					}
-					rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+					rec->fields[index].data.file.recs = (struct Record_f*)malloc(sizeof(struct Record_f));
 					rec->fields[index].data.file.count = 1;
 					if(!rec->fields[index].data.file.recs){
-						fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+						fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 						close_file(1,fd_schema);
 						return 0;
 					}
 
+					memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 					if(parse_d_flag_input(rec->fields[index].field_name, 
 								f_count,
 								value,
@@ -692,15 +705,16 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)malloc(sizeof(struct Record_f));
 							rec->fields[index].data.file.count = 1;
 
 							if(!rec->fields[index].data.file.recs){
-								fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+								fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
 								return 0;
 							}
 
+							memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 							if(parse_d_flag_input(rec->fields[index].field_name, 
 										f_count,
 										values[i],
@@ -714,13 +728,12 @@ unsigned char set_field(struct Record_f *rec,
 							}
 						}else{
 							int new_count = rec->fields[index].data.file.count + 1;
-							struct Record_f *new_rec = (struct Record_f*) reask_mem(
+							struct Record_f *new_rec = (struct Record_f*) realloc(
 									rec->fields[index].data.file.recs,
-									rec->fields[index].data.file.count * sizeof(struct Record_f),
 									new_count * sizeof(struct Record_f));
 
 							if(!new_rec){
-								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+								fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
 								return 0;
 							}
@@ -803,12 +816,14 @@ unsigned char set_field(struct Record_f *rec,
 						}
 
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)malloc(sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!rec->fields[index].data.file.recs){
-								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+								fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-3);
 								return 0;
 							}
+							
+							memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
 							check = perform_checks_on_schema(mode,&values[i][2], fields_count,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
@@ -816,13 +831,12 @@ unsigned char set_field(struct Record_f *rec,
 
 						}else{
 							int new_count = rec->fields[index].data.file.count + 1;
-							struct Record_f *new_rec = (struct Record_f*)reask_mem(
+							struct Record_f *new_rec = (struct Record_f*)realloc(
 									rec->fields[index].data.file.recs,
-									rec->fields[index].data.file.count * sizeof(struct Record_f),
 									new_count * sizeof(struct Record_f));
 
 							if(!new_rec){
-								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+								fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
 								return 0;
 							}
@@ -839,12 +853,14 @@ unsigned char set_field(struct Record_f *rec,
 						}
 					}else{
 						if(!rec->fields[index].data.file.recs){
-							rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(count *sizeof(struct Record_f));
+							rec->fields[index].data.file.recs = (struct Record_f*)malloc(count *sizeof(struct Record_f));
 							rec->fields[index].data.file.count++;
 							if(!rec->fields[index].data.file.recs){
-								fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
+								fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 								return 0;
 							}
+
+							memset(rec->fields[index].data.file.recs,0,count * sizeof(struct Record_f));
 							check = perform_checks_on_schema(mode,&values[i][2], -1,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
@@ -852,13 +868,12 @@ unsigned char set_field(struct Record_f *rec,
 
 						}else{
 							int new_count = rec->fields[index].data.file.count + 1;
-							struct Record_f *new_rec = (struct Record_f*)reask_mem(
+							struct Record_f *new_rec = (struct Record_f*)realloc(
 									rec->fields[index].data.file.recs,
-									rec->fields[index].data.file.count * sizeof(struct Record_f),
 									new_count * sizeof(struct Record_f));
 
 							if(!new_rec){
-								fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+								fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
 								return 0;
 							}
@@ -938,12 +953,14 @@ unsigned char set_field(struct Record_f *rec,
 					}
 
 					if(!rec->fields[index].data.file.recs){
-						rec->fields[index].data.file.recs = (struct Record_f*) ask_mem(count*sizeof(struct Record_f));
+						rec->fields[index].data.file.recs = (struct Record_f*) malloc(count*sizeof(struct Record_f));
 						rec->fields[index].data.file.count++;
 						if(!rec->fields[index].data.file.recs){
-							fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+							fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 							return 0;
 						}
+
+						memset(rec->fields[index].data.file.recs,0,count*sizeof(struct Record_f));
 						check = perform_checks_on_schema(mode,&value[2], fields_count,
 								rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
@@ -951,12 +968,13 @@ unsigned char set_field(struct Record_f *rec,
 					}
 				} else {
 					if(!rec->fields[index].data.file.recs){
-						rec->fields[index].data.file.recs = (struct Record_f*)ask_mem(count*sizeof(struct Record_f));
+						rec->fields[index].data.file.recs = (struct Record_f*)malloc(count*sizeof(struct Record_f));
 						rec->fields[index].data.file.count++;
 						if(!rec->fields[index].data.file.recs){
-							fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-3);
+							fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 							return 0;
 						}
+						memset(rec->fields[index].data.file.recs,0,count*sizeof(struct Record_f));
 						check = perform_checks_on_schema(mode,&value[2], -1,rec->fields[index].field_name,
 								&rec->fields[index].data.file.recs[0],
 								&hd,NULL,-1);
@@ -1583,7 +1601,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 	}
 
 	if(!optimized) 
-		cancel_memory(NULL,rec->fields[index].data.file.recs,sizeof(struct Record_f));
+		free(rec->fields[index].data.file.recs);
 }
 
 void free_record(struct Record_f *rec, int fields_num)
@@ -1606,7 +1624,7 @@ void free_record(struct Record_f *rec, int fields_num)
 			break;
 		case TYPE_STRING:
 			if(rec->fields[i].data.s){
-				cancel_memory(NULL,rec->fields[i].data.s,strlen(rec->fields[i].data.s)+1);
+				free(rec->fields[i].data.s);
 			}
 			break;
 		case TYPE_FILE:
@@ -1635,13 +1653,16 @@ void free_record(struct Record_f *rec, int fields_num)
 				rec->next = temp->next;
 				temp->next = NULL;
 				free_record(temp,temp->fields_num);
-				cancel_memory(NULL,temp,sizeof(struct Record_f));
+				free(temp);
 				temp = rec->next;  
 				rec->count--;
 				if(!temp)break; 
 			}
 		}
 	}
+
+	free(rec->fields);
+	free(rec->field_set);
 }
 
 void print_record(int count, struct Record_f recs)
@@ -1861,7 +1882,7 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 
 	if (!size_ia)
 	{
-		cancel_memory(NULL,*array);
+		free(NULL,*array);
 		return;
 	}
 
@@ -1877,13 +1898,13 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 			}
 			else
 			{
-				cancel_memory(NULL,(*array)[i]);
+				free(NULL,(*array)[i]);
 				return;
 			}
 		}
 	}
 
-	cancel_memory(NULL,*array);
+	free(NULL,*array);
 }
 
 #endif
@@ -2147,21 +2168,21 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			dest->fields[i].data.file.count = src->fields[i].data.file.count;
 
 			if(!dest->fields[i].data.file.recs){
-				dest->fields[i].data.file.recs = (struct Record_f*)ask_mem(src->fields[i].data.file.count * sizeof(struct Record_f));
+				dest->fields[i].data.file.recs = (struct Record_f*)malloc(src->fields[i].data.file.count * sizeof(struct Record_f));
 
 				if(!dest->fields[i].data.file.recs){
-					fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+					fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-3);
 					free_record(dest, dest->fields_num);
 					return 0;
 				}	
 
+				memset(dest->fields[i].data.file.recs,0,src->fields[i].data.file.count * sizeof(struct Record_f));
 			}else{
-				struct Record_f *new_rec = (struct Record_f*)reask_mem(dest->fields[i].data.file.recs,
-								dest->fields[i].data.file.count * sizeof(struct Record_f),
+				struct Record_f *new_rec = (struct Record_f*)realloc(dest->fields[i].data.file.recs,
 								src->fields[i].data.file.count * sizeof(struct Record_f));
 
 				if(!new_rec){
-					fprintf(stderr,"reask_mem failed, %s:%d.\n",__FILE__,__LINE__-3);
+					fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-3);
 					free_record(dest, dest->fields_num);
 					return 0;
 				}
@@ -2226,63 +2247,69 @@ int init_array(struct array **v, enum ValueType type)
 {
 	(*(*v)).size = DEF_SIZE;
 	switch (type){
-		case TYPE_ARRAY_INT:
-			{
-				(*(*v)).elements.i = (int*)ask_mem(DEF_SIZE * sizeof(int));
-				if (!(*(*v)).elements.i){
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-					return -1;
-				}
-
-				break;
+	case TYPE_ARRAY_INT:
+	{
+			(*(*v)).elements.i = (int*)malloc(DEF_SIZE * sizeof(int));
+			if (!(*(*v)).elements.i){
+				fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
+				return -1;
 			}
-		case TYPE_ARRAY_LONG:
-			{
-		(*(*v)).elements.l = (long*)ask_mem(DEF_SIZE * sizeof(long));
-		if (!(*(*v)).elements.l)
-		{
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
-			return -1;
+			memset((*(*v)).elements.i,0,sizeof(int)*DEF_SIZE);
+
+			break;
 		}
-		break;
+	case TYPE_ARRAY_LONG:
+	{
+			(*(*v)).elements.l = (long*)malloc(DEF_SIZE * sizeof(long));
+			if (!(*(*v)).elements.l)
+			{
+				fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
+				return -1;
+			}
+			memset((*(*v)).elements.l,0,sizeof(long) * DEF_SIZE);
+			break;
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
-		(*(*v)).elements.f = (float*)ask_mem(DEF_SIZE * sizeof(float));
+		(*(*v)).elements.f = (float*)malloc(DEF_SIZE * sizeof(float));
 		if (!(*(*v)).elements.f){
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
+		memset((*(*v)).elements.l,0,sizeof(float) * DEF_SIZE);
 		break;
 	}
 	case TYPE_ARRAY_STRING:
 	{
-		(*(*v)).elements.s = (char**)ask_mem(DEF_SIZE*sizeof(char *));
+		(*(*v)).elements.s = (char**)malloc(DEF_SIZE*sizeof(char *));
 		if (!(*(*v)).elements.s)
 		{
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
+		memset((*(*v)).elements.s,0,sizeof(char*) * DEF_SIZE);
 		break;
 	}
 	case TYPE_ARRAY_BYTE:
 	{
-		(*(*v)).elements.b = (unsigned char*)ask_mem(DEF_SIZE * sizeof(unsigned char));
+		(*(*v)).elements.b = (unsigned char*)malloc(DEF_SIZE * sizeof(unsigned char));
 		if (!(*(*v)).elements.b)
 		{
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
+		memset((*(*v)).elements.b,0,sizeof(unsigned char) * DEF_SIZE);
 		break;
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
-		(*(*v)).elements.d = (double*)ask_mem(DEF_SIZE * sizeof(double));
+		(*(*v)).elements.d = (double*)malloc(DEF_SIZE * sizeof(double));
 		if (!(*(*v)).elements.d)
 		{
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
+		memset((*(*v)).elements.d,0,sizeof(double) * DEF_SIZE);
 		break;
 	}
 	default:
@@ -2325,11 +2352,12 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		int *elements_new = (int*)reask_mem((*v).elements.i,(*v).size * sizeof(int),new_size * sizeof(int));
+		int *elements_new = (int*)realloc((*v).elements.i,new_size * sizeof(int));
 		if (!elements_new){
-			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
+
 		(*v).size = new_size;
 
 		(*v).elements.i = elements_new;
@@ -2363,11 +2391,12 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		long *elements_new = (long*)reask_mem((*v).elements.l,(*v).size * sizeof(long),new_size * sizeof(long));
+		long *elements_new = (long*)realloc((*v).elements.l,new_size * sizeof(long));
 		if (!elements_new){
-			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
+
 		(*v).size = new_size;
 
 		(*v).elements.l = elements_new;
@@ -2401,9 +2430,9 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		}
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		float *elements_new = (float*)reask_mem((*v).elements.f,(*v).size * sizeof(float),new_size * sizeof(float));
+		float *elements_new = (float*)realloc((*v).elements.f,new_size * sizeof(float));
 		if (!elements_new){
-			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 		(*v).size = new_size;
@@ -2432,12 +2461,13 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 				size_t l = strlen((char *)element) + 1;
 
-				(*v).elements.s[i] = (char*)ask_mem(l * sizeof(char));
+				(*v).elements.s[i] = (char*)malloc(l * sizeof(char));
 				if (!(*v).elements.s[(*v).size - 1]){
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+					fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 					return -1;
 				}
 
+				memset((*v).elements.s[i],0,sizeof(char) * l);
 				strncpy((*v).elements.s[i], (char *)element, l-1);
 
 				return 0;
@@ -2446,9 +2476,9 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		char **elements_new = (char**)reask_mem((*v).elements.s,(*v).size * sizeof(char*), new_size * sizeof(char *));
+		char **elements_new = (char**)realloc((*v).elements.s, new_size * sizeof(char *));
 		if (!elements_new){
-			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
@@ -2456,12 +2486,14 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		(*v).elements.s = elements_new;
 
 		size_t l = strlen((char *)element) + 1;
-		(*v).elements.s[(*v).size - 1] = (char*)ask_mem(l * sizeof(char));
+		(*v).elements.s[(*v).size - 1] = (char*)malloc(l * sizeof(char));
 		if (!(*v).elements.s[(*v).size - 1]){
-			fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
+
+		memset((*v).elements.s[(*v).size - 1],0,sizeof(char) * l);
 		strncpy((*v).elements.s[(*v).size - 1], (char *)element, l);
 		return 0;
 	}
@@ -2493,12 +2525,11 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		unsigned char *elements_new = (unsigned char*)reask_mem((*v).elements.b,
-						(*v).size * sizeof(unsigned char),
+		unsigned char *elements_new = (unsigned char*)realloc((*v).elements.b,
 						new_size * sizeof(unsigned char));
 		if (!elements_new)
 		{
-			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
@@ -2535,11 +2566,10 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 
 		/*not enough space, increase the size */
 		int new_size = (*v).size + 1;
-		double *elements_new = (double*)reask_mem((*v).elements.d,
-						(*v).size * sizeof(double) ,
+		double *elements_new = (double*)realloc((*v).elements.d,
 						new_size * sizeof(double));
 		if (!elements_new){
-			fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",ERR_MSG_PAR-2);
+			fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
 			return -1;
 		}
 
@@ -2562,21 +2592,21 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 	{
 	case TYPE_ARRAY_INT:
 	{
-		cancel_memory(NULL,v->elements.i,v->size*sizeof(int));
+		free(v->elements.i);
 		v->elements.i = NULL;
 		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_LONG:
 	{
-		cancel_memory(NULL,v->elements.l,v->size*sizeof(long));
+		free(v->elements.l);
 		v->elements.l = NULL;
 		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_FLOAT:
 	{
-		cancel_memory(NULL,v->elements.f,v->size*sizeof(float));
+		free(v->elements.f);
 		v->elements.f = NULL;
 		v->size = 0;
 		break;
@@ -2584,26 +2614,26 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 	case TYPE_ARRAY_STRING:
 	{
 		int i;
-		for (i = 0; i < v->size; i++)
-		{
+		for (i = 0; i < v->size; i++){
 			if (v->elements.s[i])
-				cancel_memory(NULL,v->elements.s[i],(strlen(v->elements.s[i])+1) * sizeof(char));
+				free(v->elements.s[i]);
 		}
-		cancel_memory(NULL,v->elements.s,v->size*sizeof(char*));
+
+		free(v->elements.s);
 		v->elements.s = NULL;
 		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_BYTE:
 	{
-		cancel_memory(NULL,v->elements.b,v->size*sizeof(unsigned char));
+		free(v->elements.b);
 		v->elements.s = NULL;
 		v->size = 0;
 		break;
 	}
 	case TYPE_ARRAY_DOUBLE:
 	{
-		cancel_memory(NULL,v->elements.d,v->size*sizeof(double));
+		free(v->elements.d);
 		v->elements.d = NULL;
 		v->size = 0;
 		break;
@@ -2917,7 +2947,7 @@ static void clean_input(char *value)
 int parse_record_to_json(struct Record_f *rec,char **buffer)
 {
 
-	size_t buffer_lenght = PAGE_SIZE;
+	size_t buffer_lenght = 1024 * 4;
 	size_t bwritten = strlen(*buffer);
 	int i;
 	struct Record_f *temp = rec;
@@ -2942,10 +2972,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						if((bwritten + field_tot_length) >= buffer_lenght){
 							/* reallocate memory*/
 							size_t new_size = buffer_lenght * 2;
-							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							char *n_buff = (char*)realloc(*buffer,new_size * sizeof(char));
 							if(!n_buff){
 								/*log error*/
-								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								fprintf(stderr,"realloc() failed %s:%d.\n",F,L-3);
 								return -1;
 							}
 							*buffer = n_buff;
@@ -2978,10 +3008,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						if((bwritten + field_tot_length) >= buffer_lenght){
 							/* reallocate memory*/
 							size_t new_size = buffer_lenght * 2;
-							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							char *n_buff = (char*)realloc(*buffer,new_size * sizeof(char));
 							if(!n_buff){
 								/*log error*/
-								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								fprintf(stderr,"realloc() failed %s:%d.\n",F,L-3);
 								return -1;
 							}
 							*buffer = n_buff;
@@ -3016,10 +3046,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						if((bwritten + field_tot_length) >= buffer_lenght){
 							/* reallocate memory*/
 							size_t new_size = buffer_lenght * 2;
-							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							char *n_buff = (char*)realloc(*buffer,new_size * sizeof(char));
 							if(!n_buff){
 								/*log error*/
-								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								fprintf(stderr,"realloc() failed %s:%d.\n",F,L-3);
 								return -1;
 							}
 							*buffer = n_buff;
@@ -3054,10 +3084,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						if((bwritten + field_tot_length) >= buffer_lenght){
 							/* reallocate memory*/
 							size_t new_size = buffer_lenght * 2;
-							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							char *n_buff = (char*)realloc(*buffer,new_size * sizeof(char));
 							if(!n_buff){
 								/*log error*/
-								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								fprintf(stderr,"realloc() failed %s:%d.\n",F,L-3);
 								return -1;
 							}
 							*buffer = n_buff;
@@ -3099,10 +3129,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						if((bwritten + field_tot_length) >= buffer_lenght){
 							/* reallocate memory*/
 							size_t new_size = buffer_lenght * 2;
-							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							char *n_buff = (char*)realloc(*buffer,new_size * sizeof(char));
 							if(!n_buff){
 								/*log error*/
-								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								fprintf(stderr,"realloc() failed %s:%d.\n",F,L-3);
 								return -1;
 							}
 							*buffer = n_buff;
@@ -3138,10 +3168,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						if((bwritten + field_tot_length) >= buffer_lenght){
 							/* reallocate memory*/
 							size_t new_size = buffer_lenght * 2;
-							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							char *n_buff = (char*)realloc(*buffer,new_size * sizeof(char));
 							if(!n_buff){
 								/*log error*/
-								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								fprintf(stderr,"realloc() failed %s:%d.\n",F,L-3);
 								return -1;
 							}
 							*buffer = n_buff;
@@ -3176,10 +3206,10 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 						if((bwritten + field_tot_length) >= buffer_lenght){
 							/* reallocate memory*/
 							size_t new_size = buffer_lenght * 2;
-							char *n_buff = (char*)reask_mem(*buffer,buffer_lenght*sizeof(char),new_size * sizeof(char));
+							char *n_buff = (char*)realloc(*buffer,new_size * sizeof(char));
 							if(!n_buff){
 								/*log error*/
-								fprintf(stderr,"reask_mem() failed %s:%d.\n",F,L-3);
+								fprintf(stderr,"realloc() failed %s:%d.\n",F,L-3);
 								return -1;
 							}
 							*buffer = n_buff;

@@ -1,11 +1,11 @@
 #if defined(__linux__)
-#include <stdio.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #endif /*linux*/
 
 #include <string.h>
+#include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -14,7 +14,6 @@
 #include "common.h"
 #include "endian.h"
 #include "debug.h"
-#include "memory.h"
 #include "lock.h"
 #include "freestand.h"
 
@@ -502,12 +501,13 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 
 	*p_index = array_size;
 
-	*ht = (HashTable*)ask_mem(array_size * sizeof(HashTable));
-	if (!*ht) {
-		printf("ask_mem failed. %s:%d.\n", F, L - 3);
+	*ht = (HashTable*)malloc(array_size * sizeof(HashTable));
+	if (!(*ht)) {
+		printf("malloc failed. %s:%d.\n", F, L - 3);
 		return 0;
 	}
 
+	memset(*ht,0,array_size * sizeof(HashTable));
 	int i = 0;
 	for (i = 0; i < array_size; i++)
 		(*ht)[i].write = write_ht;
@@ -519,7 +519,7 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 	if (move_in_file_bytes(file_handle, move_to) == STATUS_ERROR) {
 #endif
 		__er_file_pointer(F, L - 2);
-		cancel_memory(NULL,ht,array_size * sizeof *ht);
+		free(ht);
 		return 0;
 	}
 
@@ -617,13 +617,14 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 #endif
 			{
 				size_t size = (size_t)swap64(key_l);
-				char *key = (char*)ask_mem((size + 1)*sizeof(char));
+				char *key = (char*)malloc(size + 1);
 				if (!key) {
-					fprintf(stderr,"(%s): ask_mem() failed, %s:%d.\n",prog,F,L-2);		
+					fprintf(stderr,"(%s): malloc failed, %s:%d.\n",prog,F,L-2);		
 					free_nodes(ht->data_map, ht->size);
 					return 0;
 				}
 
+				memset(key,0,size+1);
 				ui64 v_n = 0l;
 #if defined(__linux__)
 				if (read(fd, key, size + 1) == -1 ||
@@ -638,48 +639,46 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 
 					fprintf(stderr,"(%s): read key failed, %s:%d.\n",prog,F,L-2);		
 					free_nodes(ht->data_map, ht->size);
-					cancel_memory(NULL,key,(size+1)*sizeof(char));
+					free(key);
 					return 0;
 				}
 
 				file_offset value = (file_offset)swap64(v_n);
 				key[size] = '\0';
-				Node *newNode = (Node*)ask_mem(1*sizeof(Node));
-				if (!newNode)
-				{
+				Node *new_node = malloc(sizeof *new_node);
+				if (!new_node){
 					perror("memory for node");
 					free_nodes(ht->data_map, ht->size);
-					cancel_memory(NULL,key,(size+1)*sizeof(char));
+					free(key);
 					return 0;
 				}
 
-				newNode->key.k.s = duplicate_str(key);
-				if (!newNode->key.k.s){
-					fprintf(stderr,"strdup() failed, %s:%d.\n",F, L - 3);
+				memset(new_node,0,sizeof *new_node);
+				new_node->key.k.s = duplicate_str(key);
+				if (!new_node->key.k.s){
+					fprintf(stderr,"duplicate_str() failed, %s:%d.\n",F, L - 3);
 					free_nodes(ht->data_map, ht->size);
-					cancel_memory(NULL,key,(size+1)*sizeof(char));
+					free(key);
 					return 0;
 				}
-				cancel_memory(NULL,key,(size+1)*sizeof(char));
-				newNode->value = value;
-				newNode->next = NULL;
-				newNode->key.type = key_type;
+				free(key);
+				new_node->next = NULL;
+				new_node->key.type = key_type;
+				new_node->value = value;
 
-				int bucket = hash((void *)newNode->key.k.s, ht->size, key_type);
+				int bucket = hash((void *)new_node->key.k.s, ht->size, key_type);
 				if (ht->data_map[bucket]){
 					Node *current = ht->data_map[bucket];
 					while (current->next != NULL)
 					{
 						current = current->next;
 					}
-					current->next = newNode;
+					current->next = new_node;
 				}
 				else{
-					ht->data_map[bucket] = newNode;
+					ht->data_map[bucket] = new_node;
 				}
-			}
-			else
-			{
+			}else{
 				fprintf(stderr,"read index failed, %s:%d\n", F, L - 2);
 				free_nodes(ht->data_map, ht->size);
 				return 0;
@@ -742,9 +741,9 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 				return 0;
 			}
 
-			Node *new_node = (Node*)ask_mem(sizeof(Node));
+			Node *new_node = (Node*)malloc(sizeof *new_node);
 			if (!new_node){
-				fprintf(stderr,"ask_mem failed, %s:%d.\n",F,L-2);
+				fprintf(stderr,"malloc failed, %s:%d.\n",F,L-2);
 				free_nodes(ht->data_map, ht->size);
 				return 0;
 			}
@@ -775,8 +774,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 				}else{
 					current->next = new_node;
 				}
-			}
-			else{
+			}else{
 				ht->data_map[index] = new_node;
 			}
 
@@ -5412,13 +5410,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				buff_update = (file_offset)swap16(bu_up_ne);
 			}
 
-			rec->fields[i].data.s = (char*)ask_mem(buff_update*sizeof(char));
+			rec->fields[i].data.s = malloc(buff_update);
 			if (!rec->fields[i].data.s){
-				fprintf(stderr,"ask_mem failed: %s:%d.\n", F, L - 3);
+				fprintf(stderr,"malloc failed: %s:%d.\n", F, L - 3);
 				free_record(rec, rec->fields_num);
 				return -1;
 			}
 
+			memset(rec->fields[i].data.s,0,buff_update);
 			/*read the actual string*/
 			if (read(fd, rec->fields[i].data.s, buff_update) < 0){
 				perror("could not read buffer string, file.c l 539.\n");
@@ -5721,9 +5720,10 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						buff_update = (size_t)swap16(bu_up_ne);
 					}
 
-					char *all_buf = (char*)ask_mem(buff_update*sizeof(char));
+					char *all_buf = (char*)malloc(buff_update);
+					memset(all_buf,0,buff_update);
 					if (!all_buf){
-						printf("ask_mem() failed, %s:%d.\n",F,L-2);
+						printf("malloc() failed, %s:%d.\n",F,L-2);
 						free_record(rec, rec->fields_num);
 						return -1;
 					}
@@ -5738,7 +5738,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					rec->fields[i].data.v.insert((void *)all_buf,
 							 &rec->fields[i].data.v,
 							 rec->fields[i].type);
-					cancel_memory(NULL,all_buf,buff_update);
+					free(all_buf);
 
 					/*set file pointer back at the end of the original str record*/
 					if (str_loc > 0)
@@ -6118,14 +6118,16 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				ui32 j;
 				for(j = 0; j < sz; j++){
 					if (!rec->fields[i].data.file.recs){
-						rec->fields[i].data.file.recs = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+						rec->fields[i].data.file.recs = (struct Record_f*)malloc(sizeof(struct Record_f));
 						rec->fields[i].data.file.count = sz;
 						if(!rec->fields[i].data.file.recs){
-							fprintf(stderr,"ask_mem() failed %s:%d.\n",F,L-3);
+							fprintf(stderr,"malloc failed %s:%d.\n",F,L-3);
 							free_record(rec, rec->fields_num);
 							return -1;
 						}
-						
+					
+						memset(rec->fields[i].data.file.recs,0,sizeof(struct Record_f));
+
 						if(read_file(fd, rec->fields[i].field_name, 
 									&rec->fields[i].data.file.recs[j],
 									*hd.sch_d) == -1){
@@ -6136,12 +6138,11 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					}else{
 
 						ui32 new_size = rec->fields[i].data.file.count + 1;	
-						struct Record_f* new_rec = (struct Record_f*)reask_mem(rec->fields[i].data.file.recs,
-								rec->fields[i].data.file.count * sizeof(struct Record_f),
-								new_size * sizeof(struct Record_f));
+						struct Record_f* new_rec = (struct Record_f*)realloc(rec->fields[i].data.file.recs,
+																	new_size * sizeof(struct Record_f));
 
 						if(!new_rec){
-							fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-4);
+							fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-4);
 							free_record(rec, rec->fields_num);
 							return -1;
 						}
@@ -6165,17 +6166,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					while ((update_rec_pos = get_update_offset(fd)) > 0) {
 						ui32 new_size = rec->fields[i].data.file.count + 1;
 
-						rec->fields[i].data.file.recs= (struct Record_f*)reask_mem(
-								rec->fields[i].data.file.recs,	
-								rec->fields[i].data.file.count * sizeof(struct Record_f),
+						struct Record_f *n = realloc(rec->fields[i].data.file.recs,	
 								new_size * sizeof(struct Record_f));
 
-						if (!rec->fields[i].data.file.recs) {
-							fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-6);
+						if (!n) {
+							fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-6);
 							free_record(rec, rec->fields_num);
 							return -1;
 						}
-
+						rec->fields[i].data.file.recs = n;
 						rec->fields[i].data.file.count = new_size;
 						if (find_record_position(fd, update_rec_pos) == -1) {
 							__er_file_pointer(F, L - 1);
@@ -6360,9 +6359,9 @@ int add_index(int index_nr, char *file_name, int bucket)
 		return -1;
 	}
 
-	HashTable *ht_new = (HashTable*)reask_mem(ht,ht_i * sizeof *ht,(ht_i + index_nr) * sizeof(HashTable));
+	HashTable *ht_new = realloc(ht,(ht_i + index_nr) * sizeof(HashTable));
 	if (!ht_new){
-		fprintf(stderr,"(%s): reask_mem() failed, %s:%d.\n",prog,F, L - 2);
+		fprintf(stderr,"(%s): realloc failed, %s:%d.\n",prog,F, L - 2);
 		free_ht_array(ht, ht_i);
 		return -1;
 	}
@@ -6422,7 +6421,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 		destroy_hasht(&ht[i]);
 	}
 
-	cancel_memory(NULL,ht,total_indexes * sizeof *ht);
+	free(ht);
 	close_file(1, fd);
 	return 0;
 }
@@ -6517,9 +6516,9 @@ static size_t get_disk_size_record(struct Record_f *rec)
 int init_ram_file(struct Ram_file *ram, size_t size)
 {
 	if(size == 0){
-		ram->mem = (ui8*)ask_mem(STD_RAM_FILE*sizeof(ui8)); 
+		ram->mem = (ui8*)malloc(STD_RAM_FILE*sizeof(ui8)); 
 		if(!ram->mem){
-			fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
+			fprintf(stderr,"malloc failed, %s:%d.\n",F,L-2);
 			return -1;
 		}
 		ram->size = 0;
@@ -6528,9 +6527,9 @@ int init_ram_file(struct Ram_file *ram, size_t size)
 		return 0;
 	}
 
-	ram->mem = (ui8*)ask_mem(size*sizeof(ui8));
+	ram->mem = (ui8*)malloc(size*sizeof(ui8));
 	if(!ram->mem){
-		fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
+		fprintf(stderr,"malloc failed, %s:%d.\n",F,L-2);
 		return -1;
 	}
 	ram->size = 0;
@@ -6548,7 +6547,7 @@ void clear_ram_file(struct Ram_file *ram)
 void close_ram_file(struct Ram_file *ram)
 {
 	if(ram->mem)
-		cancel_memory(NULL,ram->mem,ram->capacity);
+		free(ram->mem);
 	ram->size = 0;
 	ram->capacity = 0;
 }
@@ -6662,9 +6661,10 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 						buf_up = swap16(buf_up_ne);
 					}
 
-					rec->fields[indexes[i]].data.s = (char*)ask_mem(buf_up*sizeof(char));
+					rec->fields[indexes[i]].data.s = (char*) malloc(buf_up*sizeof(char));
+					memset(rec->fields[indexes[i]].data.s,0,buf_up);
 					if(!rec->fields[indexes[i]].data.s){
-						fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
+						fprintf(stderr,"malloc failed, %s:%d.\n",F,L-2);
 						return -1;
 					}
 
@@ -6990,9 +6990,10 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 								buf_up = (size_t)swap16(str_loc_ne);
 							}
 
-							char *string = (char*)ask_mem(buf_up*sizeof(char));
+							char *string = malloc(buf_up*sizeof(char));
+							memset(string,0,buf_up);
 							if(!string){
-								fprintf(stderr,"ask_mem() failed, %s:%d.\n",F,L-2);
+								fprintf(stderr,"malloc failed, %s:%d.\n",F,L-2);
 								return -1;
 							}
 
@@ -7004,7 +7005,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 									&rec->fields[indexes[i]].data.v,
 									rec->fields[indexes[i]].type);
 
-							cancel_memory(NULL,string,buf_up);
+							free(string);
 						}
 
 						if (padd > 0) {
@@ -7073,9 +7074,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 	if(ram->offset == ram->size){
 		if(rec_disk_size > (ram->capacity - ram->size)){
 			size_t new_size = ram->capacity * 2;
-			ui8 *n_buff = (ui8*)reask_mem(ram->mem,ram->capacity, new_size * sizeof(ui8));
+			ui8 *n_buff = (ui8*)realloc(ram->mem, new_size * sizeof(ui8));
 			if(!n_buff){
-				fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return -1;
 			}
 
@@ -7309,10 +7310,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							ram->offset = eof;
 							if(eof == ram->capacity){
 								errno = 0;
-								ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
-										(ram->capacity + buff_update) * sizeof(ui8));
+								ui8 *n_mem = (ui8*)realloc(ram->mem,(ram->capacity + buff_update) * sizeof(ui8));
 								if(!n_mem){
-									fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+									fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 									return -1;
 								}
 								ram->mem = n_mem;
@@ -7322,10 +7322,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							}else if((eof + buff_update) > ram->capacity){
 								errno = 0;
-								ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
-										(ram->capacity + buff_update) * sizeof(ui8));
+								ui8 *n_mem = (ui8*)realloc(ram->mem,(ram->capacity + buff_update) * sizeof(ui8));
 								if(!n_mem){
-									fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+									fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 									return -1;
 								}
 								ram->mem = n_mem;
@@ -7595,11 +7594,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								ui64 remaining_write_size = ( (2 * sizeof(ui32)) + (size_left * sizeof(int)) + sizeof(ui64));
 								if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 									/*you have to expand the capacity*/
-									ui8 *n_mem = (ui8*)reask_mem(ram->mem,
-											ram->capacity * sizeof(ui8), 
-											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
+									ui8 *n_mem = (ui8*)realloc(ram->mem, ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
-										fprintf(stderr,"(%s): reask_mem failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 										return -1;
 									}
 									ram->mem = n_mem;
@@ -7923,11 +7920,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								ui64 remaining_write_size = ( (2 * sizeof(ui32)) + (size_left * sizeof(long)) + sizeof(ui64));
 								if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 									/*you have to expand the capacity*/
-									ui8 *n_mem = (ui8*) reask_mem(ram->mem, 
-											ram->capacity * sizeof(ui8),
-											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
+									ui8 *n_mem = (ui8*) realloc(ram->mem,ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
-										fprintf(stderr,"(%s): reask_mem failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 										return -1;
 									}
 									ram->mem = n_mem;
@@ -8243,11 +8238,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								ui64 remaining_write_size = ( (2 * sizeof(ui32)) + (size_left * sizeof(ui8)) + sizeof(ui64));
 								if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 									/*you have to expand the capacity*/
-									ui8 *n_mem = (ui8*)reask_mem(ram->mem,
-											ram->capacity * sizeof(ui8), 
+									ui8 *n_mem = (ui8*)realloc(ram->mem,
 											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
-										fprintf(stderr,"(%s): reask_mem failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 										return -1;
 									}
 									ram->mem = n_mem;
@@ -8566,11 +8560,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								ui64 remaining_write_size = ( (2 * sizeof(ui32)) + (size_left * sizeof(float)) + sizeof(ui64));
 								if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 									/*you have to expand the capacity*/
-									ui8 *n_mem = (ui8*)reask_mem(ram->mem, 
-											ram->capacity * sizeof(ui8),
+									ui8 *n_mem = (ui8*)realloc(ram->mem, 
 											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
-										fprintf(stderr,"(%s): reask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										fprintf(stderr,"(%s): realloc() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 										return -1;
 									}
 									ram->mem = n_mem;
@@ -8886,11 +8879,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								ui64 remaining_write_size = ( (2 * sizeof(ui32)) + (size_left * sizeof(double)) + sizeof(ui64));
 								if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 									/*you have to expand the capacity*/
-									ui8 *n_mem = (ui8*)reask_mem(ram->mem, 
-											ram->capacity * sizeof(ui8),
+									ui8 *n_mem = (ui8*)realloc(ram->mem, 
 											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
-										fprintf(stderr,"(%s): reask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 										return -1;
 									}
 
@@ -9181,10 +9173,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 											ram->offset = eof;
 											if(eof == ram->capacity){
 												errno = 0;
-												ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+												ui8 *n_mem = (ui8*)realloc(ram->mem,
 														(ram->capacity + buff_update) * sizeof(ui8));
 												if(!n_mem){
-													fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+													fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 													return -1;
 												}
 												ram->mem = n_mem;
@@ -9192,10 +9184,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 											}else if((eof + buff_update) > ram->capacity){
 												errno = 0;
-												ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+												ui8 *n_mem = (ui8*)realloc(ram->mem,
 														(ram->capacity + buff_update) * sizeof(ui8));
 												if(!n_mem){
-													fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+													fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 													return -1;
 												}
 												ram->mem = n_mem;
@@ -9381,10 +9373,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 											ram->offset = eof;
 											if(eof == ram->capacity){
 												errno = 0;
-												ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+												ui8 *n_mem = (ui8*)realloc(ram->mem,
 														(ram->capacity + buff_update) * sizeof(ui8));
 												if(!n_mem){
-													fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+													fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 													return -1;
 												}
 												ram->mem = n_mem;
@@ -9392,10 +9384,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 											}else if((eof + buff_update) > ram->capacity){
 												errno = 0;
-												ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+												ui8 *n_mem = (ui8*)realloc(ram->mem,
 														(ram->capacity + buff_update) * sizeof(ui8));
 												if(!n_mem){
-													fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+													fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 													return -1;
 												}
 												ram->mem = n_mem;
@@ -9540,11 +9532,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 									/*you have to expand the capacity*/
-									ui8 *n_mem = (ui8*)reask_mem(ram->mem, 
-											ram->capacity * sizeof(ui8),
+									ui8 *n_mem = (ui8*)realloc(ram->mem, 
 											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
-										fprintf(stderr,"(%s): reask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 										return -1;
 									}
 
@@ -9695,10 +9686,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 										ram->offset = eof;
 										if(eof == ram->capacity){
 											errno = 0;
-											ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+											ui8 *n_mem = (ui8*)realloc(ram->mem,
 													(ram->capacity + buff_update) * sizeof(ui8));
 											if(!n_mem){
-												fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+												fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 												return -1;
 											}
 											ram->mem = n_mem;
@@ -9706,10 +9697,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 										}else if((eof + buff_update) > ram->capacity){
 											errno = 0;
-											ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+											ui8 *n_mem = (ui8*)realloc(ram->mem,
 													(ram->capacity + buff_update) * sizeof(ui8));
 											if(!n_mem){
-												fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+												fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 												return -1;
 											}
 											ram->mem = n_mem;
@@ -9884,10 +9875,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 										ram->offset = eof;
 										if(eof == ram->capacity){
 											errno = 0;
-											ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+											ui8 *n_mem = (ui8*)realloc(ram->mem,
 													(ram->capacity + buff_update) * sizeof(ui8));
 											if(!n_mem){
-												fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+												fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 												return -1;
 											}
 											ram->mem = n_mem;
@@ -9895,10 +9886,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 										}else if((eof + buff_update) > ram->capacity){
 											errno = 0;
-											ui8 *n_mem = (ui8*)reask_mem(ram->mem,ram->capacity,
+											ui8 *n_mem = (ui8*)realloc(ram->mem,
 													(ram->capacity + buff_update) * sizeof(ui8));
 											if(!n_mem){
-												fprintf(stderr,"reask_mem failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
+												fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 												return -1;
 											}
 											ram->mem = n_mem;
@@ -10251,11 +10242,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								if(ram->size == ram->capacity || ((ram->size + remaining_write_size) > ram->capacity)){
 									/*you have to expand the capacity*/
-									ui8 *n_mem = (ui8*)reask_mem(ram->mem, 
-											ram->capacity * sizeof(ui8),
+									ui8 *n_mem = (ui8*)realloc(ram->mem, 
 											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
-										fprintf(stderr,"(%s): reask_mem() failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
 										return -1;
 									}
 

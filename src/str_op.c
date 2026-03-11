@@ -1,6 +1,9 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "str_op.h"
 #include "types.h"
 #include "freestand.h"
@@ -1164,12 +1167,13 @@ void *key_converter(char *key, int *key_type)
 			return 0x0;
 		}
 
-		converted = (ui32*)ask_mem(sizeof(ui32));
+		converted = (ui32*)malloc(sizeof(ui32));
 		if (!converted) {
-			display_to_stdout("ask_mem() failed, %s:%d.\n",F, L - 2);
+			display_to_stdout("malloc failed, %s:%d.\n",F, L - 2);
 			return 0x0;
 		}
 
+		memset(converted,0,sizeof *converted);
 		copy_memory(converted, (ui32 *)&l, sizeof(ui32));
 		break;
 	}
@@ -1754,12 +1758,13 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 	set_memory(cbuff,0,size);
 	string_copy(cbuff,buff,size);
 
-	*values = (char**)ask_mem(fields_count * sizeof(char *));
+	*values = (char**)malloc(fields_count * sizeof(char *));
 	if (!(*values)) {
-		display_to_stdout("ask_mem() failed, %s:%d.\n",F,L-2);
+		display_to_stdout("malloc() failed, %s:%d.\n",F,L-2);
 		return -1;
 	}
 
+	memset(*values,0,fields_count * sizeof(char*));
 	/* detect files types - ONLY IF NOT IMPORTING FROM EZgen*/	
 	char *file_start = 0x0;
 	int count = 0;
@@ -1818,7 +1823,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				if(!(*values)[i]){
 					display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						cancel_memory(0x0,*values,sizeof(char*)*fields_count);
+						free(*values);
 					else
 						free_strs(i,1,values);
 
@@ -1841,7 +1846,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			if(!(*values)[i]){
 				display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
-					cancel_memory(0x0,*values,sizeof(char*)*fields_count);
+					free(*values);
 				else
 					free_strs(i,1,values);
 				return -1;
@@ -1877,7 +1882,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				if(!(*values)[i]){
 					display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						cancel_memory(0x0,*values,sizeof(char*)*fields_count);
+						free(*values);
 					else
 						free_strs(i,1,values);
 
@@ -1901,7 +1906,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			if(!(*values)[i]){
 				display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
-					cancel_memory(0x0,*values,sizeof(char*)*fields_count);
+					free(*values);
 				else
 					free_strs(i,1,values);
 
@@ -1928,7 +1933,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				if(!(*values)[i]){
 					display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
-						cancel_memory(0x0,*values,sizeof(char*)*fields_count);
+						free(*values);
 					else
 						free_strs(i,1,values);
 
@@ -1970,12 +1975,13 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 	char *first = 0x0;
 	char *last = 0x0;
 	
-	char **values = (char**)ask_mem(fields_count * sizeof(char *));
+	char **values = (char**)malloc(fields_count * sizeof(char *));
 	if (!values) {
 		display_to_stdout("memory get values %s:%d\n",__FILE__,__LINE__-2);
 		return 0x0;
 	}
 
+	memset(values,0,fields_count * sizeof(char*));
 	if(find_needle(buff,"@")) replace('@','^',cpy);
 
 	/*exclude file syntax*/
@@ -2051,12 +2057,13 @@ char **get_values(char *fields_input, int fields_count)
 {
 	int i = 0, j = 0;
 
-	char **values = (char**)ask_mem(fields_count * sizeof(char *));
+	char **values = (char**)malloc(fields_count * sizeof(char *));
 	if (!values) {
 		display_to_stdout("memory get values %s:%d",__FILE__,__LINE__-2);
 		return 0x0;
 	}
 
+	memset(values,0,fields_count * sizeof(char*));
 	char *s = 0x0;
 	tok(fields_input, ":");
 	tok(0x0, ":");
@@ -2065,7 +2072,7 @@ char **get_values(char *fields_input, int fields_count)
 	if (s){
 		values[j] = duplicate_str(s);
 		if (!values[j]){
-			cancel_memory(0x0,values,fields_count * sizeof(char*));
+			free(values);
 			return 0x0;
 		}
 		i++;
@@ -2073,7 +2080,7 @@ char **get_values(char *fields_input, int fields_count)
 	else
 	{
 		display_to_stdout("value token not found in get_values();\n");
-		cancel_memory(0x0,values,fields_count * sizeof(char*));
+		free(values);
 		return 0x0;
 	}
 
@@ -2106,10 +2113,10 @@ void free_strs(int fields_num, int count, ...)
 		char **str = va_arg(args, char **);
 		for (j = 0; j < fields_num; j++){
 			if (str[j]){
-				cancel_memory(0x0,str[j],string_length(str[j])+1);
+				free(str[j]);
 			}
 		}
-		cancel_memory(0x0,str,sizeof(char*)*fields_num);
+		free(str);
 	}
 }
 
@@ -2712,9 +2719,7 @@ static struct tok_handler t_hndl;
 void clear_tok()
 {
 	t_hndl.finish = 0;
-	if(cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok)+1) == -1){
-		/*log the error*/
-	}
+	free(t_hndl.original_tok);
 	t_hndl.original_tok = 0x0;
 }
 char *tok(char *str, char *delim)
@@ -2722,9 +2727,7 @@ char *tok(char *str, char *delim)
 
         if(t_hndl.finish){
 			if(!str){
-				if(cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok)+1) == -1){
-					/*log the error*/
-				}
+				free(t_hndl.original_tok);
 				t_hndl.original_tok = 0x0;
 				t_hndl.finish = 0;
 				return 0x0;
@@ -2733,32 +2736,27 @@ char *tok(char *str, char *delim)
 		
 			size_t string_size = string_length(str);	
 			if(string_size != string_length(t_hndl.original_tok)){
-				if(cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok)+1) == -1){
-					/*log the error*/
-				}
+				free(t_hndl.original_tok);
 				t_hndl.original_tok = 0x0;
 				t_hndl.finish = 0;
 				goto tok_process;
 			}else{
 				replace('\n',*delim,t_hndl.original_tok);	
 				if(string_compare(str,t_hndl.original_tok,string_size,-1) == 0){
-					if(cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok)+1) == -1){
-						/*log the error*/
-					}
+					free(t_hndl.original_tok);
 					t_hndl.original_tok = 0x0;
 					t_hndl.finish = 0;
 					return 0x0;
 				} else {
-					if(cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok)+1) == -1){
-						/*log the error*/
-					}
+					free(t_hndl.original_tok);
 					t_hndl.original_tok = 0x0;
 					t_hndl.finish = 0;
 					goto tok_process;
 				}
 			}
 			t_hndl.finish = 0;
-			if(!t_hndl.original_tok)goto tok_process;
+			if(!t_hndl.original_tok)
+				goto tok_process;
 
 			return 0x0;
 		}
@@ -2771,21 +2769,21 @@ tok_process:
 
 	if(!t_hndl.original_tok){
 		set_memory(&t_hndl,0,sizeof(struct tok_handler));
-		t_hndl.original_tok = (char*)ask_mem(len + 1);		
-		set_memory(t_hndl.original_tok,0,len+1);
+		t_hndl.original_tok = (char*)malloc(len + 1);		
 
 		if(!t_hndl.original_tok){
-				display_to_stdout("ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
+				display_to_stdout("malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return 0x0;
 		}
 		
+		set_memory(t_hndl.original_tok,0,len+1);
 		string_copy(t_hndl.original_tok,str,len);
 		string_copy(t_hndl.delim,delim,string_length(delim));
 		t_hndl.last = t_hndl.original_tok;
 	}
 	
 	if(string_compare(t_hndl.delim,delim,string_length(t_hndl.delim),-1) != 0) {
-		cancel_memory(0x0,t_hndl.original_tok,string_length(t_hndl.original_tok));
+		free(t_hndl.original_tok);
 		t_hndl.original_tok = 0x0;
 		return 0x0;
 	}
@@ -2816,14 +2814,18 @@ tok_process:
 
 char *duplicate_str(char *str)
 {
-	char *dup = (char*)ask_mem(string_length(str)+1);
+	if(!str)
+		return NULL;
+
+	size_t l = strlen(str) +1 ;
+	char *dup = (char*)malloc(l);
 	if(!dup){
-		display_to_stdout("ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
+		display_to_stdout("malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 		return 0x0;
 	}
 
-	set_memory(dup,0,string_length(str)+1);
-	string_copy(dup,str,string_length(str));
+	set_memory(dup,0,l);
+	strncpy(dup,str,l-1);
 	return dup;
 }
 

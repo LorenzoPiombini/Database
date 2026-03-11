@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <getopt.h>
 #include <ctype.h>
 #include <string.h>
@@ -817,6 +818,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (index_add) {
+			free_schema(hd.sch_d);
 			close_file(2, fd_schema, fd_data);
 
 			/*  write the index file
@@ -866,6 +868,7 @@ int main(int argc, char *argv[])
 		if (del_file) { 
 			/*delete file */
 
+			free_schema(hd.sch_d);
 			close_file(2,fd_data,fd_schema);
 			/* acquire lock */
 			int r = 0;
@@ -992,6 +995,7 @@ int main(int argc, char *argv[])
 			if(lock_f) while((r = lock(fd_schema,UNLOCK)) == WTLK);
 			close_file(3, fd_index, fd_data,fd_schema);
 			close_prog_memory();
+			free_schema(hd.sch_d);
 			return STATUS_ERROR;
 			
 		} /* end of add new fields to schema path*/
@@ -1027,11 +1031,12 @@ int main(int argc, char *argv[])
 							goto option_clean_on_error;
 						}
 						/* create *p_i_nr of ht and write them to file*/
-						HashTable *ht = (HashTable*)ask_mem(*p_i_nr * sizeof(HashTable));
+						HashTable *ht = (HashTable*)malloc(*p_i_nr * sizeof(HashTable));
 						if (!ht) {
-							display_to_stdout("ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+							display_to_stdout("malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 							goto option_clean_on_error;
 						}
+						memset(ht,0,*p_i_nr * sizeof *ht);
 						int i;
 						for (i = 0; i < *p_i_nr; i++) {
 							HashTable ht_n;
@@ -1193,6 +1198,7 @@ int main(int argc, char *argv[])
 			return 0;
 			
 			clean_on_error_6:
+			free_schema(hd.sch_d);
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_index, fd_data, fd_schema);
 			close_prog_memory();
@@ -1292,6 +1298,7 @@ int main(int argc, char *argv[])
 		if (list_def) { /* show file definitions */
 			print_schema(*hd.sch_d);
 			close_file(1, fd_schema);
+			free_schema(hd.sch_d);
 			close_prog_memory();
 			return 0;
 		}
@@ -1334,7 +1341,10 @@ int main(int argc, char *argv[])
 					break;
 				case UINT:
 				{
-					display_to_stdout("%d. %u   ", ++j, keys_data.keys[i].k.n);
+					if(keys_data.keys[i].size == 16)
+						display_to_stdout("%d. %u   ", ++j, keys_data.keys[i].k.n16);
+					else
+						display_to_stdout("%d. %u   ", ++j, keys_data.keys[i].k.n);
 					print_pack_str(keys_data.keys[i].paked_k);
 					display_to_stdout("\n");
 					break;
@@ -1353,6 +1363,7 @@ int main(int argc, char *argv[])
 			destroy_hasht(p_ht);
 			close_file(3,fd_schema, fd_index, fd_data);
 			free_keys_data(&keys_data);
+			free_schema(hd.sch_d);
 			close_prog_memory();
 			return 0;
 		}
@@ -1375,6 +1386,7 @@ int main(int argc, char *argv[])
 			if( err == KEY_NOT_FOUND){
 				close_file(3, fd_schema,fd_index, fd_data);
 				close_prog_memory();
+				free_schema(hd.sch_d);
 				return STATUS_ERROR;
 			}
 
@@ -1388,6 +1400,7 @@ int main(int argc, char *argv[])
 
 			if(ram.mem) close_ram_file(&ram);
 			close_file(3, fd_schema,fd_index, fd_data);
+			free_schema(hd.sch_d);
 			close_prog_memory();
 			return 0;
 		}

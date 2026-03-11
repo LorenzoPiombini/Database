@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <errno.h>
 #include "file.h"
 #include "endian.h"
@@ -72,15 +73,16 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 		struct Record_f *temp = NULL;
 		temp = rec;
 		while ((update_rec_pos = get_update_offset(fds[1])) > 0) {
-			struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+			struct Record_f *n = (struct Record_f*)malloc(sizeof(struct Record_f));
 			if(!n){		
-				fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return STATUS_ERROR;
 			}
 
+			memset(n,0,sizeof *n);
 			if (find_record_position(fds[1], update_rec_pos) == -1) {
 				__er_file_pointer(F, L - 1);
-				cancel_memory(NULL,n,sizeof(struct Record_f));
+				free(n);
 				return STATUS_ERROR;
 			}
 
@@ -115,12 +117,14 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(ui64));
 			if(up_r_pos_ne == 0) break;
 
-			struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+			struct Record_f *n = (struct Record_f*)malloc(sizeof(struct Record_f));
 			if(!n){		
-				fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				clear_ram_file(&ram);
 				return STATUS_ERROR;
 			}
+
+			memset(n,0,sizeof *n);
 
 			file_offset update_rec_pos = swap64(up_r_pos_ne);
 			n->offset = update_rec_pos;
@@ -150,17 +154,18 @@ int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Head
 
 	
 	fds[3] = (ram.size/sizeof(struct Record_f*)) +1;
-	*recs = (struct Record_f**)ask_mem(sizeof(struct Record_f*)*fds[3]);
+	*recs = (struct Record_f**)malloc(sizeof(struct Record_f*)*fds[3]);
 	if(!recs){ 
-		fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+		fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 		clear_ram_file(&ram);
 		return STATUS_ERROR;
 	}
 
+	memset(*recs,0,fds[3] * sizeof *recs);
 	i32 i = 0;
 	do{
 		file_offset pos_after_read = 0;
-		struct Record_f* rec = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+		struct Record_f* rec = (struct Record_f*)malloc(sizeof(struct Record_f));
 		memset(rec,0,sizeof(struct Record_f));
 
 		if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
@@ -184,13 +189,14 @@ int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Head
 			}
 		}
 
-		struct Record_f *n = (struct Record_f*)ask_mem(sizeof(struct Record_f));
+		struct Record_f *n = (struct Record_f*)malloc(sizeof(struct Record_f));
 		if(!n){		
-			fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			clear_ram_file(&ram);
 			return STATUS_ERROR;
 		}
 
+		memset(n,0,sizeof *n);
 		file_offset update_rec_pos = swap64(up_r_pos_ne);
 		n->offset = update_rec_pos;
 		ram.offset = update_rec_pos;
@@ -391,7 +397,7 @@ int write_record(int *fds,
 
 	if(write_index(fds,index,ht,files[0]) == -1) return -1;
 
-	cancel_memory(NULL,ht,sizeof(HashTable));
+	free(ht);
 	return 0;
 }
 
@@ -778,10 +784,10 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
 	} else if (key_type == UINT) {
 		if (key_conv) {
 			if (!set(key_conv, key_type, offset,indexing == 1 ? ht : &ht[0])){
-				cancel_memory(NULL,key_conv,sizeof(ui32));
+				free(key_conv);
 				return -1;
 			}
-			cancel_memory(NULL,key_conv,sizeof(ui32));
+			free(key_conv);
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
@@ -801,8 +807,9 @@ static file_offset get_rec_position(struct HashTable *ht, void *key, int key_typ
 		} else if (key_type == UINT) {
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
-				cancel_memory(NULL,key_conv,sizeof(ui32));
-				if(offset == -1) return KEY_NOT_FOUND;
+				free(key_conv);
+				if(offset == -1) 
+					return KEY_NOT_FOUND;
 
 				return offset;
 			}

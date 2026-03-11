@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
@@ -13,7 +14,9 @@
 /*order starting number*/
 #define ORDER_BASE 100
 
-/*mode select the type of numbering of the key*/
+/*mode select the type of numbering of the key
+ *
+ * this function assume that the file has content already*/
 i64 generate_numeric_key(int *fds, int mode, int base)
 {
 	i64 key = 0;
@@ -134,13 +137,14 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 	}else{
 		str_size += (2 + all_keys.length);
 	}
-	char *str_keys = (char *)ask_mem(str_size + 1);
+	char *str_keys = (char *)malloc(str_size + 1);
 	if(!str_keys){
 		/*log failure*/
 		free_keys_data(&all_keys);
 		return NULL;
 	}
 	
+	memset(str_keys,0,str_size+1);
 	ui32 ind_str = 0;
 	string_copy(str_keys,"[",1);
 
@@ -182,7 +186,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 					size_t n = number_of_digit(all_keys.keys[i].k.n16);
 					if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
 						/*log failure*/						
-						cancel_memory(NULL,str_keys,str_size + 1);	
+						free(str_keys);	
 						free_keys_data(&all_keys);
 						return NULL;
 					}
@@ -199,7 +203,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 					size_t n = number_of_digit(all_keys.keys[i].k.n16);
 					if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
 						/*log failure*/						
-						cancel_memory(NULL,str_keys,str_size + 1);	
+						free(str_keys);	
 						free_keys_data(&all_keys);
 						return NULL;
 					}
@@ -213,7 +217,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 				size_t n = number_of_digit(all_keys.keys[i].k.n);
 				if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n) == -1){
 					/*log failure*/						
-					cancel_memory(NULL,str_keys,str_size + 1);	
+					free(str_keys);	
 					free_keys_data(&all_keys);
 					return NULL;
 				}
@@ -228,7 +232,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 		}
 		default:
 			free_keys_data(&all_keys);
-			cancel_memory(NULL,str_keys,str_size + 1);	
+			free(str_keys);	
 			return NULL;
 		}
 	}

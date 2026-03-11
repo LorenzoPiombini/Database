@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -11,7 +12,6 @@
 #include "common.h"
 #include "sort.h"
 #include "debug.h"
-#include "memory.h"
 #include "input.h"
 
 static char prog[] = "db";
@@ -77,16 +77,18 @@ int parse_d_flag_input(char *file_path, int fields_num,
 		}
 	}
 
+	
 	if (!check_fields_integrity(names, fields_num)) {
 		printf("invalid input, one or more fields have the same name, or the value is missing\n");
 		printf("input syntax: fieldname:type:value\n");
 		return -1;
 	}
 
-	if (sch && check_sch == 0) {
+	if (sch && check_sch == 0 && sch->fields_num == 0) {
 		/* true when a new file is created */
-		if(set_schema(names, types_i, sch, fields_num)){
+		if(set_schema(names, types_i, sch, fields_num) == -1){
 			fprintf(stderr,"(%s): set_schema failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return -1;
 		}
 	}
 
@@ -540,13 +542,18 @@ int read_header(int fd, struct Header_d *hd)
 		return 1;
 	}
 
-	hd->sch_d->fields_name = (char**)ask_mem(sizeof(char*) * hd->sch_d->fields_num);
-	hd->sch_d->types = (int*)ask_mem(sizeof(int) * hd->sch_d->fields_num);
+	hd->sch_d->fields_name = (char**)malloc(sizeof(char*) * hd->sch_d->fields_num);
+	hd->sch_d->types = (int*)malloc(sizeof(int) * hd->sch_d->fields_num);
+
+	memset(hd->sch_d->fields_name,0,sizeof(char*)*hd->sch_d->fields_num);
+	memset(hd->sch_d->types,-1,sizeof(int) * hd->sch_d->fields_num);
 
 	if(!hd->sch_d->fields_name || !hd->sch_d->types ){
-		fprintf(stderr,"ask_mem failed %s:%d.\n",__FILE__,__LINE__-1);
-		if(hd->sch_d->fields_name) cancel_memory(NULL,hd->sch_d->fields_name,sizeof(char*) * hd->sch_d->fields_num);
-		if(hd->sch_d->types) cancel_memory(NULL,hd->sch_d->types,sizeof(int) * hd->sch_d->fields_num);
+		fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-4);
+		if(hd->sch_d->fields_name) 
+			free(hd->sch_d->fields_name);
+		if(hd->sch_d->types)
+			free(hd->sch_d->types);
 		return 1;
 	} 
 
@@ -560,12 +567,13 @@ int read_header(int fd, struct Header_d *hd)
 		}
 		size_t l = (size_t)swap32(l_end);
 
-		hd->sch_d->fields_name[i] = (char*)ask_mem(l);
+		hd->sch_d->fields_name[i] = (char*)malloc(l);
 		if(!hd->sch_d->fields_name[i]){
-			fprintf(stderr,"ask_mem failed %s:%d.\n",__FILE__,__LINE__-1);
+			fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
 			return 0;
 		} 
 
+		memset(hd->sch_d->fields_name[i],0,l);
 		if (read(fd, hd->sch_d->fields_name[i], l) == -1) {
 			perror("reading name filed from header.\n");
 			printf("parse.c l %d.\n", __LINE__ - 3);
@@ -770,9 +778,9 @@ int sort_input_like_header_schema(int schema_tp,
 
 	if(schema_tp == SCHEMA_CT || schema_tp == SCHEMA_CT_NT){
 		/*order the data with missing fields*/
-		char **n_v = (char**)reask_mem(*values,sizeof(char*)*fields_num,sch->fields_num * sizeof(char*));
+		char **n_v = (char**)realloc(*values,sch->fields_num * sizeof(char*));
 		if(!n_v){
-			fprintf(stderr,"reask_mem() failed %s:%d.\n",__FILE__,__LINE__-2);
+			fprintf(stderr,"realloc() failed %s:%d.\n",__FILE__,__LINE__-2);
 			return -1;
 		}
 
@@ -794,11 +802,13 @@ int sort_input_like_header_schema(int schema_tp,
 			}
 		}
 
-		char **temp_val = (char**)ask_mem(sch->fields_num * sizeof(char *));
+		char **temp_val = (char**)malloc(sch->fields_num * sizeof(char *));
 		if (!temp_val) {
-			fprintf(stderr,"(%s): ask_mem failed, %s:%d.\n",prog,__FILE__,__LINE__-2);
+			fprintf(stderr,"(%s): ask_m failed, %s:%d.\n",prog,__FILE__,__LINE__-2);
 			return 0;
 		}
+
+		memset(temp_val,0,sch->fields_num * sizeof(char *));
 
 		char temp_name[MAX_FIELD_NR][MAX_FIELD_LT]; 
 		memset(temp_name,0,MAX_FIELD_LT*MAX_FIELD_NR);
@@ -824,7 +834,7 @@ int sort_input_like_header_schema(int schema_tp,
 			types_i[i] = temp_types[i];
 		}
 
-		cancel_memory(NULL,temp_val,sizeof(char*)*sch->fields_num);
+		free(temp_val);
 		return 1;
 
 	}
@@ -848,12 +858,13 @@ int sort_input_like_header_schema(int schema_tp,
 
 
 
-	char **temp_val = (char**)ask_mem(fields_num * sizeof(char *));
+	char **temp_val = (char**)malloc(fields_num * sizeof(char *));
 	if (!temp_val) {
-		fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
+		fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 		return 0;
 	}
 
+	memset(temp_val,0,sizeof(char*)*fields_num);
 	char temp_name[MAX_FIELD_NR][MAX_FIELD_LT] = {0}; 
 
 	int temp_types[MAX_FIELD_NR];
@@ -875,7 +886,7 @@ int sort_input_like_header_schema(int schema_tp,
 		types_i[i] = temp_types[i];
 	}
 
-	cancel_memory(NULL,temp_val,sizeof(char*) * fields_num);
+	free(temp_val);
 	return 1;
 }
 
@@ -961,18 +972,18 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 	}
 
 	if (new_fields) {
-		char **new_fields = (char**) reask_mem(sch->fields_name,sch->fields_num*sizeof(char*),
+		char **new_fields = (char**) realloc(sch->fields_name,
 				(sch->fields_num + fields_num)*sizeof(char*));
 		if(!new_fields){
-			fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 			return 0;
 		}
 
 		sch->fields_name = new_fields;
-		int *types = (int*) reask_mem(sch->types,sch->fields_num*sizeof(int),
+		int *types = (int*) realloc(sch->types,
 				(sch->fields_num + fields_num) * fields_num*sizeof(int));
 		if(!types){
-			fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			return 0;
 		}
 		sch->types = types;
@@ -981,9 +992,9 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		int i;
 		for (i = 0; i < fields_num; i++) {
 			if(pos[i] == i) continue; 
-			sch->fields_name[sch->fields_num] = (char*) ask_mem(strlen(names[i])+1);
+			sch->fields_name[sch->fields_num] = (char*) malloc(strlen(names[i])+1);
 			if(!sch->fields_name[sch->fields_num]){
-				fprintf(stderr," ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				fprintf(stderr," malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return 0;
 			}
 			memset(sch->fields_name[sch->fields_num],0,strlen(names[i]));
@@ -1208,7 +1219,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						memset(cpy,0,s);
 						strncpy(cpy,(*values)[i],vs);
 						strncat(cpy,decimal,ds);
-						cancel_memory(NULL,(*values)[i],strlen((*values)[i])+1);
+						free((*values)[i]);
 						(*values)[i] = duplicate_str(cpy);
 						if(!(*values)[i]){
 							fprintf(stderr,"duplicate_str() failed, %s:%d.\n",F,L-2);
@@ -1349,7 +1360,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 							memset(cpy,0,s);
 							strncpy(cpy,(*values)[j],vs);
 							strncat(cpy,decimal,ds);
-							cancel_memory(NULL,(*values)[j],strlen((*values)[j])+1);
+							free((*values)[j]);
 							(*values)[j] = duplicate_str(cpy);
 							if(!(*values)[j]){
 								fprintf(stderr,"duplicate_str() failed, %s:%d.\n",F,L-2);
@@ -1532,13 +1543,12 @@ static int check_double_compatibility(struct Schema *sch, char ***values)
 			memset(cpy,0,s);
 			strncpy(cpy,(*values)[i],vs);
 			strncat(cpy,decimal,ds);
-			cancel_memory(NULL,(*values)[i],strlen((*values)[i])+1);
+			free((*values)[i]);
 			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
 				fprintf(stderr,"duplicate_str() failed, %s:%d.\n",F,L-2);
 				return -1;
 			}
-
 		}
 	}	
 	return 0;
@@ -2170,9 +2180,9 @@ unsigned char perform_checks_on_schema(int mode,char *buffer,
 			return 0;
 		}
 	} else { /* in this case the SCHEMA IS ALWAYS NEW*/
-		if(parse_d_flag_input(file_path, fields_count, buffer,hd->sch_d, SCHEMA_EQ,rec,pos) == -1) return SCHEMA_ERR;
+		if(parse_d_flag_input(file_path, fields_count, buffer,hd->sch_d, 0,rec,pos) == -1) return SCHEMA_ERR;
 
-		return 0;
+		return SCHEMA_NW;
 	}
 
 	return 1;
@@ -2300,7 +2310,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						size_t size_new = strlen(rec->fields[j].data.s);
 						if(size_new == size_old){
 							if (strcmp(rec_old[0]->fields[j].data.s, rec->fields[j].data.s) != 0) {
-								cancel_memory(NULL,rec_old[0]->fields[j].data.s,size_old + 1);
+								free(rec_old[0]->fields[j].data.s);
 								rec_old[0]->fields[j].data.s = NULL;
 								rec_old[0]->fields[j].data.s = duplicate_str(rec->fields[j].data.s);
 								if (!rec_old[0]->fields[j].data.s){
@@ -2315,7 +2325,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							break;
 
 						}else{
-							cancel_memory(NULL,rec_old[0]->fields[j].data.s,size_old+1);
+							free(rec_old[0]->fields[j].data.s);
 							rec_old[0]->fields[j].data.s = NULL;
 							rec_old[0]->fields[j].data.s = duplicate_str(rec->fields[j].data.s);
 							if(!rec_old[0]->fields[j].data.s){
@@ -2516,8 +2526,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							if (strcmp(rec_old[0]->fields[j].data.v.elements.s[a], rec->fields[j].data.v.elements.s[a]) != 0){
 								/*free memory before allocating other memory*/
 								if (rec_old[0]->fields[j].data.v.elements.s[a] != NULL)	{
-								cancel_memory(NULL,rec_old[0]->fields[j].data.v.elements.s[a],
-										strlen(rec_old[0]->fields[j].data.v.elements.s[a])+1);
+									free(rec_old[0]->fields[j].data.v.elements.s[a]);
 									rec_old[0]->fields[j].data.v.elements.s[a] = NULL;
 								}
 
@@ -2583,12 +2592,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					if(option == AAR){
 						size_t n_size = rec_old[0]->fields[j].data.file.count + rec->fields[j].data.file.count;
 
-						struct Record_f *n_recs = (struct Record_f*)reask_mem(
-								rec_old[0]->fields[j].data.file.recs,
-								sizeof(struct Record_f) * rec_old[0]->fields[j].data.file.count,
+						struct Record_f *n_recs = (struct Record_f*)realloc(rec_old[0]->fields[j].data.file.recs,
 								n_size * sizeof(struct Record_f));
 						if(!n_recs){
-							fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
+							fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__ - 4);
 							return -1;
 						}
 
@@ -2624,12 +2631,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 								rec_old[0]->fields[j].data.file.count*sizeof(struct Record_f));
 
 						size_t n_size = rec->fields[j].data.file.count;
-						struct Record_f* new_recs = (struct Record_f*)reask_mem(
-								rec_old[0]->fields[j].data.file.recs,
-								rec_old[0]->fields[j].data.file.count * sizeof *new_recs,
+						struct Record_f* new_recs = (struct Record_f*)realloc(rec_old[0]->fields[j].data.file.recs,
 								n_size * sizeof *new_recs);
 						if(!new_recs){
-							fprintf(stderr,"reask_mem() failed %s:%d.\n",__FILE__,__LINE__-5);
+							fprintf(stderr,"realloc() failed %s:%d.\n",__FILE__,__LINE__-4);
 							return 0;
 						}
 
@@ -2732,15 +2737,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							/*free memory before allocating other memory*/
 							if (rec_old[0]->fields[i].data.s != NULL) {
 								char *p =rec_old[0]->fields[i].data.s; 
-								cancel_memory(NULL,p,strlen(p)+1);
+								free(p);
 								rec_old[0]->fields[i].data.s = NULL;
 							}
 							size_t l = strlen(rec->fields[i].data.s);
-							rec_old[0]->fields[i].data.s = (char *) ask_mem(l+1);
+							rec_old[0]->fields[i].data.s = (char *) malloc(l+1);
 							if(!rec_old[0]->fields[i].data.s){
-								fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+								fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 									return 0;
 							}
+							memset(rec_old[0]->fields[i].data.s,0,l+1);
 							strncpy(rec_old[0]->fields[i].data.s,rec->fields[i].data.s,l);
 							changed = 1;
 							rec->field_set[i] = 0;
@@ -2960,10 +2966,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 								if (strcmp(rec_old[0]->fields[i].data.v.elements.s[a], rec->fields[i].data.v.elements.s[a]) != 0){
 									/* free memory before allocating other memory */
 									if (rec_old[0]->fields[i].data.v.elements.s[a] != NULL){
-										cancel_memory(NULL,
-												rec_old[0]->fields[i].data.v.elements.s[a],
-												strlen(rec_old[0]->fields[i].data.v.elements.s[a])+1);
-
+										free(rec_old[0]->fields[i].data.v.elements.s[a]);
 										rec_old[0]->fields[i].data.v.elements.s[a] = NULL;
 									}
 
@@ -3091,8 +3094,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			break;
 		case TYPE_STRING:
 			if (rec_old[i]->fields[index].data.s != NULL) {
-				cancel_memory(NULL,rec_old[i]->fields[index].data.s,
-						strlen(rec_old[i]->fields[index].data.s)+1);
+				free(rec_old[i]->fields[index].data.s);
 				rec_old[i]->fields[index].data.s = NULL;
 			}
 
@@ -3382,8 +3384,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				}
 				int a;
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
-					cancel_memory(NULL,rec_old[i]->fields[index].data.v.elements.s[a],
-						strlen(rec_old[i]->fields[index].data.v.elements.s[a])+1);
+					free(rec_old[i]->fields[index].data.v.elements.s[a]);
 
 					rec_old[i]->fields[index].data.v.elements.s[a] = NULL;
 					rec_old[i]->fields[index].data.v.elements.s[a] =
@@ -3458,12 +3459,11 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			if(option == AAR){
 				n_size = rec_old[i]->fields[index].data.file.count + rec->fields[index].data.file.count;
 
-				struct Record_f *n_recs = (struct Record_f*)reask_mem(
+				struct Record_f *n_recs = (struct Record_f*)realloc(
 						rec_old[i]->fields[index].data.file.recs,
-						sizeof(struct Record_f) * rec_old[i]->fields[index].data.file.count,
 						n_size * sizeof(struct Record_f));
 				if(!n_recs){
-					fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
+					fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
 					positions[i] = '0';
 					return;
 				}
@@ -3495,12 +3495,11 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				free_type_file(rec_old[i],1);
 
 				if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
-					struct Record_f *n_recs = (struct Record_f*)reask_mem(
+					struct Record_f *n_recs = (struct Record_f*)realloc(
 							rec_old[i]->fields[index].data.file.recs,
-							sizeof(struct Record_f) * rec_old[i]->fields[index].data.file.count,
 							rec->fields[index].data.file.count * sizeof(struct Record_f));
 					if(!n_recs){
-						fprintf(stderr,"reask_mem() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
+						fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
 						close_file(1,fd_sch);
 						positions[i] = '0';
 						return;
