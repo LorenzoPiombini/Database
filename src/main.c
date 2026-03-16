@@ -888,7 +888,6 @@ int main(int argc, char *argv[])
 				display_to_stdout("(%s): delete file '%s' failed.\n",prog,cpy_fp);
 				while((r = lock(fd_index,UNLOCK)) == WTLK);
 				close_file(1, fd_index);
-				free_schema(hd.sch_d);
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
@@ -905,12 +904,10 @@ int main(int argc, char *argv[])
 			if(copy_to_string(buf,l,"%ld.lock",st.st_ino) < 0){
 				display_to_stdout("cannot release the lock");
 				close_prog_memory();
-				free_schema(hd.sch_d);
 				return STATUS_ERROR;
 			}
 
 			unlink(buf);
-			free_schema(hd.sch_d);
 			close_prog_memory();
 			return 0;
 		} /* end of delete file path*/
