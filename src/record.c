@@ -13,6 +13,7 @@
 #include "parse.h"
 #include "lock.h"
 #include "common.h"
+#include "input.h"
 #include "types.h"
 #include "date.h"
 
@@ -2213,8 +2214,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 unsigned char get_index_rec_field(char *field_name, struct Record_f *rec,int *field_i_r, int *rec_index)
 {
 	size_t field_name_len = strlen(field_name);
-	int i;
-	int j;
+	int i,j;
 	if(rec->count > 1){
 		i = 0;
 		struct Record_f *r = rec;
@@ -2655,7 +2655,7 @@ int schema_has_type(struct Header_d *hd)
 }
 
 
-int compare_rec(struct Record_f *src, struct Record_f *dest)
+int compare_rec(struct Record_f *src, struct Record_f *dest,int option)
 {
 	if (src->fields_num > dest->fields_num) return -1;
 	if (src->fields_num < dest->fields_num) return 1;
@@ -2712,6 +2712,11 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				}
 				case TYPE_ARRAY_INT:
 				{	
+					if(option == AAR){
+						return i;
+					}
+
+
 					if (dest->fields[i].data.v.elements.i){
 						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.i[0] == 0){
 							if(src->fields[i].data.v.size == 1 && 
@@ -2739,6 +2744,10 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				}
 				case TYPE_ARRAY_LONG:
 				{
+					if(option == AAR){
+						return i;
+					}
+
 					if (dest->fields[i].data.v.elements.l){
 						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.l[0] == 0){
 							if(src->fields[i].data.v.size == 1 && 
@@ -2765,6 +2774,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				}
 				case TYPE_ARRAY_BYTE:
 				{
+					if(option == AAR){
+						return i;
+					}
 					if (dest->fields[i].data.v.elements.b){
 						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.b[0] == 0){
 							if(src->fields[i].data.v.size == 1 && 
@@ -2792,6 +2804,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				}
 				case TYPE_ARRAY_FLOAT:
 				{
+					if(option == AAR){
+						return i;
+					}
 					if (dest->fields[i].data.v.elements.f){
 						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.f[0] == 0.00){
 							if(src->fields[i].data.v.size == 1 && 
@@ -2819,6 +2834,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				}
 				case TYPE_ARRAY_DOUBLE:
 				{
+					if(option == AAR){
+						return i;
+					}
 					if (dest->fields[i].data.v.elements.d){
 						if (dest->fields[i].data.v.size == 1 && dest->fields[i].data.v.elements.d[0] == 0.0){
 							if(src->fields[i].data.v.size == 1 && 
@@ -2846,6 +2864,9 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 				}
 				case TYPE_ARRAY_STRING:
 				{
+					if(option == AAR){
+						return i;
+					}
 					if (dest->fields[i].data.v.elements.s){
 						if (dest->fields[i].data.v.size == 1 && 
 								strncmp(dest->fields[i].data.v.elements.s[0],
@@ -2882,7 +2903,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 							ui32 k;
 							for(k = 0; k < src->fields[i].data.file.count; k++){
 								if(compare_rec(&src->fields[i].data.file.recs[k],
-											&dest->fields[i].data.file.recs[k]) == -1){ 
+											&dest->fields[i].data.file.recs[k],option) == -1){ 
 										tf++;
 										continue;
 								} 
@@ -2900,7 +2921,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest)
 							for(u = 0; u < src->fields[i].data.file.count;u++){
 								for(y = 0;y < dest->fields[i].data.file.count;y++){
 									if(compare_rec(&src->fields[i].data.file.recs[u],
-											&dest->fields[i].data.file.recs[y]) == -1){
+											&dest->fields[i].data.file.recs[y],option) == -1){
 										tf++;
 										continue;
 									}

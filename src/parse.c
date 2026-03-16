@@ -3092,7 +3092,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 	for (i = 0; i < rec_old[0]->count; i++) {
 		if (positions[i] != 'y' || positions[i] != 'e')	positions[i] = 'n';
 
-		int index = compare_rec(rec_old[i],rec);
+		int index = compare_rec(rec_old[i],rec,option);
 		if(index == E_RCMP){
 			positions[0] = '0';
 			return;
