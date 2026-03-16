@@ -921,7 +921,6 @@ unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, 
 
 unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struct Schema *sch)
 {
-
 	char names[MAX_FIELD_NR][MAX_FIELD_LT];
 	memset(names,0,MAX_FIELD_LT*MAX_FIELD_NR*sizeof(char));
 
@@ -997,15 +996,13 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 				fprintf(stderr," malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return 0;
 			}
-			memset(sch->fields_name[sch->fields_num],0,strlen(names[i]));
+			memset(sch->fields_name[sch->fields_num],0,strlen(names[i])+1);
 			strncpy(sch->fields_name[sch->fields_num],names[i],strlen(names[i]));
 			sch->types[sch->fields_num] = types_i[i];
 			sch->fields_num++;
 		}
-
 		return 1;
 	}
-
 
 	return 1;
 }
@@ -1463,7 +1460,13 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 								}
 							}
 
-							if(!is_array) return -1;
+							if(!is_array){ 
+								if(!p){
+									types_i[j] = sch->types[j];
+									break;
+								}
+								return -1;
+							}
 							types_i[j] = sch->types[j];
 							replace('@',',',(*values)[j]);
 							break;
@@ -2374,107 +2377,122 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 			break;
 			case TYPE_ARRAY_INT:
 			{
-				if(option == AAR){
-					int a;
-					for (a = 0; a < rec->fields[j].data.v.size; a++) {
-						rec_old[0]->fields[j].data.v.
-							insert((void *)&rec->fields[j].data.v.elements.i[a],
-									&rec_old[0]->fields[j].data.v, 
-									rec->fields[j].type);
+				if(rec_old[0]->field_set[j]){
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.i[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
+					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
+						/*check values*/
+						int a;
+						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+							if (rec_old[0]->fields[j].data.v.elements.i[a] == rec->fields[j].data.v.elements.i[a]) continue;
+
+							rec_old[0]->fields[j].data.v.elements.i[a] = rec->fields[j].data.v.elements.i[a];
+							changed = 1;
+						}
+					}else{
+						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						rec_old[0]->field_set[j] = 1;
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.i[a],
+										&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						}
+						changed = 1;
 					}
 					break;
 				}
-				if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-						if (rec_old[0]->fields[j].data.v.elements.i[a] == rec->fields[j].data.v.elements.i[a]) continue;
-
-						rec_old[0]->fields[j].data.v.elements.i[a] = rec->fields[j].data.v.elements.i[a];
-						changed = 1;
-					}
-				}else{
-					rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
-					rec_old[0]->field_set[j] = 1;
-					int a;
-					for (a = 0; a < rec->fields[j].data.v.size; a++) {
-						rec_old[0]->fields[j].data.v.
-							insert((void *)&rec->fields[j].data.v.elements.i[a],
-									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
-					}
-					changed = 1;
-				}
+				update_new = 1; 
 				break;
 			}
 			case TYPE_ARRAY_LONG:
 			{
-				if(option == AAR){
-					int a;
-					for (a = 0; a < rec->fields[j].data.v.size; a++) {
-						rec_old[0]->fields[j].data.v.
-							insert((void *)&rec->fields[j].data.v.elements.l[a],
-									&rec_old[0]->fields[j].data.v, 
-									rec->fields[j].type);
+				if(rec_old[0]->field_set[j]){
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.l[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
+					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
+						/*check values*/
+						int a;
+						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+							if (rec_old[0]->fields[j].data.v.elements.l[a] == rec->fields[j].data.v.elements.l[a])continue;
+
+							rec_old[0]->fields[j].data.v.elements.l[a] = rec->fields[j].data.v.elements.l[a];
+							changed = 1;
+						}
+					}else{
+						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						rec_old[0]->field_set[j] = 1;
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.l[a],
+									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						}
+						changed = 1;
 					}
 					break;
 				}
-				if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-						if (rec_old[0]->fields[j].data.v.elements.l[a] == rec->fields[j].data.v.elements.l[a])continue;
 
-						rec_old[0]->fields[j].data.v.elements.l[a] = rec->fields[j].data.v.elements.l[a];
-						changed = 1;
-					}
-				}else{
-					rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
-					rec_old[0]->field_set[j] = 1;
-					int a;
-					for (a = 0; a < rec->fields[j].data.v.size; a++) {
-						rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.l[a],
-								&rec_old[0]->fields[j].data.v, rec->fields[j].type);
-					}
-					changed = 1;
-				}
+				update_new = 1; 
 				break;
 			}
 			case TYPE_ARRAY_FLOAT:
 			{
-				if(option == AAR){
-					int a;
-					for (a = 0; a < rec->fields[j].data.v.size; a++) {
-						rec_old[0]->fields[j].data.v.
-							insert((void *)&rec->fields[j].data.v.elements.f[a],
-									&rec_old[0]->fields[j].data.v, 
-									rec->fields[j].type);
+
+				if(rec_old[0]->field_set[j]){
+					if(option == AAR){
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.
+								insert((void *)&rec->fields[j].data.v.elements.f[a],
+										&rec_old[0]->fields[j].data.v, 
+										rec->fields[j].type);
+						}
+						break;
+					}
+
+					if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
+						/*check values*/
+						int a;
+						for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
+							if (rec_old[0]->fields[j].data.v.elements.f[a] == rec->fields[j].data.v.elements.f[a])continue;
+
+							rec_old[0]->fields[j].data.v.elements.f[a] = rec->fields[j].data.v.elements.f[a];
+						}
+						changed = 1;
+					}else{
+						rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						rec_old[0]->field_set[j] = 1;
+						int a;
+						for (a = 0; a < rec->fields[j].data.v.size; a++) {
+							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.f[a],
+									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
+						}
+						changed = 1;
 					}
 					break;
 				}
-
-				if (rec_old[0]->fields[j].data.v.size == rec->fields[j].data.v.size){
-					/*check values*/
-					int a;
-					for (a = 0; a < rec_old[0]->fields[j].data.v.size; a++) {
-						if (rec_old[0]->fields[j].data.v.elements.f[a] == rec->fields[j].data.v.elements.f[a])continue;
-
-						rec_old[0]->fields[j].data.v.elements.f[a] = rec->fields[j].data.v.elements.f[a];
-					}
-					changed = 1;
-				}else{
-					rec_old[0]->fields[j].data.v.destroy(&rec_old[0]->fields[j].data.v, rec->fields[j].type);
-					rec_old[0]->field_set[j] = 1;
-					int a;
-					for (a = 0; a < rec->fields[j].data.v.size; a++) {
-							rec_old[0]->fields[j].data.v.insert((void *)&rec->fields[j].data.v.elements.f[a],
-									&rec_old[0]->fields[j].data.v, rec->fields[j].type);
-							}
-						changed = 1;
-					}
-						break;
-				}
-				case TYPE_ARRAY_BYTE:
-				{
+				update_new = 1;
+				break;
+			}
+			case TYPE_ARRAY_BYTE:
+			{
+				if(rec_old[0]->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2506,8 +2524,12 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 					break;
 				}
-				case TYPE_ARRAY_STRING:
-				{
+				update_new = 1;
+				break;
+			}
+			case TYPE_ARRAY_STRING:
+			{
+				if(rec_old[0]->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2550,8 +2572,12 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 					break;
 				}
-				case TYPE_ARRAY_DOUBLE:
-				{
+				update_new = 1;
+				break;
+				}
+			case TYPE_ARRAY_DOUBLE:
+			{
+				if(rec_old[0]->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2583,10 +2609,15 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 					break;
 				}
-				case TYPE_FILE:
-				{	
-					if(!rec_old[0]->fields[j].data.file.recs && rec_old[0]->fields[j].data.file.recs) {
+
+				update_new = 1;
+				break;
+			}
+			case TYPE_FILE:
+			{	
+					if(!rec_old[0]->field_set[j]){
 						update_new = 1;
+						break;
 					}
 
 					if(option == AAR){
