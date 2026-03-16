@@ -2421,19 +2421,27 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	int i;
 	for(i = 0; i < sch.fields_num;i++){
 		char *f = 0x0;
-		if(!(f = find_needle(buf,sch.fields_name[i]))) continue;
+		char single_char_field[3] = {0};
+		if(strlen(sch.fields_name[i]) == 1){
+			single_char_field[0] = *sch.fields_name[i];
+			single_char_field[1] = ':';
+			if(!(f = find_needle(buf,single_char_field)))
+				continue;
+		} else{
+			if(!(f = find_needle(buf,sch.fields_name[i]))) 
+				continue;
+		}
 
-		
-		
 		if(f == &buf[0]) {
 			while( *f != ':'){
 				*f = ' '; 
 				f++;
 			}
-			if(*f == ':') *f = ' ';
+			if(*f == ':')
+				*f = ' ';
+
 			continue;
 		}
-
 		f--;
 		/* 
 		 * if f is not ':' it means that 
@@ -2451,7 +2459,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		}else if(f != &buf[0]){
 			while(*f != ':' && f != &buf[0]) f--;
 			if(f == &buf[0] || *f == ':'){
-				
+
 				if (*f == ':') *f = ' ';
 				int size = 0;
 				if(f == &buf[0])
@@ -2515,7 +2523,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	char *delim_in_fields = 0x0;
 	i8 cont = 0;
 	while((delim_in_fields = find_needle(buf,delim))){
-		
+
 		int p = delim_in_fields - buf;
 		if(f_start[0] > -1 && f_end[0] > -1){
 			int i;
@@ -2549,7 +2557,7 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 	int i;	
 	for(i = 0; i < 200; i++){
 		if (pos[i] == -1) break;
-		
+
 		char *p = &buffer[pos[i]];
 		int count = 0;
 		int start = 0;
@@ -2562,7 +2570,7 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 				if(count == 0) end = p - buffer;
 				if(count == 1) start = p - buffer;
 				if(count == 2) start = p - buffer;
-				
+
 				if(count == 1){
 					char *type = 0x0;
 					if((type = find_needle(p,TYPE_))){
@@ -2575,7 +2583,7 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 				count++;
 			}
 		}
-	
+
 		if(p == &buffer[0])
 			string_copy(field, &buffer[start],end - start -1);
 		else
@@ -2598,7 +2606,7 @@ static int is_target_db_type(char *target)
 			char *e = find_needle(target,":");
 			if(e) size = e - target;
 		}
-	
+
 	}
 
 	if(size > 5) return -1;
@@ -2725,41 +2733,41 @@ void clear_tok()
 char *tok(char *str, char *delim)
 {
 
-        if(t_hndl.finish){
-			if(!str){
+	if(t_hndl.finish){
+		if(!str){
+			free(t_hndl.original_tok);
+			t_hndl.original_tok = 0x0;
+			t_hndl.finish = 0;
+			return 0x0;
+		}
+
+
+		size_t string_size = string_length(str);	
+		if(string_size != string_length(t_hndl.original_tok)){
+			free(t_hndl.original_tok);
+			t_hndl.original_tok = 0x0;
+			t_hndl.finish = 0;
+			goto tok_process;
+		}else{
+			replace('\n',*delim,t_hndl.original_tok);	
+			if(string_compare(str,t_hndl.original_tok,string_size,-1) == 0){
 				free(t_hndl.original_tok);
 				t_hndl.original_tok = 0x0;
 				t_hndl.finish = 0;
 				return 0x0;
-			}
-
-		
-			size_t string_size = string_length(str);	
-			if(string_size != string_length(t_hndl.original_tok)){
+			} else {
 				free(t_hndl.original_tok);
 				t_hndl.original_tok = 0x0;
 				t_hndl.finish = 0;
 				goto tok_process;
-			}else{
-				replace('\n',*delim,t_hndl.original_tok);	
-				if(string_compare(str,t_hndl.original_tok,string_size,-1) == 0){
-					free(t_hndl.original_tok);
-					t_hndl.original_tok = 0x0;
-					t_hndl.finish = 0;
-					return 0x0;
-				} else {
-					free(t_hndl.original_tok);
-					t_hndl.original_tok = 0x0;
-					t_hndl.finish = 0;
-					goto tok_process;
-				}
 			}
-			t_hndl.finish = 0;
-			if(!t_hndl.original_tok)
-				goto tok_process;
-
-			return 0x0;
 		}
+		t_hndl.finish = 0;
+		if(!t_hndl.original_tok)
+			goto tok_process;
+
+		return 0x0;
+	}
 
 tok_process:
 	if(!t_hndl.original_tok && !str) return 0x0;
@@ -2772,16 +2780,16 @@ tok_process:
 		t_hndl.original_tok = (char*)malloc(len + 1);		
 
 		if(!t_hndl.original_tok){
-				display_to_stdout("malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
-				return 0x0;
+			display_to_stdout("malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
+			return 0x0;
 		}
-		
+
 		set_memory(t_hndl.original_tok,0,len+1);
 		string_copy(t_hndl.original_tok,str,len);
 		string_copy(t_hndl.delim,delim,string_length(delim));
 		t_hndl.last = t_hndl.original_tok;
 	}
-	
+
 	if(string_compare(t_hndl.delim,delim,string_length(t_hndl.delim),-1) != 0) {
 		free(t_hndl.original_tok);
 		t_hndl.original_tok = 0x0;
