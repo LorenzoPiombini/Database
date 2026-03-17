@@ -534,7 +534,8 @@ int update_rec(char *file_path,
 		struct Header_d hd,
 		int check,
 		int *lock_f, 
-		char *options)
+		char *options,
+		int index)
 {
 	struct Record_f rec_old;
 	memset(&rec_old,0,sizeof(struct Record_f));
@@ -551,7 +552,7 @@ int update_rec(char *file_path,
 	}
 
 	i8 err = 0;
-	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds,-1)) == -1){
+	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds,index)) == -1){
 		return -1;
 	}
 
@@ -574,7 +575,6 @@ int update_rec(char *file_path,
 			i++;
 			recs[i] = temp;
 		}
-
 	}
 
 	/*used to return proper value in case of nothing to update*/

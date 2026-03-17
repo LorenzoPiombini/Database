@@ -3,6 +3,7 @@ SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, obj/%.o, $(SRC))
 OBJ_PROD = $(patsubst src/%.c, obj/%_prod.o, $(SRC))
 
+OBJlibdate = obj/date.o 
 OBJlibht = obj/debug.o  obj/hash_tbl.o
 OBJlibhtPR = obj/debug_prod.o  obj/hash_tbl_prod.o 
 OBJlibf = obj/debug.o  obj/file.o  obj/endian.o 
@@ -31,6 +32,11 @@ LIBNAMEht = ht
 LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBht = lib$(LIBNAMEht).so
+
+LIBNAMEdate = date
+LIBDIR = /usr/local/lib
+INCLUDEDIR = /usr/local/include
+SHAREDLIBdate = lib$(LIBNAMEdate).so
 
 LIBNAMEcrud = crud
 LIBDIR = /usr/local/lib
@@ -92,6 +98,7 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
 	sudo gcc -Wall -fPIC -shared -llua5.4 -o $(SHAREDLIBexpl) $(OBJlibexpl)
+	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBdate) $(OBJlibdate)
 
 libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBht) $(OBJlibhtPR)
@@ -209,8 +216,16 @@ $(BINDIR)/UPDATE:
 		echo "echo \"Usage: UPDATE [file name] [fields name and type] [key]\"" >> $@; \
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
+		echo "if [ -n \"\$$4\" ] && [ -n \"\$$5\" ]; then" >> $@; \
+		echo "	$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" -o \"\$$4\"  -x \"\$$5\" " >> $@; \
+		echo "	exit 0" >> $@; \
+		echo "fi" >> $@; \
 		echo "if [ -n \"\$$4\" ]; then" >> $@; \
-		echo "	$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" -o \"\$$4\" " >> $@; \
+		echo "	if [[ \"\$$4\" =~ ^[0-9]+\$$ ]]; then" >> $@; \
+		echo "		$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" -x \"\$$4\" " >> $@; \
+		echo " 	else" >> $@; \
+		echo "		$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\" -o \"\$$4\" " >> $@; \
+		echo "	fi" >> $@; \
 		echo "	exit 0" >> $@; \
 		echo "fi" >> $@; \
 		echo "$(TARGET) -uf \"\$$1\" -a \"\$$2\" -k \"\$$3\"" >> $@; \
@@ -266,7 +281,7 @@ $(BINDIR)/DELa:
 
 install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
+	install -m 644 include/date.h lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
@@ -275,6 +290,7 @@ install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $
 	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
 	install -m 755 $(SHAREDLIBl) $(LIBDIR)
 	install -m 755 $(SHAREDLIBexpl) $(LIBDIR)
+	install -m 755 $(SHAREDLIBdate) $(LIBDIR)
 	ldconfig
 	
 
