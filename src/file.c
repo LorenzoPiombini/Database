@@ -1153,6 +1153,13 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 		{
 			if (!update)
 			{
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				/*write the size of the array */
 				ui32 size_ne = swap32((ui32)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
@@ -1198,6 +1205,14 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 				int sz = 0;
 				int k = 0;
 				int padding_value = 0;
+
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				do
 				{
 					/* check the size */
@@ -1630,6 +1645,13 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 		{
 			if (!update)
 			{
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				/*write the size of the array */
 				ui32 size_ne = swap32((ui32)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
@@ -1672,6 +1694,14 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 				int sz = 0;
 				int k = 0;
 				int padding_value = 0;
+
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				do
 				{
 					/* check the size */
@@ -2090,6 +2120,11 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 		{
 			if (!update)
 			{
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
 				/*write the size of the array */
 				ui32 size_ne = swap32((ui32)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
@@ -2132,6 +2167,14 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 				int sz = 0;
 				int k = 0;
 				int padding_value = 0;
+
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				do
 				{
 					/* check the size */
@@ -2556,6 +2599,11 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 		{
 			if (!update)
 			{
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
 				/*write the size of the array */
 				ui32 size_ne = swap32((ui32)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
@@ -2615,6 +2663,13 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 				int sz = 0;
 				int k = 0;
 				int padding_value = 0;
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				do
 				{
 					/* check the size */
@@ -3745,6 +3800,11 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 		{
 			if (!update)
 			{
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
 				/*write the size of the array */
 				ui32 size_ne = swap32((ui32)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
@@ -3787,6 +3847,14 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 				int sz = 0;
 				int k = 0;
 				int padding_value = 0;
+
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				do
 				{
 					/* check the size */
@@ -4211,6 +4279,11 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 		{
 			if (!update)
 			{
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
 				/*write the size of the array */
 				ui32 size_ne = swap32((ui32)rec->fields[i].data.v.size);
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
@@ -4253,6 +4326,14 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 				int sz = 0;
 				int k = 0;
 				int padding_value = 0;
+
+				ui8 set = (ui8) rec->fields[i].data.v.is_set;
+				if (write(fd, &set, sizeof(set)) == -1){
+					perror("error in writing size array to file.\n");
+					return 0;
+				}
+
+
 				do
 				{
 					/* check the size */
@@ -7890,13 +7971,14 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int step = 0;
 						int padding = 0;
 
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+						ram->offset++;
+
+
 						do{
 
-							ui8 set = (ui8) rec->fields[i].data.v.is_set;
-							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
-							ram->offset++;
-
-							/*check size of the array on file*/
+											/*check size of the array on file*/
 							ui32 sz_ne = 0; 
 							memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(ui32));
 							ram->offset += sizeof(ui32);
@@ -8220,11 +8302,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int step = 0;
 						int padding = 0;
 
-						do{
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+						ram->offset++;
 
-							ui8 set = (ui8) rec->fields[i].data.v.is_set;
-							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
-							ram->offset++;
+						do{
 
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
@@ -8556,11 +8638,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int step = 0;
 						int padding = 0;
 
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+						ram->offset++;
+
 						do{
 
-							ui8 set = (ui8) rec->fields[i].data.v.is_set;
-							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
-							ram->offset++;
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
 							memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(ui32));
@@ -8887,11 +8970,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int step = 0;
 						int padding = 0;
 
-						do{
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+						ram->offset++;
 
-							ui8 set = (ui8) rec->fields[i].data.v.is_set;
-							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
-							ram->offset++;
+						do{
 
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
@@ -9226,11 +9309,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int step = 0;
 						int padding = 0;
 
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+						ram->offset++;
+
 						do{
 
-							ui8 set = (ui8) rec->fields[i].data.v.is_set;
-							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
-							ram->offset++;
 
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
