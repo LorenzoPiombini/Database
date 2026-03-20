@@ -55,20 +55,38 @@ char *type_to_str(int type)
 	case TYPE_ARRAY_INT:
 		memcpy(str_type,"TYPE_ARRAY_INT",strlen("TYPE_ARRAY_INT"));
 		return &str_type[0];
+	case TYPE_SET_INT:
+		memcpy(str_type,"TYPE_SET_INT",strlen("TYPE_SET_INT"));
+		return &str_type[0];
 	case TYPE_ARRAY_LONG:
 		memcpy(str_type,"TYPE_ARRAY_LONG",strlen("TYPE_ARRAY_LONG"));
+		return &str_type[0];
+	case TYPE_SET_LONG:
+		memcpy(str_type,"TYPE_SET_LONG",strlen("TYPE_SET_LONG"));
 		return &str_type[0];
 	case TYPE_ARRAY_FLOAT:
 		memcpy(str_type,"TYPE_ARRAY_FLOAT",strlen("TYPE_ARRAY_FLOAT"));
 		return &str_type[0];
+	case TYPE_SET_FLOAT:
+		memcpy(str_type,"TYPE_SET_FLOAT",strlen("TYPE_SET_FLOAT"));
+		return &str_type[0];
 	case TYPE_ARRAY_STRING:
 		memcpy(str_type,"TYPE_ARRAY_STRING",strlen("TYPE_ARRAY_STRING"));
+		return &str_type[0];
+	case TYPE_SET_STRING:
+		memcpy(str_type,"TYPE_SET_STRING",strlen("TYPE_SET_STRING"));
 		return &str_type[0];
 	case TYPE_ARRAY_BYTE:
 		memcpy(str_type,"TYPE_ARRAY_BYTE",strlen("TYPE_ARRAY_BYTE"));
 		return &str_type[0];
+	case TYPE_SET_BYTE:
+		memcpy(str_type,"TYPE_SET_BYTE",strlen("TYPE_SET_BYTE"));
+		return &str_type[0];
 	case TYPE_ARRAY_DOUBLE:
 		memcpy(str_type,"TYPE_ARRAY_DOUBLE",strlen("TYPE_ARRAY_DOUBLE"));
+		return &str_type[0];
+	case TYPE_SET_DOUBLE:
+		memcpy(str_type,"TYPE_SET_DOUBLE",strlen("TYPE_SET_DOUBLE"));
 		return &str_type[0];
 	case TYPE_FILE:
 		memcpy(str_type,"TYPE_FILE",strlen("TYPE_FILE"));
@@ -1034,13 +1052,17 @@ unsigned char set_field(struct Record_f *rec,
 	}
 	case TYPE_INT:
 	case TYPE_ARRAY_INT:
+	case TYPE_SET_INT:
 	{
-		if (type == TYPE_ARRAY_INT) {
+		if (type == TYPE_ARRAY_INT || type == TYPE_SET_INT) {
 			if (!rec->fields[index].data.v.elements.i)
 			{
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
+
+			if(type == TYPE_SET_INT)
+				rec->fields[index].data.v.is_set = 1;
 
 			char *t = tok(value, ",");
 			while (t)
@@ -1108,13 +1130,17 @@ unsigned char set_field(struct Record_f *rec,
 	}
 	case TYPE_LONG:
 	case TYPE_ARRAY_LONG:
+	case TYPE_SET_LONG:
 	{
 
-		if (type == TYPE_ARRAY_LONG){
+		if (type == TYPE_ARRAY_LONG || type == TYPE_SET_LONG){
 			if (!rec->fields[index].data.v.elements.l) {
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
+
+			if(type == TYPE_SET_LONG)
+				rec->fields[index].data.v.is_set = 1;
 
 			char *t = tok(value, ",");
 			while (t){
@@ -1166,13 +1192,17 @@ unsigned char set_field(struct Record_f *rec,
 	}
 	case TYPE_FLOAT:
 	case TYPE_ARRAY_FLOAT:
+	case TYPE_SET_FLOAT:
 	{
-		if (type == TYPE_ARRAY_FLOAT)
+		if (type == TYPE_ARRAY_FLOAT || type == TYPE_SET_FLOAT)
 		{
 			if (!rec->fields[index].data.v.elements.f){
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
+
+			if(type == TYPE_SET_FLOAT)
+				rec->fields[index].data.v.is_set = 1;
 
 			char *t = tok(value, ",");
 			while (t){
@@ -1292,14 +1322,18 @@ unsigned char set_field(struct Record_f *rec,
 	}
 	case TYPE_STRING:
 	case TYPE_ARRAY_STRING:
+	case TYPE_SET_STRING:
 	{
-		if (type == TYPE_ARRAY_STRING)
+		if (type == TYPE_ARRAY_STRING || type == TYPE_SET_STRING)
 		{
 			if (!rec->fields[index].data.v.elements.s)
 			{
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
+
+			if(type == TYPE_SET_STRING)
+				rec->fields[index].data.v.is_set = 1;
 
 			char *t = tok(value, ",");
 			while (t) {
@@ -1317,8 +1351,9 @@ unsigned char set_field(struct Record_f *rec,
 	}
 	case TYPE_BYTE:
 	case TYPE_ARRAY_BYTE:
+	case TYPE_SET_BYTE:
 	{
-		if (type == TYPE_ARRAY_BYTE)
+		if (type == TYPE_ARRAY_BYTE || type == TYPE_SET_BYTE)
 		{
 			if (!rec->fields[index].data.v.elements.b)
 			{
@@ -1326,17 +1361,18 @@ unsigned char set_field(struct Record_f *rec,
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
 
+			if(type == TYPE_SET_BYTE)
+				rec->fields[index].data.v.is_set = 1;
+
 			char *t = tok(value, ",");
 			while (t)
 			{
-
 				if(strlen(t) == 1){
 					char c = *t;
 					if(isalpha(c)){	
 						char p = tolower(c);
 						if(p == 'n') t = "0";
 						if(p == 'y') t = "1";
-
 					}
 				}
 
@@ -1437,14 +1473,18 @@ unsigned char set_field(struct Record_f *rec,
 	}
 	case TYPE_DOUBLE:
 	case TYPE_ARRAY_DOUBLE:
+	case TYPE_SET_DOUBLE:
 	{
-		if (type == TYPE_ARRAY_DOUBLE)
+		if (type == TYPE_ARRAY_DOUBLE || type == TYPE_SET_DOUBLE)
 		{
 			if (!rec->fields[index].data.v.elements.d)
 			{
 				rec->fields[index].data.v.insert = insert_element;
 				rec->fields[index].data.v.destroy = free_dynamic_array;
 			}
+
+			if(type == TYPE_SET_DOUBLE)
+				rec->fields[index].data.v.is_set = 1;
 
 			char *t = tok(value, ",");
 			while (t)
@@ -1637,6 +1677,11 @@ void free_record(struct Record_f *rec, int fields_num)
 		case TYPE_ARRAY_STRING:
 		case TYPE_ARRAY_BYTE:
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_INT:
+		case TYPE_SET_LONG:
+		case TYPE_SET_FLOAT:
+		case TYPE_SET_STRING:
+		case TYPE_SET_BYTE:
 			if(rec->fields[i].data.v.destroy)
 				rec->fields[i].data.v.destroy(&rec->fields[i].data.v, 
 							rec->fields[i].type);
@@ -1748,6 +1793,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 			printf("%.2f\n", rec.fields[i].data.d);
 			break;
 		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
 		{
 			int k;
 			for (k = 0; k < rec.fields[i].data.v.size; k++){
@@ -1764,6 +1810,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 			break;
 		}
 		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
 		{
 					int k;
 					for (k = 0; k < rec.fields[i].data.v.size; k++)
@@ -1780,6 +1827,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 					break;
 			}
 		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
 		{
 			int k;
 			for (k = 0; k < rec.fields[i].data.v.size; k++)
@@ -1796,6 +1844,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 			break;
 		}
 		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
 		{
 			int k;
 			for (k = 0; k < rec.fields[i].data.v.size; k++)
@@ -1813,6 +1862,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 			break;
 		}
 		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
 		{
 			int k;
 			for (k = 0; k < rec.fields[i].data.v.size; k++)
@@ -1829,6 +1879,7 @@ static void display_data(struct Record_f rec, int max,int tab)
 			break;
 		}
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
 		{
 			int k;
 			for (k = 0; k < rec.fields[i].data.v.size; k++)
@@ -2023,6 +2074,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			}
 			break;
 		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
 			memset(data, 0, 30);
 			if (copy_to_string(data, 30, "%d", src->fields[i].data.v.elements.i[0]) < 0)
 			{
@@ -2047,6 +2099,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 
 			break;
 		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
 		{
 			memset(data, 0, 30);
 			if (copy_to_string(data, 30, "%d", src->fields[i].data.v.elements.b[0]) < 0) {
@@ -2071,6 +2124,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		}
 		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
 		{
 			memset(data, 0, 30);
 			if (copy_to_string(data, 30, "%ld", src->fields[i].data.v.elements.l[0]) < 0) {
@@ -2095,6 +2149,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		}
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
 		{
 			memset(data, 0, 30);
 			if (copy_to_string(data, 30, "%.2f", src->fields[i].data.v.elements.d[0]) < 0) {
@@ -2119,6 +2174,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		}
 		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
 		{
 			memset(data, 0, 30);
 			if (copy_to_string(data, 30, "%.2f", src->fields[i].data.v.elements.f[0]) < 0)
@@ -2144,6 +2200,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			break;
 		}
 		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
 		{
 			if (!set_field(dest, i, src->fields[i].field_name,
 						   src->fields[i].type, 
@@ -2248,6 +2305,7 @@ int init_array(struct array **v, enum ValueType type)
 	(*(*v)).size = DEF_SIZE;
 	switch (type){
 	case TYPE_ARRAY_INT:
+	case TYPE_SET_INT:
 	{
 			(*(*v)).elements.i = (int*)malloc(DEF_SIZE * sizeof(int));
 			if (!(*(*v)).elements.i){
@@ -2259,6 +2317,7 @@ int init_array(struct array **v, enum ValueType type)
 			break;
 		}
 	case TYPE_ARRAY_LONG:
+	case TYPE_SET_LONG:
 	{
 			(*(*v)).elements.l = (long*)malloc(DEF_SIZE * sizeof(long));
 			if (!(*(*v)).elements.l)
@@ -2270,6 +2329,7 @@ int init_array(struct array **v, enum ValueType type)
 			break;
 	}
 	case TYPE_ARRAY_FLOAT:
+	case TYPE_SET_FLOAT:
 	{
 		(*(*v)).elements.f = (float*)malloc(DEF_SIZE * sizeof(float));
 		if (!(*(*v)).elements.f){
@@ -2280,6 +2340,7 @@ int init_array(struct array **v, enum ValueType type)
 		break;
 	}
 	case TYPE_ARRAY_STRING:
+	case TYPE_SET_STRING:
 	{
 		(*(*v)).elements.s = (char**)malloc(DEF_SIZE*sizeof(char *));
 		if (!(*(*v)).elements.s)
@@ -2291,6 +2352,7 @@ int init_array(struct array **v, enum ValueType type)
 		break;
 	}
 	case TYPE_ARRAY_BYTE:
+	case TYPE_SET_BYTE:
 	{
 		(*(*v)).elements.b = (unsigned char*)malloc(DEF_SIZE * sizeof(unsigned char));
 		if (!(*(*v)).elements.b)
@@ -2301,7 +2363,7 @@ int init_array(struct array **v, enum ValueType type)
 		memset((*(*v)).elements.b,0,sizeof(unsigned char) * DEF_SIZE);
 		break;
 	}
-	case TYPE_ARRAY_DOUBLE:
+	case TYPE_SET_DOUBLE:
 	{
 		(*(*v)).elements.d = (double*)malloc(DEF_SIZE * sizeof(double));
 		if (!(*(*v)).elements.d)
@@ -2319,12 +2381,60 @@ int init_array(struct array **v, enum ValueType type)
 	return 0;
 }
 
+int is_element_in_set(void *element,struct array *v,enum ValueType type)
+{
+
+	int i;
+	switch(type){
+	case TYPE_SET_INT:
+		for(i = 0; i < (*v).size; i++){
+			if((*v).elements.i[i] == *(int*) element)
+				return 1;
+		}
+		break;
+	case TYPE_SET_BYTE:
+		for(i = 0; i < (*v).size; i++){
+			if((*v).elements.b[i] == *(unsigned char*) element)
+				return 1;
+		}
+		break;
+	case TYPE_SET_LONG:
+		for(i = 0; i < (*v).size; i++){
+			if((*v).elements.l[i] == *(long*) element)
+				return 1;
+		}
+		break;
+	case TYPE_SET_FLOAT:
+		for(i = 0; i < (*v).size; i++){
+			if((*v).elements.f[i] == *(float*) element)
+				return 1;
+		}
+		break;
+	case TYPE_SET_DOUBLE:
+		for(i = 0; i < (*v).size; i++){
+			if((*v).elements.d[i] == *(double*) element)
+				return 1;
+		}
+		break;
+	case TYPE_SET_STRING:
+		for(i = 0; i < (*v).size; i++){
+			if(strncmp((*v).elements.s[i],(char*)element,strlen((char*)element)) == 0)
+				return 1;
+		}
+		break;
+	default:
+		fprintf(stderr, "(db): array type not supperted\n");
+		return 1;
+	}
+
+	return 0;
+}
 int insert_element(void *element, struct array *v, enum ValueType type)
 {
 
-	switch (type)
-	{
+	switch (type){
 	case TYPE_ARRAY_INT:
+	case TYPE_SET_INT:
 	{
 		/*check if the array has been initialized */
 		if (!(*v).elements.i)
@@ -2336,6 +2446,10 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 			}
 		}
 
+		if((*v).is_set){
+			if(is_element_in_set(element,v,type))
+				return -1;
+		}
 		/*check if there is enough space for new item */
 		if (!(*v).elements.i[(*v).size - 1])
 		{
@@ -2365,6 +2479,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		return 0;
 	}
 	case TYPE_ARRAY_LONG:
+	case TYPE_SET_LONG:
 	{
 		/*check if the array has been initialized */
 		if (!(*v).elements.l)
@@ -2374,6 +2489,11 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				fprintf(stderr, "init array failed.\n");
 				return -1;
 			}
+		}
+
+		if((*v).is_set){
+			if(is_element_in_set(element,v,type))
+				return -1;
 		}
 
 		/*check if there is enough space for new item */
@@ -2404,6 +2524,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		return 0;
 	}
 	case TYPE_ARRAY_FLOAT:
+	case TYPE_SET_FLOAT:
 	{
 		/*check if the array has been initialized */
 		if (!(*v).elements.f)
@@ -2414,6 +2535,12 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				return -1;
 			}
 		}
+
+		if((*v).is_set){
+			if(is_element_in_set(element,v,type))
+				return -1;
+		}
+
 
 		/*check if there is enough space for new item */
 		if (!(*v).elements.f[(*v).size - 1])
@@ -2441,6 +2568,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		return 0;
 	}
 	case TYPE_ARRAY_STRING:
+	case TYPE_SET_STRING:
 	{
 		/*check if the array has been initialized */
 		if (!(*v).elements.s){
@@ -2450,6 +2578,12 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				return -1;
 			}
 		}
+
+		if((*v).is_set){
+			if(is_element_in_set(element,v,type))
+				return -1;
+		}
+
 
 		/*check if there is enough space for new item */
 		if (!(*v).elements.s[(*v).size - 1])
@@ -2498,6 +2632,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		return 0;
 	}
 	case TYPE_ARRAY_BYTE:
+	case TYPE_SET_BYTE:
 	{
 		/*check if the array has been initialized */
 		if (!(*v).elements.b)
@@ -2507,6 +2642,11 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				fprintf(stderr, "init array failed.\n");
 				return -1;
 			}
+		}
+
+		if((*v).is_set){
+			if(is_element_in_set(element,v,type))
+				return -1;
 		}
 
 		/*check if there is enough space for new item */
@@ -2539,6 +2679,7 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 		return 0;
 	}
 	case TYPE_ARRAY_DOUBLE:
+	case TYPE_SET_DOUBLE:
 	{
 		/*check if the array has been initialized */
 		if (!(*v).elements.d)
@@ -2549,6 +2690,12 @@ int insert_element(void *element, struct array *v, enum ValueType type)
 				return -1;
 			}
 		}
+
+		if((*v).is_set){
+			if(is_element_in_set(element,v,type))
+				return -1;
+		}
+
 
 		/*check if there is enough space for new item */
 		if (!(*v).elements.d[(*v).size - 1])
@@ -2591,6 +2738,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 	switch (type)
 	{
 	case TYPE_ARRAY_INT:
+	case TYPE_SET_INT:
 	{
 		free(v->elements.i);
 		v->elements.i = NULL;
@@ -2598,12 +2746,14 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		break;
 	}
 	case TYPE_ARRAY_LONG:
+	case TYPE_SET_LONG:
 	{
 		free(v->elements.l);
 		v->elements.l = NULL;
 		v->size = 0;
 		break;
 	}
+	case TYPE_SET_FLOAT:
 	case TYPE_ARRAY_FLOAT:
 	{
 		free(v->elements.f);
@@ -2612,6 +2762,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		break;
 	}
 	case TYPE_ARRAY_STRING:
+	case TYPE_SET_STRING:
 	{
 		int i;
 		for (i = 0; i < v->size; i++){
@@ -2624,6 +2775,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		v->size = 0;
 		break;
 	}
+	case TYPE_SET_BYTE:
 	case TYPE_ARRAY_BYTE:
 	{
 		free(v->elements.b);
@@ -2631,6 +2783,7 @@ void free_dynamic_array(struct array *v, enum ValueType type)
 		v->size = 0;
 		break;
 	}
+	case TYPE_SET_DOUBLE:
 	case TYPE_ARRAY_DOUBLE:
 	{
 		free(v->elements.d);
@@ -2711,6 +2864,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest,int option)
 					return i;
 				}
 				case TYPE_ARRAY_INT:
+				case TYPE_SET_INT:
 				{	
 					if(option == AAR){
 						return i;
@@ -2743,6 +2897,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest,int option)
 					break;
 				}
 				case TYPE_ARRAY_LONG:
+				case TYPE_SET_LONG:
 				{
 					if(option == AAR){
 						return i;
@@ -2773,6 +2928,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest,int option)
 					break;
 				}
 				case TYPE_ARRAY_BYTE:
+				case TYPE_SET_BYTE:
 				{
 					if(option == AAR){
 						return i;
@@ -2802,7 +2958,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest,int option)
 					}
 					break;
 				}
-				case TYPE_ARRAY_FLOAT:
+				case TYPE_SET_FLOAT:
 				{
 					if(option == AAR){
 						return i;
@@ -2833,6 +2989,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest,int option)
 					break;
 				}
 				case TYPE_ARRAY_DOUBLE:
+				case TYPE_SET_DOUBLE:
 				{
 					if(option == AAR){
 						return i;
@@ -2863,6 +3020,7 @@ int compare_rec(struct Record_f *src, struct Record_f *dest,int option)
 					break;
 				}
 				case TYPE_ARRAY_STRING:
+				case TYPE_SET_STRING:
 				{
 					if(option == AAR){
 						return i;
@@ -3248,10 +3406,15 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 					break;
 				}
 				case TYPE_ARRAY_INT:
+				case TYPE_SET_INT:
 				case TYPE_ARRAY_LONG:
+				case TYPE_SET_LONG:
 				case TYPE_ARRAY_BYTE:
+				case TYPE_SET_BYTE:
 				case TYPE_ARRAY_FLOAT:
+				case TYPE_SET_FLOAT:
 				case TYPE_ARRAY_DOUBLE:
+				case TYPE_SET_DOUBLE:
 				case TYPE_FILE:
 				default:
 				break;

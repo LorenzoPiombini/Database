@@ -1062,7 +1062,13 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 					types_i[i] != TYPE_ARRAY_FLOAT &&
 					types_i[i] != TYPE_ARRAY_STRING &&
 					types_i[i] != TYPE_ARRAY_BYTE &&
-					types_i[i] != TYPE_ARRAY_DOUBLE) {
+					types_i[i] != TYPE_ARRAY_DOUBLE && 
+					types_i[i] != TYPE_SET_INT &&
+					types_i[i] != TYPE_SET_LONG &&
+					types_i[i] != TYPE_SET_FLOAT &&
+					types_i[i] != TYPE_SET_STRING &&
+					types_i[i] != TYPE_SET_BYTE &&
+					types_i[i] != TYPE_SET_DOUBLE) {
 				printf("invalid input.\n");
 				printf("input syntax: fieldName:TYPE:value\n");
 				return 0;
@@ -1228,22 +1234,28 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 					continue;
 				}else if(is_number_array(sch->types[i])){
 					switch(sch->types[i]){
+					case TYPE_SET_BYTE:
+					case TYPE_SET_INT:
+					case TYPE_SET_LONG:
 					case TYPE_ARRAY_BYTE:
 					case TYPE_ARRAY_INT:
 					case TYPE_ARRAY_LONG:
 					{
-						if(sch->types[i] == TYPE_ARRAY_LONG && types_i[i] == TYPE_LONG && 
-									(option == AAR || option == FRC)){
+						if((sch->types[i] == TYPE_ARRAY_LONG || sch->types[i] == TYPE_SET_LONG)
+								&& types_i[i] == TYPE_LONG 
+								&& (option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
-						if(sch->types[i] == TYPE_ARRAY_INT && types_i[i] == TYPE_INT && 
-									(option == AAR || option == FRC)){
+						if((sch->types[i] == TYPE_ARRAY_INT || sch->types[i] == TYPE_SET_INT)
+								&& types_i[i] == TYPE_INT 
+								&& (option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
-						if(sch->types[i] == TYPE_ARRAY_BYTE && types_i[i] == TYPE_BYTE && 
-									(option == AAR || option == FRC)){
+						if((sch->types[i] == TYPE_ARRAY_BYTE || sch->types[i] == TYPE_SET_BYTE)
+								&& types_i[i] == TYPE_BYTE 
+								&& (option == AAR || option == FRC)){
 							types_i[i] = sch->types[i];
 							break;
 						}
@@ -1261,10 +1273,12 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 								int result = 0;
 								if((result = is_number_in_limits(num)) == 0)
 									return -1;
-								if(sch->types[i] == TYPE_ARRAY_INT){
+								if(sch->types[i] == TYPE_ARRAY_INT 
+										|| sch->types[i] == TYPE_SET_INT){
 									if(result == IN_INT) continue;
 									return -1;
-								}else if(sch->types[i] == TYPE_ARRAY_LONG){
+								}else if(sch->types[i] == TYPE_ARRAY_LONG 
+										|| sch->types[i] == TYPE_SET_LONG){
 									if(result == IN_INT || result == IN_LONG)
 										continue;
 									return -1;
@@ -1274,27 +1288,35 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 							int start = index;
 							index = p - (*values)[i];
 							size_t sz = index-start;
-							if(sz == 1) sz++;
+							if(sz == 1) 
+								sz++;
+
 							char num[sz];
 							memset(num,0,sz);
 							strncpy(num,&(*values)[i][start+1],sz-1);
-							if(!is_integer(num)) return -1;
+							if(!is_integer(num))
+								return -1;
+
 							int result = 0;
 							if((result = is_number_in_limits(num)) == 0)
 								return -1;
-							if(sch->types[i] == TYPE_ARRAY_INT){
+							if(sch->types[i] == TYPE_ARRAY_INT
+										|| sch->types[i] == TYPE_SET_INT){
 								if(result == IN_INT) continue;
 								return -1;
-							}else if(sch->types[i] == TYPE_ARRAY_LONG){
+							}else if(sch->types[i] == TYPE_ARRAY_LONG
+										|| sch->types[i] == TYPE_SET_LONG){
 								if(result == IN_INT || result == IN_LONG)
 									continue;
 
 								return -1;
-							}else if(sch->types[i] == TYPE_ARRAY_BYTE){
+							}else if(sch->types[i] == TYPE_ARRAY_BYTE 
+									|| sch->types[i] == TYPE_SET_BYTE){
 								/*
 								 * type byte is a number stored in 
 								 * exactly 1 byte(unsigned) so it can't be bigger 
-								 * than 2^7 * 2 (it can't be negative)
+								 * than 2^7 * 2  
+								 * and it can't be negative
 								 *  
 								 * */
 								errno = 0;
@@ -1309,6 +1331,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						replace('@',',',(*values)[i]);
 						break;
 					}
+					case TYPE_SET_DOUBLE:
 					case TYPE_ARRAY_DOUBLE:
 					{
 						if(types_i[i] == TYPE_DOUBLE && (option == AAR || option == FRC)){
@@ -1317,6 +1340,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						}
 						return -1;
 					}
+					case TYPE_SET_FLOAT:
 					case TYPE_ARRAY_FLOAT:
 					{
 						if(types_i[i] == TYPE_FLOAT && (option == AAR || option == FRC)){
@@ -1383,22 +1407,28 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 						}
 					}else if(is_number_array(sch->types[j])){
 						switch(sch->types[j]){
+						case TYPE_SET_BYTE:
+						case TYPE_SET_INT:
+						case TYPE_SET_LONG:
 						case TYPE_ARRAY_INT:
 						case TYPE_ARRAY_BYTE:
 						case TYPE_ARRAY_LONG:
 						{
-							if(sch->types[j] == TYPE_ARRAY_LONG && types_i[j] == TYPE_LONG && 
-									(option == AAR || option == FRC)){
+							if((sch->types[j] == TYPE_ARRAY_LONG || sch->types[j] == TYPE_SET_LONG)
+									&& types_i[j] == TYPE_LONG 
+									&& (option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
-							if(sch->types[j] == TYPE_ARRAY_INT && types_i[j] == TYPE_INT && 
-									(option == AAR || option == FRC)){
+							if((sch->types[j] == TYPE_ARRAY_INT || sch->types[j] == TYPE_SET_INT)
+									&& types_i[j] == TYPE_INT 
+									&& (option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
-							if(sch->types[j] == TYPE_ARRAY_BYTE && types_i[j] == TYPE_BYTE && 
-									(option == AAR || option == FRC)){
+							if((sch->types[j] == TYPE_ARRAY_BYTE || sch->types[j] == TYPE_SET_BYTE)
+									&& types_i[j] == TYPE_BYTE
+									&& (option == AAR || option == FRC)){
 								types_i[j] = sch->types[j];
 								break;
 							}
@@ -1419,10 +1449,10 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 									int result = 0;
 									if((result = is_number_in_limits(num)) == 0)
 										return -1;
-									if(sch->types[j] == TYPE_ARRAY_INT){
+									if(sch->types[j] == TYPE_ARRAY_INT || sch->types[j] == TYPE_SET_INT){
 										if(result == IN_INT) continue;
 										return -1;
-									}else if(sch->types[j] == TYPE_ARRAY_LONG){
+									}else if(sch->types[j] == TYPE_ARRAY_LONG || sch->types[j] == TYPE_SET_LONG){
 										if(result == IN_INT || result == IN_LONG)
 											continue;
 
@@ -1441,15 +1471,15 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 								int result = 0;
 								if((result = is_number_in_limits(num)) == 0)
 									return -1;
-								if(sch->types[j] == TYPE_ARRAY_INT){
+								if(sch->types[j] == TYPE_ARRAY_INT || sch->types[j] == TYPE_SET_INT){
 									if(result == IN_INT) continue;
 									return -1;
-								}else if(sch->types[j] == TYPE_ARRAY_LONG){
+								}else if(sch->types[j] == TYPE_ARRAY_LONG || sch->types[j] == TYPE_SET_LONG){
 									if(result == IN_INT || result == IN_LONG)
 										continue;
 
 									return -1;
-								}else if(sch->types[j] == TYPE_ARRAY_BYTE){
+								}else if(sch->types[j] == TYPE_ARRAY_BYTE || sch->types[j] == TYPE_SET_BYTE){
 									errno = 0;
 									long l = string_to_long(num);
 									if(errno == 0){ 
@@ -1472,6 +1502,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 							break;
 						}
 
+						case TYPE_SET_DOUBLE:
 						case TYPE_ARRAY_DOUBLE:
 						{
 							if(types_i[j] == TYPE_DOUBLE && 
@@ -1481,6 +1512,7 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 							}
 							return -1;
 						}
+						case TYPE_SET_FLOAT:
 						case TYPE_ARRAY_FLOAT:
 						{
 							if(types_i[j] == TYPE_FLOAT && 
@@ -2376,8 +2408,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 			}
 			break;
 			case TYPE_ARRAY_INT:
+			case TYPE_SET_INT:
 			{
-				if(rec_old[0]->field_set[j]){
+				if(rec_old[0]->field_set[j] && rec->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2414,8 +2447,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				break;
 			}
 			case TYPE_ARRAY_LONG:
+			case TYPE_SET_LONG:
 			{
-				if(rec_old[0]->field_set[j]){
+				if(rec_old[0]->field_set[j] && rec->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2452,9 +2486,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				break;
 			}
 			case TYPE_ARRAY_FLOAT:
+			case TYPE_SET_FLOAT:
 			{
 
-				if(rec_old[0]->field_set[j]){
+				if(rec_old[0]->field_set[j] && rec->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2491,8 +2526,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				break;
 			}
 			case TYPE_ARRAY_BYTE:
+			case TYPE_SET_BYTE:
 			{
-				if(rec_old[0]->field_set[j]){
+
+				if(rec_old[0]->field_set[j] && rec->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2528,8 +2565,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				break;
 			}
 			case TYPE_ARRAY_STRING:
+			case TYPE_SET_STRING:
 			{
-				if(rec_old[0]->field_set[j]){
+				if(rec_old[0]->field_set[j] && rec->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2576,8 +2614,9 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				break;
 				}
 			case TYPE_ARRAY_DOUBLE:
+			case TYPE_SET_DOUBLE:
 			{
-				if(rec_old[0]->field_set[j]){
+				if(rec_old[0]->field_set[j] && rec->field_set[j]){
 					if(option == AAR){
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
@@ -2816,6 +2855,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 					}
 					break;
 				case TYPE_ARRAY_INT:
+				case TYPE_SET_INT:
 					{
 						if(option == AAR){
 							int a;
@@ -2857,6 +2897,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						break;
 					}
 				case TYPE_ARRAY_LONG:
+				case TYPE_SET_LONG:
 					{
 						if(option == AAR){
 							int a;
@@ -2894,6 +2935,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						break;
 					}
 				case TYPE_ARRAY_FLOAT:
+				case TYPE_SET_FLOAT:
 					{
 						if(option == AAR){
 							int a;
@@ -2932,6 +2974,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						break;
 					}
 				case TYPE_ARRAY_BYTE:
+				case TYPE_SET_BYTE:
 					{
 						if(option == AAR){
 							int a;
@@ -2972,6 +3015,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						break;
 					}
 				case TYPE_ARRAY_STRING:
+				case TYPE_SET_STRING:
 					{
 						if(option == AAR){
 							int a;
@@ -3021,6 +3065,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						break;
 					}
 				case TYPE_ARRAY_DOUBLE:
+				case TYPE_SET_DOUBLE:
 					{
 						if(option == AAR){
 							int a;
@@ -3141,6 +3186,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			positions[i] = 'y';
 			break;
 		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				if(option == AAR){
 					int a;
@@ -3194,6 +3240,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				break;
 			}
 		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				if(option == AAR){
 					int a;
@@ -3245,6 +3292,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				break;
 			}
 		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				if(option == AAR){
 					int a;
@@ -3297,6 +3345,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				break;
 			}
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				if(option == AAR){
 					int a;
@@ -3348,6 +3397,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				break;
 			}
 		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				if(option == AAR){
 					int a;
@@ -3401,6 +3451,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				break;
 			}
 		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				if(option == AAR){
 					int a;
@@ -3609,20 +3660,38 @@ void print_schema(struct Schema sch)
 			case TYPE_ARRAY_INT:
 				printf("int[].\n");
 				break;
+			case TYPE_SET_INT:
+				printf("int[]-set.\n");
+				break;
 			case TYPE_ARRAY_LONG:
 				printf("long[].\n");
+				break;
+			case TYPE_SET_LONG:
+				printf("long[]-set.\n");
 				break;
 			case TYPE_ARRAY_FLOAT:
 				printf("float[].\n");
 				break;
+			case TYPE_SET_FLOAT:
+				printf("float[]-set.\n");
+				break;
 			case TYPE_ARRAY_STRING:
 				printf("string[].\n");
+				break;
+			case TYPE_SET_STRING:
+				printf("string[]-set.\n");
 				break;
 			case TYPE_ARRAY_BYTE:
 				printf("byte[].\n");
 				break;
+			case TYPE_SET_BYTE:
+				printf("byte[]-set.\n");
+				break;
 			case TYPE_ARRAY_DOUBLE:
 				printf("double[].\n");
+				break;
+			case TYPE_SET_DOUBLE:
+				printf("double[]-set.\n");
 				break;
 			case TYPE_FILE:
 				printf("File.\n");

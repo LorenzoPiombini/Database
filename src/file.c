@@ -1149,6 +1149,7 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 			break;
 		}
 		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
 		{
 			if (!update)
 			{
@@ -1625,6 +1626,7 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 			break;
 		}
 		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
 		{
 			if (!update)
 			{
@@ -2084,6 +2086,7 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 			break;
 		}
 		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
 		{
 			if (!update)
 			{
@@ -2549,6 +2552,7 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 			break;
 		}
 		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
 		{
 			if (!update)
 			{
@@ -2641,7 +2645,7 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 					{
 						int array_last = 0;
 						int exit = 0;
-						if ((array_last = is_array_last_block(fd,NULL, sz, 0,TYPE_ARRAY_STRING)) == -1)
+						if ((array_last = is_array_last_block(fd,NULL, sz, 0,rec->fields[i].type)) == -1)
 						{
 							fprintf(stderr, "can't verify array last block %s:%d.\n", F, L - 1);
 							return 0;
@@ -3737,6 +3741,7 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 			break;
 		}
 		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
 		{
 			if (!update)
 			{
@@ -4202,6 +4207,7 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 			break;
 		}
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
 		{
 			if (!update)
 			{
@@ -5463,6 +5469,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			break;
 		}
 		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
 		{
 			if (!rec->fields[i].data.v.elements.i){
 				rec->fields[i].data.v.insert = insert_element;
@@ -5471,11 +5478,18 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 			file_offset array_upd = 0;
 			file_offset go_back_here = 0;
-			do
-			{
+			ui8 set = 0;
+			if (read(fd, &set, sizeof(set)) == -1){
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return -1;
+			}
+
+			rec->fields[i].data.v.is_set = set == 1 ? 1 : 0;
+
+			do{
 				ui32 size_array = 0;
-				if (read(fd, &size_array, sizeof(size_array)) == -1)
-				{
+				if (read(fd, &size_array, sizeof(size_array)) == -1){
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
 					return -1;
@@ -5483,8 +5497,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				int sz = (int)swap32(size_array);
 				ui32 padding = 0;
-				if (read(fd, &padding, sizeof(padding)) == -1)
-				{
+				if (read(fd, &padding, sizeof(padding)) == -1){
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
 					return -1;
@@ -5493,15 +5506,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				int padd = (int)swap32(padding);
 
 				int j;
-				for ( j = 0; j < sz; j++)
-				{
+				for ( j = 0; j < sz; j++){
 					ui32 num_ne = 0;
-					if (read(fd, &num_ne, sizeof(num_ne)) == -1)
-					{
+					if (read(fd, &num_ne, sizeof(num_ne)) == -1){
 						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
 						return -1;
 					}
+
 					int num = (int)swap32(num_ne);
 					rec->fields[i].data.v.insert((void *)&num,
 						&rec->fields[i].data.v,
@@ -5552,6 +5564,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			break;
 		}
 		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
 		{
 			if (!rec->fields[i].data.v.elements.l)
 			{
@@ -5561,6 +5574,16 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 			file_offset array_upd = 0;
 			file_offset go_back_here = 0;
+
+			ui8 set = 0;
+			if (read(fd, &set, sizeof(set)) == -1){
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return -1;
+			}
+
+			rec->fields[i].data.v.is_set = set == 1 ? 1 : 0;
+
 			do
 			{
 				ui32 size_array = 0;
@@ -5641,6 +5664,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			break;
 		}
 		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
 		{
 			if (!rec->fields[i].data.v.elements.s)
 			{
@@ -5650,6 +5674,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 			file_offset array_upd = 0;
 			file_offset go_back_here = 0;
+			ui8 set = 0;
+			if (read(fd, &set, sizeof(set)) == -1){
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return -1;
+			}
+
+			rec->fields[i].data.v.is_set = set == 1 ? 1 : 0;
+
 			do
 			{
 				ui32 size_array = 0;
@@ -5798,6 +5831,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			break;
 		}
 		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
 		{
 			if (!rec->fields[i].data.v.elements.f)
 			{
@@ -5807,6 +5841,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 			file_offset array_upd = 0;
 			file_offset go_back_here = 0;
+
+			ui8 set = 0;
+			if (read(fd, &set, sizeof(set)) == -1){
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return -1;
+			}
+
+			rec->fields[i].data.v.is_set = set == 1 ? 1 : 0;
 			do
 			{
 				ui32 size_array = 0;
@@ -5889,6 +5932,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			break;
 		}
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
 		{
 			if (!rec->fields[i].data.v.elements.d)
 			{
@@ -5898,6 +5942,16 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 			file_offset array_upd = 0;
 			file_offset go_back_here = 0;
+
+			ui8 set = 0;
+			if (read(fd, &set, sizeof(set)) == -1){
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return -1;
+			}
+
+			rec->fields[i].data.v.is_set = set == 1 ? 1 : 0;
+
 			do
 			{
 				ui32 size_array = 0;
@@ -5978,6 +6032,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			break;
 		}
 		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
 		{
 			if (!rec->fields[i].data.v.elements.b)
 			{
@@ -5987,6 +6042,16 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 			file_offset array_upd = 0;
 			file_offset go_back_here = 0;
+
+			ui8 set = 0;
+			if (read(fd, &set, sizeof(set)) == -1){
+					perror("error readig array.");
+					free_record(rec, rec->fields_num);
+					return -1;
+			}
+
+			rec->fields[i].data.v.is_set = set == 1 ? 1 : 0;
+
 			do
 			{
 				ui32 size_array = 0;
@@ -6463,31 +6528,43 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			size += sizeof(ui64);
 			break;
 		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
+			size++;
 			size += (sizeof(ui32) * 2);
 			size += (sizeof(ui32) * rec->fields[i].data.v.size);
 			size += (sizeof(ui64));
 			break;
 		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
+			size++;
 			size += (sizeof(ui32) * 2);
 			size += (sizeof(ui64) * rec->fields[i].data.v.size);
 			size += (sizeof(ui64));
 			break;
 		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
+			size++;
 			size += (sizeof(ui32) * 2);
 			size += (sizeof(ui8) * rec->fields[i].data.v.size);
 			size += (sizeof(ui64));
 			break;
 		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
+			size++;
 			size += (sizeof(ui32) * 2);
 			size += (sizeof(ui32) * rec->fields[i].data.v.size);
 			size += (sizeof(ui64));
 			break;
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
+			size++;
 			size += (sizeof(ui32) * 2);
 			size += (sizeof(ui64) * rec->fields[i].data.v.size);
 			size += (sizeof(ui64));
 			break;
 		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
+			size++;
 			size += (sizeof(ui32) * 2);
 			size += ((sizeof(ui32) + sizeof(ui16)) * rec->fields[i].data.v.size);
 			int j;
@@ -6700,6 +6777,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					break;
 				}
 			case TYPE_ARRAY_INT:
+			case TYPE_SET_INT:
 				{
 					if (!rec->fields[indexes[i]].data.v.elements.i){
 						rec->fields[indexes[i]].data.v.insert = insert_element;
@@ -6708,8 +6786,14 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 
 					file_offset array_upd = 0;
 					file_offset go_back_here = 0;
+					ui8 set = 0;
+					memcpy(&set,&ram->mem[ram->offset],sizeof(ui8));
+					move_ram_file_ptr(ram,sizeof(ui8));
+					rec->fields[indexes[i]].data.v.is_set = set;		
+
 					do
 					{
+
 						ui32 size_array = 0;
 						memcpy(&size_array,&ram->mem[ram->offset],sizeof(ui32));
 						move_ram_file_ptr(ram,sizeof(ui32));
@@ -6749,6 +6833,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					break;
 				}
 			case TYPE_ARRAY_LONG:
+			case TYPE_SET_LONG:
 				{
 					if (!rec->fields[indexes[i]].data.v.elements.l){
 						rec->fields[indexes[i]].data.v.insert = insert_element;
@@ -6756,8 +6841,13 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					}
 					file_offset array_upd = 0;
 					file_offset go_back_here = 0;
-					do
-					{
+					ui8 set = 0;
+					memcpy(&set,&ram->mem[ram->offset],sizeof(ui8));
+					move_ram_file_ptr(ram,sizeof(ui8));
+					rec->fields[indexes[i]].data.v.is_set = set;		
+
+					do{
+
 						ui32 size_array = 0;
 						memcpy(&size_array,&ram->mem[ram->offset],sizeof(ui32));
 						move_ram_file_ptr(ram,sizeof(ui32));
@@ -6799,6 +6889,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					break;
 				}
 			case TYPE_ARRAY_BYTE:
+			case TYPE_SET_BYTE:
 				{
 					if (!rec->fields[indexes[i]].data.v.elements.b){
 						rec->fields[indexes[i]].data.v.insert = insert_element;
@@ -6806,6 +6897,12 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					}
 					file_offset array_upd = 0;
 					file_offset go_back_here = 0;
+
+					ui8 set = 0;
+					memcpy(&set,&ram->mem[ram->offset],sizeof(ui8));
+					move_ram_file_ptr(ram,sizeof(ui8));
+					rec->fields[indexes[i]].data.v.is_set = set;		
+
 					do
 					{
 						ui32 size_array = 0;
@@ -6846,6 +6943,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					break;
 				}
 			case TYPE_ARRAY_FLOAT:
+			case TYPE_SET_FLOAT:
 				{
 					if (!rec->fields[indexes[i]].data.v.elements.f){
 						rec->fields[indexes[i]].data.v.insert = insert_element;
@@ -6853,6 +6951,12 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					}
 					file_offset array_upd = 0;
 					file_offset go_back_here = 0;
+
+					ui8 set = 0;
+					memcpy(&set,&ram->mem[ram->offset],sizeof(ui8));
+					move_ram_file_ptr(ram,sizeof(ui8));
+					rec->fields[indexes[i]].data.v.is_set = set;		
+
 					do
 					{
 						ui32 size_array = 0;
@@ -6895,6 +6999,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 				}
 
 			case TYPE_ARRAY_DOUBLE:
+			case TYPE_SET_DOUBLE:
 				{
 					if (!rec->fields[indexes[i]].data.v.elements.d){
 						rec->fields[indexes[i]].data.v.insert = insert_element;
@@ -6902,6 +7007,10 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					}
 					file_offset array_upd = 0;
 					file_offset go_back_here = 0;
+					ui8 set = 0;
+					memcpy(&set,&ram->mem[ram->offset],sizeof(ui8));
+					move_ram_file_ptr(ram,sizeof(ui8));
+					rec->fields[indexes[i]].data.v.is_set = set;		
 					do
 					{
 						ui32 size_array = 0;
@@ -6945,6 +7054,7 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					break;
 				}
 			case TYPE_ARRAY_STRING:
+			case TYPE_SET_STRING:
 				{
 					if (!rec->fields[indexes[i]].data.v.elements.s){
 						rec->fields[indexes[i]].data.v.insert = insert_element;
@@ -6952,6 +7062,11 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					}
 					file_offset array_upd = 0;
 					file_offset go_back_here = 0;
+
+					ui8 set = 0;
+					memcpy(&set,&ram->mem[ram->offset],sizeof(ui8));
+					move_ram_file_ptr(ram,sizeof(ui8));
+					rec->fields[indexes[i]].data.v.is_set = set;		
 					do
 					{
 						ui32 size_array = 0;
@@ -7041,7 +7156,6 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 				fprintf(stdout,"wrong type or not handled,type -> %s, %s:%d.\n",
 						type_to_str(rec->fields[indexes[i]].type),__FILE__,__LINE__);
 				return -1;
-
 		}
 	}
 
@@ -7394,8 +7508,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					break;	
 				}
 			case TYPE_ARRAY_INT:
+			case TYPE_SET_INT:
 				{
 					if(!update){
+
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->size],&set, sizeof(ui8));
+						ram->size++;
+						ram->offset++;
+
 						ui32 sz = swap32(rec->fields[i].data.v.size);
 						memcpy(&ram->mem[ram->size],&sz, sizeof(ui32));
 						ram->size += sizeof(ui32);
@@ -7430,6 +7551,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int step = 0;
 						int padding = 0;
 
+						/*write the set flag*/
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->offset],&set, sizeof(ui8));
+						ram->offset++;
+
 						do{
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
@@ -7449,7 +7575,8 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							ui32 pd_ne = 0;
 							memcpy(&pd_ne, &ram->mem[ram->offset],sizeof(ui32));
 							ram->offset += sizeof(ui32);
-							padding = (int)swap32(pd_ne);
+							padding = (int) swap32(pd_ne);
+
 
 							/*
 							 * this is never true at the first iteration
@@ -7508,7 +7635,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								 * */
 
 								int exit = 0;
-								for(k = 0;k < sz; k++){
+								for(k = 0; k < sz ; k++){
 									if(step > 0 && k == 0 ){
 										if((step + sz) > rec->fields[i].data.v.size){
 											int array_last = 0;
@@ -7720,8 +7847,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					break;
 				}
 			case TYPE_ARRAY_LONG:
+			case TYPE_SET_LONG:
 				{
 					if(!update){
+						/*write the set flag*/
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->size],&set, sizeof(ui8));
+						ram->size++;
+						ram->offset++;
+
 						ui32 sz = swap32(rec->fields[i].data.v.size);
 						memcpy(&ram->mem[ram->size],&sz, sizeof(ui32));
 						ram->size += sizeof(ui32);
@@ -7757,6 +7891,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int padding = 0;
 
 						do{
+
+							ui8 set = (ui8) rec->fields[i].data.v.is_set;
+							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+							ram->offset++;
+
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
 							memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(ui32));
@@ -8038,8 +8177,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 				}
 			case TYPE_ARRAY_BYTE:
+			case TYPE_SET_BYTE:
 				{
 					if(!update){
+
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->size],&set,sizeof(ui8));
+						ram->size++;
+						ram->offset++;
+
 						ui32 sz = swap32(rec->fields[i].data.v.size);
 						memcpy(&ram->mem[ram->size],&sz, sizeof(ui32));
 						ram->size += sizeof(ui32);
@@ -8075,6 +8221,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int padding = 0;
 
 						do{
+
+							ui8 set = (ui8) rec->fields[i].data.v.is_set;
+							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+							ram->offset++;
+
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
 							memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(ui32));
@@ -8361,8 +8512,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					break;
 				}
 			case TYPE_ARRAY_FLOAT:
+			case TYPE_SET_FLOAT:
 				{
 					if(!update){
+
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->size],&set,sizeof(ui8));
+						ram->size++;
+						ram->offset++;
+
 						ui32 sz = swap32(rec->fields[i].data.v.size);
 						memcpy(&ram->mem[ram->size],&sz, sizeof(ui32));
 						ram->size += sizeof(ui32);
@@ -8399,6 +8557,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int padding = 0;
 
 						do{
+
+							ui8 set = (ui8) rec->fields[i].data.v.is_set;
+							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+							ram->offset++;
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
 							memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(ui32));
@@ -8683,8 +8845,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 				}
 			case TYPE_ARRAY_DOUBLE:
+			case TYPE_SET_DOUBLE:
 				{
 					if(!update){
+
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->size],&set,sizeof(ui8));
+						ram->size++;
+						ram->offset++;
+
 						ui32 sz = swap32(rec->fields[i].data.v.size);
 						memcpy(&ram->mem[ram->size],&sz, sizeof(ui32));
 						ram->size += sizeof(ui32);
@@ -8719,6 +8888,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int padding = 0;
 
 						do{
+
+							ui8 set = (ui8) rec->fields[i].data.v.is_set;
+							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+							ram->offset++;
+
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
 							memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(ui32));
@@ -8999,8 +9173,15 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					break;
 				}
 			case TYPE_ARRAY_STRING:
+			case TYPE_SET_STRING:
 				{
 					if(!update){
+
+						ui8 set = (ui8) rec->fields[i].data.v.is_set;
+						memcpy(&ram->mem[ram->size],&set,sizeof(ui8));
+						ram->size++;
+						ram->offset++;
+
 						ui32 sz = swap32(rec->fields[i].data.v.size);
 						memcpy(&ram->mem[ram->size],&sz, sizeof(ui32));
 						ram->size += sizeof(ui32);
@@ -9046,6 +9227,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						int padding = 0;
 
 						do{
+
+							ui8 set = (ui8) rec->fields[i].data.v.is_set;
+							memcpy(&ram->mem[ram->offset],&set,sizeof(ui8));
+							ram->offset++;
+
 							/*check size of the array on file*/
 							ui32 sz_ne = 0; 
 							memcpy(&sz_ne,&ram->mem[ram->offset],sizeof(ui32));
@@ -9073,7 +9259,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 								int exit = 0;
 								int array_last = 0;
-								if((array_last = is_array_last_block(-1,ram,sz,0,TYPE_ARRAY_STRING)) == -1){
+								if((array_last = is_array_last_block(-1,ram,sz,0,rec->fields[i].type)) == -1){
 									fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 									return -1;
 								}
@@ -9275,7 +9461,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									if(step > 0 && k == 0 ){
 										if((step + sz) > rec->fields[i].data.v.size){
 											int array_last = 0;
-											if((array_last = is_array_last_block(-1,ram,sz,0,TYPE_ARRAY_STRING)) == -1){
+											if((array_last = is_array_last_block(-1,ram,sz,0,rec->fields[i].type)) == -1){
 												fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 												return -1;
 											}
@@ -10454,7 +10640,7 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 			return -1;
 		}
 
-		if(type == TYPE_ARRAY_STRING){
+		if(type == TYPE_ARRAY_STRING || type == TYPE_SET_STRING){
 			int i;
 			for(i = 0; i < element_nr; i++){
 				if(get_string_size(fd,NULL) == (size_t)-1){
@@ -10491,7 +10677,7 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 		if(ram->mem){
 			file_offset go_back_to = ram->offset;
 
-			if(type == TYPE_ARRAY_STRING){
+			if(type == TYPE_ARRAY_STRING || type == TYPE_SET_STRING){
 				int i;
 				for(i = 0; i < element_nr; i++){
 					if(get_string_size(-1,ram) == (size_t)-1){
@@ -10529,8 +10715,13 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 	struct Ram_file ram;
 	memset(&ram,0,sizeof(struct Ram_file));
 	if(!update){
-		size_t rec_disk_size = get_disk_size_record(rec);
-		if(init_ram_file(&ram,rec_disk_size) == -1){
+		long long rec_disk_size = get_disk_size_record(rec);
+		if(rec_disk_size < 0) {
+			fprintf(stderr,"init_ram_file failed, %s:%d.\n",__FILE__, __LINE__ - 2);
+			return -1;
+		}
+
+		if(init_ram_file(&ram,(size_t)rec_disk_size) == -1){
 			fprintf(stderr,"init_ram_file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 			return -1;
 		}

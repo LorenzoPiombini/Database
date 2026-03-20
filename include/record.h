@@ -45,12 +45,21 @@ enum ValueType
 	TYPE_ARRAY_DOUBLE,
 	TYPE_FILE,
 	TYPE_DATE,
-	TYPE_KEY
+	TYPE_KEY,
+	TYPE_SET_INT,
+	TYPE_SET_LONG,
+	TYPE_SET_FLOAT,
+	TYPE_SET_STRING,
+	TYPE_SET_BYTE,
+	TYPE_SET_DOUBLE
 };
 
 struct Record_f;	
-struct array
-{
+/*TODO:
+ * add a flag to this array, that makes it behaving as a Set 
+ * implement!!
+ * */
+struct array{
 	union {
 		int *i;
 		long *l;
@@ -60,6 +69,7 @@ struct array
 		double *d;
 	} elements;
 	int size;
+	int is_set;
 	int (*insert)(void *, struct array *, enum ValueType);
 	void (*destroy)(struct array *, enum ValueType);
 };/*28 b*/
@@ -115,7 +125,7 @@ void free_array_of_arrays(int len, struct Record_f ****array, int *len_ia, int s
 unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schema *sch);
 unsigned char get_index_rec_field(char *field_name, struct Record_f *rec,int *field_i_r, int *rec_index);
 int schema_has_type(struct Header_d *hd);
-int compare_rec(struct Record_f *src, struct Record_f *dest);
+int compare_rec(struct Record_f *src, struct Record_f *dest,int option);
 int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);
 int free_schema(struct Schema *sch);
 void free_type_file(struct Record_f *rec,int optimized);

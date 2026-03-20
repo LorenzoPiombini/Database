@@ -1106,6 +1106,7 @@ int main(int argc, char *argv[])
 			int *p_index = &index;
 			/* load all indexes in memory */
 			if (!read_all_index_file(fd_index, &ht, p_index)) {
+				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
 
@@ -1128,7 +1129,7 @@ int main(int argc, char *argv[])
 			Node *record_del = NULL;
 			if (key_conv) {
 				record_del = delete (key_conv, &ht[index_nr], key_type);
-				cancel_memory(NULL,key_conv,sizeof(ui32));
+				free(key_conv);
 			}else if (key_type == STR) {
 					record_del = delete ((void *)kcpy, &ht[index_nr], key_type);
 
@@ -1197,6 +1198,7 @@ int main(int argc, char *argv[])
 			close_file(3, fd_index, fd_data,fd_schema);
 			cancel_memory(NULL,ht,sizeof(HashTable) * index);
 			free_schema(hd.sch_d);
+			free(ht);
 			close_prog_memory();
 			return 0;
 			
@@ -1280,7 +1282,7 @@ int main(int argc, char *argv[])
 
 			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) goto clean_on_error;
 
-			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f,option) == -1) goto clean_on_error;
+			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f,option,index_nr) == -1) goto clean_on_error;
 
 			display_to_stdout("record %s updated!\n", kcpy);
 			while(lock(fd_index,UNLOCK) == WTLK);

@@ -380,7 +380,6 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 				if(tbl->data_map[index]->key.k.n16 == new_node->key.k.n16) {
 					printf("could not insert new node '%u'\n", new_node->key.k.n16);
 					printf("key already exist. Choose another key value.\n");
-					free(new_node->key.k.s);
 					free(new_node);
 					return 0;
 				}

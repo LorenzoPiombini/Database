@@ -784,9 +784,10 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_ai:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_INT ? "@t_ai:" : "@t_si:"))){
 				char *p_end = find_needle(p,":");
 				if(!p_end){
 					int p_size = (int)string_length(p); 
@@ -809,8 +810,7 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_ARRAY_INT:"))){
-
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_INT ? "@TYPE_ARRAY_INT:" : "@TYPE_SET_INT"))){
 				char *p_end = find_needle(p,":");
 				if(!p_end) return -1;
 
@@ -826,9 +826,10 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_al:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_LONG ? "@t_al:" : "@t_sl:"))){
 				char *p_end = find_needle(p,":");
 				if(!p_end){
 					int p_size = (int)string_length(p); 
@@ -851,7 +852,7 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_ARRAY_LONG:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_LONG ? "@TYPE_ARRAY_LONG:" : "@TYPE_SET_LONG"))){
 
 				char *p_end = find_needle(p,":");
 				if(!p_end){
@@ -877,9 +878,10 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_ab:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_BYTE ? "@t_ab:" : "@t_sb:"))){
 				char *p_end = find_needle(p,":");
 				if(!p_end){
 					int p_size = (int)string_length(p); 
@@ -903,7 +905,7 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_ARRAY_BYTE:"))){
+			while((p = find_needle(str, types[i] == TYPE_ARRAY_BYTE ? "@TYPE_ARRAY_BYTE:" : "@TYPE_SET_BYTE"))){
 
 				char *p_end = find_needle(p,":");
 				if(!p_end){
@@ -929,9 +931,10 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_af:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_FLOAT ? "@t_af:" : "@t_sf:"))){
 				char *p_end = find_needle(p,":");
 				if(!p_end){
 					int p_size = (int)string_length(p); 
@@ -954,7 +957,7 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_ARRAY_FLOAT:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_FLOAT ? "@TYPE_ARRAY_FLOAT:" : "@TYPE_SET_FLOAT"))){
 
 				char *p_end = find_needle(p,":");
 				if(!p_end){
@@ -980,9 +983,10 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_ad:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_DOUBLE ? "@t_ad:":"@t_sd:"))){
 				char *p_end = find_needle(p,":");
 				if(!p_end){
 					int p_size = (int)string_length(p); 
@@ -1005,7 +1009,7 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_ARRAY_DOUBLE:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_DOUBLE ? "@TYPE_ARRAY_DOUBLE:" : "@TYPE_SET_DOUBLE"))){
 
 				char *p_end = find_needle(p,":");
 				if(!p_end){
@@ -1031,9 +1035,10 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_ab:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_STRING ? "@t_as:" : "@t_ss:"))){
 				char *p_end = find_needle(p,":");
 				if(!p_end){
 					int p_size = (int)string_length(p); 
@@ -1056,7 +1061,7 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_ARRAY_BYTE:"))){
+			while((p = find_needle(str,types[i] == TYPE_ARRAY_STRING ? "@TYPE_ARRAY_STRING:" : "@TYPE_SET_STRING"))){
 
 				char *p_end = find_needle(p,":");
 				if(!p_end){
@@ -1465,8 +1470,19 @@ int get_type(char *s){
 	}
 	else if (string_compare(s, "TYPE_DATE",9,-1) == 0){
 		return 14;
-	}else if (string_compare(s, "t_ai",4,-1) == 0)
-	{
+	}else if (string_compare(s, "TYPE_SET_INT",12,-1) == 0){
+		return 16;
+	}else if (string_compare(s, "TYPE_SET_LONG",13,-1) == 0){
+		return 16;
+	}else if (string_compare(s, "TYPE_SET_FLOAT",14,-1) == 0){
+		return 18;
+	}else if (string_compare(s, "TYPE_SET_BYTE",12,-1) == 0){
+		return 19;
+	}else if (string_compare(s, "TYPE_SET_STRING",15,-1) == 0){
+		return 20;
+	}else if (string_compare(s, "TYPE_SET_DOUBLE",15,-1) == 0){
+		return 21;
+	}else if (string_compare(s, "t_ai",4,-1) == 0)	{
 		return 7;
 	}
 	else if (string_compare(s, "t_al",4,-1) == 0)
@@ -1496,7 +1512,30 @@ int get_type(char *s){
 		return 14;
 	}else if (string_compare(s, "t_ky",4,-1) == 0){
 		return 15;
+	}else if (string_compare(s, "t_si",4,-1) == 0)	{
+		return 16;
 	}
+	else if (string_compare(s, "t_sl",4,-1) == 0)
+	{
+		return 17;
+	}
+	else if (string_compare(s, "t_sf",4,-1) == 0)
+	{
+		return 18;
+	}
+	else if (string_compare(s, "t_ss",4,-1) == 0)
+	{
+		return 19;
+	}
+	else if (string_compare(s, "t_sb",4,-1) == 0)
+	{
+		return 20;
+	}
+	else if (string_compare(s, "t_sd",4,-1) == 0)
+	{
+		return 21;
+	}
+
 
 	return -1;
 }
