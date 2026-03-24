@@ -494,6 +494,14 @@ int write_header(int fd, struct Header_d *hd)
 		}
 	}
 
+	for (i = 0; i < hd->sch_d->fields_num; i++) {
+		ui8 d = hd->sch_d->is_dropped[i];
+		if (write(fd, &d, sizeof(d)) == -1){
+			fprintf(stderr,"(%s): writing is_drop flag  from header failed %s:%d.\n",prog, __FILE__, __LINE__ - 3);
+			return 0;
+		}
+	}
+
 	return 1; /* succseed */
 }
 
@@ -544,16 +552,20 @@ int read_header(int fd, struct Header_d *hd)
 
 	hd->sch_d->fields_name = (char**)malloc(sizeof(char*) * hd->sch_d->fields_num);
 	hd->sch_d->types = (int*)malloc(sizeof(int) * hd->sch_d->fields_num);
+	hd->sch_d->is_dropped = (ui8*)malloc(hd->sch_d->fields_num);
 
 	memset(hd->sch_d->fields_name,0,sizeof(char*)*hd->sch_d->fields_num);
 	memset(hd->sch_d->types,-1,sizeof(int) * hd->sch_d->fields_num);
+	memset(hd->sch_d->is_dropped,-1,hd->sch_d->fields_num);
 
-	if(!hd->sch_d->fields_name || !hd->sch_d->types ){
+	if(!hd->sch_d->fields_name || !hd->sch_d->types || !hd->sch_d->is_dropped ){
 		fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-4);
 		if(hd->sch_d->fields_name) 
 			free(hd->sch_d->fields_name);
 		if(hd->sch_d->types)
 			free(hd->sch_d->types);
+		if(hd->sch_d->is_dropped)
+			free(hd->sch_d->is_dropped);
 		return 1;
 	} 
 
@@ -593,6 +605,26 @@ int read_header(int fd, struct Header_d *hd)
 		hd->sch_d->types[i] = swap32(type);
 	}
 
+
+	/*CHECK IF THE FILE IS ACTUALLY OVER (FOR BACK WORDS COMPATIBILITY)*/
+	file_offset pos = 0;
+	if((pos = get_file_offset(fd)) == go_to_EOF(fd)){
+		return 1; /* successed */
+	}
+
+	if(find_record_position(fd, pos) == -1){
+		perror("repositioning file pinter.\n");
+		printf("%s:%d.\n",__FILE__, __LINE__ - 2);
+		return 0;
+	}
+
+	for (i = 0; i < hd->sch_d->fields_num; i++) {
+		if (read(fd, &hd->sch_d->is_dropped[i], sizeof(ui8)) == -1) {
+			perror("reading drop flag from header.\n");
+			printf("%s:%d.\n",__FILE__, __LINE__ - 2);
+			return 0;
+		}
+	}
 	return 1; /* successed */
 }
 
@@ -2442,8 +2474,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						changed = 1;
 					}
 					break;
+				}else if(rec->field_set[j]){
+					update_new = 1; 
+					break;
 				}
-				update_new = 1; 
 				break;
 			}
 			case TYPE_ARRAY_LONG:
@@ -2480,9 +2514,11 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						changed = 1;
 					}
 					break;
+				}else if(rec->field_set[j]){
+					update_new = 1; 
+					break;
 				}
 
-				update_new = 1; 
 				break;
 			}
 			case TYPE_ARRAY_FLOAT:
@@ -2521,8 +2557,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						changed = 1;
 					}
 					break;
+				}else if(rec->field_set[j]){
+					update_new = 1; 
+					break;
 				}
-				update_new = 1;
 				break;
 			}
 			case TYPE_ARRAY_BYTE:
@@ -2560,8 +2598,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						changed = 1;
 					}
 					break;
+				}else if(rec->field_set[j]){
+					update_new = 1; 
+					break;
 				}
-				update_new = 1;
 				break;
 			}
 			case TYPE_ARRAY_STRING:
@@ -2572,7 +2612,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						int a;
 						for (a = 0; a < rec->fields[j].data.v.size; a++) {
 							rec_old[0]->fields[j].data.v.
-								insert((void *)&rec->fields[j].data.v.elements.s[a],
+								insert((void *)(*rec).fields[j].data.v.elements.s[a],
 										&rec_old[0]->fields[j].data.v, 
 										rec->fields[j].type);
 						}
@@ -2609,8 +2649,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						changed = 1;
 					}
 					break;
+				}else if(rec->field_set[j]){
+					update_new = 1; 
+					break;
 				}
-				update_new = 1;
 				break;
 				}
 			case TYPE_ARRAY_DOUBLE:
@@ -2647,9 +2689,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						changed = 1;
 					}
 					break;
+				}else if(rec->field_set[j]){
+					update_new = 1; 
+					break;
 				}
-
-				update_new = 1;
 				break;
 			}
 			case TYPE_FILE:
@@ -3021,7 +3064,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 							int a;
 							for (a = 0; a < rec->fields[i].data.v.size; a++) {
 								rec_old[0]->fields[i].data.v.
-									insert((void *)&rec->fields[i].data.v.elements.s[a],
+									insert((void *)rec->fields[i].data.v.elements.s[a],
 											&rec_old[0]->fields[i].data.v, 
 											rec->fields[i].type);
 							}
@@ -3454,14 +3497,19 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 		case TYPE_SET_STRING:
 			if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
 				if(option == AAR){
-					int a;
+					int a,b;
 					for (a = 0; a < rec->fields[index].data.v.size; a++) {
-						rec_old[i]->fields[index].data.v.
-							insert((void *)&rec->fields[index].data.v.elements.s[a],
+						if(rec_old[i]->fields[index].data.v.
+							insert((void *)rec->fields[index].data.v.elements.s[a],
 									&rec_old[i]->fields[index].data.v, 
-									rec->fields[index].type);
+									rec->fields[index].type) == -1){
+							b = 1;
+							break;
+						}
+							
 					}
-					positions[i] = 'y';
+					if(!b)
+						positions[i] = 'y';
 					break;
 				}
 				int a;
@@ -3627,6 +3675,9 @@ void print_schema(struct Schema sch)
 	printf("Field Name%-*cType\n", 11, c);
 	printf("__________________________\n");
 	for (i = 0; i < sch.fields_num; i++) {
+		if(sch.is_dropped[i])
+			continue;
+
 		printf("%s%-*c", sch.fields_name[i], (int)(15 - strlen(sch.fields_name[i])), c);
 		switch (sch.types[i])
 		{

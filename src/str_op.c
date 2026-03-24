@@ -2201,12 +2201,6 @@ void replace(const char c, const char with, char *str)
 			str[i] = with;
 }
 
-/*
-char return_first_char(char *str)
-{
-	return str[0];
-}
-*/
 
 char return_last_char(char *str)
 {
@@ -2665,6 +2659,7 @@ static int is_target_db_type(char *target)
 			*tg = ':';
 			string_copy(&tg[1],target,size);
 		}
+
 		if(string_length(tg) == string_length(":t_s")) if(string_compare(tg,":t_s",size,-1) == 0) return 0;
 		if(string_length(tg) == string_length(":t_l")) if(string_compare(tg,":t_l",size,-1) == 0) return 0;
 		if(string_length(tg) == string_length(":t_b")) if(string_compare(tg,":t_b",size,-1) == 0) return 0;
@@ -2680,10 +2675,18 @@ static int is_target_db_type(char *target)
 		if(string_length(tg) == string_length(":t_ab")) if(string_compare(tg,":t_ab",size,-1) == 0) return 0;
 		if(string_length(tg) == string_length(":t_fl")) if(string_compare(tg,":t_fl",size,-1) == 0) return 0;
 		if(string_length(tg) == string_length(":t_dt")) if(string_compare(tg,":t_dt",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_si")) if(string_compare(tg,":t_si",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_sl")) if(string_compare(tg,":t_sl",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_sf")) if(string_compare(tg,":t_sf",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_sd")) if(string_compare(tg,":t_sd",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_ss")) if(string_compare(tg,":t_ss",size,-1) == 0) return 0;
+		if(string_length(tg) == string_length(":t_sb")) if(string_compare(tg,":t_sb",size,-1) == 0) return 0;
+		
 
 		return -1;
 
 	}
+
 	if(find_needle(target,":t_s")) return 0;
 	if(find_needle(target,":t_l")) return 0;
 	if(find_needle(target,":t_b")) return 0;
@@ -2698,6 +2701,13 @@ static int is_target_db_type(char *target)
 	if(find_needle(target,":t_af")) return 0;
 	if(find_needle(target,":t_ab")) return 0;
 	if(find_needle(target,":t_fl")) return 0;
+	if(find_needle(target,":t_si")) return 0;
+	if(find_needle(target,":t_sl")) return 0;
+	if(find_needle(target,":t_ss")) return 0;
+	if(find_needle(target,":t_sd")) return 0;
+	if(find_needle(target,":t_sf")) return 0;
+	if(find_needle(target,":t_sb")) return 0;
+	
 
 	return -1;
 
@@ -2875,9 +2885,3 @@ char *duplicate_str(char *str)
 	strncpy(dup,str,l-1);
 	return dup;
 }
-
-
-
-
-
-

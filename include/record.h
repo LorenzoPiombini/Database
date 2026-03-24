@@ -13,11 +13,14 @@
 #define MAX_FIELD_NR 200 /*max field nr in a file */
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
 
+/*TODO: need to implement a way to be able to cancel or edit the fields in the schema
+ * */
 struct Schema {
 	ui16 fields_num;
 	char **fields_name;
 	int *types;
-};/*20 b*/
+	ui8 *is_dropped;
+};/*28 b*/
 
 struct Header_d
 {
@@ -55,10 +58,6 @@ enum ValueType
 };
 
 struct Record_f;	
-/*TODO:
- * add a flag to this array, that makes it behaving as a Set 
- * implement!!
- * */
 struct array{
 	union {
 		int *i;
@@ -85,6 +84,7 @@ struct File {
 struct Field {
 	char field_name[MAX_FIELD_LT];
 	int type;
+	int is_dropped;
 	union {
 		int i;
 		long l;
@@ -102,9 +102,9 @@ struct Field {
 
 struct Record_f {
 	char file_name[MAX_FILE_NAME_LEN];
-	file_offset offset;
+	file_offset offset; /*8 bytes*/
 	int fields_num;
-	ui8 *field_set;
+	ui8 *field_set; /*8 bytes*/
 	struct Field *fields;
 	ui32 count;
 	struct Record_f *next;
@@ -130,5 +130,6 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 int free_schema(struct Schema *sch);
 void free_type_file(struct Record_f *rec,int optimized);
 int parse_record_to_json(struct Record_f *rec,char **buffer);
+int drop_field(struct Schema *s, char *fields);
 
 #endif /*record.h*/

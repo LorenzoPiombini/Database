@@ -27,23 +27,23 @@
 #define TYPE_DF (TYPE | DF) 
 #define NO_TYPE_DF (NO_TYPE | DF)		
 
-#define ASCII_INT_MAX 526            /*the sum of ASCII values for every char in INT_MAX*/
-#define ASCII_INT_MIN 572            /*the sum of ASCII values for every char in INT_MIN*/
-#define ASCII_LONG_MAX 1000          /*the sum of ASCII values for every char in LONG_MAX*/
-#define ASCII_LONG_MIN 1573          /*the sum of ASCII values for every char in LONG_MIN*/
-#define ASCII_FLT_MAX 2377           /*the sum of ASCII values for every char in FLT_MAX*/
-#define ASCII_FLT_MIN 382            /*the sum of ASCII values for every char in FLT_MIN*/
-#define ASCII_FLT_MAX_NEGATIVE 2422  /*the sum of  ASCII values for every char in FLT_MAX butwith the sign -*/
-#define ASCII_DBL_MAX 16599          /*the sum of the ASCII values for every char in DBL_MAX*/
-#define ASCII_DBL_MAX_NEGATIVE 16644 /*the sum of  ASCII values for every char in DBL_MAX butwith the sign -*/
-#define ASCII_DBL_MIN 382            /*the sum of the ASCII values for every char in DBL_MIN*/
+#define ASCII_INT_MAX 			526     /*the sum of ASCII values for every char in INT_MAX*/
+#define ASCII_INT_MIN 			572     /*the sum of ASCII values for every char in INT_MIN*/
+#define ASCII_LONG_MAX 			1000    /*the sum of ASCII values for every char in LONG_MAX*/
+#define ASCII_LONG_MIN 			1573	/*the sum of ASCII values for every char in LONG_MIN*/
+#define ASCII_FLT_MAX 			2377    /*the sum of ASCII values for every char in FLT_MAX*/
+#define ASCII_FLT_MIN 			382     /*the sum of ASCII values for every char in FLT_MIN*/
+#define ASCII_FLT_MAX_NEGATIVE 	2422  	/*the sum of  ASCII values for every char in FLT_MAX butwith the sign -*/
+#define ASCII_DBL_MAX 			16599   /*the sum of the ASCII values for every char in DBL_MAX*/
+#define ASCII_DBL_MAX_NEGATIVE 	16644 	/*the sum of  ASCII values for every char in DBL_MAX butwith the sign -*/
+#define ASCII_DBL_MIN 			382     /*the sum of the ASCII values for every char in DBL_MIN*/
 
 /*these value are used as return values to identify which range the software should store
 the number in e.i (int or long)*/
-#define IN_LONG 100
-#define IN_INT 101
-#define IN_FLOAT 102
-#define IN_DOUBLE 103
+#define IN_LONG 	100
+#define IN_INT 		101
+#define IN_FLOAT 	102
+#define IN_DOUBLE 	103
 
 
 #define is_number_type(type) (type == TYPE_LONG || type == TYPE_FLOAT \

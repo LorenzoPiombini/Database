@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
 	unsigned char update = 0;
 	unsigned char list_def = 0;
 	unsigned char del_file = 0;
+	unsigned char del_field = 0;
 	unsigned char build = 0;
 	unsigned char list_keys = 0;
 	unsigned char create = 0;
@@ -55,6 +56,7 @@ int main(int argc, char *argv[])
 	unsigned char index_add = 0;
 	unsigned char file_field = 0;
 	unsigned char journal_display = 0;
+	unsigned char nr_of_record_display = 0;
 	/*------------------------------------------*/
 
 	/* parameters populated with the flag from getopt()*/
@@ -76,9 +78,20 @@ int main(int argc, char *argv[])
 	int index_nr = 0;
 	int only_dat = 0;
 
-	while ((c = getopt(argc, argv, "jnItAf:F:a:k:D:R:uleB:b:s:x:c:i:o:X:")) != -1)
+	while ((c = getopt(argc, argv, "jnItAf:F:a:k:d:D:R:uleB:b:s:x:c:i:o:X:N")) != -1)
 	{
 		switch (c){
+		case 'd':
+		{
+			del_field = 1;
+			init(&data_to_add,optarg,NULL);
+			break;
+		}
+		case 'N':
+		{
+			nr_of_record_display = 1;
+			break;
+		}
 		case 'j':
 		{		
 			journal_display = 1;
@@ -90,7 +103,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 		case 'n':
-			new_file = 1; /*true*/
+			new_file = 1; 
 			break;
 		case 'f':
 		{
@@ -225,7 +238,10 @@ int main(int argc, char *argv[])
 
 	if (!check_input_and_values(file_path, data_to_add, key,
 			argv, del, list_def, new_file, update, del_file,	
-			build, create, options, index_add, file_field,import_from_data,journal_display)) {
+			build, create, options, index_add, file_field,
+			import_from_data,
+			journal_display,
+			nr_of_record_display,del_field)) {
 		close_prog_memory();
 		return -1;
 	}
@@ -238,6 +254,10 @@ int main(int argc, char *argv[])
 		}
 		close_prog_memory();
 		return 0;
+	}
+
+	if(nr_of_record_display){
+
 	}
 	if (create){
 		if(txt_f.str){
@@ -663,9 +683,7 @@ int main(int argc, char *argv[])
 			display_to_stdout("(%s): File created successfully.\n",prog);
 			free_record(&rec, fields_count); 
 			close_file(3, fd_index, fd_data,fd_schema);
-			if(free_schema(&sch) == -1){
-				display_to_stdout("could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
-			}
+			free_schema(&sch);
 			close_prog_memory();
 			return 0;
 			
@@ -673,9 +691,7 @@ int main(int argc, char *argv[])
 			close_file(3, fd_index, fd_data,fd_schema);
 			delete_file(3, files[0], files[1], files[2]);
 			free_record(&rec, fields_count);
-			if(free_schema(&sch) == -1){
-				display_to_stdout("could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
-			}
+			free_schema(&sch);
 			close_prog_memory();
 			return STATUS_ERROR;
 
@@ -815,6 +831,54 @@ int main(int argc, char *argv[])
 				close_file(3,fd_schema,fd_data,fd_index);
 				return STATUS_ERROR;
 			}
+		}
+
+		if (del_field){
+
+			/* acquire lock */
+			int r = 0;
+			while(is_locked(3, fd_schema,fd_index,fd_schema) == LOCKED);
+			while((r = lock(fd_schema,WLOCK)) == WTLK);
+			if(r == -1){
+				display_to_stdout("can't acquire or release proper lock.\n");
+				close_prog_memory();
+				while((r = lock(fd_schema,UNLOCK)) == WTLK);
+				close_file(3,fd_schema,fd_data,fd_index);
+				return STATUS_ERROR;
+			}
+
+			close_file(2,fd_data,fd_index);
+			if(drop_field(hd.sch_d,cpy_dta) == -1){
+				fprintf(stderr,"field(s) not found in the file. ->(%s)\n",cpy_dta);
+				free_schema(hd.sch_d);
+				close_prog_memory();
+				while((r = lock(fd_schema,UNLOCK)) == WTLK);
+				close_file(1,fd_schema);
+				return STATUS_ERROR;
+			}
+
+			close_file(1,fd_schema);
+			fd_schema = open_file(files[2],1); /* truncate*/
+			if(fd_schema == -1){
+				close_prog_memory();
+				while((r = lock(fd_schema,UNLOCK)) == WTLK);
+				close_file(1,fd_schema);
+				return STATUS_ERROR;
+			}
+
+			if (!write_header(fd_schema, &hd)) {
+				close_prog_memory();
+				while((r = lock(fd_schema,UNLOCK)) == WTLK);
+				close_file(1,fd_schema);
+				return STATUS_ERROR;
+			}
+
+			fprintf(stderr,"field(s) dropped ->(%s)\n",cpy_dta);
+			free_schema(hd.sch_d);
+			while((r = lock(fd_schema,UNLOCK)) == WTLK);
+			close_file(1,fd_schema);
+			close_prog_memory();
+			return 0;
 		}
 
 		if (index_add) {
@@ -1321,6 +1385,7 @@ int main(int argc, char *argv[])
 			HashTable *p_ht = &ht;
 			if (!read_index_nr(index_nr, fd_index, &p_ht)) {
 				close_file(3,fd_schema, fd_index, fd_data);
+				free_schema(hd.sch_d);
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
@@ -1331,16 +1396,19 @@ int main(int argc, char *argv[])
 			if((er = keys(p_ht,&keys_data)) == -1){
 				display_to_stdout("(%s): cannot get all keys from index file.\n",prog);
 				close_file(3,fd_schema, fd_index, fd_data);
+				free_schema(hd.sch_d);
 				close_prog_memory();
 				return STATUS_ERROR;
 			}
+
 			if(er == NO_ELEMENT){
 				display_to_stdout("(%s): file is empty.\n",prog);
 				close_file(3,fd_schema, fd_index, fd_data);
+				free_schema(hd.sch_d);
 				close_prog_memory();
 				return 0;
-				
 			}
+
 			char keyboard = '0';
 			int end = len(ht), i = 0, j = 0;
 			for (i = 0, j = i; i < end; i++) {
@@ -1361,10 +1429,12 @@ int main(int argc, char *argv[])
 				default:
 					break;
 				}
+
 				if (i > 0 && (i % 20 == 0)){
 					display_to_stdout("press return key. . .\nenter q to quit . . .\n");
 					keyboard = (char)getc(stdin);
 				}
+
 				if (keyboard == 'q')
 					break;
 			}
@@ -1377,6 +1447,50 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
+		if(nr_of_record_display){
+			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
+
+			HashTable ht = {0};
+			HashTable *p_ht = &ht;
+			if (!read_index_nr(index_nr, fd_index, &p_ht)) {
+				close_file(3,fd_schema, fd_index, fd_data);
+				free_schema(hd.sch_d);
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
+
+			struct Keys_ht keys_data;
+			memset(&keys_data,0,sizeof(struct Keys_ht));
+			int er = 0;
+			if((er = keys(p_ht,&keys_data)) == -1){
+				display_to_stdout("(%s): cannot get all keys from index file.\n",prog);
+				close_file(3,fd_schema, fd_index, fd_data);
+				free_schema(hd.sch_d);
+				close_prog_memory();
+				return STATUS_ERROR;
+			}
+
+			if(er == NO_ELEMENT){
+				display_to_stdout("(%s): file is empty.\n",prog);
+				close_file(3,fd_schema, fd_index, fd_data);
+				free_schema(hd.sch_d);
+				close_prog_memory();
+				return 0;
+			}
+
+			fprintf(stdout,"(%s): %d records in '%s'.\n",prog,keys_data.length,cpy_fp);
+
+			destroy_hasht(p_ht);
+			close_file(3,fd_schema, fd_index, fd_data);
+			free_keys_data(&keys_data);
+			free_schema(hd.sch_d);
+			close_prog_memory();
+			return 0;
+
+
+
+
+		}
 		if (kcpy[0] != '\0') { 
 			/*display record*/
 			while(is_locked(3,fd_index,fd_data,fd_schema) == LOCKED);
@@ -1387,6 +1501,7 @@ int main(int argc, char *argv[])
 			int err = 0;
 			if((err = get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds,index_nr >= 0 ? index_nr : -1)) == -1){
 				free_record(&rec,rec.fields_num);
+				free_schema(hd.sch_d);
 				close_file(3, fd_schema,fd_index, fd_data);
 				close_prog_memory();
 				return STATUS_ERROR;

@@ -103,6 +103,7 @@ char *type_to_str(int type)
 	}
 	return &str_type[0];
 }
+
 int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int type)
 {
 	int field_index = 0;
@@ -258,6 +259,7 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 		strncpy(rec->fields[i].field_name,sch.fields_name[i],strlen(sch.fields_name[i]));
 		memset(&rec->fields[i].field_name[strlen(rec->fields[i].field_name)],0,MAX_FILED_LT-strlen(rec->fields[i].field_name));
 		rec->fields[i].type = sch.types[i];
+		rec->fields[i].is_dropped = sch.is_dropped[i];
 	}
 
 	return 0;
@@ -278,8 +280,18 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 		return -1;
 	}
 		
+	sch->is_dropped = (ui8*) malloc(fields_c);
+	if(!sch->is_dropped){
+		free(sch->types);
+		free(sch->fields_name);
+		fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
+		return -1;
+	}
+
 	memset(sch->fields_name,0,sizeof(char*)*MAX_FIELD_LT*fields_c);
 	memset(sch->types,-1,sizeof(int)*fields_c);
+	memset(sch->is_dropped,0,fields_c);
+
 	int i;
 	for(i = 0; i < fields_c; i++){
 		sch->fields_name[i] = (char*)malloc(strlen(names[i])+1);
@@ -307,7 +319,7 @@ int free_schema(struct Schema *sch)
 	}
 
 	free(sch->types);
-
+	free(sch->is_dropped);
 	free(sch->fields_name);
 	return 0;
 }
@@ -1716,8 +1728,6 @@ void print_record(int count, struct Record_f recs)
 
 	printf("#################################################################\n\n");
 	printf("the Record data are: \n");
-
-
 	display_data(recs,0,0);
 	if(count > 1){
 		while(recs.next){
@@ -1748,8 +1758,12 @@ static void display_data(struct Record_f rec, int max,int tab)
 		if(rec.fields[i].type == TYPE_FILE)
 			if(rec.fields[i].data.file.count == 0) continue;
 			
+		if(rec.fields[i].is_dropped)
+			continue;
+
 		if(tab)printf("\t");
 		printf("%-*s\t", max++, rec.fields[i].field_name);
+
 		int t = (int)rec.fields[i].type;
 		switch (t){
 		case -1:
@@ -2363,6 +2377,7 @@ int init_array(struct array **v, enum ValueType type)
 		memset((*(*v)).elements.b,0,sizeof(unsigned char) * DEF_SIZE);
 		break;
 	}
+	case TYPE_ARRAY_DOUBLE:
 	case TYPE_SET_DOUBLE:
 	{
 		(*(*v)).elements.d = (double*)malloc(DEF_SIZE * sizeof(double));
@@ -2418,8 +2433,10 @@ int is_element_in_set(void *element,struct array *v,enum ValueType type)
 		break;
 	case TYPE_SET_STRING:
 		for(i = 0; i < (*v).size; i++){
-			if(strncmp((*v).elements.s[i],(char*)element,strlen((char*)element)) == 0)
-				return 1;
+			if((*v).elements.s[i]){
+				if(strncmp((*v).elements.s[i],(char*)element,strlen((char*)element)) == 0)
+					return 1;
+			}
 		}
 		break;
 	default:
@@ -3424,4 +3441,26 @@ int parse_record_to_json(struct Record_f *rec,char **buffer)
 	}
 	if((*buffer)[bwritten-1] == ',') (*buffer)[bwritten-1] = '}';
 	return 0;
+}
+
+int drop_field(struct Schema *s, char *fields)
+{
+	if(!s)
+		return -1;
+
+	char *field = tok(fields,":");
+	do{
+		size_t field_sz = strlen(field);
+		int i; 
+		for(i = 0; i < s->fields_num; i++){
+			if(field_sz != strlen(s->fields_name[i]))
+				continue;
+
+			if(strncmp(s->fields_name[i],field,field_sz) == 0){
+				s->is_dropped[i] = 1;
+				return 0;
+			}
+		}
+	}while((field = tok(NULL,":")));
+	return -1;
 }

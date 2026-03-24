@@ -5383,6 +5383,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		switch (rec->fields[i].type) {
 		case TYPE_KEY:
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(ui32)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
 			ui32 i_ne = 0;
 			if (read(fd, &i_ne, sizeof(ui32)) < 0) {
 				printf("could not read type key %s:%d\n",__FILE__,__LINE__-2);
@@ -5394,6 +5402,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_INT:
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(ui32)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
+
 			ui32 i_ne = 0;
 			if (read(fd, &i_ne, sizeof(ui32)) < 0) {
 				perror("could not read type int file.c 491.\n");
@@ -5405,6 +5422,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_LONG: 
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(ui64)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
 			ui64 l_ne = 0;
 			if (read(fd, &l_ne, sizeof(l_ne)) < 0){
 				perror("could not read type long, file.c 498.\n");
@@ -5417,6 +5442,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_FLOAT:
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(ui32)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
 			ui32 f_ne = 0;
 			if (read(fd, &f_ne, sizeof(ui32)) < 0) {
 				perror("could not read type float, file.c l 505.\n");
@@ -5429,6 +5462,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_PACK:
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(ui32)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
 			ui32 p_ne = 0;
 			if (read(fd, &p_ne, sizeof(ui32)) < 0) {
 				perror("could not read type float, file.c l 505.\n");
@@ -5441,6 +5482,14 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_DATE:
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(ui32)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
 			ui32 p_ne = 0;
 			if (read(fd, &p_ne, sizeof(ui32)) < 0) {
 				perror("could not read type float, file.c l 505.\n");
@@ -5496,22 +5545,31 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 				buff_update = (file_offset)swap16(bu_up_ne);
 			}
+		   			
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,buff_update) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			} else{
+				rec->fields[i].data.s = malloc(buff_update);
+				if (!rec->fields[i].data.s){
+					fprintf(stderr,"malloc failed: %s:%d.\n", F, L - 3);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				memset(rec->fields[i].data.s,0,buff_update);
 
-			rec->fields[i].data.s = malloc(buff_update);
-			if (!rec->fields[i].data.s){
-				fprintf(stderr,"malloc failed: %s:%d.\n", F, L - 3);
-				free_record(rec, rec->fields_num);
-				return -1;
+				/*read the actual string*/
+				if (read(fd, rec->fields[i].data.s, buff_update) < 0){
+					perror("could not read buffer string, file.c l 539.\n");
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+
 			}
-
-			memset(rec->fields[i].data.s,0,buff_update);
-			/*read the actual string*/
-			if (read(fd, rec->fields[i].data.s, buff_update) < 0){
-				perror("could not read buffer string, file.c l 539.\n");
-				free_record(rec, rec->fields_num);
-				return -1;
-			}
-
 			/*set file pointer back at the end of the original str record*/
 			if (str_loc > 0)
 			{
@@ -5526,6 +5584,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_BYTE:
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(unsigned char)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
+
 			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) == -1){
 				perror("could not read type byte: ");
 				printf(" %s:%d.\n", F, L - 2);
@@ -5537,6 +5604,15 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 		}
 		case TYPE_DOUBLE:
 		{
+			if(rec->fields[i].is_dropped){
+				if(move_in_file_bytes(fd,sizeof(ui32)) == -1){
+					printf("could not move file pointer %s:%d\n",__FILE__,__LINE__-2);
+					free_record(rec, rec->fields_num);
+					return -1;
+				}
+				break;
+			}
+
 			ui64 d_ne = 0;
 			if (read(fd, &d_ne, sizeof(d_ne)) < 0)
 			{
@@ -6645,12 +6721,12 @@ static size_t get_disk_size_record(struct Record_f *rec)
 			break;
 		case TYPE_ARRAY_STRING:
 		case TYPE_SET_STRING:
-			size++;
+			size++; /*one byte for option set*/
 			size += (sizeof(ui32) * 2);
 			size += ((sizeof(ui32) + sizeof(ui16)) * rec->fields[i].data.v.size);
 			int j;
 			for(j = 0; j < rec->fields[i].data.v.size; j++){
-				size += ((strlen(rec->fields[i].data.s) * 2) + 1);
+				size += ((strlen(rec->fields[i].data.v.elements.s[j]) * 2) + 1);
 			}
 			size += (sizeof(ui64));
 			break;
@@ -9269,6 +9345,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						memcpy(&ram->mem[ram->size],&sz, sizeof(ui32));
 						ram->size += sizeof(ui32);
 						ram->offset += sizeof(ui32);
+
 						ui32 pad = 0;
 						memcpy(&ram->mem[ram->size],&pad, sizeof(ui32));
 						ram->size += sizeof(ui32);

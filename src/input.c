@@ -29,6 +29,8 @@ void print_usage(char *argv[])
         printf("\t -A - add indexes -i to the file specified by -f .\n");
         printf("\t -I - create only the .dat file specified by -f .\n");
         printf("\t -j - display the journal of operations.\n");
+        printf("\t -N - display the nr of record in the file.\n");
+        printf("\t -d - drop one or more fields in the file.\n");
 }
 
 void print_types(void)
@@ -48,38 +50,78 @@ void print_types(void)
 }
 
 int check_input_and_values(struct String file_path, struct String data_to_add, struct String key, char *argv[],
-                           unsigned char del, unsigned char list_def, unsigned char new_file,
-                           unsigned char update, unsigned char del_file, unsigned char build,
-                           unsigned char create, unsigned char options, unsigned char index_add,
-			   unsigned char file_field, unsigned char import_from_data, unsigned char journal_display)
+                          	unsigned char del, 
+							unsigned char list_def, 
+							unsigned char new_file,
+                           	unsigned char update,
+							unsigned char del_file,
+							unsigned char build,
+                           	unsigned char create,
+							unsigned char options,
+							unsigned char index_add,
+			   				unsigned char file_field,
+							unsigned char import_from_data,
+							unsigned char journal_display,
+							unsigned char nr_of_record_display,
+							unsigned char del_field)
 {
-	if (journal_display && (!file_path.is_empty(&file_path)  	|| 
-			del 					|| 
-			update 					|| 
-			del_file 				|| 
-			list_def 				||
-                       	new_file 				|| 
-		       	!key.is_empty(&key) 			|| 
-			!data_to_add.is_empty(&data_to_add)	|| 
-			build 					|| 
-			create		 			||
-		       index_add || import_from_data)){
+	if((del_field && file_path.is_empty(&file_path)) 
+			|| (del_field && ( del 					
+						|| update 					
+						|| del_file
+						|| list_def 
+						|| new_file 				
+						|| !key.is_empty(&key)
+						|| build
+						|| create		 			
+						|| index_add 
+						|| import_from_data
+						|| nr_of_record_display))){
+		printf("option -d must be used with -f.\n\n");
+		printf("isam.db -f [file_name] -d [fields:that:you:want:to:drop].\n\n");
+		print_usage(argv);
+		return 0;
+	}
+
+	if(del_field)
+		return 1;
+
+	if(nr_of_record_display && file_path.is_empty(&file_path)){
+		printf("option -N must be used with -f.\n\n");
+		print_usage(argv);
+		return 0;
+	}
+
+	if (journal_display && (!file_path.is_empty(&file_path)  
+			|| del 					
+			|| update 					
+			|| del_file
+			|| list_def 
+			|| new_file 				
+			|| !key.is_empty(&key)
+			|| !data_to_add.is_empty(&data_to_add)	
+			|| build
+			|| create		 			
+			|| index_add 
+			|| import_from_data
+			|| nr_of_record_display)){
                 printf("option -j must be used by itself.\n");
                 return 0;
         }
 
-        if (create && (!file_path.is_empty(&file_path)  	|| 
-			del 					|| 
-			update 					|| 
-			del_file 				|| 
-			list_def 				||
-                       	new_file 				|| 
-		       	!key.is_empty(&key) 			|| 
-			!data_to_add.is_empty(&data_to_add)	|| 
-			build 					|| 
-			journal_display 			||
-		       index_add || import_from_data))
-        {
+        if (create && (!file_path.is_empty(&file_path) 
+				|| del 					
+				|| update 					
+				|| del_file
+				|| list_def 
+				|| new_file 				
+				|| !key.is_empty(&key)
+				|| !data_to_add.is_empty(&data_to_add)	
+				|| build
+				|| create		 			
+				|| index_add 
+				|| import_from_data
+				|| nr_of_record_display)){
                 printf("option -c must be used by itself.\n");
                 printf(" -c <txt-with-files-definitions>.\n");
                 return 0;
@@ -93,8 +135,7 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
                 return 0;
         }
 
-        if (!file_path.is_empty(&file_path) && (create || import_from_data))
-        {
+        if (!file_path.is_empty(&file_path) && (create || import_from_data)){
                 print_usage(argv);
                 return 0;
         }
@@ -115,7 +156,7 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
                 return 0;
 	}
 
-        if (  !file_path.is_empty(&file_path)  || file_field){
+    if (  !file_path.is_empty(&file_path)  || file_field){
 		if(file_path.str){
 			if(!is_file_name_valid(file_path.str)){
 				printf("file name or path not valid.\n");
@@ -126,53 +167,62 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 				printf("file name or path not valid.\n");
 				return 0;
 			}
-
 		}
-		
-        }
+	}
 
 
-        if ((!data_to_add.is_empty(&data_to_add) || update) && key.is_empty(&key) )
-        {
-                printf("option -k is required.\n\n");
-                print_usage(argv);
-                return 0;
-        }
+	if ((!data_to_add.is_empty(&data_to_add) || update) && key.is_empty(&key) )
+	{
+		printf("option -k is required.\n\n");
+		print_usage(argv);
+		return 0;
+	}
 
-        if (new_file && list_def)
-        {
-                printf("option -l can`t be used on new file, or at file creation.\n\n");
-                print_usage(argv);
-                return 0;
-        }
+	if (new_file && list_def)
+	{
+		printf("option -l can`t be used on new file, or at file creation.\n\n");
+		print_usage(argv);
+		return 0;
+	}
 
-        if (del_file && (new_file || list_def || !data_to_add.is_empty(&data_to_add)|| update || !key.is_empty(&key) ))
-        {
-                printf("you cannot use option -e with other options! Only -ef <fileName>.\n");
-                print_usage(argv);
-                return 0;
-        }
+	if (del_file && 
+			(del 					
+			|| update 					
+			|| list_def 
+			|| new_file 				
+			|| !key.is_empty(&key)
+			|| !data_to_add.is_empty(&data_to_add)	
+			|| build
+			|| create		 			
+			|| index_add 
+			|| import_from_data
+			|| nr_of_record_display)){
+             
+		printf("you cannot use option -e with other options! Only -ef <fileName>.\n");
+		print_usage(argv);
+		return 0;
+	}
 
-        if ((del && key.is_empty(&key) ) && !options)
-        {
-                printf("missing record key, option -k.\n");
-                print_usage(argv);
-                return 0;
-        }
-        return 1;
+	if ((del && key.is_empty(&key) ) && !options)
+	{
+		printf("missing record key, option -k.\n");
+		print_usage(argv);
+		return 0;
+	}
+	return 1;
 }
 
 int convert_options(char *options)
 {
-        size_t l = strlen(options);
+	size_t l = strlen(options);
 	size_t i;
-        for (i = 0; i < l; i++)
-                options[i] = tolower(options[i]);
+	for (i = 0; i < l; i++)
+		options[i] = tolower(options[i]);
 
-        if (strcmp(options, ALL_OP) == 0) return ALL;
-        if (strcmp(options, ADD_AR_OP) == 0) return AAR;
-        if (strcmp(options, FORCE) == 0) return FRC;
+	if (strcmp(options, ALL_OP) == 0) return ALL;
+	if (strcmp(options, ADD_AR_OP) == 0) return AAR;
+	if (strcmp(options, FORCE) == 0) return FRC;
 
 
-        return -1;
+	return -1;
 }
