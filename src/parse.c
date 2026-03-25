@@ -556,7 +556,7 @@ int read_header(int fd, struct Header_d *hd)
 
 	memset(hd->sch_d->fields_name,0,sizeof(char*)*hd->sch_d->fields_num);
 	memset(hd->sch_d->types,-1,sizeof(int) * hd->sch_d->fields_num);
-	memset(hd->sch_d->is_dropped,-1,hd->sch_d->fields_num);
+	memset(hd->sch_d->is_dropped,0,hd->sch_d->fields_num);
 
 	if(!hd->sch_d->fields_name || !hd->sch_d->types || !hd->sch_d->is_dropped ){
 		fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-4);
