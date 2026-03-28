@@ -989,13 +989,22 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 			if(pos[j] == j) continue;
 			if (strncmp(sch->fields_name[i], names[j],strlen(names[j])) == 0) {
 				found++;
-				pos[x] = j; /* save the position of the field that is already in the schema*/
+				pos[x] = i; /* save the position of the field that is already in the schema*/
 				x++;
 			} else {
 				new_fields = 1;
 			} 
 
 			if (found == fields_num) {
+				int k;
+				for(k = 0; k < fields_num; k++){
+					if(sch->is_dropped[pos[k]]){
+						/*this reactivate the field*/
+						sch->is_dropped[pos[k]] = 0;
+						printf("fields already exist.\n");
+						return 1;
+					}
+				}
 				printf("fields already exist.\n");
 				return 0;
 			}
@@ -1011,6 +1020,7 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		}
 
 		sch->fields_name = new_fields;
+
 		int *types = (int*) realloc(sch->types,
 				(sch->fields_num + fields_num) * fields_num*sizeof(int));
 		if(!types){
@@ -1018,6 +1028,16 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 			return 0;
 		}
 		sch->types = types;
+
+		ui8 *nd = (ui8*) realloc(sch->is_dropped,
+				(sch->fields_num + fields_num));
+
+		if(!nd){
+			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			return 0;
+		}
+
+		sch->is_dropped = nd;
 
 		/* check which fields are already in the schema if any */
 		int i;
@@ -1031,6 +1051,7 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 			memset(sch->fields_name[sch->fields_num],0,strlen(names[i])+1);
 			strncpy(sch->fields_name[sch->fields_num],names[i],strlen(names[i]));
 			sch->types[sch->fields_num] = types_i[i];
+			sch->is_dropped[sch->fields_num] = 0;
 			sch->fields_num++;
 		}
 		return 1;
@@ -3172,6 +3193,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 	return  UPDATE_OLDN;
 }
 
+
 void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec, int option)
 {
 	int dif = 0;
@@ -3516,7 +3538,6 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				for (a = 0; a < rec->fields[index].data.v.size; a++){
 					free(rec_old[i]->fields[index].data.v.elements.s[a]);
 
-					rec_old[i]->fields[index].data.v.elements.s[a] = NULL;
 					rec_old[i]->fields[index].data.v.elements.s[a] =
 						duplicate_str(rec->fields[index].data.v.elements.s[a]);
 					if (!rec_old[i]->fields[index].data.v.elements.s[a]){
@@ -3594,6 +3615,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						n_size * sizeof(struct Record_f));
 				if(!n_recs){
 					fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
+					free_schema(hd.sch_d);
 					positions[i] = '0';
 					return;
 				}
@@ -3610,6 +3632,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 								hd.sch_d)){
 						fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
 						positions[i] = '0';
+						free_schema(hd.sch_d);
 						return;
 					}
 				}
@@ -3622,37 +3645,299 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 				 * this function also zeros the memory out
 				 * when the second parameter is on (1)
 				 * */
-				free_type_file(rec_old[i],1);
+				/*free_type_file(rec_old[i],1);*/
 
 				if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
 					struct Record_f *n_recs = (struct Record_f*)realloc(
 							rec_old[i]->fields[index].data.file.recs,
 							rec->fields[index].data.file.count * sizeof(struct Record_f));
+
 					if(!n_recs){
 						fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
 						close_file(1,fd_sch);
-						positions[i] = '0';
+						positions[0] = '0';
+						free_schema(hd.sch_d);
 						return;
 					}
 
 					rec_old[i]->fields[index].data.file.recs = n_recs;
 					rec_old[i]->fields[index].data.file.count = rec->fields[index].data.file.count;
 				}
+
 				rec_old[i]->field_set[index] = 1;
-				ui32 k;
+				ui32 k,x;
 				for(k = 0; k < rec_old[i]->fields[index].data.file.count; k++){
-					if(!copy_rec(&rec->fields[index].data.file.recs[k],
-								&rec_old[i]->fields[index].data.file.recs[k],
-								hd.sch_d)){
-						fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
-						positions[i] = '0';
-						return;
+					for(x = 0; x < (ui32)rec->fields[index].data.file.recs->fields_num; x++){
+						if(!rec->fields[index].data.file.recs->field_set[x] )
+							continue;
+
+						switch(rec->fields[index].data.file.recs->fields[x].type){
+						case TYPE_INT:
+							rec_old[i]->fields[index].data.i = rec->fields[index].data.i;
+							break;
+						case TYPE_LONG:
+							rec_old[i]->fields[index].data.l = rec->fields[index].data.l;
+							break;
+						case TYPE_BYTE:
+							rec_old[i]->fields[index].data.b = rec->fields[index].data.b;
+							break;
+						case TYPE_KEY:
+							rec_old[i]->fields[index].data.k = rec->fields[index].data.k;
+							break;
+						case TYPE_DATE:
+							rec_old[i]->fields[index].data.date = rec->fields[index].data.date;
+							break;
+						case TYPE_FLOAT:
+							rec_old[i]->fields[index].data.f = rec->fields[index].data.f;
+							break;
+						case TYPE_DOUBLE:
+							rec_old[i]->fields[index].data.f= rec->fields[index].data.d;
+							break;
+						case TYPE_STRING:
+						{
+							int sz = (int)strlen(rec->fields[index].data.file.recs->fields[x].data.s);
+
+							if(sz != (int)strlen(rec_old[i]->fields[index].data.file.recs->fields[x].data.s) 
+									|| strncmp(rec->fields[index].data.file.recs->fields[x].data.s,
+										rec_old[i]->fields[index].data.file.recs->fields[x].data.s,sz) != 0){
+
+								free(rec_old[i]->fields[index].data.file.recs->fields[x].data.s);
+								rec_old[i]->fields[index].data.file.recs->fields[x].data.s = malloc(sz+1);
+								if(!rec_old[i]->fields[index].data.file.recs->fields[x].data.s){
+									fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__ - 2);
+									free_schema(hd.sch_d);
+									positions[0] = '0';
+									return;
+								}
+
+								memset(rec_old[i]->fields[index].data.file.recs->fields[x].data.s,0,sz+1);
+								if(!rec_old[i]->fields[index].data.file.recs->fields[x].data.s){
+									fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__ - 2);
+									free_schema(hd.sch_d);
+									positions[0] = '0';
+								}	
+								strncpy(rec_old[i]->fields[index].data.file.recs->fields[x].data.s,
+										rec->fields[index].data.file.recs->fields[x].data.s,sz);
+							}
+							break;
+						}
+						case TYPE_ARRAY_INT:
+						case TYPE_SET_INT:
+						{
+							if(!rec_old[i]->fields[index].data.v.elements.i){
+								rec_old[i]->fields[index].data.v.insert = insert_element;
+								rec_old[i]->fields[index].data.v.destroy = free_dynamic_array; 
+							}
+
+							if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+								if(option == AAR){
+									int a,b;
+									for (a = 0; a < rec->fields[index].data.v.size; a++) {
+										if(rec_old[i]->fields[index].data.v.
+												insert((void *)&rec->fields[index].data.v.elements.i[a],
+													&rec_old[i]->fields[index].data.v, 
+													rec->fields[index].type) == -1){
+											b = 1;
+											break;
+										}
+
+									}
+									if(!b)
+										positions[i] = 'y';
+									break;
+								}
+								int a;
+								for (a = 0; a < rec->fields[index].data.v.size; a++)
+									rec_old[i]->fields[index].data.v.elements.i[a] =  rec->fields[index].data.v.elements.i[a];
+
+								positions[i] = 'y';
+								break;
+							}else{
+								if(option == AAR){
+									int a;
+									for (a = 0; a < rec->fields[index].data.v.size; a++) {
+										rec_old[i]->fields[index].data.v.
+											insert((void *)&rec->fields[index].data.v.elements.i[a],
+													&rec_old[i]->fields[index].data.v, 
+													rec->fields[index].type);
+									}
+									positions[i] = 'y';
+									break;
+								}
+								/*
+								 * if the sizes of the two arrays are different,
+								 * simply we destroy the old one,
+								 * and in the old record we create a new one with the data
+								 * of the new record
+								 * */
+								rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, rec->fields[index].type);
+								int a;
+								for (a = 0; a < rec->fields[index].data.v.size; a++){
+									rec_old[i]->fields[index].data.v
+										.insert((void *)&rec->fields[index].data.v.elements.i[a],
+												&rec_old[i]->fields[index].data.v,
+												rec->fields[index].type);
+								}
+								positions[i] = 'y';
+								break;
+							}
+							break;
+						}
+						case TYPE_ARRAY_LONG:
+						case TYPE_SET_LONG:
+						{
+							if(!rec_old[i]->fields[index].data.v.elements.l){
+								rec_old[i]->fields[index].data.v.insert = insert_element;
+								rec_old[i]->fields[index].data.v.destroy = free_dynamic_array; 
+							}
+
+							if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+								if(option == AAR){
+									int a,b;
+									for (a = 0; a < rec->fields[index].data.v.size; a++) {
+										if(rec_old[i]->fields[index].data.v.
+												insert((void *)&rec->fields[index].data.v.elements.l[a],
+													&rec_old[i]->fields[index].data.v, 
+													rec->fields[index].type) == -1){
+											b = 1;
+											break;
+										}
+
+									}
+									if(!b)
+										positions[i] = 'y';
+									break;
+								}
+								int a;
+								for (a = 0; a < rec->fields[index].data.v.size; a++)
+									rec_old[i]->fields[index].data.v.elements.l[a] =  rec->fields[index].data.v.elements.l[a];
+
+								positions[i] = 'y';
+								break;
+							}else{
+								if(option == AAR){
+									int a;
+									for (a = 0; a < rec->fields[index].data.v.size; a++) {
+										rec_old[i]->fields[index].data.v.
+											insert((void *)&rec->fields[index].data.v.elements.l[a],
+													&rec_old[i]->fields[index].data.v, 
+													rec->fields[index].type);
+									}
+									positions[i] = 'y';
+									break;
+								}
+								/*
+								 * if the sizes of the two arrays are different,
+								 * simply we destroy the old one,
+								 * and in the old record we create a new one with the data
+								 * of the new record
+								 * */
+								rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, rec->fields[index].type);
+								int a;
+								for (a = 0; a < rec->fields[index].data.v.size; a++){
+									rec_old[i]->fields[index].data.v
+										.insert((void *)&rec->fields[index].data.v.elements.l[a],
+												&rec_old[i]->fields[index].data.v,
+												rec->fields[index].type);
+								}
+								positions[i] = 'y';
+								break;
+							}
+							break;
+						}
+						case TYPE_ARRAY_BYTE:
+						case TYPE_SET_BYTE:
+							break;
+						case TYPE_ARRAY_FLOAT:
+						case TYPE_SET_FLOAT:
+							break;
+						case TYPE_ARRAY_DOUBLE:
+						case TYPE_SET_DOUBLE:
+							break;
+						case TYPE_ARRAY_STRING:
+						case TYPE_SET_STRING:
+						{
+							if(!rec_old[i]->fields[index].data.v.elements.s){
+								rec_old[i]->fields[index].data.v.insert = insert_element;
+								rec_old[i]->fields[index].data.v.destroy = free_dynamic_array; 
+							}
+
+							if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+								if(option == AAR){
+									int a,b;
+									for (a = 0; a < rec->fields[index].data.v.size; a++) {
+										if(rec_old[i]->fields[index].data.v.
+												insert((void *)rec->fields[index].data.v.elements.s[a],
+													&rec_old[i]->fields[index].data.v, 
+													rec->fields[index].type) == -1){
+											b = 1;
+											break;
+										}
+
+									}
+									if(!b)
+										positions[i] = 'y';
+									break;
+								}
+								int a;
+								for (a = 0; a < rec->fields[index].data.v.size; a++){
+									free(rec_old[i]->fields[index].data.v.elements.s[a]);
+
+									rec_old[i]->fields[index].data.v.elements.s[a] =
+										duplicate_str(rec->fields[index].data.v.elements.s[a]);
+									if (!rec_old[i]->fields[index].data.v.elements.s[a]){
+										fprintf(stderr, "duplicate_str() failed %s:%d.\n", F, L - 2);
+										positions[0] = '0';
+										return;
+									}
+								}
+								positions[i] = 'y';
+								break;
+							}else{
+								if(option == AAR){
+									int a;
+									for (a = 0; a < rec->fields[index].data.v.size; a++) {
+										rec_old[i]->fields[index].data.v.
+											insert((void *)rec->fields[index].data.v.elements.s[a],
+													&rec_old[i]->fields[index].data.v, 
+													rec->fields[index].type);
+									}
+									positions[i] = 'y';
+									break;
+								}
+								/*
+								 * if the sizes of the two arrays are different,
+								 * simply we destroy the old one,
+								 * and in the old record we create a new one we the data
+								 * of the new record
+								 * */
+								rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, rec->fields[index].type);
+								int a;
+								for (a = 0; a < rec->fields[index].data.v.size; a++){
+									rec_old[i]->fields[index].data.v
+										.insert((void *)rec->fields[index].data.v.elements.s[a],
+												&rec_old[i]->fields[index].data.v,
+												rec->fields[index].type);
+								}
+								positions[i] = 'y';
+								break;
+							}
+							break;
+						}
+						case TYPE_FILE:
+							break;
+						default:
+							fprintf(stderr,"(%s): type not supported.%s:%d.\n",prog,__FILE__,__LINE__);
+							free_schema(hd.sch_d);
+							positions[i] = '0';
+							return;
+						}
 					}
+					free_schema(hd.sch_d);
 				}
 				positions[i] = 'y';
 				break;
 			}
-
 		}
 		default:
 		printf("no matching type\n");
@@ -3660,8 +3945,6 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 		return;
 		}
 	}
-
-
 }	
 
 

@@ -6325,6 +6325,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				if (read(fd, &size_array, sizeof(size_array)) == -1){
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
+					free_schema(hd.sch_d);
 					return -1;
 				}
 
@@ -6333,6 +6334,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				if (read(fd, &padding, sizeof(padding)) == -1){
 					perror("error readig array.");
 					free_record(rec, rec->fields_num);
+					free_schema(hd.sch_d);
 					return -1;
 				}
 
@@ -6345,6 +6347,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						if(!rec->fields[i].data.file.recs){
 							fprintf(stderr,"malloc failed %s:%d.\n",F,L-3);
 							free_record(rec, rec->fields_num);
+							free_schema(hd.sch_d);
 							return -1;
 						}
 					
@@ -6355,6 +6358,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 									*hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
+							free_schema(hd.sch_d);
 							return -1;
 						}
 					}else{
@@ -6366,6 +6370,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						if(!new_rec){
 							fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-4);
 							free_record(rec, rec->fields_num);
+							free_schema(hd.sch_d);
 							return -1;
 						}
 						rec->fields[i].data.file.recs = new_rec;
@@ -6376,6 +6381,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 									,*hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
+							free_schema(hd.sch_d);
 							return -1;
 						}
 					}
@@ -6394,6 +6400,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						if (!n) {
 							fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-6);
 							free_record(rec, rec->fields_num);
+							free_schema(hd.sch_d);
 							return -1;
 						}
 						rec->fields[i].data.file.recs = n;
@@ -6401,6 +6408,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 						if (find_record_position(fd, update_rec_pos) == -1) {
 							__er_file_pointer(F, L - 1);
 							free_record(rec, rec->fields_num);
+							free_schema(hd.sch_d);
 							return -1;
 						}
 
@@ -6410,6 +6418,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 								*hd.sch_d) == -1) {
 							fprintf(stderr,"cannot read record of embedded file,%s:%d.\n",F,L-1);
 							free_record(rec, rec->fields_num);
+							free_schema(hd.sch_d);
 							return -1;
 						}
 					}
@@ -6417,18 +6426,21 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					if(update_rec_pos == -1 || rests_pos_here== -1){
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
+						free_schema(hd.sch_d);
 						return -1;
 					}
 
 					if (find_record_position(fd, rests_pos_here) == -1) {
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
+						free_schema(hd.sch_d);
 						return -1;
 					}
 
 					if (move_in_file_bytes(fd, sizeof(file_offset)) == -1) {
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
+						free_schema(hd.sch_d);
 						return -1;
 					}
 					
@@ -6444,6 +6456,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 									&dummy, *hd.sch_d) == -1){
 							fprintf(stderr,"cannot read type file %s:%d.\n"
 									,F,L-1);
+							free_schema(hd.sch_d);
+							free_record(rec, rec->fields_num);
 							return -1;
 						}
 
@@ -6451,6 +6465,8 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 
 						if(move_in_file_bytes(fd,sizeof(file_offset)) == -1){
 							__er_file_pointer(F, L - 1);
+							free_schema(hd.sch_d);
+							free_record(rec, rec->fields_num);
 							return 0;
 						}
 					}
@@ -6461,6 +6477,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 				{
 					perror("can't read int array from file.\n");
 					free_record(rec, rec->fields_num);
+					free_schema(hd.sch_d);
 					return -1;
 				}
 
@@ -6471,6 +6488,7 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 					if (find_record_position(fd, array_upd) == -1){
 						__er_file_pointer(F, L - 1);
 						free_record(rec, rec->fields_num);
+						free_schema(hd.sch_d);
 						return -1;
 					}
 				}
@@ -6480,8 +6498,11 @@ int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch)
 			{
 				__er_file_pointer(F, L - 1);
 				free_record(rec, rec->fields_num);
+				free_schema(hd.sch_d);
 				return -1;
 			}
+
+			free_schema(hd.sch_d);
 			break;
 		}
 		default:
@@ -10516,7 +10537,6 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						ram->size += sizeof(ui64);
 						ram->offset += sizeof(ui64);
 					}else{
-						/*open the schema file*/
 
 						if(rec->fields[i].is_dropped){
 							/* skip the record
@@ -10544,6 +10564,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							break;
 						}
 
+						/*open the schema file*/
 						/*create file name*/
 						size_t file_name_length = strlen(rec->fields[i].field_name) + strlen(".sch");
 						char file_name[file_name_length + 1];
@@ -10610,6 +10631,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 												&dummy,
 												*hd.sch_d) == -1){
 										fprintf(stderr,"cannot read ram file, %s:%d.\n",__FILE__,__LINE__-1);
+										free_schema(hd.sch_d);
 										return -1;
 									}
 
@@ -10659,6 +10681,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 													&rec->fields[i].data.file.recs[step],
 													update,0,0) == -1){
 											fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+											free_schema(hd.sch_d);
 											return -1;
 										}
 										step++;
@@ -10670,6 +10693,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									/*write the epty update offset*/
 									ui64 empty_offset = 0;
 									memcpy(&ram->mem[ram->offset],&empty_offset,sizeof(ui64));
+									free_schema(hd.sch_d);
 									break;
 								}
 							}
@@ -10708,6 +10732,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 													&rec->fields[i].data.file.recs[step],
 													update,0,0) == -1){
 											fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+											free_schema(hd.sch_d);
 											return -1;
 										}
 										step++;
@@ -10739,6 +10764,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									ui64 empty_offset = 0;
 									memcpy(&ram->mem[ram->offset],&empty_offset,sizeof(ui64));
 									ram->offset += sizeof(ui64);
+									free_schema(hd.sch_d);
 									break;
 								}
 							}
@@ -10791,6 +10817,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 											ram->capacity + (remaining_write_size + 1) * sizeof(ui8));
 									if(!n_mem){
 										fprintf(stderr,"(%s): realloc failed %s:%d.\n",prog,__FILE__,__LINE__-2);
+										free_schema(hd.sch_d);
 										return -1;
 									}
 
@@ -10821,6 +10848,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 													&rec->fields[i].data.file.recs[step],
 													0,0,0) == -1){
 											fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+											free_schema(hd.sch_d);
 											return -1;
 										}
 										step++;
@@ -10839,6 +10867,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								ram->offset += sizeof(ui64);
 
 
+								free_schema(hd.sch_d);
 								break;
 							}
 
@@ -10847,8 +10876,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						} while (update_pos > 0);
 
-						if (rec->fields[i].data.file.count < sz)
-						{
+						if (rec->fields[i].data.file.count < sz){
 
 							ram->offset -= sizeof(ui32);
 
@@ -10878,6 +10906,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 											&rec->fields[i].data.file.recs[step],
 											update,0,0) == -1){
 									fprintf(stderr,"write_ram_record failed, %s:%d.\n",__FILE__, __LINE__ - 1);
+									free_schema(hd.sch_d);
 									return -1;
 								}
 							}
@@ -10902,9 +10931,10 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							ui64 update_arr_ne = 0;
 							memcpy(&ram->mem[ram->offset],&update_arr_ne, sizeof(update_arr_ne));
-						}
-						else if (rec->fields[i].data.file.count == sz)
-						{
+							ram->offset += sizeof(ui64);
+							free_schema(hd.sch_d);
+
+						} else if (rec->fields[i].data.file.count == sz){
 							/*
 							 * the sizes are the same
 							 * we simply write the array.
@@ -10966,6 +10996,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							ui64 update_arr_ne = 0;
 							memcpy(&ram->mem[ram->offset],&update_arr_ne,sizeof(ui64));
 							ram->offset += sizeof(ui64);
+							free_schema(hd.sch_d);
 						}
 
 						if (go_back_to_first_rec > 0) ram->offset = go_back_to_first_rec;

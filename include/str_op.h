@@ -57,7 +57,8 @@ the number in e.i (int or long)*/
 #define return_first_char(str) str[0]
 
 
-char *get_sub_str(char *start_delim, char *end_delim, char *str);
+char *exclude_sub_str(char *start_delim,char *end_delim, char *src,int loop);
+char *get_sub_str(char *start_delim, char *end_delim, char *str,int loop);
 int get_array_values(char *src, char ***values);
 int is_num(char *key);
 void *key_converter(char *key, int *key_type);

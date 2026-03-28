@@ -390,8 +390,11 @@ unsigned char set_field(struct Record_f *rec,
 			count++;	
 		}
 
-		/*count should never be 0*/
-		assert(count > 0);
+		/*if count is 0 it means the value of the 
+		 * file field has already been stripped of []*/
+		if(count == 0)
+			count++;
+
 		char values[count][500];
 		memset(values,0,count*500);
 		if(count > 1){
@@ -465,7 +468,7 @@ unsigned char set_field(struct Record_f *rec,
 		char *f = NULL;
 		i = 0;
 		char *last = NULL;
-		for(; (f =strstr(p,"/")) != NULL; i++, p[f - p] = '@', last = f);
+		for(; (f = strstr(p,"/")) != NULL; i++, p[f - p] = '@', last = f);
 
 		replace('@','/',rec->file_name);
 		int partial_path = 0;
@@ -510,10 +513,10 @@ unsigned char set_field(struct Record_f *rec,
 				/*you can implement other modes*/
 			}else{
 				int i;
-				for(i = 0; i < count;i++)
+				for(i = 0; i < count;i++){
 					if(values[i][0] == 'w')
 						mode = check_handle_input_mode(&values[0][2], FCRT) | WR;
-				
+				}
 			}
 			
 			switch(mode){
@@ -837,12 +840,14 @@ unsigned char set_field(struct Record_f *rec,
 						if(fields_count == 0){
 							fprintf(stderr,"(%s):check input syntax.\n",prog);
 							close_file(1,fd_schema);
+							free_schema(hd.sch_d);
 							return 0;
 						}
 
 						if (fields_count > MAX_FIELD_NR) {
 							printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 							close_file(1,fd_schema);
+							free_schema(hd.sch_d);
 							return 0;
 						}
 
@@ -851,6 +856,7 @@ unsigned char set_field(struct Record_f *rec,
 							rec->fields[index].data.file.count++;
 							if(!rec->fields[index].data.file.recs){
 								fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-3);
+								free_schema(hd.sch_d);
 								return 0;
 							}
 							
@@ -869,6 +875,7 @@ unsigned char set_field(struct Record_f *rec,
 							if(!new_rec){
 								fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
+								free_schema(hd.sch_d);
 								return 0;
 							}
 
@@ -906,6 +913,7 @@ unsigned char set_field(struct Record_f *rec,
 							if(!new_rec){
 								fprintf(stderr,"(%s): realloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
 								close_file(1,fd_schema);	
+								free_schema(hd.sch_d);
 								return 0;
 							}
 
@@ -922,6 +930,7 @@ unsigned char set_field(struct Record_f *rec,
 
 					if (check == SCHEMA_ERR || check == 0) {
 						close_file(1,fd_schema);
+						free_schema(hd.sch_d);
 						return 0;
 					}
 
@@ -945,6 +954,7 @@ unsigned char set_field(struct Record_f *rec,
 						if(r == -1){
 							fprintf(stderr,"can't acquire or release proper lock.\n");
 							close_file(1,fd_schema);
+							free_schema(hd.sch_d);
 							return 0;
 						}
 
@@ -952,16 +962,19 @@ unsigned char set_field(struct Record_f *rec,
 						fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
 
 						if(file_error_handler(1,fd_schema) != 0){
+							free_schema(hd.sch_d);
 							return 0;
 						}
 
 						if (!write_header(fd_schema, &hd)) {
 							__er_write_to_file(F, L - 1);
+							free_schema(hd.sch_d);
 							close_file(1,fd_schema);
 							return 0;
 						}
 
 						while(lock(fd_schema,UNLOCK) == WTLK);
+						free_schema(hd.sch_d);
 					}
 				}
 			}
@@ -974,12 +987,14 @@ unsigned char set_field(struct Record_f *rec,
 					if(fields_count == 0){
 						fprintf(stderr,"(%s):check input syntax.\n",prog);
 						close_file(1,fd_schema);
+						free_schema(hd.sch_d);
 						return 0;
 					}
 
 					if (fields_count > MAX_FIELD_NR) {
 						printf("Too many fields, max %d each file definition.", MAX_FIELD_NR);
 						close_file(1,fd_schema);
+						free_schema(hd.sch_d);
 						return 0;
 					}
 
@@ -988,6 +1003,7 @@ unsigned char set_field(struct Record_f *rec,
 						rec->fields[index].data.file.count++;
 						if(!rec->fields[index].data.file.recs){
 							fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-3);
+							free_schema(hd.sch_d);
 							return 0;
 						}
 
@@ -1039,6 +1055,7 @@ unsigned char set_field(struct Record_f *rec,
 					if(r == -1){
 						fprintf(stderr,"can't acquire or release proper lock.\n");
 						close_file(1,fd_schema);
+						free_schema(hd.sch_d);
 						return 0;
 					}
 
@@ -1046,18 +1063,24 @@ unsigned char set_field(struct Record_f *rec,
 					fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
 
 					if(file_error_handler(1,fd_schema) != 0){
+						free_schema(hd.sch_d);
 						return 0;
 					}
 
 					if (!write_header(fd_schema, &hd)) {
 						__er_write_to_file(F, L - 1);
 						close_file(1,fd_schema);
+						free_schema(hd.sch_d);
 						return 0;
 					}
 
 					while(lock(fd_schema,UNLOCK) == WTLK);
+					free_schema(hd.sch_d);
+					close_file(1,fd_schema);
+					break;
 				} /* end of update schema branch*/
 			}
+			free_schema(hd.sch_d);
 			close_file(1,fd_schema);
 		}
 		break;

@@ -37,21 +37,103 @@ static const char *base_247[] = {"_A","_B","_C" ,"_D","_E","_F","_G","_H","_I","
 				"_xe8","_xe9","_xea","_xeb","_xec","_xed","_xee","_xef","_xf0","_xf1","_xf2","_xf3","_xf4","_xf5","_xf6",
 				"_xf7","_xf8","_xf9","_xfa","_xfb","_xfc","_xfd","_xfe","_xff"};
 
-char *get_sub_str(char *start_delim, char *end_delim, char *str)
+char *exclude_sub_str(char *start_delim,char *end_delim, char *src,int loop)
 {
+	char *start_d = 0x0;
+	char *end_d = 0x0;
+	static char ex_s_str[1024] = {0};
+	set_memory(ex_s_str,0,1024);
+
+	if(loop){
+		
+		int i = 0;
+		while(*src){
+			while(*src && *src != '['){
+				ex_s_str[i] = *src;
+				i++,src++;
+			}
+
+			if(!(*src))
+				break;
+
+			ex_s_str[i] = *src;
+
+			if(!(*src))
+				break;
+
+			src++, i++;
+			while(*src && *src != ']') src++;
+
+			ex_s_str[i] = *src;
+			if(!(*src))
+				break;
+			src++, i++;
+		}
+		if(ex_s_str[0])
+			return &ex_s_str[0];
+		else
+			return NULL;
+	} else{
+		if((start_d = find_needle(src,start_delim))){
+			int l = start_d - src;
+			strncpy(ex_s_str,src,l+1);
+			if((end_d = find_needle(src,end_delim))){
+				int e = end_d - src;
+				strncpy(&ex_s_str[l+1],&src[e],(strlen(src)-e)+1);
+				return &ex_s_str[0];
+			}
+		}
+	}
+	return 0x0;
+}
+
+char *get_sub_str(char *start_delim, char *end_delim, char *str, int loop)
+{
+
 	char *start_d = 0x0;
 	char *end_d = 0x0;
 	static char sub_str[1024] = {0};
 	set_memory(sub_str,0,1024);
 
-	if((start_d = find_needle(str,start_delim))){
-		if((end_d = find_needle(str,end_delim))){
-			int sx = start_d - str;
-			int size = ((--end_d - str) - sx)+1;
+	if(loop){
+		int i = 0;
+		while(*str){
+			while(*str && *str != '[') str++;
 
-			string_copy(sub_str,&str[sx + 1],size-1);
-			return &sub_str[0];
+			str++;
+			while(*str && *str != ']'){
+				sub_str[i] = *str;
+				i++,str++;
+			}
+
+			str++;
+			if(!(*str))
+				break;
+
+			sub_str[i] = ',';
+			i++;
 		}
+		if(sub_str[0])
+			return &sub_str[0];
+		else
+			return NULL;
+
+
+	} else{
+		if((start_d = find_needle(str,start_delim))){
+			if((end_d = find_needle(str,end_delim))){
+				if(loop){
+					*start_d = '@';
+					*end_d = '&';
+				}
+				int sx = start_d - str;
+				int size = ((--end_d - str) - sx)+1;
+
+				string_copy(sub_str,&str[sx + 1],size-1);
+				return &sub_str[0];
+			}
+		}
+
 	}
 	return 0x0;
 }
@@ -62,24 +144,38 @@ int check_handle_input_mode(char *buffer, int op)
 	/*look for TYPE_FILE*/
 	int av_ct = 0;
 	int av_cT = 0;
+	ui8 file = 0;
 	/*
-	 * __IMPORT_EZ is a global variable that will we true
+	 * __IMPORT_EZ is a global variable that will be true
 	 * only if we import from an EZgen system
 	 * in that case we do not need to check for file type
 	 * */
 
 	if(!__IMPORT_EZ){
-		char *sub_str = get_sub_str("[", "]", buffer);
+		char *sub_str = get_sub_str("[", "]", buffer, 0);
 		if(sub_str){
 			/*count T_ and TYPE_ that we have to ignore*/
-			av_ct = count_fields(buffer,T_); 
-			av_cT = count_fields(buffer,TYPE_);
-
+			av_ct = count_fields(sub_str,T_); 
+			av_cT = count_fields(sub_str,TYPE_);
+			file = 1;
 		}
 	}
 	int c_t = count_fields(buffer,T_) - av_ct; 
 	int c_T = count_fields(buffer,TYPE_) - av_cT; 
-	int c_delim =  count_fields(buffer,":");
+	
+	char *excluded_file_input = exclude_sub_str("[","]",buffer,0);
+	int c_delim = 0;
+	if(excluded_file_input){
+		c_delim = count_fields(excluded_file_input,":");
+	}else if(!excluded_file_input && file){
+		fprintf(stderr,"(%s): error in excluding file data from input. %s:%d\n",prog,__FILE__,__LINE__-5);
+		return -1;
+	}else{
+		c_delim = count_fields(buffer,":");
+	}
+		
+
+
 	
 	if(c_T == 0 && c_t == 0 && c_delim > 0) return NO_TYPE;
 	
@@ -100,7 +196,7 @@ int check_handle_input_mode(char *buffer, int op)
 	{
 		if(c_T == 0 && c_t == 0 && c_delim == 0) return -1;
 		int additional_c_delim_count = v == 1 ? 2 : v *2;
-		if((c_delim - v -additional_c_delim_count) > 0) return HYB;
+		if((c_delim - v -additional_c_delim_count) > 0 ) return HYB;
 		if((c_delim - v -additional_c_delim_count) == 0) return TYPE;
 		if((c_delim - v -additional_c_delim_count) < 0) return TYPE;
 		break;
@@ -2103,18 +2199,38 @@ char **get_values(char *fields_input, int fields_count)
 	}
 
 	memset(values,0,fields_count * sizeof(char*));
+
+	/*detect file type*/
+
 	char *s = 0x0;
-	tok(fields_input, ":");
-	tok(0x0, ":");
+ 	char *excluded_input =  exclude_sub_str("[","]",fields_input,1);
+	
+	if(excluded_input){
+		tok(excluded_input, ":");
+		tok(0x0, ":");
+	}else{
+		tok(fields_input, ":");
+		tok(0x0, ":");
+	}
+
 	s = tok(0x0,":");
 
 	if (s){
-		values[j] = duplicate_str(s);
-		if (!values[j]){
-			free(values);
-			return 0x0;
+		if(strncmp(s,"[]",2) == 0){
+			values[j] = duplicate_str(get_sub_str("[","]",fields_input,0));		
+			if (!values[j]){
+				free(values);
+				return 0x0;
+			}
+			i++;
+		}else{
+			values[j] = duplicate_str(s);
+			if (!values[j]){
+				free(values);
+				return 0x0;
+			}
+			i++;
 		}
-		i++;
 	}
 	else
 	{
@@ -2656,8 +2772,9 @@ static int is_target_db_type(char *target)
 		if(*target == ':') {
 			string_copy(tg,target,size);
 		}else{
-			*tg = ':';
+			tg[0] = ':';
 			string_copy(&tg[1],target,size);
+			size++;
 		}
 
 		if(string_length(tg) == string_length(":t_s")) if(string_compare(tg,":t_s",size,-1) == 0) return 0;
