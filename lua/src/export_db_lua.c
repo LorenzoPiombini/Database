@@ -1,16 +1,18 @@
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "export_db_lua.h"
 #include "date.h"
+#include "freestand.h"
 #include "common.h"
-#include "memory.h"
 #include "file.h"
 #include "key.h"
 
 #define LOWER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 65 || (int)*p <= 90) ;*p = ((int)*p) + 22,p++)
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
+static int digit(int n);
 
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
@@ -150,51 +152,47 @@ static int l_get_all_records(lua_State *L)
 	memset(fds,-1,4*sizeof(int));
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-	int m_al = 0;
-	if(is_memory_allocated() == NULL){
-		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
-		m_al = 1;
-	}
+	if(open_files(file_name,fds,file_names,-1) == -1) 
+		goto err_open_file;
+	if(is_db_file(&hd,fds) == -1)
+		goto err_not_db_file;
+	if(get_all_records(file_name,fds,&recs,hd) == -1)
+		goto err_get_record_failed;
 
-	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
-	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
-	if(get_all_records(file_name,fds,&recs,hd) == -1) goto err_get_record_failed;
 	close_file(3,fds[0],fds[1],fds[2]);
 
 	int i = 0;
 	lua_newtable(L);
 	for(i = 0;i < fds[3]; i++){
-		if(!recs[i])break;
+		if(!recs[i])
+			break;
+
 		port_record(L,recs[i]);
+		free_record(recs[i], recs[i]->fields_num);
 		lua_rawseti(L, -2, i + 1);
 	}
 	
-	if(m_al && close_arena() == -1) goto err_memory;
-
+	free(recs);
+	free_schema(hd.sch_d);
 	return 1;
 
 err_open_file:
 		lua_pushnil(L);
 		lua_pushstring(L,"could not open the file.");
-		if(m_al) close_arena();
 		return 2;
 
 err_get_record_failed:
 		lua_pushnil(L);
 		lua_pushstring(L,"get_record failed.");
 		close_file(3,fds[0],fds[1],fds[2]);
-		if(m_al) close_arena();
+		free_record_array(fds[3],recs);
+		free_schema(hd.sch_d);
 		return 2;
 
 err_not_db_file:
 		lua_pushnil(L);
 		lua_pushstring(L,"not a db file.");
 		close_file(3,fds[0],fds[1],fds[2]);
-		if(m_al) close_arena();
-		return 2;
-err_memory:
-		lua_pushnil(L);
-		lua_pushstring(L,"cannot allocate memory.");
 		return 2;
 }
 /*
@@ -502,6 +500,9 @@ static int l_string_data_to_add_template(lua_State *L)
 
 	int i, sum = 0; 
 	for(i = 0; i < hd.sch_d->fields_num; i++){
+		if(hd.sch_d->is_dropped[i])
+			continue;
+
 		sum += strlen(hd.sch_d->fields_name[i]);
 		switch(hd.sch_d->types[i]){
 			case TYPE_FLOAT:
@@ -540,6 +541,9 @@ static int l_string_data_to_add_template(lua_State *L)
 
 	int bwritten = 0;
 	for(i = 0; i < hd.sch_d->fields_num; i++){
+		if(hd.sch_d->is_dropped[i])
+			continue;
+
 		size_t sz = strlen(hd.sch_d->fields_name[i]);
 		memcpy(&st[bwritten],hd.sch_d->fields_name[i],sz);
 		bwritten += sz;
@@ -549,14 +553,24 @@ static int l_string_data_to_add_template(lua_State *L)
 		case TYPE_INT:
 		case TYPE_LONG:
 		case TYPE_BYTE:
-		case TYPE_ARRAY_BYTE:
-		case TYPE_ARRAY_LONG:
-		case TYPE_ARRAY_INT:
 			memcpy(&st[bwritten],"%d",2);
 			bwritten += 2;
 			break;
+		case TYPE_ARRAY_BYTE:
+		case TYPE_ARRAY_LONG:
+		case TYPE_ARRAY_INT:
 		case TYPE_ARRAY_FLOAT:
 		case TYPE_ARRAY_DOUBLE:
+		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
+		case TYPE_SET_BYTE:
+		case TYPE_SET_LONG:
+		case TYPE_SET_INT:
+		case TYPE_SET_FLOAT:
+		case TYPE_SET_DOUBLE:
+			memcpy(&st[bwritten],"%s",2);
+			bwritten += 2;
+			break;
 		case TYPE_DOUBLE:
 		case TYPE_FLOAT:
 			memcpy(&st[bwritten],"%.2f",4);
@@ -567,7 +581,6 @@ static int l_string_data_to_add_template(lua_State *L)
 			bwritten += 6;
 			break;
 		case TYPE_STRING:
-		case TYPE_ARRAY_STRING:
 		default:
 			memcpy(&st[bwritten],"%s",2);
 			bwritten += 2;
@@ -614,12 +627,6 @@ static int l_get_numeric_key(lua_State *L)
 	luaL_argcheck(L, mode >= 0, 2,"mode must be bigger than 0");
 	long long n = 0;
 
-	int m_al = 0;
-	if(is_memory_allocated() == NULL){
-		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
-		m_al = 1;
-	}
-
 	int fds[3];
 	memset(fds,-1,3*sizeof(int));
 
@@ -628,8 +635,12 @@ static int l_get_numeric_key(lua_State *L)
 	struct Header_d hd = {0,0,&sch};
 
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
-	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
-	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	if(open_files(file_name,fds,file_names,-1) == -1)
+		goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) 
+		goto err_not_db_file;
+
+	free_schema(hd.sch_d);
 
 	switch(mode){
 	case REG:
@@ -655,33 +666,26 @@ static int l_get_numeric_key(lua_State *L)
 		/*error*/
 		lua_pushnil(L);
 		lua_pushstring(L,"key mode unknown");
+		close_file(1,fds[0]);
 		return 2;
 	}
 
 	close_file(1,fds[0]);
-	if(m_al) close_arena();
 	return 1;
 
-err_memory:
-	lua_pushnil(L);
-	lua_pushstring(L,"cannot allocate memory.");
-	return 2;
 err_open_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not open the file.");
-	if(m_al) close_arena();
 	return 2;
 err_not_db_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"not a db file.");
 	close_file(1,fds[0]);
-	if(m_al) close_arena();
 	return 2;
 err_key_gen:
 	lua_pushnil(L);
 	lua_pushstring(L,"error generating  key.");
 	close_file(1,fds[0]);
-	if(m_al) close_arena();
 	return 2;
 }
 
@@ -726,57 +730,50 @@ static int l_save_key_at_index(lua_State *L)
 	memset(fds,-1,sizeof(int)*3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-	int m_al = 0;
-	if(is_memory_allocated() == NULL){
-		if(create_arena(EIGTH_Kib) == -1) goto err_memory;
-		m_al = 1;
-	}
 
-	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1) goto err_open_file;
-
+	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1)
+		goto err_open_file;
 
 	HashTable *ht = NULL;
 	int tbl_ix = 0;
 	/* load all indexes in memory */
-	if (!read_all_index_file(fds[0], &ht, &tbl_ix)) goto err_load_index;
+	if (!read_all_index_file(fds[0], &ht, &tbl_ix))
+		goto err_load_index;
 
-	if(set_tbl(&ht[index],key,record_offset,key_type,1) == -1) goto err_set_index;
+	if(set_tbl(&ht[index],key,record_offset,key_type,1) == -1) 
+		goto err_set_index;
 
-	if(write_index(fds,tbl_ix,ht,file_names[0]) == -1) goto err_write_index;
+	/*this function frees the ht array*/
+	if(write_index(fds,tbl_ix,ht,file_names[0]) == -1) 
+		goto err_write_index;
 
 
-	if(m_al)
-		close_arena();
-	else
-		cancel_memory(NULL,ht,sizeof(HashTable));
 	
 	/*if indexing succseed return the index number*/
 	lua_pushinteger(L,index);
+	close_file(1,fds[0]);
+	free(ht);
 	return 1;
 
-err_memory:
-	lua_pushnil(L);
-	lua_pushstring(L,"cannot allocate memory.");
-	return 2;
 err_open_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not open the file.");
-	if(m_al) close_arena();
 	return 2;
 err_load_index:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not load index file.");
-	if(m_al) close_arena();
+	close_file(1,fds[0]);
 	return 2;
 err_set_index:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not set index.");
-	if(m_al) close_arena();
+	close_file(1,fds[0]);
+	free_ht_array(ht, tbl_ix);
 	return 2;
 err_write_index:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not write index file.");
-	if(m_al) close_arena();
+	close_file(1,fds[0]);
 	return 2;
 }
 
@@ -794,7 +791,10 @@ int port_record(lua_State *L, struct Record_f* r){
 	lua_newtable(L);
 	int i;
 	for(i = 0; i < r->fields_num; i++){
-		if(r->field_set[i] == 0) continue;
+		if(r->field_set[i] == 0)
+			continue;
+		if(r->fields[i].is_dropped)
+			continue;
 
 		switch(r->fields[i].type){
 			case TYPE_INT:
@@ -836,13 +836,98 @@ int port_record(lua_State *L, struct Record_f* r){
 					struct Record_f *t;
 					int j;
 					for(j = 1, t = r->fields[i].data.file.recs; t != NULL; t = t->next){
-						if(port_record(L,t) == -1) return -1;
+						if(port_record(L,t) == -1) 
+							return -1;
 						lua_rawseti(L, -2, j);
 						j++;
 					}
 
 					lua_setfield(L,-2,r->fields[i].field_name);
 					break;
+			}
+			case TYPE_ARRAY_STRING:
+			case TYPE_SET_STRING:
+			{
+				lua_newtable(L);
+				int j,k;
+				for(j = 0, k = 1; j < r->fields[i].data.v.size; j++){
+					lua_pushstring(L,r->fields[i].data.v.elements.s[j]);
+					lua_seti(L,-2,k);
+					k++;
+				}
+
+				lua_setfield(L,-2,r->fields[i].field_name);
+				break;
+			}
+			case TYPE_ARRAY_FLOAT:
+			case TYPE_SET_FLOAT:
+			{
+				lua_newtable(L);
+				int j,k;
+				for(j = 0, k = 1; j < r->fields[i].data.v.size; j++){
+					lua_pushnumber(L,r->fields[i].data.v.elements.f[j]);
+					lua_seti(L,-2,k);
+					k++;
+				}
+
+				lua_setfield(L,-2,r->fields[i].field_name);
+				break;
+			}
+			case TYPE_ARRAY_INT:
+			case TYPE_SET_INT:
+			{
+				lua_newtable(L);
+				int j,k;
+				for(j = 0, k = 1; j < r->fields[i].data.v.size; j++){
+					lua_pushinteger(L,r->fields[i].data.v.elements.i[j]);
+					lua_seti(L,-2,k);
+					k++;
+				}
+
+				lua_setfield(L,-2,r->fields[i].field_name);
+				break;
+			}
+			case TYPE_ARRAY_LONG:
+			case TYPE_SET_LONG:
+			{
+				lua_newtable(L);
+				int j,k;
+				for(j = 0, k = 1; j < r->fields[i].data.v.size; j++){
+					lua_pushinteger(L,r->fields[i].data.v.elements.l[j]);
+					lua_seti(L,-2,k);
+					k++;
+				}
+
+				lua_setfield(L,-2,r->fields[i].field_name);
+				break;
+			}
+			case TYPE_ARRAY_BYTE:
+			case TYPE_SET_BYTE:
+			{
+				lua_newtable(L);
+				int j,k;
+				for(j = 0, k = 1; j < r->fields[i].data.v.size; j++){
+					lua_pushinteger(L,r->fields[i].data.v.elements.b[j]);
+					lua_seti(L,-2,k);
+					k++;
+				}
+
+				lua_setfield(L,-2,r->fields[i].field_name);
+				break;
+			}
+			case TYPE_ARRAY_DOUBLE:
+			case TYPE_SET_DOUBLE:
+			{
+				lua_newtable(L);
+				int j,k;
+				for(j = 0, k = 1; j < r->fields[i].data.v.size; j++){
+					lua_pushnumber(L,r->fields[i].data.v.elements.d[j]);
+					lua_seti(L,-2,k);
+					k++;
+				}
+
+				lua_setfield(L,-2,r->fields[i].field_name);
+				break;
 			}
 			default:
 				/*TODO*/
@@ -959,15 +1044,20 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 				lua_settop(L,0);
 				return -1;
 			}
+
 			size_t sz = strlen(s);
-			rec->fields[i].data.s = (char *)ask_mem(sz+1);
+			rec->fields[i].data.s = (char *)malloc(sz+1);
+			if(rec->fields[i].data.s){
+				lua_settop(L,0);
+				return -1;
+			}
+
 			memset(rec->fields[i].data.s,0,sz+1);
 			memcpy(rec->fields[i].data.s,s,sz);
 			lua_pop(L,1);
 		}
 		case TYPE_DATE:
-		{
-			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
+		{ if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
 			char *s = (char*)lua_tostring(L,-1);
 			if(!s){
 				lua_settop(L,0);
@@ -992,4 +1082,22 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 	}
 
 	return 0;
+}
+
+static int digit(int n)
+{
+	if(n < 10)
+		return 1;
+	if(n >= 10 && n < 100)
+		return 2;
+	if(n >= 100  && n < 1000)
+		return 3;
+	if(n > 1000  && n < 10000)
+		return 4;
+	if(n >= 10000  && n < 100000)
+		return 5;
+	if(n >= 100000  && n < 1000000)
+		return 6;
+
+	return -1;
 }
