@@ -182,7 +182,7 @@ a value, the standard number of indexes will be set to 5.
 
 ## How each record is written
 
-each record is written to disk with this data:
+each record is written to disk with this data:  
 (all the values bigger than a byte are written to disk in network endianess)
 
 - numer of active fields (1 byte)
@@ -195,6 +195,10 @@ each record is written to disk with this data:
     - TYPE_LONG     (8 bytes)
     - TYPE_DOUBLE   (8 bytes)
     - TYPE_STRING   (6 bytes + [(string length)*2] +1)
+    - TYPE_ARRAY_INT (17 bytes + (4 bytes * array lenght)
+    - TYPE_ARRAY_FLOAT (17 bytes + (4 bytes * array lenght)
+    - TYPE_ARRAY_LONG (17 bytes + (8 bytes * array lenght)
+    - TYPE_ARRAY_DOUBLE (17 bytes + (8 bytes * array lenght)
         
 
 
