@@ -189,7 +189,6 @@ each record is written to disk with this data:
     - TYPE_ARRAY_DOUBLE 17 bytes + (8 bytes * array lenght)
     - TYPE_ARRAY_STRING 17 bytes + {(6 bytes + [(string length)*2] + 1) * array lenght}
         for the TYPE_SET_* the bytes are the same
-    - TYPE_FILE ()
-
+- update offset in the file (8 bytes)
 
 
