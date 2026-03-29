@@ -6,25 +6,13 @@ The goal of this software is to serve as the foundation for an integrated system
 
 you can enables dynamic creation of file definitions at runtime, without the need to hardcode each file, every time you need to add one. the software will allow you to browse the file databse that it creates, will also install shared libraries on your machine that will be needed to develop a working system on this databes concept, you can develop pretty much anything on this file db.
 
-as for now, this software is ment to be for **Linux/Unix** systems, and it has been developed on a Ubuntu 22.04.4 LTS Jammy Jellifish using gcc version 11.4.0, tested on:
+as for now, this software is ment to be for **Linux/Unix** systems,and it has been tested on:
 
 - **Centos Stream Release 9** kernel: 5.14.0-479.el9.aarch64.
 - **Fedora 36** kernel: 5.11.17-300.fc34.aarch64.
+- **Fedora 36** kernel: 5.11.17-300.fc34.aarch64.
+- **Ubuntu 24.04.4 LTS** kernel: 6.8.0-106-generic
 
-## WHAT'S NEW?
-
-since april 2025 there is no need to pass the type when creating a file, the db will assign type when you first write to the file   
-since february 2025 you can create a record where one of the fields is an array.
-for each type supported by the database you can create an array "type":
-
-- int
-- long
-- float
-- byte (unsigned char)
-- string (char*)
-- double
-
-the array is dynamic and is defined in [record.h](https://github.com/LorenzoPiombini/isam.db-C-language/blob/main/include/record.h) and implented in [record.c](https://github.com/LorenzoPiombini/isam.db-C-language/blob/main/src/record.c)
 
 ## Get Started
 
@@ -43,13 +31,12 @@ sudo make build
 
 now you have all library installed and you can use the isam.db program, or use the commands GET, LIST, FILE, DEL, DELa and KEYS to create files.
 
-if you want to delate the commands and the isab.db program just run
+if you want to delete the commands and the isab.db program just run the following command, inside the repo folder.
 
 ```plaintext
 sudo make clean 
 ```
 
-inside the repo folder.
 
 ## How It Works
 
@@ -77,7 +64,7 @@ this three commands are correct and each will create a file with the follwing va
 - lastname or last name.
 - age.
 
-if you want to writes field with spaces you have to put the "" around the field name, or you can do the following(last_name underscore without ""):
+if you want to write field with spaces you have to put the "" around the field name, or you can do the following(last_name underscore without ""):
 
 ```bash
 [isam.db-C-language-main]$ bin/isam.db -nf person -a name:TYPE_STRING:last_name:TYPE_STRING:age:TYPE_BYTE
@@ -188,6 +175,7 @@ each record is written to disk with this data:
 - numer of active fields (1 byte)
 - index of the active filed ( 1 byte * number of active fields)
 - write the actual field value based its type:
+    - TYPE_BYTE     (1 byte)
     - TYPE_INT      (4 bytes)
     - TYPE_KEY      (4 bytes)
     - TYPE_DATE     (4 bytes)
@@ -195,10 +183,13 @@ each record is written to disk with this data:
     - TYPE_LONG     (8 bytes)
     - TYPE_DOUBLE   (8 bytes)
     - TYPE_STRING   (6 bytes + [(string length)*2] +1)
-    - TYPE_ARRAY_INT (17 bytes + (4 bytes * array lenght)
-    - TYPE_ARRAY_FLOAT (17 bytes + (4 bytes * array lenght)
-    - TYPE_ARRAY_LONG (17 bytes + (8 bytes * array lenght)
-    - TYPE_ARRAY_DOUBLE (17 bytes + (8 bytes * array lenght)
-        
+    - TYPE_ARRAY_INT 17 bytes + (4 bytes * array lenght)
+    - TYPE_ARRAY_FLOAT 17 bytes + (4 bytes * array lenght)
+    - TYPE_ARRAY_LONG 17 bytes + (8 bytes * array lenght)
+    - TYPE_ARRAY_DOUBLE 17 bytes + (8 bytes * array lenght)
+    - TYPE_ARRAY_STRING 17 bytes + {(6 bytes + [(string length)*2] + 1) * array lenght}
+        for the TYPE_SET_* the bytes are the same
+    - TYPE_FILE ()
+
 
 
