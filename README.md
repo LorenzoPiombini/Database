@@ -179,3 +179,22 @@ the index file is organized in this way:
 
 this is the layout of the index file, you can choose the number of indexes, but if you don't specify
 a value, the standard number of indexes will be set to 5.
+
+## How each record is written
+
+each record is written to disk with this data:
+(all the values bigger than a byte are written to disk in network endianess)
+
+- numer of active fields (1 byte)
+- index of the active filed ( 1 byte * number of active fields)
+- write the actual field value based its type:
+    - TYPE_INT      (4 bytes)
+    - TYPE_KEY      (4 bytes)
+    - TYPE_DATE     (4 bytes)
+    - TYPE_FLOAT    (4 bytes)
+    - TYPE_LONG     (8 bytes)
+    - TYPE_DOUBLE   (8 bytes)
+    - TYPE_STRING   (6 bytes + [(string length)*2] +1)
+        
+
+
