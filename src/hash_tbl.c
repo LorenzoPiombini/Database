@@ -61,11 +61,13 @@ int write_ht(int fd, HashTable *ht)
 	 * even if it is empty*/
 
 	const unsigned long EIGTH_Kib = 1024 * 8;
-	long msize = 1024 * 8;
+	long msize = EIGTH_Kib;
 	long bwritten = 0;
 	ui8 *buff = malloc(msize);
-	if(!buff)
+	if(!buff){
+		fprintf(stderr,"malloc failed, %s:%d.\n",F, L - 2);
 		return 0;
+	}
 
 	ui32 sz_n = swap32(ht->size);
 	memcpy(&buff[bwritten],&sz_n,sizeof(sz_n));

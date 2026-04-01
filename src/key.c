@@ -8,8 +8,8 @@
 #include <file.h>
 #include <str_op.h>
 #include "key.h"
-#include "memory.h"
-#include "freestand.h"
+#include "string_utilities.h"
+
 
 /*order starting number*/
 #define ORDER_BASE 100
@@ -24,7 +24,7 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 	case REG:
 	{
 		HashTable ht;
-		set_memory(&ht,0,sizeof(HashTable));
+		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
 		if(!read_index_nr(0,fds[0],&p_ht)){
 			/*log failure*/
@@ -38,7 +38,7 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 	case BASE: 
 	{
 		HashTable ht;
-		set_memory(&ht,0,sizeof(HashTable));
+		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
 		if(!read_index_nr(0,fds[0],&p_ht)){
 			/*log failure*/
@@ -76,7 +76,7 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 char *get_all_keys_for_file(int *fds,int index,int mode)
 {
 	HashTable ht;
-	set_memory(&ht,0,sizeof(HashTable));
+	memset(&ht,0,sizeof(HashTable));
 	HashTable *p_ht = &ht;
 
 	struct Keys_ht all_keys;
@@ -111,7 +111,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 		case STR:
 		{
 			if(all_keys.keys[i].k.s){
-				str_size += string_length(all_keys.keys[i].k.s);
+				str_size += strlen(all_keys.keys[i].k.s);
 			}
 			break;
 		}
@@ -146,28 +146,28 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 	
 	memset(str_keys,0,str_size+1);
 	ui32 ind_str = 0;
-	string_copy(str_keys,"[",1);
+	strncpy(str_keys,"[",2);
 
 	ind_str= 2 -1;
 	for(i = 0; i < all_keys.length; i++){
 		switch(all_keys.keys[i].type){
 		case STR:
 		{
-			size_t l = string_length(all_keys.keys[i].k.s);
+			size_t l = strlen(all_keys.keys[i].k.s);
 			if(all_keys.keys[i].k.s){
 				if(mode == MAKE_KEY_JS_STRING){
-					string_copy(&str_keys[ind_str],"\"",1);
+					strncpy(&str_keys[ind_str],"\"",2);
 					ind_str++;
-					string_copy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
+					strncpy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
 					ind_str += l;
-					string_copy(&str_keys[ind_str],"\"",1);
+					strncpy(&str_keys[ind_str],"\"",2);
 					ind_str++;
 					if(all_keys.length - i > 1){
 						str_keys[ind_str] = ',';
 						ind_str++;
 					}
 				}else{
-					string_copy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
+					strncpy(&str_keys[ind_str],all_keys.keys[i].k.s,l);
 					ind_str += l;
 					if(all_keys.length - i > 1){
 						str_keys[ind_str] = ',';
@@ -181,7 +181,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 		{
 			if(all_keys.keys[i].size == 16){
 				if(mode == MAKE_KEY_JS_STRING){
-					string_copy(&str_keys[ind_str],"\"",1);
+					strncpy(&str_keys[ind_str],"\"",2);
 					ind_str++;
 					size_t n = number_of_digit(all_keys.keys[i].k.n16);
 					if(copy_to_string(&str_keys[ind_str],n+1,"%d",all_keys.keys[i].k.n16) == -1){
@@ -192,7 +192,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 					}
 
 					ind_str += n;
-					string_copy(&str_keys[ind_str],"\"",1);
+					strncpy(&str_keys[ind_str],"\"",2);
 					ind_str++;
 					if(all_keys.length - i > 1){
 						str_keys[ind_str] = ',';
@@ -237,7 +237,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 		}
 	}
 
-	string_copy(&str_keys[ind_str],"]",1);
+	strncpy(&str_keys[ind_str],"]",2);
 	ind_str += 1;
 	free_keys_data(&all_keys);
 	return str_keys;

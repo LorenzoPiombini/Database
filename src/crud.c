@@ -13,7 +13,6 @@
 #include "parse.h"
 #include "crud.h"
 #include "types.h"
-#include "memory.h"
 #include "input.h"
 
 static char prog[] = "db";

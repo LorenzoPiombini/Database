@@ -2,6 +2,26 @@
 #define COMMON_H
 
 
+
+/*used for arrays in the database*/
+struct Metadata{
+	long long elements;
+	long long capacity;
+	int type;
+};
+
+enum arr_type{
+	INT,
+	LONG,
+	BYTE,
+	STRING,
+	DOUBLE,
+	FLOAT,
+};
+void *array_init(size_t size, int type);
+void array_push(void *arr, void *el);
+void array_free(void* arr);
+
 #define MAX_FILE_PATH_LENGTH 256
 #define STATUS_ERROR -1
 #define SCHEMA_ERR 2
@@ -22,6 +42,8 @@
 #define E_RCMP 201 /* record comparison failed*/	
 #define DIF 202 /* new record is different*/	
 
-
+	
+#if defined(ARRAY_MACRO)
+#endif
 
 #endif

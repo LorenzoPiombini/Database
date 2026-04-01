@@ -9,27 +9,38 @@
 
 #define HEADER_ID_SYS 0x657A3234
 #define VS 1
+#define VS_NEWEST 2
 #define MAX_HD_SIZE 7232
 #define MAX_FIELD_NR 200 /*max field nr in a file */
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
 
-/*TODO: need to implement a way to be able to cancel or edit the fields in the schema
- * */
+struct Defaults{
+		
+};
+
 struct Schema {
 	ui16 fields_num;
 	char **fields_name;
 	int *types;
 	ui8 *is_dropped;
-};/*28 b*/
+	ui8 *constraints;
+	/*this can be null if no constrains DEFAULT are provided*/
+	void **defaults; 
+};/*48 b*/
 
-struct Header_d
-{
+struct Header_d{
 	ui32 id_n;
 	ui16 version;
 	struct Schema *sch_d;
 };/*16 b*/
 
-
+enum Constraint{
+	CONST_NO = 0,
+	CONST_FOREIGN_KEY = 2,
+	CONST_NOT_NULL = 4,
+	CONST_UNIQUE = 8,
+	CONST_DEFAULT = 16
+};
 
 enum ValueType
 {
@@ -98,7 +109,7 @@ struct Field {
 		struct array v;
 		struct File file;
 	}data;
-};/*64 b*/
+};/*72 b*/
 
 struct Record_f {
 	char file_name[MAX_FILE_NAME_LEN];
@@ -126,7 +137,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 unsigned char get_index_rec_field(char *field_name, struct Record_f *rec,int *field_i_r, int *rec_index);
 int schema_has_type(struct Header_d *hd);
 int compare_rec(struct Record_f *src, struct Record_f *dest,int option);
-int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c);
+int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c, int *constraints, char **def_value);
 int free_schema(struct Schema *sch);
 void free_type_file(struct Record_f *rec,int optimized);
 int parse_record_to_json(struct Record_f *rec,char **buffer);

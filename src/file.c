@@ -6684,12 +6684,12 @@ static long long get_disk_size_record(struct Record_f *rec)
 			break;
 		case TYPE_KEY:
 		case TYPE_INT:
-			size += sizeof(ui32);
-			break;
 		case TYPE_DATE:
+		case TYPE_FLOAT:
 			size += sizeof(ui32);
 			break;
 		case TYPE_LONG:
+		case TYPE_DOUBLE:
 			size += sizeof(ui64);
 			break;
 		case TYPE_BYTE:
@@ -6698,12 +6698,6 @@ static long long get_disk_size_record(struct Record_f *rec)
 		case TYPE_STRING:
 			size += (sizeof(ui32) + sizeof(ui16));
 			size += ((strlen(rec->fields[i].data.s) * 2) + 1);
-			break;
-		case TYPE_FLOAT:
-			size += sizeof(ui32);
-			break;
-		case TYPE_DOUBLE:
-			size += sizeof(ui64);
 			break;
 		case TYPE_ARRAY_INT:
 		case TYPE_SET_INT:
@@ -7399,7 +7393,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 
 	for(i = 0; i < rec->fields_num; i++){
-		if(rec->field_set[i] == 0) continue;
+		if(rec->field_set[i] == 0) 
+			continue;
+
 		if(ram->size == ram->capacity && ram->offset != ram->size)
 			memcpy(&ram->mem[ram->offset],&i,sizeof(ui8));
 		else

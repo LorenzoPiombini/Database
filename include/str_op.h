@@ -5,18 +5,21 @@
 
 #define TYPE_ ":TYPE_"
 #define T_ ":t_"
+#define CON_ ":CONST_"
+#define C_ ":ct_"
 
 #define MAX_KEY 4294967296
 
 #define MAX_FILED_LT 32
 
 /*operations on files */
-#define FCRT 0
-#define FWRT 1
+#define FCRT 0 /* when create a file*/
+#define FWRT 1 /* when writing to a file*/
 
 /* input modes */
 #define WR 128 
 #define DF 64
+#define CONST 32
 #define NO_TYPE 0
 #define TYPE 1
 #define HYB 3
@@ -26,6 +29,10 @@
 #define HYB_DF (HYB | DF) 
 #define TYPE_DF (TYPE | DF) 
 #define NO_TYPE_DF (NO_TYPE | DF)		
+#define NO_TYPE_CONST (NO_TYPE | CONST)
+#define TYPE_CONST (TYPE | CONST)
+#define HYB_CONST (HYB | CONST)
+
 
 #define ASCII_INT_MAX 			526     /*the sum of ASCII values for every char in INT_MAX*/
 #define ASCII_INT_MIN 			572     /*the sum of ASCII values for every char in INT_MIN*/
@@ -82,6 +89,8 @@ unsigned char is_floaintg_point(char *str);
 unsigned char is_integer(char *str);
 float __round_alt(float n);
 unsigned char is_number_in_limits(char *value);
+int get_constrains(char *buff, int field_count,int **cnstr,char ***value);
+int map_constraints(char *c);
 int find_last_char(const char c, char *src);
 int assign_type(char *value);
 int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT]);

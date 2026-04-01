@@ -2,7 +2,7 @@
 #define INPUT_H
 
 #include "record.h"
-#include "freestand.h"
+#include "string_utilities.h"
 
 #define ALL_OP "all" /*use to delete the all file content*/
 #define ADD_AR_OP "aar" /* specificly append to the field array*/
@@ -10,7 +10,10 @@
 
 void print_usage(char *argv[]);
 
-int check_input_and_values(struct String file_path, struct String data_to_add, struct String key, char *argv[],
+int check_input_and_values( struct String file_path, 
+							struct String data_to_add,
+							struct String key,
+							char *argv[],
                           	unsigned char del, 
 							unsigned char list_def, 
 							unsigned char new_file,
@@ -24,12 +27,14 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 							unsigned char import_from_data,
 							unsigned char journal_display,
 							unsigned char nr_of_record_display,
-							unsigned char del_field);
+							unsigned char del_field,
+							unsigned char modify_schema);
+
 void print_types(void);
 int convert_options(char *options);
 typedef enum
 {
-    ALL,
+    ALL, /*delete the all file*/
     AAR, /*append to array*/
     FRC /*Force operation */
 } Option_t;

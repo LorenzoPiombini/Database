@@ -3,17 +3,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "str_op.h"
 #include "types.h"
-#include "freestand.h"
+#include "string_utilities.h"
 #include "common.h"
 #include "globals.h"
 #include "debug.h"
-#include "memory.h"
 
 static char prog[] = "db";
-static char *find_needle_last(char *src, char delim);
+static char *strstr_last(char *src, char delim);
 static int is_target_db_type(char *target);
 static int search_string_for_types(char *str, int *types);
 
@@ -42,7 +42,7 @@ char *exclude_sub_str(char *start_delim,char *end_delim, char *src,int loop)
 	char *start_d = 0x0;
 	char *end_d = 0x0;
 	static char ex_s_str[1024] = {0};
-	set_memory(ex_s_str,0,1024);
+	memset(ex_s_str,0,1024);
 
 	if(loop){
 		
@@ -74,10 +74,10 @@ char *exclude_sub_str(char *start_delim,char *end_delim, char *src,int loop)
 		else
 			return NULL;
 	} else{
-		if((start_d = find_needle(src,start_delim))){
+		if((start_d = strstr(src,start_delim))){
 			int l = start_d - src;
 			strncpy(ex_s_str,src,l+1);
-			if((end_d = find_needle(src,end_delim))){
+			if((end_d = strstr(src,end_delim))){
 				int e = end_d - src;
 				strncpy(&ex_s_str[l+1],&src[e],(strlen(src)-e)+1);
 				return &ex_s_str[0];
@@ -89,11 +89,10 @@ char *exclude_sub_str(char *start_delim,char *end_delim, char *src,int loop)
 
 char *get_sub_str(char *start_delim, char *end_delim, char *str, int loop)
 {
-
 	char *start_d = 0x0;
 	char *end_d = 0x0;
 	static char sub_str[1024] = {0};
-	set_memory(sub_str,0,1024);
+	memset(sub_str,0,1024);
 
 	if(loop){
 		int i = 0;
@@ -119,9 +118,9 @@ char *get_sub_str(char *start_delim, char *end_delim, char *str, int loop)
 			return NULL;
 
 
-	} else{
-		if((start_d = find_needle(str,start_delim))){
-			if((end_d = find_needle(str,end_delim))){
+	}else{
+		if((start_d = strstr(str,start_delim))){
+			if((end_d = strstr(str,end_delim))){
 				if(loop){
 					*start_d = '@';
 					*end_d = '&';
@@ -129,7 +128,7 @@ char *get_sub_str(char *start_delim, char *end_delim, char *str, int loop)
 				int sx = start_d - str;
 				int size = ((--end_d - str) - sx)+1;
 
-				string_copy(sub_str,&str[sx + 1],size-1);
+				strncpy(sub_str,&str[sx + 1],size-1);
 				return &sub_str[0];
 			}
 		}
@@ -162,6 +161,8 @@ int check_handle_input_mode(char *buffer, int op)
 	}
 	int c_t = count_fields(buffer,T_) - av_ct; 
 	int c_T = count_fields(buffer,TYPE_) - av_cT; 
+	int c_CT = count_fields(buffer,CON_);
+	int c_ct = count_fields(buffer,C_);
 	
 	char *excluded_file_input = exclude_sub_str("[","]",buffer,0);
 	int c_delim = 0;
@@ -179,17 +180,24 @@ int check_handle_input_mode(char *buffer, int op)
 	
 	if(c_T == 0 && c_t == 0 && c_delim > 0) return NO_TYPE;
 	
-	/*for each t_ or TYPE_ delim we need to account for one ':' */
-	int v = c_T  + c_t ;
+	/*for each t_ or TYPE_ or C_ or CONST_ delim we need to account for one ':' */
+	int v = c_T  + c_t + c_ct + c_CT ;
 	switch(op){ 
 	case FCRT:
 	{
 
-		if(c_T == 0 && c_t == 0 && c_delim == 0 && (buffer && *buffer != '\0')) return NO_TYPE;
-		int additional_c_delim_count = v > 1 ? v-1:0;
-		if((c_delim - v -additional_c_delim_count) > 0) return HYB;
-		if((c_delim - v -additional_c_delim_count) == 0) return TYPE;
-		if(c_delim == v) return TYPE;
+		if(c_ct == 0 
+				&& c_CT == 0 
+				&& c_T == 0 
+				&& c_t == 0
+				&& c_delim == 0 
+				&& (buffer && *buffer != '\0'))
+			return NO_TYPE;
+
+		int additional_c_delim_count = v > 1 ? v-1 : 0;
+		if((c_delim - v - additional_c_delim_count - c_CT - c_ct) > 0) return HYB;
+		if((c_delim - v - additional_c_delim_count - c_CT - c_ct) == 0) return TYPE;
+		if(c_delim - c_CT - c_ct  <= v) return TYPE;
 		break;
 	}
 	case FWRT:
@@ -210,10 +218,10 @@ int check_handle_input_mode(char *buffer, int op)
 
 int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int *types_i)
 {
-	size_t size = string_length(buffer) + 1;
+	size_t size = strlen(buffer) + 1;
 	char cbuf[size];
-	set_memory(cbuf,0,size);
-	string_copy(cbuf,buffer,size);
+	memset(cbuf,0,size);
+	strncpy(cbuf,buffer,size);
 
 
 	replace('@','^',cbuf);
@@ -222,12 +230,12 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	/* detect files types*/	
 	char *file_start = 0x0;
 	if(!__IMPORT_EZ){
-		while((file_start = find_needle(cbuf,"["))){
-			char *end_file = find_needle(file_start,"]");
+		while((file_start = strstr(cbuf,"["))){
+			char *end_file = strstr(file_start,"]");
 			if(end_file){ 
 				int end = end_file - cbuf;
 				char *delim = 0x0;
-				while((delim = find_needle(file_start,":"))){
+				while((delim = strstr(file_start,":"))){
 					if((delim - cbuf) < end) 
 						*delim = '@';
 					else
@@ -239,11 +247,11 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	}
 
 	int reset_mistype_index[10];
-	set_memory(reset_mistype_index,-1,sizeof(int)*10);
+	memset(reset_mistype_index,-1,sizeof(int)*10);
 	int rmi = 0;
-	if(find_needle(cbuf,T_)){
+	if(strstr(cbuf,T_)){
 		char *pos_t = 0x0;
-		while((pos_t = find_needle(cbuf,T_))){
+		while((pos_t = strstr(cbuf,T_))){
 			if(is_target_db_type(pos_t) == -1){
 				/* this is not a type*/
 				*pos_t = '@';			
@@ -256,12 +264,12 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			*pos_t= '@';
-			char *end_t = (find_needle(pos_t,":"));
+			char *end_t = (strstr(pos_t,":"));
 			if(!end_t){
-				size_t sz = string_length(++pos_t) + 1;
+				size_t sz = strlen(++pos_t) + 1;
 				char type[sz];
-				set_memory(type,0,sz);
-				string_copy(type,pos_t,sz);
+				memset(type,0,sz);
+				strncpy(type,pos_t,sz);
 				types_i[i] = get_type(type);
 
 				char *p = &cbuf[start] - 1;
@@ -271,11 +279,11 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 				if(sz-2 > MAX_FIELD_LT) return -1;
 
 				if(p != &cbuf[0]){
-					string_copy(names[i],++p, sz -2);
-					set_memory(p,0x20,sz-2);
+					strncpy(names[i],++p, sz -2);
+					memset(p,0x20,sz-2);
 				}else{
-					string_copy(names[i],p, sz -1);
-					set_memory(p,0x20,sz-1);
+					strncpy(names[i],p, sz -1);
+					memset(p,0x20,sz-1);
 				}
 
 				i++;
@@ -286,8 +294,8 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			/*get the type*/
 			int l = end_t - pos_t;
 			char type[l];
-			set_memory(type,0,l);
-			string_copy(type,++pos_t,l-1);
+			memset(type,0,l);
+			strncpy(type,++pos_t,l-1);
 			types_i[i] = get_type(type);
 
 			char *p = &cbuf[start] - 1;
@@ -297,20 +305,20 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			if(l-2 > MAX_FIELD_LT) return -1;
 
 			if(p != &cbuf[0]){
-				string_copy(names[i],++p, l -2);
-				set_memory(p,0x20,l-2);
+				strncpy(names[i],++p, l -2);
+				memset(p,0x20,l-2);
 			}else{
-				string_copy(names[i],p, l -1);
-				set_memory(p,0x20,l-1);
+				strncpy(names[i],p, l -1);
+				memset(p,0x20,l-1);
 			}
 				
 			if(types_i[i] == TYPE_FILE){
 				char *file_block = 0x0;
-				if((file_block = find_needle(p,"["))){
+				if((file_block = strstr(p,"["))){
 					char *d = 0x0;
-					char *end = find_needle(file_block,"]");
-					while((d = find_needle(&file_block[1],T_)) && 
-							(((d = find_needle(&file_block[1],T_)) - cbuf) < (end - cbuf))){ 
+					char *end = strstr(file_block,"]");
+					while((d = strstr(&file_block[1],T_)) && 
+							(((d = strstr(&file_block[1],T_)) - cbuf) < (end - cbuf))){ 
 						*d = '@';	
 					}
 				}
@@ -326,19 +334,19 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		cbuf[reset_mistype_index[rmi]] = ':';
 		rmi++;
 	}
-	if (find_needle(cbuf,TYPE_)){
+	if (strstr(cbuf,TYPE_)){
 		char *pos_T = 0x0;
-		while((pos_T = find_needle(cbuf,TYPE_))){
+		while((pos_T = strstr(cbuf,TYPE_))){
 			int start = pos_T - cbuf;
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			*pos_T= '@';
-			char *end_T = (find_needle(pos_T,":"));
+			char *end_T = (strstr(pos_T,":"));
 			if(!end_T){
-				size_t sz = string_length(++pos_T) + 1;
+				size_t sz = strlen(++pos_T) + 1;
 				char type[sz];
-				set_memory(type,0,sz);
-				string_copy(type,pos_T,sz);
+				memset(type,0,sz);
+				strncpy(type,pos_T,sz);
 				types_i[i] = get_type(type);
 
 				char *p = &cbuf[start] - 1;
@@ -348,11 +356,11 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 				if(sz-2 > MAX_FIELD_LT) return -1;
 
 				if(p != &cbuf[0]){
-					string_copy(names[i],++p, sz -2);
-					set_memory(p,0x20,sz-2);
+					strncpy(names[i],++p, sz -2);
+					memset(p,0x20,sz-2);
 				}else{
-					string_copy(names[i],p, sz -1);
-					set_memory(p,0x20,sz-1);
+					strncpy(names[i],p, sz -1);
+					memset(p,0x20,sz-1);
 				}
 				i++;
 				break;
@@ -361,8 +369,8 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			/*get the type*/
 			int l = end_T - pos_T;
 			char type[l];
-			set_memory(type,0,l);
-			string_copy(type,++pos_T,l-1);
+			memset(type,0,l);
+			strncpy(type,++pos_T,l-1);
 			types_i[i] = get_type(type);
 
 
@@ -373,20 +381,20 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			if(l-2 > MAX_FIELD_LT) return -1;
 
 			if(p != &cbuf[0]){
-				string_copy(names[i],++p, l -2);
-				set_memory(p,0x20,l-2);
+				strncpy(names[i],++p, l -2);
+				memset(p,0x20,l-2);
 			}else{
-				string_copy(names[i],p, l -1);
-				set_memory(p,0x20,l-1);
+				strncpy(names[i],p, l -1);
+				memset(p,0x20,l-1);
 			}
 
 			if(types_i[i] == TYPE_FILE){
 				char *file_block = 0x0;
-				if((file_block = find_needle(p,"["))){
+				if((file_block = strstr(p,"["))){
 					char *d = 0x0;
-					char *end = find_needle(file_block,"]");
-					while((d = find_needle(&file_block[1],TYPE_)) && 
-							(((d = find_needle(&file_block[1],TYPE_)) - cbuf) < (end - cbuf))){ 
+					char *end = strstr(file_block,"]");
+					while((d = strstr(&file_block[1],TYPE_)) && 
+							(((d = strstr(&file_block[1],TYPE_)) - cbuf) < (end - cbuf))){ 
 						*d = '@';	
 					}
 				}
@@ -396,7 +404,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		}
 	} 
 	char names_s[MAX_FIELD_NR - i][MAX_FILED_LT];
-	set_memory(names_s,0,(MAX_FIELD_NR - i)*MAX_FILED_LT);
+	memset(names_s,0,(MAX_FIELD_NR - i)*MAX_FILED_LT);
 	
 
 	int s = 0;
@@ -407,8 +415,8 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 			return -1;
 		}
 
-		char buf[string_length(cbuf)+1];
-		set_memory(buf,0,string_length(cbuf)+1);
+		char buf[strlen(cbuf)+1];
+		memset(buf,0,strlen(cbuf)+1);
 
 		char *p_buf = &cbuf[0];
 		int i;
@@ -431,8 +439,8 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		if(search_string_for_types(cbuf,types_i) == -1){
 			return -1;
 		}
-		char buf[string_length(cbuf)+1];
-		set_memory(buf,0,string_length(cbuf)+1);
+		char buf[strlen(cbuf)+1];
+		memset(buf,0,strlen(cbuf)+1);
 
 		char *p_buf = &cbuf[0];
 		int i;
@@ -452,7 +460,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 		break;
 	}
 	default:
-		display_to_stdout("mode not supported, %s:%d.\n",__FILE__,__LINE__);
+		fprintf(stderr,"mode not supported, %s:%d.\n",__FILE__,__LINE__);
 		return -1;
 	}
 	
@@ -461,9 +469,9 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 	for(j = 0; j < s; j++){
 		int b = 0;
 		for(x = 0; x < i; x++){
-			size_t sz = string_length(names_s[j]);
-			if(sz != string_length(names[x])) continue;
-			if(string_compare(names_s[j],names[x],sz,-1) == 0){
+			size_t sz = strlen(names_s[j]);
+			if(sz != strlen(names[x])) continue;
+			if(strncmp(names_s[j],names[x],sz) == 0){
 				skip = j;
 				b = 1;
 				break;
@@ -474,7 +482,7 @@ int get_name_types_hybrid(int mode,char *buffer, char names[][MAX_FILED_LT],int 
 
 	for(x = 0; names_s[x][0] != '\0'; x++){
 		if (x == skip) continue;
-		string_copy(names[i],names_s[x],string_length(names_s[x]));
+		strncpy(names[i],names_s[x],strlen(names_s[x]));
 		i++;
 	}
 	return i;
@@ -489,10 +497,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_KEY:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_ky:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_ky:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -511,11 +519,11 @@ static int search_string_for_types(char *str, int *types)
 					p++;
 				}
 			}
-			while((p = find_needle(str,"@TYPE_KEY:"))){
+			while((p = strstr(str,"@TYPE_KEY:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -541,10 +549,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_INT:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_i:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_i:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -563,11 +571,11 @@ static int search_string_for_types(char *str, int *types)
 					p++;
 				}
 			}
-			while((p = find_needle(str,"@TYPE_INT:"))){
+			while((p = strstr(str,"@TYPE_INT:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -592,10 +600,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_DATE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_dt:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_dt:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p);
+					int p_size = (int)strlen(p);
 					int k;
 					for(k = 0; k < p_size; k++,p++)
 						*p = ' ';
@@ -612,10 +620,10 @@ static int search_string_for_types(char *str, int *types)
 				break;
 			}
 
-			while((p = find_needle(str,"@TYPE_DATE:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@TYPE_DATE:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p);
+					int p_size = (int)strlen(p);
 					int k;
 					for(k = 0; k < p_size; k++,p++)
 						*p = ' ';
@@ -636,10 +644,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_LONG:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_l:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_l:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -658,11 +666,11 @@ static int search_string_for_types(char *str, int *types)
 					p++;
 				}
 			}
-			while((p = find_needle(str,"@TYPE_LONG:"))){
+			while((p = strstr(str,"@TYPE_LONG:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -688,10 +696,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_FLOAT:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_f:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_f:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -710,11 +718,11 @@ static int search_string_for_types(char *str, int *types)
 					p++;
 				}
 			}
-			while((p = find_needle(str,"@TYPE_FLOAT:"))){
+			while((p = strstr(str,"@TYPE_FLOAT:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -739,10 +747,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_DOUBLE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_d:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_d:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -762,11 +770,11 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_DOUBLE:"))){
+			while((p = strstr(str,"@TYPE_DOUBLE:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -790,10 +798,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_BYTE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_b:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_b:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -812,11 +820,11 @@ static int search_string_for_types(char *str, int *types)
 					p++;
 				}
 			}
-			while((p = find_needle(str,"@TYPE_BYTE:"))){
+			while((p = strstr(str,"@TYPE_BYTE:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -840,10 +848,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_STRING:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_s:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_s:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -863,9 +871,9 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_STRING:"))){
+			while((p = strstr(str,"@TYPE_STRING:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end) return -1;
 
 				int p_size =(int) (p_end - str) - (p - str); 
@@ -883,10 +891,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_SET_INT:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_INT ? "@t_ai:" : "@t_si:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,types[i] == TYPE_ARRAY_INT ? "@t_ai:" : "@t_si:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -906,8 +914,8 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_INT ? "@TYPE_ARRAY_INT:" : "@TYPE_SET_INT"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,types[i] == TYPE_ARRAY_INT ? "@TYPE_ARRAY_INT:" : "@TYPE_SET_INT"))){
+				char *p_end = strstr(p,":");
 				if(!p_end) return -1;
 
 				int p_size =(int) (p_end - str) - (p - str); 
@@ -925,10 +933,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_SET_LONG:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_LONG ? "@t_al:" : "@t_sl:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,types[i] == TYPE_ARRAY_LONG ? "@t_al:" : "@t_sl:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -948,11 +956,11 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_LONG ? "@TYPE_ARRAY_LONG:" : "@TYPE_SET_LONG"))){
+			while((p = strstr(str,types[i] == TYPE_ARRAY_LONG ? "@TYPE_ARRAY_LONG:" : "@TYPE_SET_LONG"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -977,10 +985,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_SET_BYTE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_BYTE ? "@t_ab:" : "@t_sb:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,types[i] == TYPE_ARRAY_BYTE ? "@t_ab:" : "@t_sb:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1001,11 +1009,11 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str, types[i] == TYPE_ARRAY_BYTE ? "@TYPE_ARRAY_BYTE:" : "@TYPE_SET_BYTE"))){
+			while((p = strstr(str, types[i] == TYPE_ARRAY_BYTE ? "@TYPE_ARRAY_BYTE:" : "@TYPE_SET_BYTE"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1030,10 +1038,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_SET_FLOAT:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_FLOAT ? "@t_af:" : "@t_sf:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,types[i] == TYPE_ARRAY_FLOAT ? "@t_af:" : "@t_sf:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1053,11 +1061,11 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_FLOAT ? "@TYPE_ARRAY_FLOAT:" : "@TYPE_SET_FLOAT"))){
+			while((p = strstr(str,types[i] == TYPE_ARRAY_FLOAT ? "@TYPE_ARRAY_FLOAT:" : "@TYPE_SET_FLOAT"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1082,10 +1090,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_SET_DOUBLE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_DOUBLE ? "@t_ad:":"@t_sd:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,types[i] == TYPE_ARRAY_DOUBLE ? "@t_ad:":"@t_sd:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1105,11 +1113,11 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_DOUBLE ? "@TYPE_ARRAY_DOUBLE:" : "@TYPE_SET_DOUBLE"))){
+			while((p = strstr(str,types[i] == TYPE_ARRAY_DOUBLE ? "@TYPE_ARRAY_DOUBLE:" : "@TYPE_SET_DOUBLE"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1134,10 +1142,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_SET_STRING:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_STRING ? "@t_as:" : "@t_ss:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,types[i] == TYPE_ARRAY_STRING ? "@t_as:" : "@t_ss:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1157,11 +1165,11 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,types[i] == TYPE_ARRAY_STRING ? "@TYPE_ARRAY_STRING:" : "@TYPE_SET_STRING"))){
+			while((p = strstr(str,types[i] == TYPE_ARRAY_STRING ? "@TYPE_ARRAY_STRING:" : "@TYPE_SET_STRING"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1185,10 +1193,10 @@ static int search_string_for_types(char *str, int *types)
 		case TYPE_FILE:
 		{
 			char *p = 0x0;
-			while((p = find_needle(str,"@t_fl:"))){
-				char *p_end = find_needle(p,":");
+			while((p = strstr(str,"@t_fl:"))){
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1208,11 +1216,11 @@ static int search_string_for_types(char *str, int *types)
 				}
 			}
 
-			while((p = find_needle(str,"@TYPE_FILE:"))){
+			while((p = strstr(str,"@TYPE_FILE:"))){
 
-				char *p_end = find_needle(p,":");
+				char *p_end = strstr(p,":");
 				if(!p_end){
-					int p_size = (int)string_length(p); 
+					int p_size = (int)strlen(p); 
 
 					int k;
 					for(k = 0; k < p_size; k++){
@@ -1234,7 +1242,7 @@ static int search_string_for_types(char *str, int *types)
 			break;
 		}
 		default:
-			display_to_stdout("type not valid. %s:%d.\n",__FILE__,__LINE__);
+			fprintf(stderr,"type not valid. %s:%d.\n",__FILE__,__LINE__);
 			return -1;
 		}	
 	}
@@ -1247,7 +1255,7 @@ int is_num(char *key)
 	unsigned char str = 1;
 
 	for (; *key != '\0'; key++)
-		if (is_alpha(*key) || is_punct(*key))
+		if (isalpha(*key) || ispunct(*key))
 			return str;
 
 	return uint;
@@ -1264,18 +1272,18 @@ void *key_converter(char *key, int *key_type)
 		if (l == INVALID_VALUE) return 0x0;
 
 		if (l == MAX_KEY) {
-			display_to_stdout( "key value out fo range.\n");
+			fprintf(stderr, "key value out fo range.\n");
 			return 0x0;
 		}
 
 		converted = (ui32*)malloc(sizeof(ui32));
 		if (!converted) {
-			display_to_stdout("malloc failed, %s:%d.\n",F, L - 2);
+			fprintf(stderr,"malloc failed, %s:%d.\n",F, L - 2);
 			return 0x0;
 		}
 
 		memset(converted,0,sizeof *converted);
-		copy_memory(converted, (ui32 *)&l, sizeof(ui32));
+		memcpy(converted, (ui32 *)&l, sizeof(ui32));
 		break;
 	}
 	case 1:
@@ -1287,7 +1295,7 @@ void *key_converter(char *key, int *key_type)
 	return converted;
 }
 
-static char *find_needle_last(char *src, char delim)
+static char *strstr_last(char *src, char delim)
 {
 
 	int last = 0 ;
@@ -1302,19 +1310,19 @@ static char *find_needle_last(char *src, char delim)
 int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 {
 	/*copy the buffer*/
-	size_t l = string_length(buffer);
+	size_t l = strlen(buffer);
 	char cpy[l+1];
-	set_memory(cpy,0,l+1);
-	string_copy(cpy,buffer,l);
+	memset(cpy,0,l+1);
+	strncpy(cpy,buffer,l);
 	
 
-	if(find_needle(buffer,"@") && !find_needle(buffer,"@@")) replace('@','^',cpy);
+	if(strstr(buffer,"@") && !strstr(buffer,"@@")) replace('@','^',cpy);
 
 	/*exclude file syntax*/
 	if(!__IMPORT_EZ){
 		char *f_st = 0x0;
 		char *f_en = 0x0;
-		while((f_st = find_needle(cpy,"[")) && (f_en = find_needle(cpy,"]"))){
+		while((f_st = strstr(cpy,"[")) && (f_en = strstr(cpy,"]"))){
 			*f_st = '\n';
 			for(; *f_st != ']'; f_st++){
 				if(*f_st == ':') *f_st = '@';
@@ -1322,8 +1330,8 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			*f_en = '\r';
 		}
 
-		if(find_needle(cpy,"\n")) replace('\n','[',cpy);
-		if(find_needle(cpy,"\r")) replace('\r',']',cpy);
+		if(strstr(cpy,"\n")) replace('\n','[',cpy);
+		if(strstr(cpy,"\r")) replace('\r',']',cpy);
 	}
 	
 
@@ -1334,7 +1342,7 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 	int i = 0;
 	char *p = cpy;
 	char *p2 = cpy;
-	while(((first = find_needle(p2,delim)) != 0x0) && ((last=find_needle(&p[(first+1) - cpy],delim)) != 0x0)){
+	while(((first = strstr(p2,delim)) != 0x0) && ((last=strstr(&p[(first+1) - cpy],delim)) != 0x0)){
 		char *move_back = (first - 1); 
 		while(move_back != &cpy[0] && *move_back != '@' && *move_back != ':') --move_back;   
 			
@@ -1346,9 +1354,9 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 		
 		int next_start = last - p2;
 		if(move_back == &cpy[0])
-			string_copy(names[i],move_back,size-1);
+			strncpy(names[i],move_back,size-1);
 		else
-			string_copy(names[i],++move_back,size-1);
+			strncpy(names[i],++move_back,size-1);
 
 		p2 += next_start+1;
 		i++;
@@ -1364,24 +1372,24 @@ int get_names_with_no_type_skip_value(char *buffer, char names[][MAX_FIELD_LT])
 			else 
 				size = first - cf +1;	
 			
-			string_copy(names[i],cf,size-1);
+			strncpy(names[i],cf,size-1);
 			i++;
 		}
-	}else if(find_needle(cpy,delim) == 0x0 && !find_needle(cpy,"@")){
+	}else if(strstr(cpy,delim) == 0x0 && !strstr(cpy,"@")){
 		if(buffer){
-			string_copy(names[i],cpy,string_length(buffer));
+			strncpy(names[i],cpy,strlen(buffer));
 			i++;
 		}
-	}else if ((first = find_needle(cpy,delim))){
+	}else if ((first = strstr(cpy,delim))){
 		if(first[1] == '['){
-			if((last = find_needle(&first[1],delim))){
-				if(last[string_length(last)-1] == ']') return i;
+			if((last = strstr(&first[1],delim))){
+				if(last[strlen(last)-1] == ']') return i;
 			}
 		}
 
-	}else if((last = find_needle_last(cpy,'@'))){
+	}else if((last = strstr_last(cpy,'@'))){
 		++last;
-		string_copy(names[i],last,string_length(last));
+		strncpy(names[i],last,strlen(last));
 	}else {
 		return -1;
 	}
@@ -1396,19 +1404,19 @@ int three_file_path(char *file_path, char files[][MAX_FILE_PATH_LENGTH])
 	char *ind = ".inx";
 	char *sch = ".sch";
 
-	size_t file_p_l= string_length(file_path);
+	size_t file_p_l= strlen(file_path);
 
 	if(file_p_l > MAX_FILE_PATH_LENGTH) return EFLENGTH;
-	if(file_p_l + string_length(dat) > MAX_FILE_PATH_LENGTH) return EFLENGTH;
+	if(file_p_l + strlen(dat) > MAX_FILE_PATH_LENGTH) return EFLENGTH;
 	
-	string_copy(files[0],file_path,file_p_l);
-	string_copy(&files[0][file_p_l],ind,string_length(ind));
+	strncpy(files[0],file_path,file_p_l);
+	strncpy(&files[0][file_p_l],ind,strlen(ind));
 
-	string_copy(files[1],file_path,file_p_l);
-	string_copy(&files[1][file_p_l],dat,string_length(dat));
+	strncpy(files[1],file_path,file_p_l);
+	strncpy(&files[1][file_p_l],dat,strlen(dat));
 
-	string_copy(files[2],file_path,file_p_l);
-	string_copy(&files[2][file_p_l],sch,string_length(dat));
+	strncpy(files[2],file_path,file_p_l);
+	strncpy(&files[2][file_p_l],sch,strlen(dat));
 	
 	return 0;
 }
@@ -1418,45 +1426,45 @@ int count_fields(char *fields, const char *user_target)
 	int c = 0;
 	const char *p = fields;
 	if(user_target){
-		while ((p = find_needle(p, user_target)) != 0x0) {
+		while ((p = strstr(p, user_target)) != 0x0) {
 			c++;
-			p += string_length(user_target);
+			p += strlen(user_target);
 		}
 		return c;
 	}
 	
 
 	char *target = TYPE_;
-	if(find_needle(p,target) == 0x0){
+	if(strstr(p,target) == 0x0){
 		char *new_target = T_;
-		if(find_needle(p,new_target) != 0x0){
-			while ((p = find_needle(p, new_target)) != 0x0) {
+		if(strstr(p,new_target) != 0x0){
+			while ((p = strstr(p, new_target)) != 0x0) {
 				if(is_target_db_type((char *)p) == -1){
-					p += string_length(new_target);
+					p += strlen(new_target);
 					continue;
 				}
 				c++;
-				p += string_length(new_target);
+				p += strlen(new_target);
 			}
 		}
 	} else {
 		char *second_target = T_;
-		if(find_needle(p,second_target) != 0x0){
+		if(strstr(p,second_target) != 0x0){
 
-			while ((p = find_needle(p, second_target)) != 0x0) {
+			while ((p = strstr(p, second_target)) != 0x0) {
 				if(is_target_db_type((char *)p) == -1){
-					p += string_length(second_target);
+					p += strlen(second_target);
 					continue;
 				}
 				c++;
-				p += string_length(second_target);
+				p += strlen(second_target);
 			}
 		}
 
 		p = fields;
-		while ((p = find_needle(p, target)) != 0x0) {
+		while ((p = strstr(p, target)) != 0x0) {
 				c++;
-				p += string_length(target);
+				p += strlen(target);
 		}
 
 	}
@@ -1465,169 +1473,167 @@ int count_fields(char *fields, const char *user_target)
 		p = fields;
 		int pos = 0;
 		char *new_target = ":";
-		while((p = find_needle(p,new_target))){
+		while((p = strstr(p,new_target))){
 			pos = p - fields;
 			c++;
-			p += string_length(new_target);
+			p += strlen(new_target);
 		}
 
 		if(fields[pos+1] != '\0') c++;
 
 	}
-	
-	
 
 	return c;
 }
 
 int get_type(char *s){
 
-	if (string_compare(s, "TYPE_INT",8,-1) == 0) {
+	if (strncmp(s, "TYPE_INT",8) == 0) {
 		return 0;
-	} else if (string_compare(s, "TYPE_LONG",9,-1) == 0){
+	} else if (strncmp(s, "TYPE_LONG",9) == 0){
 		return 1;
-	} else if (string_compare(s, "TYPE_FLOAT",10,-1) == 0) {
+	} else if (strncmp(s, "TYPE_FLOAT",10) == 0) {
 		return 2;
 	}
-	else if (string_compare(s, "TYPE_STRING",11,-1) == 0)
+	else if (strncmp(s, "TYPE_STRING",11) == 0)
 	{
 		return 3;
 	}
-	else if (string_compare(s, "TYPE_BYTE",9,-1) == 0)
+	else if (strncmp(s, "TYPE_BYTE",9) == 0)
 	{
 		return 4;
 	}
-	else if(string_compare(s, "TYPE_PACK",9,-1) == 0)
+	else if(strncmp(s, "TYPE_PACK",9) == 0)
 	{
 		return 5;
 	}
-	else if (string_compare(s, "TYPE_DOUBLE",11,-1) == 0)
+	else if (strncmp(s, "TYPE_DOUBLE",11) == 0)
 	{
 		return 6;
-	}else if (string_compare(s, "TYPE_KEY",8,-1) == 0)
+	}else if (strncmp(s, "TYPE_KEY",8) == 0)
 	{
 		return 15;
 	}
-	else if (string_compare(s, "t_i",3,-1) == 0)
+	else if (strncmp(s, "t_i",3) == 0)
 	{
 		return 0;
 	}
-	else if (string_compare(s, "t_l",3,-1) == 0)
+	else if (strncmp(s, "t_l",3) == 0)
 	{
 		return 1;
 	}
-	else if (string_compare(s, "t_f",3,-1) == 0)
+	else if (strncmp(s, "t_f",3) == 0)
 	{
 		return 2;
 	}
-	else if (string_compare(s, "t_s",3,-1) == 0)
+	else if (strncmp(s, "t_s",3) == 0)
 	{
 		return 3;
 	}
-	else if (string_compare(s, "t_b",3,-1) == 0)
+	else if (strncmp(s, "t_b",3) == 0)
 	{
 		return 4;
 	}
-	else if (string_compare(s, "t_pk",4,-1) == 0)
+	else if (strncmp(s, "t_pk",4) == 0)
 	{
 		return 5;
 	}
-	else if (string_compare(s, "t_d",3,-1) == 0)
+	else if (strncmp(s, "t_d",3) == 0)
 	{
 		return 6;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_INT",14,-1) == 0)
+	else if (strncmp(s, "TYPE_ARRAY_INT",14) == 0)
 	{
 		return 7;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_LONG",15,-1) == 0)
+	else if (strncmp(s, "TYPE_ARRAY_LONG",15) == 0)
 	{
 		return 8;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_FLOAT",16,-1) == 0)
+	else if (strncmp(s, "TYPE_ARRAY_FLOAT",16) == 0)
 	{
 		return 9;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_STRING",17,-1) == 0)
+	else if (strncmp(s, "TYPE_ARRAY_STRING",17) == 0)
 	{
 		return 10;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_BYTE",15,-1) == 0)
+	else if (strncmp(s, "TYPE_ARRAY_BYTE",15) == 0)
 	{
 		return 11;
 	}
-	else if (string_compare(s, "TYPE_ARRAY_DOUBLE",17,-1) == 0)
+	else if (strncmp(s, "TYPE_ARRAY_DOUBLE",17) == 0)
 	{
 		return 12;
 	}
-	else if (string_compare(s, "TYPE_FILE",9,-1) == 0)
+	else if (strncmp(s, "TYPE_FILE",9) == 0)
 	{
 		return 13;
 	}
-	else if (string_compare(s, "TYPE_DATE",9,-1) == 0){
+	else if (strncmp(s, "TYPE_DATE",9) == 0){
 		return 14;
-	}else if (string_compare(s, "TYPE_SET_INT",12,-1) == 0){
+	}else if (strncmp(s, "TYPE_SET_INT",12) == 0){
 		return 16;
-	}else if (string_compare(s, "TYPE_SET_LONG",13,-1) == 0){
+	}else if (strncmp(s, "TYPE_SET_LONG",13) == 0){
 		return 16;
-	}else if (string_compare(s, "TYPE_SET_FLOAT",14,-1) == 0){
+	}else if (strncmp(s, "TYPE_SET_FLOAT",14) == 0){
 		return 18;
-	}else if (string_compare(s, "TYPE_SET_BYTE",12,-1) == 0){
+	}else if (strncmp(s, "TYPE_SET_BYTE",12) == 0){
 		return 19;
-	}else if (string_compare(s, "TYPE_SET_STRING",15,-1) == 0){
+	}else if (strncmp(s, "TYPE_SET_STRING",15) == 0){
 		return 20;
-	}else if (string_compare(s, "TYPE_SET_DOUBLE",15,-1) == 0){
+	}else if (strncmp(s, "TYPE_SET_DOUBLE",15) == 0){
 		return 21;
-	}else if (string_compare(s, "t_ai",4,-1) == 0)	{
+	}else if (strncmp(s, "t_ai",4) == 0)	{
 		return 7;
 	}
-	else if (string_compare(s, "t_al",4,-1) == 0)
+	else if (strncmp(s, "t_al",4) == 0)
 	{
 		return 8;
 	}
-	else if (string_compare(s, "t_af",4,-1) == 0)
+	else if (strncmp(s, "t_af",4) == 0)
 	{
 		return 9;
 	}
-	else if (string_compare(s, "t_as",4,-1) == 0)
+	else if (strncmp(s, "t_as",4) == 0)
 	{
 		return 10;
 	}
-	else if (string_compare(s, "t_ab",4,-1) == 0)
+	else if (strncmp(s, "t_ab",4) == 0)
 	{
 		return 11;
 	}
-	else if (string_compare(s, "t_ad",4,-1) == 0)
+	else if (strncmp(s, "t_ad",4) == 0)
 	{
 		return 12;
 	}
-	else if (string_compare(s, "t_fl",4,-1) == 0)
+	else if (strncmp(s, "t_fl",4) == 0)
 	{
 		return 13;
-	}else if (string_compare(s, "t_dt",4,-1) == 0){
+	}else if (strncmp(s, "t_dt",4) == 0){
 		return 14;
-	}else if (string_compare(s, "t_ky",4,-1) == 0){
+	}else if (strncmp(s, "t_ky",4) == 0){
 		return 15;
-	}else if (string_compare(s, "t_si",4,-1) == 0)	{
+	}else if (strncmp(s, "t_si",4) == 0)	{
 		return 16;
 	}
-	else if (string_compare(s, "t_sl",4,-1) == 0)
+	else if (strncmp(s, "t_sl",4) == 0)
 	{
 		return 17;
 	}
-	else if (string_compare(s, "t_sf",4,-1) == 0)
+	else if (strncmp(s, "t_sf",4) == 0)
 	{
 		return 18;
 	}
-	else if (string_compare(s, "t_ss",4,-1) == 0)
+	else if (strncmp(s, "t_ss",4) == 0)
 	{
 		return 19;
 	}
-	else if (string_compare(s, "t_sb",4,-1) == 0)
+	else if (strncmp(s, "t_sb",4) == 0)
 	{
 		return 20;
 	}
-	else if (string_compare(s, "t_sd",4,-1) == 0)
+	else if (strncmp(s, "t_sd",4) == 0)
 	{
 		return 21;
 	}
@@ -1643,15 +1649,15 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 	char *delim = 0x0;
 	int j = 0;
 	int pos = 0;
-	if(find_needle(p,":") == 0x0){
+	if(strstr(p,":") == 0x0){
 		if(p){
-			string_copy(names[j],p,string_length(p));
+			strncpy(names[j],p,strlen(p));
 			j++;
 			return j;
 		}
 	}
 		
-	while((delim = find_needle(p,":"))){
+	while((delim = strstr(p,":"))){
 		pos = delim - fields_name;
 		*delim = '@';
 		delim--;
@@ -1660,17 +1666,141 @@ int get_fields_name_with_no_type(char *fields_name, char names[][MAX_FILED_LT])
 		
 		if(delim != &p[0]) delim++, i--;
 
-		string_copy(names[j],delim,i);
+		strncpy(names[j],delim,i);
 		p += (i+1);
 		j++;
 	}
 
-	if(fields_name[pos + 1] != '\0' && find_needle(fields_name,"@@") == 0x0) {
-		string_copy(names[j],&fields_name[pos+1],string_length(&fields_name[pos + 1]));
+	if(fields_name[pos + 1] != '\0' && strstr(fields_name,"@@") == 0x0) {
+		strncpy(names[j],&fields_name[pos+1],strlen(&fields_name[pos + 1]));
 		j++;
 	}
 
 	return j;
+}
+
+int map_constraints(char *c)
+{
+	if(strncmp(c,"CONST_NOT_NULL",14) == 0 
+			|| strncmp(c,"c_n_n",5) == 0 )
+		return CONST_NOT_NULL;
+
+	if(strncmp(c,"CONST_UNIQUE",11) == 0
+			|| strncmp(c,"c_un",4) == 0)
+		return CONST_UNIQUE;
+
+	if(strncmp(c,"CONST_DEFAULT",13) == 0
+			|| strncmp(c,"c_df",4) == 0)
+		return CONST_DEFAULT;
+
+	if(strncmp(c,"CONST_FOREIGN_KEY",17) == 0
+			|| strncmp(c,"c_fky",5) == 0)
+		return CONST_FOREIGN_KEY;
+
+	return -1;
+}
+
+int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
+{
+	if(!cnstr)
+		return -1;
+
+	char *c = NULL;
+	if(!(c = strstr(buff,CON_)))
+			return -1;
+
+	replace('@','^',buff);
+
+	*cnstr = array_init(field_count,INT);
+	if(!(*cnstr)){
+		fprintf(stderr,"array_init() failed, %s:%d.\n",F, L - 2);
+		return -1;
+	}
+
+	/*
+	 * TODO: if field_count > 1 it is important to understand 
+	 * for the constrains, to which field they have to be applied!
+	 * */
+	int i,f; 
+
+	for(f = 0; f < field_count; f++){
+		char *next = NULL;
+		int	or_c = 0;
+		do{
+			next = strstr(c,T_);
+			if(!next)
+				next = strstr(c,TYPE_);
+
+			*c++ = ' ';
+			char *p = c;
+			while(*p && *p != ':') p++;
+
+			int l = p - c;
+			char constraint[l+1];
+			constraint[l] = '\0';
+			strncpy(constraint,c,l);
+
+			int m = map_constraints(constraint);
+			if(m == -1){
+				array_free(*cnstr);
+				return -1;
+			}
+
+			or_c |= m;
+			if(m == CONST_DEFAULT){
+				while(*c && *c != ':') *c++ = ' ';
+				if(*c)
+					*c++ = ' ';
+
+				int j;
+				p = c;
+				for(j = 0; *p && *p != ':'; j++,p++);
+
+				char b[j+1];
+				b[j] = '\0';
+				strncpy(b,c,j);
+
+				while(*c && *c != ':') *c++ = ' ';
+
+				if(!(*value)){
+					*value = (char**)array_init(10,STRING);
+					if(!(*value)){
+						fprintf(stderr,"array_init failed, %s:%d.\n",F, L - 2);
+						array_free(*cnstr);
+						return -1;
+					}
+				}
+				array_push(*value,b);
+			}else{
+				while(*c && *c != ':') *c++ = ' ';
+			}
+
+			if(!(c = strstr(buff,CON_)))
+				break;
+
+		}while( next && c < next);
+		array_push(*cnstr,&or_c);
+	}
+	replace('@',':',buff);
+	replace('^','@',buff);
+	/*change the buffer to hold only the fields */
+	int sz = (int)strlen(buff);
+	char cpy[sz+1];
+	memset(cpy,0,sz+1);
+
+	int j;
+	for(i = 0, j = 0; i < sz; i++){
+		if(buff[i] != ' '){
+			if(j < sz){
+				cpy[j] = buff[i];
+				j++;
+			}
+		}
+	}
+
+	memset(buff,0,strlen(buff));
+	strncpy(buff,cpy,i);
+	return 0;
 }
 
 int get_fileds_name(char *fields_name, int fields_count, int steps, char names[][MAX_FILED_LT])
@@ -1681,7 +1811,7 @@ int get_fileds_name(char *fields_name, int fields_count, int steps, char names[]
 	char *s = 0x0;
 
 	while ((s = tok(fields_name, ":")) != 0x0 && j < fields_count) {
-		string_copy(names[j],s,string_length(s));
+		strncpy(names[j],s,strlen(s));
 
 		j++;
 
@@ -1710,14 +1840,14 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 				if (j == i)
 					continue;
 
-				int l_i = string_length(names[i]);
-				int l_j = string_length(names[j]);
+				int l_i = strlen(names[i]);
+				int l_j = strlen(names[j]);
 				if(names[j][0] == '\0') c++;
 				if(c == fields_count) return 0;
 
 				if (l_i == l_j)
 				{
-					if (string_compare(names[i], names[j], l_j,-1) == 0)
+					if (strncmp(names[i], names[j], l_j) == 0)
 						return 0;
 				}
 			}
@@ -1728,17 +1858,17 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 
 int check_array_input(char *value)
 {
-	size_t size = string_length(value) + 1;
+	size_t size = strlen(value) + 1;
 	char cbuff[size];
-	set_memory(cbuff,0,size);
-	string_copy(cbuff,value,size);
+	memset(cbuff,0,size);
+	strncpy(cbuff,value,size);
 
 	char *p = 0x0;
 	int elements = 0;
 	int d = 0;
 	int i = 0;
 	int pos = 0;
-	while((p = find_needle(cbuff,","))){
+	while((p = strstr(cbuff,","))){
 		if(p[1] == '\0') break;
 
 		elements++;
@@ -1750,27 +1880,27 @@ int check_array_input(char *value)
 		int l = (&cbuff[start] - p)+1;
 		pos = start ;
 		char cpy[l];
-		set_memory(cpy, 0, l);
+		memset(cpy, 0, l);
 
-		string_copy(cpy,p,l-1);
+		strncpy(cpy,p,l-1);
 
 		if(is_floaintg_point(cpy)){
 			if(is_number_in_limits(cpy)) d++;
 		}else if(is_integer(cpy)){
 			if(is_number_in_limits(cpy)) i++;
 		}
-		
+
 		cbuff[start] = '@';
 	}
 
 	if(cbuff[pos] != '\0' && p == 0x0){
 		elements++;
 		char *last = &cbuff[pos];
-		size_t size = string_length(++last) + 1;
+		size_t size = strlen(++last) + 1;
 		char n[size];
-		set_memory(n,0,size);
-		
-		string_copy(n,last,size-1);
+		memset(n,0,size);
+
+		strncpy(n,last,size-1);
 		if(is_floaintg_point(n)){
 			if(is_number_in_limits(n)) d++;
 		}else if(is_integer(n)){
@@ -1778,7 +1908,7 @@ int check_array_input(char *value)
 		}
 
 	}
-		
+
 	if(i == elements) return TYPE_ARRAY_LONG;
 	if(d == elements) return TYPE_ARRAY_DOUBLE;
 
@@ -1791,13 +1921,13 @@ int assign_type(char *value)
 
 	if(!value) return -1;
 
-	if(value[0] == '[' && value[string_length(value) - 1] == ']') return TYPE_FILE;
+	if(value[0] == '[' && value[strlen(value) - 1] == ']') return TYPE_FILE;
 
-	if(find_needle(value,",")){
+	if(strstr(value,",")){
 		/*ARRAY case*/
 		int result = 0;
 		if((result = check_array_input(value)) == - 1) return TYPE_ARRAY_STRING;
-			
+
 		return result;	
 	}
 
@@ -1814,24 +1944,24 @@ int assign_type(char *value)
 		return -1;
 	}
 
-	if(string_length(value) > 1){
-		
-		size_t sz = string_length(value);
+	if(strlen(value) > 1){
+
+		size_t sz = strlen(value);
 		char cpy[sz+1];
-		set_memory(cpy,0,sz+1);
-		copy_memory(cpy,value,sz);
+		memset(cpy,0,sz+1);
+		memcpy(cpy,value,sz);
 
 		char *p = &cpy[0];
 		for(;*p != '\0';p++){
 			TO_LOWER(p)			
 		}
-		if(string_compare(cpy,"false",string_length(p),COMPARE_STANDARD) == 0) return TYPE_BYTE;
-		if(string_compare(cpy,"true",string_length(p),COMPARE_STANDARD) == 0) return TYPE_BYTE;
+		if(strncmp(cpy,"false",strlen(p)) == 0) return TYPE_BYTE;
+		if(strncmp(cpy,"true",strlen(p)) == 0) return TYPE_BYTE;
 	}else{
 		char c = *value;
 		char *p = &c;
 		TO_LOWER(p)
-		if(c == 'n' || c == 'y') return TYPE_BYTE;
+			if(c == 'n' || c == 'y') return TYPE_BYTE;
 	}
 	return TYPE_STRING;
 }
@@ -1858,7 +1988,7 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 		i++;
 	}else {
 		if(fields_count > 1){
-			display_to_stdout("type token not found in get_value_types().\n");
+			fprintf(stderr,"type token not found in get_value_types().\n");
 			return -1;
 		}
 		return 0;
@@ -1869,7 +1999,7 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 			j++;
 			int r  = get_type(s);
 			if (r == -1){
-				display_to_stdout("check input format: fieldName:TYPE:value.\n");
+				fprintf(stderr,"check input format: fieldName:TYPE:value.\n");
 				return -1;
 			}
 			types[j] = r;
@@ -1888,14 +2018,14 @@ int get_value_types(char *fields_input, int fields_count, int steps, int *types)
 
 int get_values_hyb(char *buff,char ***values,  int fields_count)
 {	
-	size_t size = string_length(buff)+1;
+	size_t size = strlen(buff)+1;
 	char cbuff[size];
-	set_memory(cbuff,0,size);
-	string_copy(cbuff,buff,size);
+	memset(cbuff,0,size);
+	strncpy(cbuff,buff,size);
 
 	*values = (char**)malloc(fields_count * sizeof(char *));
 	if (!(*values)) {
-		display_to_stdout("malloc() failed, %s:%d.\n",F,L-2);
+		fprintf(stderr,"malloc() failed, %s:%d.\n",F,L-2);
 		return -1;
 	}
 
@@ -1904,13 +2034,13 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 	char *file_start = 0x0;
 	int count = 0;
 	if(!__IMPORT_EZ){
-		
-		while((file_start = find_needle(cbuff,"["))){
-			char *end_file = find_needle(file_start,"]");
+
+		while((file_start = strstr(cbuff,"["))){
+			char *end_file = strstr(file_start,"]");
 			if(end_file){ 
 				int end = end_file - cbuff;
 				char *delim = 0x0;
-				while((delim = find_needle(file_start,":"))){
+				while((delim = strstr(file_start,":"))){
 					if((delim - cbuff) < end) 
 						*delim = '&';
 					else
@@ -1929,11 +2059,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 
 	int i = 0;
 	int reset_mistype_index[10];
-	set_memory(reset_mistype_index,-1,sizeof(int)*10);
+	memset(reset_mistype_index,-1,sizeof(int)*10);
 	int rmi = 0;
-	if(find_needle(cbuff,T_)){
+	if(strstr(cbuff,T_)){
 		char *pos_t = 0x0;
-		while((pos_t = find_needle(cbuff,T_))){
+		while((pos_t = strstr(cbuff,T_))){
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			if(is_target_db_type(pos_t) == -1){
@@ -1943,11 +2073,11 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				continue;
 			}
 			*pos_t= '@';
-			char *end_t = (find_needle(pos_t,":"));
+			char *end_t = (strstr(pos_t,":"));
 			assert(end_t != 0x0); 
 
 			*end_t = '@';
-			char *next = find_needle(end_t,":");
+			char *next = strstr(end_t,":");
 			if(!next){
 				++end_t;
 				if(count > 0){
@@ -1956,7 +2086,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				}
 				(*values)[i] = duplicate_str(end_t);
 				if(!(*values)[i]){
-					display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
+					fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
 						free(*values);
 					else
@@ -1970,8 +2100,8 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			*next = '@';
 			size_t len = (next - cbuff) - (++end_t - cbuff) + 1;
 			char cpy[len];
-			set_memory(cpy,0,len);
-			string_copy(cpy,end_t,len-1);
+			memset(cpy,0,len);
+			strncpy(cpy,end_t,len-1);
 
 			if(count > 0){
 				/*clean the value*/
@@ -1979,7 +2109,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			}
 			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
-				display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
 					free(*values);
 				else
@@ -1989,24 +2119,24 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			i++;
 		}		
 	}
- 	rmi = 0;
+	rmi = 0;
 	while(reset_mistype_index[rmi] != -1){
 		cbuff[reset_mistype_index[rmi]] = ':';
 		rmi++;
 	}
-	
 
-	if(find_needle(cbuff,TYPE_)){
+
+	if(strstr(cbuff,TYPE_)){
 		char *pos_T = 0x0;
-		while((pos_T = find_needle(cbuff,TYPE_))){
+		while((pos_T = strstr(cbuff,TYPE_))){
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			*pos_T= '@';
-			char *end_T = (find_needle(pos_T,":"));
+			char *end_T = (strstr(pos_T,":"));
 			assert(end_T != 0x0); 
 
 			*end_T = '@';
-			char *next = find_needle(end_T+1,":");
+			char *next = strstr(end_T+1,":");
 			if(!next){
 				++end_T;
 				if(count > 0){
@@ -2015,7 +2145,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				}
 				(*values)[i] = duplicate_str(end_T);
 				if(!(*values)[i]){
-					display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
+					fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
 						free(*values);
 					else
@@ -2030,8 +2160,8 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			*next = '@';
 			size_t len = (next - cbuff) - (++end_T- cbuff) + 1;
 			char cpy[len];
-			set_memory(cpy,0,len);
-			string_copy(cpy,end_T,len-1);
+			memset(cpy,0,len);
+			strncpy(cpy,end_T,len-1);
 
 			if(count > 0){
 				/*clean the value*/
@@ -2039,7 +2169,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			}
 			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
-				display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				if(i == 0)
 					free(*values);
 				else
@@ -2051,13 +2181,13 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 		}		
 	}
 
-	if(find_needle(cbuff,":")){
+	if(strstr(cbuff,":")){
 		char *pos_d = 0x0;
-		while((pos_d = find_needle(cbuff,":"))){
+		while((pos_d = strstr(cbuff,":"))){
 			/*this change the delimeter so it won't
 			 * be found in the next iteration*/
 			*pos_d= '@';
-			char *end_d = find_needle(pos_d,":");
+			char *end_d = strstr(pos_d,":");
 			if(!end_d){
 				++pos_d;		
 				if(count > 0){
@@ -2066,7 +2196,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 				}
 				(*values)[i] = duplicate_str(pos_d);
 				if(!(*values)[i]){
-					display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
+					fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 					if(i == 0)
 						free(*values);
 					else
@@ -2079,9 +2209,9 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 
 			size_t len = end_d - (++pos_d) + 1;
 			char cpy[len];
-			set_memory(cpy,0,len);
+			memset(cpy,0,len);
 			*end_d = '@';
-			string_copy(cpy,pos_d,len-1);
+			strncpy(cpy,pos_d,len-1);
 
 			if(count > 0){
 				/*clean the value*/
@@ -2089,7 +2219,7 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 			}
 			(*values)[i] = duplicate_str(cpy);
 			if(!(*values)[i]){
-				display_to_stdout("duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d\n",__FILE__,__LINE__-2);
 				free_strs(i,1,values);
 				return -1;
 			}
@@ -2101,28 +2231,28 @@ int get_values_hyb(char *buff,char ***values,  int fields_count)
 }
 char ** get_values_with_no_types(char *buff,int fields_count)
 {
-	size_t l = string_length(buff);
+	size_t l = strlen(buff);
 	char cpy[l+1];
-	set_memory(cpy,0,l+1);
-	string_copy(cpy,buff,l);
+	memset(cpy,0,l+1);
+	strncpy(cpy,buff,l);
 
 	char *delim = ":";
 	char *first = 0x0;
 	char *last = 0x0;
-	
+
 	char **values = (char**)malloc(fields_count * sizeof(char *));
 	if (!values) {
-		display_to_stdout("memory get values %s:%d\n",__FILE__,__LINE__-2);
+		fprintf(stderr,"memory get values %s:%d\n",__FILE__,__LINE__-2);
 		return 0x0;
 	}
 
 	memset(values,0,fields_count * sizeof(char*));
-	if(find_needle(buff,"@")) replace('@','^',cpy);
+	if(strstr(buff,"@")) replace('@','^',cpy);
 
 	/*exclude file syntax*/
 	char *f_st = 0x0;
 	char *f_en = 0x0;
-	while((f_st = find_needle(cpy,"[")) && (f_en = find_needle(cpy,"]"))){
+	while((f_st = strstr(cpy,"[")) && (f_en = strstr(cpy,"]"))){
 		*f_st = '\n';
 		for(; *f_st != ']'; f_st++){
 			if(*f_st == ':') *f_st = '@';
@@ -2130,44 +2260,44 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 		*f_en = '\r';
 	}
 
-	if(find_needle(cpy,"\n")) replace('\n','[',cpy);
-	if(find_needle(cpy,"\r")) replace('\r',']',cpy);
-	
+	if(strstr(cpy,"\n")) replace('\n','[',cpy);
+	if(strstr(cpy,"\r")) replace('\r',']',cpy);
+
 
 	int i = 0;
 	char *p2 = cpy;
 	char *p = cpy;
-	while((first = find_needle(p2,delim)) != 0x0 && (last = find_needle(&p[(first+1) - cpy],delim)) != 0x0){
-	/*	if(first[1] == '[' && ((file_block = find_needle(&first[1],"]")))){
+	while((first = strstr(p2,delim)) != 0x0 && (last = strstr(&p[(first+1) - cpy],delim)) != 0x0){
+		/*	if(first[1] == '[' && ((file_block = strstr(&first[1],"]")))){
 			int start = (first + 1) - buff;
 			int size = (file_block - buff) - start +1;
 			char cpy[size+1];
-			set_memory(cpy,0,size+1);
-			string_copy(cpy,&buff[start],size);
+			memset(cpy,0,size+1);
+			strncpy(cpy,&buff[start],size);
 			values[i] = duplicate_str(cpy);
 			if(!values[i]){
-				display_to_stdout("duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
-				return 0x0;
+			fprintf(stderr,"duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
+			return 0x0;
 			}
 			p2 = (first + 1) + size+1;
 			i++;
 			continue;
-		}
-		*/
+			}
+			*/
 		int start = (first + 1) - cpy;
 		int size = (last - cpy) - start;
 		char bpy[size+1];
-		set_memory(bpy,0,size+1);
-		string_copy(bpy,&buff[start],size);
+		memset(bpy,0,size+1);
+		strncpy(bpy,&buff[start],size);
 
 		values[i] = duplicate_str(bpy);
 		if(!values[i]){
-			display_to_stdout("duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
+			fprintf(stderr,"duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
 			return 0x0;
 		}
 
-		if(find_needle(values[i],"@")) replace('@',':',values[i]);
-		if(find_needle(values[i],"^")) replace('^','@',values[i]);
+		if(strstr(values[i],"@")) replace('@',':',values[i]);
+		if(strstr(values[i],"^")) replace('^','@',values[i]);
 
 		p2 = (first + 1) + size+1;
 		i++;
@@ -2177,11 +2307,11 @@ char ** get_values_with_no_types(char *buff,int fields_count)
 		if(*(first + 1) != '\0') {
 			values[i] = duplicate_str(&first[1]);
 			if(!values[i]){
-				display_to_stdout("duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
+				fprintf(stderr,"duplicate_str() failed, %s:%d",__FILE__,__LINE__-2);
 				return 0x0;
 			}
-			if(find_needle(values[i],"@")) replace('@',':',values[i]);
-			if(find_needle(values[i],"^")) replace('^','@',values[i]);
+			if(strstr(values[i],"@")) replace('@',':',values[i]);
+			if(strstr(values[i],"^")) replace('^','@',values[i]);
 		}
 	}
 
@@ -2194,7 +2324,7 @@ char **get_values(char *fields_input, int fields_count)
 
 	char **values = (char**)malloc(fields_count * sizeof(char *));
 	if (!values) {
-		display_to_stdout("memory get values %s:%d",__FILE__,__LINE__-2);
+		fprintf(stderr,"memory get values %s:%d",__FILE__,__LINE__-2);
 		return 0x0;
 	}
 
@@ -2203,8 +2333,8 @@ char **get_values(char *fields_input, int fields_count)
 	/*detect file type*/
 
 	char *s = 0x0;
- 	char *excluded_input =  exclude_sub_str("[","]",fields_input,1);
-	
+	char *excluded_input =  exclude_sub_str("[","]",fields_input,1);
+
 	if(excluded_input){
 		tok(excluded_input, ":");
 		tok(0x0, ":");
@@ -2234,7 +2364,7 @@ char **get_values(char *fields_input, int fields_count)
 	}
 	else
 	{
-		display_to_stdout("value token not found in get_values();\n");
+		fprintf(stderr,"value token not found in get_values();\n");
 		free(values);
 		return 0x0;
 	}
@@ -2245,7 +2375,7 @@ char **get_values(char *fields_input, int fields_count)
 			j++;
 			values[j] = duplicate_str(s);
 		}
-	
+
 
 		if (!values[j]){
 			free_strs(j,i,values);
@@ -2277,14 +2407,14 @@ void free_strs(int fields_num, int count, ...)
 
 int is_file_name_valid(char *str)
 {
-	size_t l = string_length(str);
+	size_t l = strlen(str);
 	size_t i;
 	for (i = 0; i < l; i++)
 	{
-		if (is_punct(str[i]))
+		if (ispunct(str[i]))
 			if ((str[i] != '-' && str[i] != '/' && str[i] != '_' && str[i] != '.')) return 0;
 
-		if (is_space(str[i]))
+		if (isspace(str[i]))
 			return 0;
 	}
 	return 1;
@@ -2292,9 +2422,9 @@ int is_file_name_valid(char *str)
 
 void strip(const char c, char *str)
 {
-	size_t l = string_length(str);
+	size_t l = strlen(str);
 	char cpy[l];
-	set_memory(cpy,0,l);
+	memset(cpy,0,l);
 
 	size_t i,j;
 	for (i = 0, j = 0; i < l; i++){
@@ -2304,13 +2434,13 @@ void strip(const char c, char *str)
 		j++;
 	}
 
-	set_memory(str,0,l);
-	string_copy(str,cpy,l);
+	memset(str,0,l);
+	strncpy(str,cpy,l);
 }
 
 void replace(const char c, const char with, char *str)
 {
-	size_t l = string_length(str);
+	size_t l = strlen(str);
 	size_t i;
 	for (i = 0; i < l; i++)
 		if (str[i] == c)
@@ -2320,7 +2450,7 @@ void replace(const char c, const char with, char *str)
 
 char return_last_char(char *str)
 {
-	size_t l = string_length(str);
+	size_t l = strlen(str);
 	return str[l - 1];
 }
 
@@ -2329,7 +2459,7 @@ size_t digits_with_decimal(float n)
 	char buf[20];
 	if (copy_to_string(buf, 20, "%.2f", n) < 0)
 	{
-		display_to_stdout("copy_to_string failed %s:%d.\n", F, L - 2);
+		fprintf(stderr,"copy_to_string failed %s:%d.\n", F, L - 2);
 		return -1;
 	}
 
@@ -2345,12 +2475,12 @@ size_t digits_with_decimal(float n)
 
 unsigned char is_floaintg_point(char *str)
 {
-	size_t l = string_length(str);
+	size_t l = strlen(str);
 	int point = 0;
 	size_t i;
 	for (i = 0; i < l; i++)
 	{
-		if (is_digit(str[i]))
+		if (isdigit(str[i]))
 		{
 			if (str[i] == '.')
 				return 1;
@@ -2374,10 +2504,10 @@ unsigned char is_floaintg_point(char *str)
 
 unsigned char is_integer(char *str)
 {
-	size_t l = string_length(str);
+	size_t l = strlen(str);
 	size_t i;
 	for (i = 0; i < l; i++){
-		if (!is_digit(str[i])){
+		if (!isdigit(str[i])){
 			if (str[i] == '-' && i == 0){
 				continue;
 			}else{
@@ -2413,7 +2543,7 @@ unsigned char is_number_in_limits(char *value)
 	if (!value)
 		return 0;
 
-	size_t l = string_length(value);
+	size_t l = strlen(value);
 	unsigned char negative = value[0] == '-';
 	int ascii_value = 0;
 
@@ -2474,7 +2604,7 @@ unsigned char is_number_in_limits(char *value)
 
 int find_last_char(const char c, char *src)
 {
-	size_t l = string_length(src);
+	size_t l = strlen(src);
 	int last = -1;
 	size_t i;
 	for (i = 0; i < l; i++){
@@ -2487,15 +2617,15 @@ int find_last_char(const char c, char *src)
 
 int count_delim(char *delim, char *str)
 {
-	size_t l = string_length(str) + 1;
+	size_t l = strlen(str) + 1;
 	char buf[l];
-	set_memory(buf,0,l);
-	string_copy(buf,str,l-1);
+	memset(buf,0,l);
+	strncpy(buf,str,l-1);
 
 	int c = 0;
 	char *d = 0x0;
-		
-	while((d = find_needle(buf,delim))){
+
+	while((d = strstr(buf,delim))){
 		c++;
 		*d = '@';	
 	}
@@ -2508,7 +2638,7 @@ int find_double_delim(char *delim, char *str, int *pos, struct Schema sch)
 
 	char *c = 0x0;
 	int f = 0;
-	while((c = find_needle(str,delim))){
+	while((c = strstr(str,delim))){
 		f = 1;
 		if(find_delim_in_fields(":",str,pos,sch) == 0) return 0;
 		if(*(c + 2) == '\0'){
@@ -2524,32 +2654,32 @@ int find_double_delim(char *delim, char *str, int *pos, struct Schema sch)
 		}
 	}
 	if(f) return 0;
-	
+
 	return -1;
 }
 
 int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 {
-	if(find_needle(str, delim) == 0x0) return -1;
-	size_t l = string_length(str) + 1;
+	if(strstr(str, delim) == 0x0) return -1;
+	size_t l = strlen(str) + 1;
 	char buf[l];
-	set_memory(buf,0,l);
-	string_copy(buf,str,l-1);
-	
+	memset(buf,0,l);
+	strncpy(buf,str,l-1);
+
 	/* in the case of UTILITY usage we need to exclude the type file syntax
 	 * field_name:[file data]*/
 	i16 f_start[50];
 	i16 f_end[50];
-	set_memory(f_start,-1,sizeof(i16)*50);
-	set_memory(f_end,-1,sizeof(i16)*50);
+	memset(f_start,-1,sizeof(i16)*50);
+	memset(f_end,-1,sizeof(i16)*50);
 
 	if(__UTILITY){
 		char *fs = 0x0;
 		char *fe = 0x0;
 		int i = 0;
-		for(; (fs = find_needle(buf,"[")) && (fe = find_needle(buf,"]")); i++){
+		for(; (fs = strstr(buf,"[")) && (fe = strstr(buf,"]")); i++){
 			if (i == 50){
-				display_to_stdout("(%s): code refactor needed for %s() %s:%d\n",prog,__func__,__FILE__,__LINE__-10);
+				fprintf(stderr,"(%s): code refactor needed for %s() %s:%d\n",prog,__func__,__FILE__,__LINE__-10);
 				break;
 			}
 
@@ -2574,10 +2704,10 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 		if(strlen(sch.fields_name[i]) == 1){
 			single_char_field[0] = *sch.fields_name[i];
 			single_char_field[1] = ':';
-			if(!(f = find_needle(buf,single_char_field)))
+			if(!(f = strstr(buf,single_char_field)))
 				continue;
 		} else{
-			if(!(f = find_needle(buf,sch.fields_name[i]))) 
+			if(!(f = strstr(buf,sch.fields_name[i]))) 
 				continue;
 		}
 
@@ -2612,17 +2742,17 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 				if (*f == ':') *f = ' ';
 				int size = 0;
 				if(f == &buf[0])
-					size = find_needle(f,":") - f;
+					size = strstr(f,":") - f;
 				else 
-					size = find_needle(&f[1],":") - f;
+					size = strstr(&f[1],":") - f;
 
 				if (size < 0) continue;
 
 				char cpy[size+1];
-				set_memory(cpy,0,size+1);
-				string_copy(cpy,f,size);
-				if(string_length(sch.fields_name[i]) == (size_t)size){
-					if(string_compare(cpy,sch.fields_name[i],size,-1) == 0){
+				memset(cpy,0,size+1);
+				strncpy(cpy,f,size);
+				if(strlen(sch.fields_name[i]) == (size_t)size){
+					if(strncmp(cpy,sch.fields_name[i],size) == 0){
 						while(*f != ':'){
 							*f = ' ';
 							f++;
@@ -2649,16 +2779,16 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	}
 
 	i = 0;
-	if(find_needle(buf," ") == 0x0) return -1;
+	if(strstr(buf," ") == 0x0) return -1;
 	char *start = 0x0;
-	while((start = find_needle(buf,"TYPE_"))){
+	while((start = strstr(buf,"TYPE_"))){
 		*start = '@';
 		while(*start != ':' && *start != '\0') start++;
 
 		if(*start == ':') *start = ' ';
 	}
 
-	while((start = find_needle(buf,"t_"))){
+	while((start = strstr(buf,"t_"))){
 		if(is_target_db_type(start) == -1)break;
 
 		*start = '@';
@@ -2671,7 +2801,7 @@ int find_delim_in_fields(char *delim, char *str, int *pos, struct Schema sch)
 	/* at this point only the ':' inside the fields are left*/
 	char *delim_in_fields = 0x0;
 	i8 cont = 0;
-	while((delim_in_fields = find_needle(buf,delim))){
+	while((delim_in_fields = strstr(buf,delim))){
 
 		int p = delim_in_fields - buf;
 		if(f_start[0] > -1 && f_end[0] > -1){
@@ -2722,7 +2852,7 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 
 				if(count == 1){
 					char *type = 0x0;
-					if((type = find_needle(p,TYPE_))){
+					if((type = strstr(p,TYPE_))){
 						if(p == type){ 		
 							end = p - buffer;
 							variable_steps = 3;
@@ -2734,9 +2864,9 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 		}
 
 		if(p == &buffer[0])
-			string_copy(field, &buffer[start],end - start -1);
+			strncpy(field, &buffer[start],end - start -1);
 		else
-			string_copy(field, &buffer[start+1],end - start -1);
+			strncpy(field, &buffer[start+1],end - start -1);
 	}
 
 	return field;
@@ -2745,14 +2875,14 @@ char *find_field_to_reset_delim(int *pos, char *buffer)
 static int is_target_db_type(char *target)
 {
 	int size = 0;
-	size_t l = string_length(target);
+	size_t l = strlen(target);
 	if(l > 4){
 		/*extract the real target*/
 		if(*target == ':'){
-			char *e = find_needle(&target[1],":");
+			char *e = strstr(&target[1],":");
 			if(e) size = e - target;
 		}else{
-			char *e = find_needle(target,":");
+			char *e = strstr(target,":");
 			if(e) size = e - target;
 		}
 
@@ -2766,65 +2896,65 @@ static int is_target_db_type(char *target)
 
 
 	char tg[b_size];
-	set_memory(tg,0,b_size);
+	memset(tg,0,b_size);
 
 	if(size > 0){
 		if(*target == ':') {
-			string_copy(tg,target,size);
+			strncpy(tg,target,size);
 		}else{
 			tg[0] = ':';
-			string_copy(&tg[1],target,size);
+			strncpy(&tg[1],target,size);
 			size++;
 		}
 
-		if(string_length(tg) == string_length(":t_s")) if(string_compare(tg,":t_s",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_l")) if(string_compare(tg,":t_l",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_b")) if(string_compare(tg,":t_b",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_d")) if(string_compare(tg,":t_d",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_i")) if(string_compare(tg,":t_i",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_f")) if(string_compare(tg,":t_f",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_p")) if(string_compare(tg,":t_p",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_ai")) if(string_compare(tg,":t_ai",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_al")) if(string_compare(tg,":t_al",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_af")) if(string_compare(tg,":t_af",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_ad")) if(string_compare(tg,":t_ad",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_as")) if(string_compare(tg,":t_as",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_ab")) if(string_compare(tg,":t_ab",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_fl")) if(string_compare(tg,":t_fl",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_dt")) if(string_compare(tg,":t_dt",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_si")) if(string_compare(tg,":t_si",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_sl")) if(string_compare(tg,":t_sl",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_sf")) if(string_compare(tg,":t_sf",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_sd")) if(string_compare(tg,":t_sd",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_ss")) if(string_compare(tg,":t_ss",size,-1) == 0) return 0;
-		if(string_length(tg) == string_length(":t_sb")) if(string_compare(tg,":t_sb",size,-1) == 0) return 0;
-		
+		if(strlen(tg) == strlen(":t_s")) if(strncmp(tg,":t_s",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_l")) if(strncmp(tg,":t_l",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_b")) if(strncmp(tg,":t_b",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_d")) if(strncmp(tg,":t_d",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_i")) if(strncmp(tg,":t_i",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_f")) if(strncmp(tg,":t_f",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_p")) if(strncmp(tg,":t_p",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_ai")) if(strncmp(tg,":t_ai",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_al")) if(strncmp(tg,":t_al",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_af")) if(strncmp(tg,":t_af",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_ad")) if(strncmp(tg,":t_ad",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_as")) if(strncmp(tg,":t_as",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_ab")) if(strncmp(tg,":t_ab",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_fl")) if(strncmp(tg,":t_fl",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_dt")) if(strncmp(tg,":t_dt",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_si")) if(strncmp(tg,":t_si",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_sl")) if(strncmp(tg,":t_sl",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_sf")) if(strncmp(tg,":t_sf",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_sd")) if(strncmp(tg,":t_sd",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_ss")) if(strncmp(tg,":t_ss",size) == 0) return 0;
+		if(strlen(tg) == strlen(":t_sb")) if(strncmp(tg,":t_sb",size) == 0) return 0;
+
 
 		return -1;
 
 	}
 
-	if(find_needle(target,":t_s")) return 0;
-	if(find_needle(target,":t_l")) return 0;
-	if(find_needle(target,":t_b")) return 0;
-	if(find_needle(target,":t_d")) return 0;
-	if(find_needle(target,":t_i")) return 0;
-	if(find_needle(target,":t_f")) return 0;
-	if(find_needle(target,":t_p")) return 0;
-	if(find_needle(target,":t_ai")) return 0;
-	if(find_needle(target,":t_al")) return 0;
-	if(find_needle(target,":t_as")) return 0;
-	if(find_needle(target,":t_ad")) return 0;
-	if(find_needle(target,":t_af")) return 0;
-	if(find_needle(target,":t_ab")) return 0;
-	if(find_needle(target,":t_fl")) return 0;
-	if(find_needle(target,":t_si")) return 0;
-	if(find_needle(target,":t_sl")) return 0;
-	if(find_needle(target,":t_ss")) return 0;
-	if(find_needle(target,":t_sd")) return 0;
-	if(find_needle(target,":t_sf")) return 0;
-	if(find_needle(target,":t_sb")) return 0;
-	
+	if(strstr(target,":t_s")) return 0;
+	if(strstr(target,":t_l")) return 0;
+	if(strstr(target,":t_b")) return 0;
+	if(strstr(target,":t_d")) return 0;
+	if(strstr(target,":t_i")) return 0;
+	if(strstr(target,":t_f")) return 0;
+	if(strstr(target,":t_p")) return 0;
+	if(strstr(target,":t_ai")) return 0;
+	if(strstr(target,":t_al")) return 0;
+	if(strstr(target,":t_as")) return 0;
+	if(strstr(target,":t_ad")) return 0;
+	if(strstr(target,":t_af")) return 0;
+	if(strstr(target,":t_ab")) return 0;
+	if(strstr(target,":t_fl")) return 0;
+	if(strstr(target,":t_si")) return 0;
+	if(strstr(target,":t_sl")) return 0;
+	if(strstr(target,":t_ss")) return 0;
+	if(strstr(target,":t_sd")) return 0;
+	if(strstr(target,":t_sf")) return 0;
+	if(strstr(target,":t_sb")) return 0;
+
 
 	return -1;
 
@@ -2833,18 +2963,18 @@ static int is_target_db_type(char *target)
 void pack(ui32 n, ui8 *digits_indexes)
 {
 	if((n <= (BASE-1))) {
-		set_memory(digits_indexes,255,sizeof(ui8) * 5);
+		memset(digits_indexes,255,sizeof(ui8) * 5);
 		digits_indexes[4] = n;
 		return;
 	}
 
 	int i = 4;	
-	set_memory(digits_indexes,255,sizeof(ui8) * 5);
+	memset(digits_indexes,255,sizeof(ui8) * 5);
 
 	ui32 rm = 0;
 	while(n > 0){
 		if (i < 0){
-			set_memory(digits_indexes,255,sizeof(ui8) * 5);
+			memset(digits_indexes,255,sizeof(ui8) * 5);
 			return;
 		}
 		rm = n % BASE;
@@ -2859,7 +2989,7 @@ void print_pack_str(ui8 *digits_index)
 	int i;
 	for(i = 0; i < 5; i++){
 		if(digits_index[i] == 255) continue;
-		display_to_stdout("%s",base_247[digits_index[i]]);
+		fprintf(stderr,"%s",base_247[digits_index[i]]);
 	}
 }
 
@@ -2908,15 +3038,15 @@ char *tok(char *str, char *delim)
 		}
 
 
-		size_t string_size = string_length(str);	
-		if(string_size != string_length(t_hndl.original_tok)){
+		size_t string_size = strlen(str);	
+		if(string_size != strlen(t_hndl.original_tok)){
 			free(t_hndl.original_tok);
 			t_hndl.original_tok = 0x0;
 			t_hndl.finish = 0;
 			goto tok_process;
 		}else{
 			replace('\n',*delim,t_hndl.original_tok);	
-			if(string_compare(str,t_hndl.original_tok,string_size,-1) == 0){
+			if(strncmp(str,t_hndl.original_tok,string_size) == 0){
 				free(t_hndl.original_tok);
 				t_hndl.original_tok = 0x0;
 				t_hndl.finish = 0;
@@ -2939,46 +3069,46 @@ tok_process:
 	if(!t_hndl.original_tok && !str) return 0x0;
 
 	size_t len = 0;
-	if(str) len = string_length(str);	
+	if(str) len = strlen(str);	
 
 	if(!t_hndl.original_tok){
-		set_memory(&t_hndl,0,sizeof(struct tok_handler));
+		memset(&t_hndl,0,sizeof(struct tok_handler));
 		t_hndl.original_tok = (char*)malloc(len + 1);		
 
 		if(!t_hndl.original_tok){
-			display_to_stdout("malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
+			fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 			return 0x0;
 		}
 
-		set_memory(t_hndl.original_tok,0,len+1);
-		string_copy(t_hndl.original_tok,str,len);
-		string_copy(t_hndl.delim,delim,string_length(delim));
+		memset(t_hndl.original_tok,0,len+1);
+		strncpy(t_hndl.original_tok,str,len);
+		strncpy(t_hndl.delim,delim,strlen(delim));
 		t_hndl.last = t_hndl.original_tok;
 	}
 
-	if(string_compare(t_hndl.delim,delim,string_length(t_hndl.delim),-1) != 0) {
+	if(strncmp(t_hndl.delim,delim,strlen(t_hndl.delim)) != 0) {
 		free(t_hndl.original_tok);
 		t_hndl.original_tok = 0x0;
 		return 0x0;
 	}
 
 	char *found = 0x0;
-	if((found = find_needle(t_hndl.original_tok,t_hndl.delim))){
+	if((found = strstr(t_hndl.original_tok,t_hndl.delim))){
 		if(*(found + 1) == '\0'){
-			set_memory(t_hndl.result,0,1024);
-			string_copy(t_hndl.result,t_hndl.last,string_length(t_hndl.last)-1);				
+			memset(t_hndl.result,0,1024);
+			strncpy(t_hndl.result,t_hndl.last,strlen(t_hndl.last)-1);				
 			t_hndl.finish =  1;
 			return &t_hndl.result[0];
 		}
 		ui32 end = found - t_hndl.original_tok;
 		ui32 start = t_hndl.last - t_hndl.original_tok;
-		set_memory(t_hndl.result,0,1024);
-		string_copy(t_hndl.result,t_hndl.last,end - start);				
+		memset(t_hndl.result,0,1024);
+		strncpy(t_hndl.result,t_hndl.last,end - start);				
 		*found = '\n';
 		t_hndl.last += (end - start) + 1;
 	} else {
-		set_memory(t_hndl.result,0,1024);
-		string_copy(t_hndl.result,t_hndl.last,string_length(t_hndl.last));				
+		memset(t_hndl.result,0,1024);
+		strncpy(t_hndl.result,t_hndl.last,strlen(t_hndl.last));				
 		t_hndl.finish =  1;
 		return &t_hndl.result[0];
 	}
@@ -2994,11 +3124,11 @@ char *duplicate_str(char *str)
 	size_t l = strlen(str) +1 ;
 	char *dup = (char*)malloc(l);
 	if(!dup){
-		display_to_stdout("malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
+		fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 		return 0x0;
 	}
 
-	set_memory(dup,0,l);
+	memset(dup,0,l);
 	strncpy(dup,str,l-1);
 	return dup;
 }

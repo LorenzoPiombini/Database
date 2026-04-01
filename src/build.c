@@ -1,5 +1,9 @@
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
+
 #include "common.h"
 #include "build.h"
 #include "file.h"
@@ -9,8 +13,7 @@
 #include "debug.h"
 #include "crud.h"
 #include "globals.h"
-#include "memory.h"
-#include "freestand.h"
+#include "string_utilities.h"
 
 static char prog[] = "db";
 int get_number_value_from_txt_file(FILE *fp)
@@ -25,7 +28,7 @@ int get_number_value_from_txt_file(FILE *fp)
 
 		for (i = 0; buffer[i] != '\0'; i++)
 		{
-			if (!is_digit(buffer[i]))
+			if (!isdigit(buffer[i]))
 			{
 				is_num = 0;
 				break;
@@ -58,21 +61,25 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	int i = 0;
 	int size = return_bigger_buffer(fp, &lines);
 	char buffer[size];
-	char **files_n = (char**)ask_mem(lines * sizeof(char *));
-	char **schemas = (char**)ask_mem(lines * sizeof(char *));
+	char **files_n = (char**)malloc(lines * sizeof(char *));
+	char **schemas = (char**)malloc(lines * sizeof(char *));
 	if(!files_n || !schemas){
-		fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
-		if(files_n)cancel_memory(NULL,files_n,sizeof(char*)*lines);
-		if(schemas)cancel_memory(NULL,schemas,sizeof(char*)*lines);
+		fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
+		if(files_n)
+			free(files_n);
+		if(schemas)
+			free(schemas);
 		return 0;
 	}
 
+	memset(files_n,0,lines*sizeof(char*));
+	memset(schemas,0,lines*sizeof(char*));
 	int buckets[lines];
 	int indexes[lines];
 	int file_field[lines];
-	set_memory(buckets,0,lines);
-	set_memory(indexes,0,lines);
-	set_memory(file_field,0,lines);
+	memset(buckets,0,lines);
+	memset(indexes,0,lines);
+	memset(file_field,0,lines);
 
 
 	while (fgets(buffer, sizeof(buffer), fp))
@@ -222,16 +229,16 @@ int import_data_to_system(char *data_file)
 	file_offset size = ftell(fp);
 	rewind(fp);	
 
-	char *content = (char*)ask_mem((size+1)*sizeof(char));
+	char *content = (char*)malloc((size+1)*sizeof(char));
 	if(!content){
-		fprintf(stderr,"ask_mem failed, %s:%d.\n",__FILE__,__LINE__-2);
+		fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 		return -1;
 	}
 
-	set_memory(content,0,size+1);
+	memset(content,0,size+1);
 	if(fread(content,size,1,fp) != 1){
 		fprintf(stderr,"fread() failed, %s:%d.\n",F,L-1);
-		cancel_memory(NULL,content,sizeof(char)*(size+1));
+		free(content);
 		fclose(fp);
 		return -1;
 	}
@@ -244,13 +251,13 @@ int import_data_to_system(char *data_file)
 	__IMPORT_EZ = 1;
 
 	int fds[3];
-	set_memory(fds,-1,sizeof(int)*3);
+	memset(fds,-1,sizeof(int)*3);
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 	/* init the Schema structure*/
 	struct Schema sch;
-	set_memory(&sch,0,sizeof(struct Schema));
+	memset(&sch,0,sizeof(struct Schema));
 	struct Record_f rec;
-	set_memory(&rec,-1,sizeof(struct Record_f));
+	memset(&rec,-1,sizeof(struct Record_f));
 	struct Header_d hd = {0, 0, &sch};
 
 
@@ -258,7 +265,7 @@ int import_data_to_system(char *data_file)
 	file_offset start = 0;
 	char file_name[MAX_FILE_PATH_LENGTH] = {0};
 	int lock_f = 0;
-	while((delim = find_needle(&content[start],"\n"))){
+	while((delim = strstr(&content[start],"\n"))){
 		size_t l = 0;
 		file_offset end = delim - content;		
 		if(start != 0) 
@@ -267,24 +274,24 @@ int import_data_to_system(char *data_file)
 			l = end + 1;
 
 		char buf[l];				
-		set_memory(buf,0,l);
-		string_copy(buf,&content[start],l-1);
+		memset(buf,0,l);
+		strncpy(buf,&content[start],l-1);
 		/* set the new start */
 		start = (delim +1) - content;
 	        *delim = ' ';	
 		
 
 		if(buf[0] == '@'){
-			set_memory(file_name,0,MAX_FILE_PATH_LENGTH);
+			memset(file_name,0,MAX_FILE_PATH_LENGTH);
 			if(open_files(&buf[1],fds,files,0) == -1){
-				cancel_memory(NULL,content,sizeof(char)*(size+1));
+				free(content);
 				return STATUS_ERROR;
 			}
 			if(is_db_file(&hd,fds) == -1){
-				cancel_memory(NULL,content,sizeof(char)*(size+1));
+				free(content);
 				return STATUS_ERROR;
 			}
-			string_copy(file_name,&buf[1],string_length(&buf[1]));
+			strncpy(file_name,&buf[1],strlen(&buf[1]));
 			printf("importing '%s' ...\n",file_name);
 			continue;
 		}
@@ -298,7 +305,7 @@ int import_data_to_system(char *data_file)
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);
 				close_ram_file(&ram);
-				cancel_memory(NULL,content,sizeof(char)*(size+1));
+				free(content);
 				return STATUS_ERROR;
 			}
 
@@ -308,20 +315,20 @@ int import_data_to_system(char *data_file)
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);
 				close_ram_file(&ram);
-				cancel_memory(NULL,content,sizeof(char)*(size+1));
+				free(content);
 				return STATUS_ERROR;
 			}
 
 			if(write_index(fds,g_index,g_ht,files[0]) == -1){
 				close_file(3,fds[0],fds[1],fds[2]);
 				close_ram_file(&ram);
-				cancel_memory(NULL,content,sizeof(char)*(size+1));
+				free(content);
 				return STATUS_ERROR;
 			}
 
 			g_index = 0;
 			g_ht = NULL;
-			set_memory(&sch,0,sizeof(struct Schema));
+			memset(&sch,0,sizeof(struct Schema));
 			clear_ram_file(&ram);
 			if(lock_f) {
 				while(lock(fds[0],UNLOCK) == WTLK);
@@ -334,11 +341,11 @@ int import_data_to_system(char *data_file)
 		if(buf[0] == ' ' || buf[0] == '\0' || buf[0] == '\n' || buf[0] == '#') continue;
 
 		/*write to file*/
-		char *d = find_needle(buf,":{@");
+		char *d = strstr(buf,":{@");
 		if(!d){
 			fprintf(stderr,"(%s): delim ':{@' not found, import of '%s' aborted.\n",prog,file_name);
 			close_file(3,fds[0],fds[1],fds[2]);
-			cancel_memory(NULL,content,sizeof(char)*(size+1));
+			free(content);
 			close_ram_file(&ram);
 			return -1;
 		}
@@ -347,23 +354,23 @@ int import_data_to_system(char *data_file)
 		char *dd = d;
 		d += 3;
 		*dd = '\0';
-		size_t sz = string_length(buf);
+		size_t sz = strlen(buf);
 		char cpy[sz+1];
-		set_memory(cpy,0,sz+1);
-		string_copy(cpy,buf,sz);
+		memset(cpy,0,sz+1);
+		strncpy(cpy,buf,sz);
 
 		
-		size_t key_sz = string_length(d) + 1;
+		size_t key_sz = strlen(d) + 1;
 		char key[key_sz];
-		set_memory(key,0,key_sz);
-		string_copy(key,d,key_sz -1);
+		memset(key,0,key_sz);
+		strncpy(key,d,key_sz -1);
 		
 		printf("key: '%s' - '%s'\n",key,file_name);
 		/*check data (schema) and writing to file*/
 		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f,-1) == -1) {
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);
-			cancel_memory(NULL,content,sizeof(char)*(size+1));
+			free(content);
 			close_ram_file(&ram);
 			if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 			close_file(3,fds[0],fds[1],fds[2]);
@@ -375,14 +382,14 @@ int import_data_to_system(char *data_file)
 
 		if(write_record(fds,(void*)key,key_type,&rec, 0,files,&lock_f,IMPORT) == -1) {
 			free_record(&rec,rec.fields_num);
-			set_memory(&rec,0,sizeof(struct Record_f));
+			memset(&rec,0,sizeof(struct Record_f));
 			continue;
 		}
 	
 		free_record(&rec,rec.fields_num);
-		set_memory(&rec,0,sizeof(struct Record_f));
+		memset(&rec,0,sizeof(struct Record_f));
 	}
-	cancel_memory(NULL,content,sizeof(char)*(size+1));
+	free(content);
 	close_ram_file(&ram);
 	__IMPORT_EZ = 0;
 	if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);

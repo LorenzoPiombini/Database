@@ -63,7 +63,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 							unsigned char import_from_data,
 							unsigned char journal_display,
 							unsigned char nr_of_record_display,
-							unsigned char del_field)
+							unsigned char del_field,
+							unsigned char modify_schema)
 {
 	if((del_field && file_path.is_empty(&file_path)) 
 			|| (del_field && ( del 					
@@ -75,6 +76,7 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 						|| build
 						|| create		 			
 						|| index_add 
+						|| modify_schema
 						|| import_from_data
 						|| nr_of_record_display))){
 		printf("option -d must be used with -f.\n\n");
@@ -92,6 +94,24 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 		return 0;
 	}
 
+	if((modify_schema && file_path.is_empty(&file_path))
+			|| ( modify_schema && (del_field 
+				|| del 					
+				|| update 					
+				|| del_file
+				|| list_def 
+				|| new_file 				
+				|| !key.is_empty(&key)
+				|| build
+				|| create		 			
+				|| index_add 
+				|| import_from_data
+				|| nr_of_record_display))){
+		printf("option -M must be used with -f.\n\n");
+		printf("isam.db -Mf [file_name] -R [fields:that:you:want:to:change:the:name].\n\n");
+		print_usage(argv);
+		return 0;
+	}
 	if (journal_display && (!file_path.is_empty(&file_path)  
 			|| del 					
 			|| update 					
@@ -103,6 +123,7 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 			|| build
 			|| create		 			
 			|| index_add 
+			|| modify_schema
 			|| import_from_data
 			|| nr_of_record_display)){
                 printf("option -j must be used by itself.\n");
@@ -118,8 +139,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 				|| !key.is_empty(&key)
 				|| !data_to_add.is_empty(&data_to_add)	
 				|| build
-				|| create		 			
 				|| index_add 
+				|| modify_schema
 				|| import_from_data
 				|| nr_of_record_display)){
                 printf("option -c must be used by itself.\n");
@@ -127,9 +148,16 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
                 return 0;
         }
 
-        if (index_add && (del || update || del_file || list_def ||
-                          new_file || !key.is_empty(&key)|| !data_to_add.is_empty(&data_to_add) || build))
-        {
+        if (index_add && (del 
+					|| update
+					|| del_file
+					|| list_def 
+					|| new_file 
+					|| modify_schema
+					|| import_from_data
+					|| !key.is_empty(&key)
+					|| !data_to_add.is_empty(&data_to_add) 
+					|| build)){
                 print_usage(argv);
                 fprintf(stderr, "\nyou can use option -A only with options -f -i and -x\n");
                 return 0;

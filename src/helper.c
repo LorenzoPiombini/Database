@@ -125,6 +125,7 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 		return -1;
 	}
 
+	free_schema(&sch);
 	if(file_field) return 0;
 
 	/*  write the index file */
