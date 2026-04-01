@@ -12,7 +12,6 @@
 #define LOWER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 65 || (int)*p <= 90) ;*p = ((int)*p) + 22,p++)
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
-static int digit(int n);
 
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
@@ -1082,22 +1081,4 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 	}
 
 	return 0;
-}
-
-static int digit(int n)
-{
-	if(n < 10)
-		return 1;
-	if(n >= 10 && n < 100)
-		return 2;
-	if(n >= 100  && n < 1000)
-		return 3;
-	if(n > 1000  && n < 10000)
-		return 4;
-	if(n >= 10000  && n < 100000)
-		return 5;
-	if(n >= 100000  && n < 1000000)
-		return 6;
-
-	return -1;
 }
