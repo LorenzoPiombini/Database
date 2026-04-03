@@ -39,7 +39,7 @@ enum Constraint{
 	CONST_FOREIGN_KEY = 2,
 	CONST_NOT_NULL = 4,
 	CONST_UNIQUE = 8,
-	CONST_DEFAULT = 16
+	CONST_DEFAULT = 16,
 };
 
 enum ValueType

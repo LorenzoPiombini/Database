@@ -13,6 +13,7 @@
 #include "sort.h"
 #include "debug.h"
 #include "input.h"
+#include "date.h"
 
 static char prog[] = "db";
 static int schema_check_type(int count,int mode,struct Schema *sch,
@@ -22,6 +23,10 @@ static int schema_check_type(int count,int mode,struct Schema *sch,
 			int option);
 
 static int check_double_compatibility(struct Schema *sch, char ***values);
+static char *get_def_value(struct Schema sch,int i);
+static char *print_constraints(struct Schema sch, int i);
+static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch);
+static int write_hd_VS1(ui8 **buf, long bwritten, struct Schema **sch);
 
 int parse_d_flag_input(char *file_path, int fields_num, 
 							char *buffer, 
@@ -31,18 +36,22 @@ int parse_d_flag_input(char *file_path, int fields_num,
 							int *pos)
 {
 
-
 	char names[MAX_FIELD_NR][MAX_FIELD_LT];
 	memset(names,0,MAX_FIELD_NR * MAX_FIELD_LT * sizeof(char));
 
 	int types_i[MAX_FIELD_NR];
-	memset(types_i,0,MAX_FIELD_NR*sizeof(int));
+	memset(types_i,-1,MAX_FIELD_NR*sizeof(int));
 
 	size_t s = strlen(buffer);
 	char cpy[s+1];
 	memset(cpy,0,s+1);
 	strncpy(cpy,buffer,s);
 
+	clear_tok();
+	int *constraints = NULL;
+	char **def_values = NULL;
+	if(get_constrains(cpy,fields_num,&constraints,&def_values) == -1)
+	
 	clear_tok();
 	get_fileds_name(buffer, fields_num, 3, names);
 	clear_tok();
@@ -93,8 +102,7 @@ int parse_d_flag_input(char *file_path, int fields_num,
 
 	if (sch && check_sch == 0 && sch->fields_num == 0) {
 		/* true when a new file is created */
-		/*TODO understand how to change the flow! to incorporate the constraint */
-		if(set_schema(names, types_i, sch, fields_num,NULL,NULL) == -1){
+		if(set_schema(names, types_i, sch, fields_num,constraints,def_values) == -1){
 			fprintf(stderr,"(%s): set_schema failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
 			return -1;
 		}
@@ -289,27 +297,129 @@ int parse_input_with_no_type(char *file_path, int fields_num,
 		int start = j;
 		for (i = 0; i < sch->fields_num; i++) {
 			found = 0;
-
 			for (j = start; j < sch->fields_num ; j++) {
 				if (strcmp(sch->fields_name[i], names[j]) == 0) {
 					switch(check_sch){
-					case SCHEMA_CT_NT:
-						if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
-							printf("set_field failed %s:%d.\n", F, L - 2);
+						case SCHEMA_CT_NT:
+							if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
+								printf("set_field failed %s:%d.\n", F, L - 2);
+								return -1;
+							}
+							found++;
+							break;
+						case SCHEMA_CT:
+							if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
+								printf("set_field failed %s:%d.\n", F, L - 2);
+								return -1;
+							}
+							found++;
+							break;
+						default:
 							return -1;
-						}
-						found++;
-						break;
-					case SCHEMA_CT:
-						if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
-							printf("set_field failed %s:%d.\n", F, L - 2);
-							return -1;
-						}
-						found++;
-						break;
-					default:
+					}
+				}
+			}
+
+			if(sch->constraints[i] & CONST_NOT_NULL 
+					&& !(sch->constraints[i] & CONST_DEFAULT) 
+					&& !found){
+				fprintf(stderr,"(%s): field -> '%s' must not be NULL,please provide a value.\n",prog,sch->fields_name[i]);
+				return -1;
+			}else if(!found && sch->constraints[i] & CONST_DEFAULT){
+				char b[30] = {0};
+				switch(sch->types[i]){
+				case TYPE_INT: 
+					memset(b,0,30);
+					if(copy_to_string(b,30,"%d",*(int*)sch->defaults[i]) < 0){
+						fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
 						return -1;
 					}
+
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				case TYPE_LONG: 
+					memset(b,0,30);
+					if(copy_to_string(b,30,"%d",*(long*)sch->defaults[i]) < 0){
+						fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+						return -1;
+					}
+
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				case TYPE_BYTE: 
+					memset(b,0,30);
+					if(copy_to_string(b,30,"%d",*(unsigned char*)sch->defaults[i]) < 0){
+						fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+						return -1;
+					}
+
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,b, 1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				case TYPE_FLOAT: 
+					memset(b,0,30);
+					if(copy_to_string(b,30,"%.2f",*(float*)sch->defaults[i]) < 0){
+						fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+						return -1;
+					}
+
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,b,1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				case TYPE_DOUBLE: 
+					memset(b,0,30);
+					if(copy_to_string(b,30,"%.2f",*(double*)sch->defaults[i]) < 0){
+						fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+						return -1;
+					}
+
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,b,1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				case TYPE_STRING: 
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , (char*)sch->defaults[i],1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				case TYPE_DATE: 
+				{
+					ui32 n = *(ui32*)sch->defaults[i];
+					char date_buff[11] = {0};
+					convert_number_to_date(date_buff,n);
+
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,date_buff,1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				}
+				case TYPE_KEY: 
+					memset(b,0,30);
+					if(copy_to_string(b,30,"%d",*(ui32*)sch->defaults[i]) < 0){
+						fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+						return -1;
+					}
+
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
+						printf("set_field failed %s:%d.\n", F, L - 2);
+						return -1;
+					}
+					break;
+				default:
+					return -1;
 				}
 			}
 #if 0
@@ -416,7 +526,6 @@ int create_header(struct Header_d *hd)
 
 int write_empty_header(int fd, struct Header_d *hd)
 {
-
 	ui32 id = swap32(hd->id_n); /*converting the endianess*/
 	if (write(fd, &id, sizeof(id)) == -1)
 	{
@@ -445,9 +554,122 @@ int write_empty_header(int fd, struct Header_d *hd)
 	return 1;
 }
 
+
+static int write_hd_VS1(ui8 **buf, long bwritten, struct Schema **sch)
+{
+	const unsigned long EIGTH_Kib = 1024 * 8;
+	unsigned long msize = *(unsigned long*) *buf;
+	ui16 i = 0;
+	for (i = 0; i < (*sch)->fields_num; i++) {
+		if(bwritten +(sizeof(ui8)*2 + sizeof(ui32)*2 + 32) > EIGTH_Kib){
+			ui8* n = realloc(*buf,msize + EIGTH_Kib);
+			if(!n){
+				fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__ - 2);
+				return -1;
+			}
+
+			*buf = n;
+			msize += EIGTH_Kib;
+		}
+
+		size_t l = strlen((*sch)->fields_name[i]) + 1;
+		ui32 l_end = swap32((ui32)l);
+
+		memcpy(&(*buf)[bwritten],&l_end,sizeof(ui32));
+		bwritten += sizeof(ui32);
+
+		memcpy(&(*buf)[bwritten],(*sch)->fields_name[i], l);
+		bwritten += l;
+
+		ui32 type = swap32((ui32)(*sch)->types[i]);
+		memcpy(&(*buf)[bwritten],&type,sizeof(ui32));
+		bwritten += sizeof(ui32);
+
+		ui8 d = (*sch)->is_dropped[i];
+		memcpy(&(*buf)[bwritten],&d,sizeof(ui8));
+		bwritten += sizeof(ui8);
+
+		ui8 c = (*sch)->constraints[i];
+		memcpy(&(*buf)[bwritten],&c,sizeof(ui8));
+		bwritten += sizeof(ui8);
+
+		if((*sch)->constraints[i] & CONST_DEFAULT){
+			switch((*sch)->types[i]){
+				case TYPE_INT:
+					{
+						int n = *(int*)(*sch)->defaults[i];
+						n = swap32(n);
+						memcpy(&(*buf)[bwritten],&n,sizeof(int));
+						bwritten += sizeof(int);
+						break;
+					}
+				case TYPE_LONG:
+					{
+						long n = *(long*)(*sch)->defaults[i];
+						n = swap64(n);
+						memcpy(&(*buf)[bwritten],&n,sizeof(long));
+						bwritten += sizeof(long);
+						break;
+					}
+				case TYPE_BYTE:
+					{
+						ui8 n = *(ui8*) (*sch)->defaults[i];
+						memcpy(&(*buf)[bwritten],&n,sizeof(ui8));
+						bwritten += sizeof(ui8);
+						break;
+					}
+				case TYPE_KEY:
+				case TYPE_DATE:
+					{
+						ui32 n = *(ui32*)(*sch)->defaults[i];
+						n = swap32(n);
+						memcpy(&(*buf)[bwritten],&n,sizeof(ui32));
+						bwritten += sizeof(ui32);
+						break;
+					}
+				case TYPE_FLOAT:
+					{
+						float f = *(float*)(*sch)->defaults[i];
+						ui32 n = htonf(f);
+						memcpy(&(*buf)[bwritten],&n,sizeof(ui32));
+						bwritten += sizeof(ui32);
+						break;
+					}
+				case TYPE_DOUBLE:
+					{
+						double f = *(double*)(*sch)->defaults[i];
+						ui64 n = htond(f);
+						memcpy(&(*buf)[bwritten],&n,sizeof(ui64));
+						bwritten += sizeof(ui64);
+						break;
+					}
+				case TYPE_STRING:
+					{ 
+						char *c = (char*)(*sch)->defaults[i];
+
+						int s = (int)strlen(c)+1;
+						ui32 sz = swap32(s);
+						memcpy(&(*buf)[bwritten],&sz,sizeof(ui32));
+						bwritten += sizeof(ui32);
+
+						memcpy(&(*buf)[bwritten],c,strlen(c)+1);
+						bwritten += s ;
+						break;
+					}
+					/*TODO: arraysss*/
+				default:
+					fprintf(stderr,"(%s): type not supported.%s:%d.\n",prog,__FILE__,__LINE__);
+					return -1;
+			}
+		}
+	}
+
+
+	return 0;
+
+}
 int write_header(int fd, struct Header_d *hd)
 {
-
 	if (!hd->sch_d->fields_name || !hd->sch_d->fields_name[0]) {
 		printf("\nschema is NULL.\ncreate header failed, %s:%d.\n",__FILE__, __LINE__ - 3);
 		return 0;
@@ -456,11 +678,14 @@ int write_header(int fd, struct Header_d *hd)
 	const unsigned long EIGTH_Kib = 1024 * 8;
 	unsigned long msize = EIGTH_Kib;
 	long bwritten = 0;
-	ui8* buf = (ui8*) malloc(msize+1);
+	ui8* buf = (ui8*) malloc(msize+1+sizeof(unsigned long));
 	if(!buf){
 		fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__ - 2);
 		return 0;
 	}
+
+	*(unsigned long*) buf = msize;
+	 buf += sizeof(unsigned long);
 
 	memset(buf,0,msize+1);
 
@@ -476,42 +701,18 @@ int write_header(int fd, struct Header_d *hd)
 	memcpy(&buf[bwritten],&fn,sizeof(ui16));
 	bwritten += sizeof(ui16);
 
-	ui16 i = 0;
-	for (i = 0; i < hd->sch_d->fields_num; i++) {
-		if(bwritten +(sizeof(ui8)*2 + sizeof(ui32)*2 + 32) > EIGTH_Kib){
-			ui8* n = realloc(buf,msize + EIGTH_Kib);
-			if(!n){
-				fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__ - 2);
-				free(buf);
-				return -1;
-			}
-
-			buf = n;
-			msize += EIGTH_Kib;
+	switch(hd->version){
+	case VS:
+		if(write_hd_VS1(&buf,bwritten,&hd->sch_d) == -1){
+			free(buf);
+			return 0;
 		}
-
-		size_t l = strlen(hd->sch_d->fields_name[i]) + 1;
-		ui32 l_end = swap32((ui32)l);
-
-		memcpy(&buf[bwritten],&l_end,sizeof(ui32));
-		bwritten += sizeof(ui32);
-
-		memcpy(&buf[bwritten],hd->sch_d->fields_name[i], l);
-		bwritten += l;
-
-		ui32 type = swap32((ui32)hd->sch_d->types[i]);
-		memcpy(&buf[bwritten],&type,sizeof(ui32));
-		bwritten += sizeof(ui32);
-
-		ui8 d = hd->sch_d->is_dropped[i];
-		memcpy(&buf[bwritten],&d,sizeof(ui8));
-		bwritten += sizeof(ui8);
-
-		ui8 c = hd->sch_d->constraints[i];
-		memcpy(&buf[bwritten],&c,sizeof(ui8));
-		bwritten += sizeof(ui8);
+		break;
+	default:
+		free(buf);
+		return 0;
 	}
-
+	
 	if(write(fd,buf,bwritten) == -1){
 		fprintf(stderr,"cannot write header, %s:%d.\n",__FILE__,__LINE__ - 1);
 		free(buf);
@@ -520,6 +721,215 @@ int write_header(int fd, struct Header_d *hd)
 
 	free(buf);
 	return 1; /* succssed */
+}
+
+static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
+{
+	ui16 field_n = 0;
+	memcpy(&field_n,&(*buf)[bread],sizeof(ui16));
+	bread += sizeof(ui16);
+	(*sch)->fields_num = swap16(field_n);
+
+	if ((*sch)->fields_num == 0) {
+		printf("no schema in this header.Please check data integrety.\n");
+		return -1;
+	}
+
+
+	(*sch)->fields_name = (char**)malloc(sizeof(char*) * (*sch)->fields_num);
+	(*sch)->types = (int*)malloc(sizeof(int) * (*sch)->fields_num);
+	(*sch)->is_dropped = (ui8*)malloc((*sch)->fields_num);
+	(*sch)->constraints = (ui8*)malloc((*sch)->fields_num);
+	(*sch)->defaults = (void**)malloc((*sch)->fields_num*sizeof(void*));
+
+	memset((*sch)->fields_name,0,sizeof(char*)*(*sch)->fields_num);
+	memset((*sch)->types,-1,sizeof(int) * (*sch)->fields_num);
+	memset((*sch)->is_dropped,0,(*sch)->fields_num);
+	memset((*sch)->constraints,0,(*sch)->fields_num);
+	memset((*sch)->defaults,0,(*sch)->fields_num*sizeof(void*));
+
+	if(!(*sch)->fields_name
+			|| !(*sch)->types 
+			|| !(*sch)->is_dropped
+			|| !(*sch)->constraints
+			|| !(*sch)->defaults){
+		fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-4);
+		if((*sch)->fields_name) 
+			free((*sch)->fields_name);
+		if((*sch)->types)
+			free((*sch)->types);
+		if((*sch)->is_dropped)
+			free((*sch)->is_dropped);
+		if((*sch)->constraints)
+			free((*sch)->constraints);
+		if((*sch)->defaults)
+			free((*sch)->defaults);
+		return -1;
+	} 
+
+	ui16 i;
+	for (i = 0; i < (*sch)->fields_num; i++) {
+		ui32 l_end = 0;
+		memcpy(&l_end,&(*buf)[bread],sizeof(l_end));
+		bread += sizeof(l_end);
+
+		size_t l = (size_t)swap32(l_end);
+
+		(*sch)->fields_name[i] = (char*)malloc(l);
+		if(!(*sch)->fields_name[i]){
+			fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
+			free_schema(*sch);
+			return -1;
+		} 
+
+		memset((*sch)->fields_name[i],0,l);
+		memcpy((*sch)->fields_name[i],&(*buf)[bread],l);
+		bread += l;
+
+		ui32 type = 0;
+		memcpy(&type,&(*buf)[bread],sizeof(type));
+		bread += sizeof(type);
+
+		(*sch)->types[i] = swap32(type);
+
+		memcpy(&(*sch)->is_dropped[i],&(*buf)[bread],sizeof(ui8));
+		bread += sizeof(ui8);
+
+		memcpy(&(*sch)->constraints[i],&(*buf)[bread],sizeof(ui8));
+		bread += sizeof(ui8);
+
+		if((*sch)->constraints[i] & CONST_DEFAULT){
+			switch((*sch)->types[i]){
+			case TYPE_INT:
+			{
+				int n = 0;
+				memcpy(&n,&(*buf)[bread],sizeof(int));
+				bread += sizeof(int);
+
+				n = swap32(n);
+				(*sch)->defaults[i] = (void*) malloc(sizeof(int));
+				if((*sch)->defaults[i]){
+					fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
+					free_schema(*sch);
+					return -1;
+				}
+				*(int*)(*sch)->defaults[i] = n;
+				break;
+			}
+			case TYPE_LONG:
+			{
+				long n = 0;
+				memcpy(&n,&(*buf)[bread],sizeof(long));
+				bread += sizeof(long);
+
+				n = swap64(n);
+
+				(*sch)->defaults[i] = (void*) malloc(sizeof(long));
+				if((*sch)->defaults[i]){
+					fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
+					free_schema(*sch);
+					return -1;
+				}
+				*(long*)(*sch)->defaults[i] = n;
+				break;
+			}
+			case TYPE_BYTE:
+			{
+				ui8 n = 0;
+				memcpy(&n,&(*buf)[bread],sizeof(ui8));
+				bread += sizeof(ui8);
+
+				(*sch)->defaults[i] = (void*) malloc(sizeof(ui8));
+				if((*sch)->defaults[i]){
+					fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
+					free_schema(*sch);
+					return -1;
+				}
+				*(ui8*)(*sch)->defaults[i] = n;
+				break;
+
+			}
+			case TYPE_KEY:
+			case TYPE_DATE:
+			{
+				ui32 n = 0;
+				memcpy(&n,&(*buf)[bread],sizeof(ui32));
+				bread += sizeof(ui32);
+
+				n = swap32(n);
+				(*sch)->defaults[i] = (void*) malloc(sizeof(ui32));
+				if((*sch)->defaults[i]){
+					fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
+					free_schema(*sch);
+					return -1;
+				}
+				*(ui32*)(*sch)->defaults[i] = n;
+				break;
+
+			}
+			case TYPE_FLOAT:
+			{
+				ui32 fne = 0;
+				memcpy(&fne,&(*buf)[bread],sizeof(ui32));
+				bread += sizeof(ui32);
+
+				float f = ntohf(fne);
+
+				(*sch)->defaults[i] = (void*) malloc(sizeof(float));
+				if((*sch)->defaults[i]){
+					fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
+					free_schema(*sch);
+					return -1;
+				}
+				*(float*)(*sch)->defaults[i] = f;
+				break;
+			}
+			case TYPE_DOUBLE:
+			{
+				ui32 f = 0;
+				memcpy(&f,&(*buf)[bread],sizeof(ui32));
+				bread += sizeof(ui32);
+
+				double d = ntohd(f);
+
+				(*sch)->defaults[i] = (void*) malloc(sizeof(double));
+				if((*sch)->defaults[i]){
+					fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
+					free_schema(*sch);
+					return -1;
+				}
+				*(double*)(*sch)->defaults[i] = d;
+				break;
+			}
+			case TYPE_STRING:
+			{ 
+				ui32 sz = 0;
+				memcpy(&sz,&(*buf)[bread],sizeof(ui32));
+				bread += sizeof(ui32);
+				
+				sz = swap32(sz);
+				char str[sz];	
+				str[sz-1] = '\0';
+
+				memcpy(str,&(*buf)[bread],sz);
+				bread += sz;
+
+				(*sch)->defaults[i] = (void*)duplicate_str(str);
+				if(!(*sch)->defaults[i]){
+					fprintf(stderr,"duplicate_str failed %s:%d.\n",__FILE__,__LINE__-2);
+					free_schema(*sch);
+					return -1;
+				}
+				break;
+			}
+			/*TODO: arraysss*/
+			default:
+				fprintf(stderr,"(%s): type not supported.%s:%d.\n",prog,__FILE__,__LINE__);
+				return -1;
+			}
+		}
+	}
+	return 0;
 }
 
 int read_header(int fd, struct Header_d *hd)
@@ -534,7 +944,6 @@ int read_header(int fd, struct Header_d *hd)
 		fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__ - 2);
 		return 0;
 	}
-
 
 	if (read(fd, buf, msize) == -1){
 		perror("reading header.\n");
@@ -559,82 +968,20 @@ int read_header(int fd, struct Header_d *hd)
 	bread += sizeof(vs);
 
 	hd->version = swap16(vs);
-	if (hd->version != VS) {
+
+	switch(hd->version){
+	case VS:
+		if(read_hd_V1(&buf,bread,&hd->sch_d) == -1){
+			free(buf);
+			return 0;
+		}
+		break;
+	default:
 		printf("this file was edited from a different software.\n");
 		free(buf);
 		return 0;
 	}
-
-	ui16 field_n = 0;
-	memcpy(&field_n,&buf[bread],sizeof(ui16));
-	bread += sizeof(ui16);
-	hd->sch_d->fields_num = swap16(field_n);
-
-	if (hd->sch_d->fields_num == 0) {
-		printf("no schema in this header.Please check data integrety.\n");
-		free(buf);
-		return 1;
-	}
-
-	hd->sch_d->fields_name = (char**)malloc(sizeof(char*) * hd->sch_d->fields_num);
-	hd->sch_d->types = (int*)malloc(sizeof(int) * hd->sch_d->fields_num);
-	hd->sch_d->is_dropped = (ui8*)malloc(hd->sch_d->fields_num);
-	hd->sch_d->constraints = (ui8*)malloc(hd->sch_d->fields_num);
-
-	memset(hd->sch_d->fields_name,0,sizeof(char*)*hd->sch_d->fields_num);
-	memset(hd->sch_d->types,-1,sizeof(int) * hd->sch_d->fields_num);
-	memset(hd->sch_d->is_dropped,0,hd->sch_d->fields_num);
-	memset(hd->sch_d->constraints,0,hd->sch_d->fields_num);
-
-	if(!hd->sch_d->fields_name
-			|| !hd->sch_d->types 
-			|| !hd->sch_d->is_dropped
-			|| !hd->sch_d->constraints){
-		free(buf);
-		fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-4);
-		if(hd->sch_d->fields_name) 
-			free(hd->sch_d->fields_name);
-		if(hd->sch_d->types)
-			free(hd->sch_d->types);
-		if(hd->sch_d->is_dropped)
-			free(hd->sch_d->is_dropped);
-		if(hd->sch_d->constraints)
-			free(hd->sch_d->constraints);
-		return 1;
-	} 
-
-	ui16 i;
-	for (i = 0; i < hd->sch_d->fields_num; i++) {
-		ui32 l_end = 0;
-		memcpy(&l_end,&buf[bread],sizeof(l_end));
-		bread += sizeof(l_end);
-
-		size_t l = (size_t)swap32(l_end);
-
-		hd->sch_d->fields_name[i] = (char*)malloc(l);
-		if(!hd->sch_d->fields_name[i]){
-			fprintf(stderr,"malloc failed %s:%d.\n",__FILE__,__LINE__-1);
-			free(buf);
-			free_schema(hd->sch_d);
-			return 0;
-		} 
-
-		memset(hd->sch_d->fields_name[i],0,l);
-		memcpy(hd->sch_d->fields_name[i],&buf[bread],l);
-		bread += l;
-
-		ui32 type = 0;
-		memcpy(&type,&buf[bread],sizeof(type));
-		bread += sizeof(type);
-
-		hd->sch_d->types[i] = swap32(type);
-
-		memcpy(&hd->sch_d->is_dropped[i],&buf[bread],sizeof(ui8));
-		bread += sizeof(ui8);
-
-		memcpy(&hd->sch_d->constraints[i],&buf[bread],sizeof(ui8));
-		bread += sizeof(ui8);
-	}
+		
 
 	free(buf);
 	return 1; /* successed */
@@ -4045,7 +4392,159 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 	}
 }	
 
+static char *print_constraints(struct Schema sch, int i)
+{
+	static char cn[512] = {0};
 
+
+	if(sch.constraints[i] == CONST_NO){
+		strncpy(cn,"NO COSTRAINTS",strlen("NO COSTRAINTS")+1);
+		return &cn[0];
+	}
+
+	ui8 a[]= {CONST_DEFAULT,CONST_NOT_NULL,CONST_UNIQUE,CONST_FOREIGN_KEY};
+
+	int j;
+	long bwritten = 0;
+	int CONST_COUNT = 4;
+	for(j = 0; j < CONST_COUNT; j++){
+		int r = 0, assigned = 0;
+ 		if((r = sch.constraints[i] & a[j])){
+			switch(r){
+				case CONST_FOREIGN_KEY:
+					strncpy(&cn[bwritten],"FOREING KEY",strlen("FOREING KEY")+1);
+					bwritten += strlen("FOREING KEY");
+					if(sch.constraints[i] > CONST_DEFAULT && !assigned){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}else if (sch.constraints[i] > CONST_DEFAULT && ((sch.constraints[i] - assigned) > 0)){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}
+					break;
+				case CONST_UNIQUE:
+					strncpy(&cn[bwritten],"UNIQUE",strlen("UNIQUE")+1);
+					bwritten += strlen("UNIQUE");
+					if(sch.constraints[i] > CONST_DEFAULT && !assigned){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}else if (sch.constraints[i] > CONST_DEFAULT && ((sch.constraints[i] - assigned) > 0)){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}
+					break;
+				case CONST_NOT_NULL:
+					strncpy(&cn[bwritten],"NOT NULL",strlen("NOT NULL")+1);
+					bwritten += strlen("NOT NULL");
+					if(sch.constraints[i] > CONST_DEFAULT && !assigned){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}else if (sch.constraints[i] > CONST_DEFAULT && ((sch.constraints[i] - assigned) > 0)){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}
+					break;
+				case CONST_DEFAULT:
+					strncpy(&cn[bwritten],"DEFAULT -> ",strlen("DEFAULT -> ")+1);
+					bwritten += strlen("DEFAULT -> ");
+					char *df = get_def_value(sch,i);
+					strncpy(&cn[bwritten],df,strlen(df));
+					bwritten += strlen(df);
+					if(sch.constraints[i] > CONST_DEFAULT && !assigned){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}else if (sch.constraints[i] > CONST_DEFAULT && ((sch.constraints[i] - assigned) > 0)){
+						cn[bwritten++] = ',';
+						cn[bwritten++] = ' ';
+						assigned += r;
+					}
+					break;
+				default:
+					return NULL;
+			}
+		}
+	}
+	return &cn[0];
+}
+
+static char *get_def_value(struct Schema sch,int i)
+{
+	static char b[512] = {0};
+	switch(sch.types[i]){
+	case TYPE_INT: 
+		if(copy_to_string(b,512,"%d",*(int*)sch.defaults[i]) < 0){
+			fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return NULL;
+		}
+		return &b[0];
+	case TYPE_LONG: 
+		if(copy_to_string(b,512,"%d",*(long*)sch.defaults[i]) < 0){
+			fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return NULL;
+		}
+
+		return &b[0];
+	case TYPE_BYTE: 
+		memset(b,0,512);
+		if(copy_to_string(b,512,"%d",*(unsigned char*)sch.defaults[i]) < 0){
+			fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return NULL;
+		}
+
+		return &b[0];
+	case TYPE_FLOAT: 
+		memset(b,0,512);
+		if(copy_to_string(b,512,"%.2f",*(float*)sch.defaults[i]) < 0){
+			fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return NULL;
+		}
+
+		return &b[0];
+	case TYPE_DOUBLE: 
+		memset(b,0,512);
+		if(copy_to_string(b,512,"%.2f",*(double*)sch.defaults[i]) < 0){
+			fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return NULL;
+		}
+
+		return &b[0];
+	case TYPE_STRING: 
+		if(copy_to_string(b,512,"%s",(char*)sch.defaults[i]) < 0){
+			fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return NULL;
+		}
+		return &b[0];
+	case TYPE_DATE: 
+		{
+			ui32 n = *(ui32*)sch.defaults[i];
+			char date_buff[11] = {0};
+			convert_number_to_date(date_buff,n);
+
+			if(copy_to_string(b,512,"%s",date_buff) < 0){
+				fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+				return NULL;
+			}
+
+			return &b[0];
+		}
+	case TYPE_KEY: 
+		if(copy_to_string(b,512,"%d",*(ui32*)sch.defaults[i]) < 0){
+			fprintf(stderr,"(%s): copy_to_string() failed, %s:%d.\n",prog,__FILE__,__LINE__-1);
+			return NULL;
+		}
+
+		return &b[0];
+	default:
+		return NULL;
+	}
+}
 void print_schema(struct Schema sch)
 {
 	printf("definition:\n");
@@ -4053,7 +4552,7 @@ void print_schema(struct Schema sch)
 
 	char c = ' ';
 	char keyb = '0';
-	printf("Field Name%-*cType\n", 11, c);
+	printf("Field Name%-*cType%-*cConstraints\n", 11, c,11,c);
 	printf("__________________________\n");
 	for (i = 0; i < sch.fields_num; i++) {
 		if(sch.is_dropped[i])
@@ -4075,7 +4574,7 @@ void print_schema(struct Schema sch)
 				printf("long.\n");
 				break;
 			case TYPE_BYTE:
-				printf("byte.\n");
+				printf("byte%-*c%s\n",11,c,print_constraints(sch,i));
 				break;
 			case TYPE_PACK:
 				printf("pack.\n");
@@ -4087,7 +4586,7 @@ void print_schema(struct Schema sch)
 				printf("double.\n");
 				break;
 			case TYPE_STRING:
-				printf("string.\n");
+				printf("string%-*c%s\n",11,c,print_constraints(sch,i));
 				break;
 			case TYPE_ARRAY_INT:
 				printf("int[].\n");

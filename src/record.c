@@ -667,19 +667,25 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 
 	return 0;
 }
+
 int free_schema(struct Schema *sch)
 {
 	ui16 i;
 	for(i = 0; i < sch->fields_num;i++){
 		free(sch->fields_name[i]);
+		if(sch->defaults[i]){
+			free(sch->defaults[i]);
+		}
 	}
 
 	free(sch->types);
 	free(sch->is_dropped);
 	free(sch->constraints);
 	free(sch->fields_name);
+	free(sch->defaults);
 	return 0;
 }
+
 unsigned char set_field(struct Record_f *rec, 
 		int index, 
 		char *field_name, 
@@ -1809,16 +1815,17 @@ unsigned char set_field(struct Record_f *rec,
 					}else{
 
 						char *p = &value[0];
+						int sz = (int)strlen(value);
 						for(; *p != '\0'; p++){
 							*p = tolower(*p);
 						}
 
-						if(strncmp(value,"false",strlen(p)) == 0){
+						if(strncmp(value,"false",sz) == 0){
 							value[0] = '0';
 							value[1] = '\0';
 						}
 
-						if(strncmp(value,"true",strlen(p)) == 0){
+						if(strncmp(value,"true",sz) == 0){
 							value[0] = '1';
 							value[1] = '\0';
 						}

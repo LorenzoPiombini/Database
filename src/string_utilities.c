@@ -206,7 +206,8 @@ int copy_to_string(char *buff,size_t size,char *format,...)
 					double_to_string(d,num_str);	
 					int i,pc,com;
 					for(i = 0, pc = 0, com = 0; num_str[i] != '\0'; i++){
-						if(precision == pc){
+						if(precision && precision == pc){
+							/*this is rounding the floating or double*/
 							if(((int)num_str[i] - '0') > 5){
 								if(((int)buff[j-1] - '0') == 9){
 									buff[j-1] = '0';
