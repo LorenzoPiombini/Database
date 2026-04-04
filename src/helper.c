@@ -98,6 +98,7 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 
 		if (!create_file_definition_with_no_value(mode,fields_count, schema_def, &sch)) {
 			fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
+			free_schema(&sch);
 			return -1;
 		}
 		break;
@@ -106,6 +107,7 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 	case NO_TYPE_DF	:	
 	{
 		if (!create_file_definition_with_no_value(mode,fields_count, schema_def, &sch)) {
+			free_schema(&sch);
 			fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);
 			return -1;
 		}

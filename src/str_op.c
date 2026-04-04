@@ -1481,6 +1481,20 @@ int count_fields(char *fields, const char *user_target)
 
 		if(fields[pos+1] != '\0') c++;
 
+		int cos = count_fields(fields,CON_) + count_fields(fields,C_);
+		if(cos){
+			char *def = NULL;
+			replace('@','^',fields);
+			while((def = strstr(fields,":CONST_DEFAULT")) 
+					|| (def = strstr(fields,":c_df"))) {
+				c--; 
+				*def = '@';
+			}
+		
+			replace('@',':',fields);
+			replace('^','@',fields);
+			c -= cos;
+		}
 	}
 
 	return c;
@@ -1702,6 +1716,9 @@ int map_constraints(char *c)
 
 int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 {
+	/*
+	 * if field_count is 0, it means the data does not have type
+	 * */
 	if(!cnstr)
 		return -1;
 
@@ -1711,25 +1728,28 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 
 	replace('@','^',buff);
 
+	ui8 no_type = 0;
+	if(!field_count){
+		field_count = count_fields(buff,NULL);
+		no_type = 1;
+	}
+
 	*cnstr = array_init(field_count,INT);
 	if(!(*cnstr)){
 		fprintf(stderr,"array_init() failed, %s:%d.\n",F, L - 2);
 		return -1;
 	}
 
-	/*
-	 * TODO: if field_count > 1 it is important to understand 
-	 * for the constrains, to which field they have to be applied!
-	 * */
-	int i,f; 
-
+	int f; 
 	for(f = 0; f < field_count; f++){
 		char *next = NULL;
 		int	or_c = 0;
 		do{
-			next = strstr(c,T_);
-			if(!next)
-				next = strstr(c,TYPE_);
+			if(!no_type){
+				next = strstr(c,T_);
+				if(!next)
+					next = strstr(c,TYPE_);
+			}
 
 			*c++ = ' ';
 			char *p = c;
@@ -1770,15 +1790,31 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 						return -1;
 					}
 				}
-				array_push(*value,b);
+				array_insert_at(f,*value,b);
 			}else{
-				while(*c && *c != ':') *c++ = ' ';
-			}
 
+				while(*c && *c != ':') *c++ = ' ';
+				/* 
+				 * understand if there are more constraint for 
+				 * this field
+				 * */
+				if(no_type){
+					char *more = NULL;
+					if((more = strstr(c,CON_))){
+						int s =  more - c;
+						if(s > 1){
+							c = strstr(buff,CON_);
+								break;
+						}
+					}
+				}
+			}
+			
+			
 			if(!(c = strstr(buff,CON_)))
 				break;
 
-		}while( next && c < next);
+		}while( (!no_type && next && c < next) || no_type);
 		array_push(*cnstr,&or_c);
 	}
 	replace('@',':',buff);
@@ -1788,7 +1824,7 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 	char cpy[sz+1];
 	memset(cpy,0,sz+1);
 
-	int j;
+	int i,j;
 	for(i = 0, j = 0; i < sz; i++){
 		if(buff[i] != ' '){
 			if(j < sz){
@@ -1955,8 +1991,8 @@ int assign_type(char *value)
 		for(;*p != '\0';p++){
 			TO_LOWER(p)			
 		}
-		if(strncmp(cpy,"false",strlen(p)) == 0) return TYPE_BYTE;
-		if(strncmp(cpy,"true",strlen(p)) == 0) return TYPE_BYTE;
+		if(strncmp(cpy,"false",strlen(cpy)) == 0) return TYPE_BYTE;
+		if(strncmp(cpy,"true",strlen(cpy)) == 0) return TYPE_BYTE;
 	}else{
 		char c = *value;
 		char *p = &c;

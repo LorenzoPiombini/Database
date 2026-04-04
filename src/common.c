@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "common.h"
 
 void *array_init(size_t size, int type)
@@ -81,6 +82,79 @@ void *array_init(size_t size, int type)
 	}	
 	default:
 		return NULL;
+	}
+}
+
+void array_insert_at(int i, void *arr, void *el)
+{
+	struct Metadata *h = (struct Metadata*)arr - 1;
+	switch(h->type){
+	case LONG:
+		if(h->capacity < i){
+			/*TODO: realloc?*/
+			assert(0);
+		}else{
+			long *a = (long*)arr;
+			a[i] = *(long*)el;
+			arr = (void*)a;
+			h->elements++;
+		}
+		return;
+	case INT:
+		if(h->capacity < i){
+			/*realloc*/
+			assert(0);
+		}else{
+			int *a = (int*)arr;
+			a[i] = *(int*)el;
+			arr = (void*)a;
+			h->elements++;
+		}
+		return; 
+	case DOUBLE:
+		if(h->capacity < i){
+			/*realloc*/
+		}else{
+			double *a = (double*)arr;
+			a[i] = *(double*)el;
+			arr = (void*)a;
+			h->elements++;
+		}
+		return;
+	case FLOAT:
+		if(h->capacity < i){
+			/*realloc*/
+		}else{
+			float *a = (float*)arr;
+			a[i] = *(float*)el;
+			arr = (void*)a;
+			h->elements++;
+		}
+		return;
+	case BYTE:
+		if(h->capacity < i){
+			/*realloc*/
+		}else{
+			unsigned char *a = (unsigned char*)arr;
+			a[i] = *(unsigned char*)el;
+			arr = (void*)a;
+			h->elements++;
+		}
+		return;
+	case STRING:
+		if(h->capacity < i){
+			/*realloc*/
+		}else{
+			char **a = (char **)arr;
+			a[i] = (char*)malloc(strlen((char*)el)+1);
+			a[i][strlen((char*) el)] = '\0';
+			memcpy(a[i],(char*) el,strlen((char*)el));
+			h->elements++;
+			arr = (void*)a;
+		}
+		return;
+	default:
+		return;
 	}
 }
 

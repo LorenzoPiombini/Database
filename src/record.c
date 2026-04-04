@@ -334,6 +334,11 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 					|| ((constraints[i] & CONST_DEFAULT) == CONST_DEFAULT)){
 
 
+				if(types_i[i] == -1){
+					/*you have to infere the type from the default value*/
+					sch->types[i] = assign_type(def_value[i]);
+					types_i[i] = sch->types[i];
+				}
 				switch(types_i[i]){
 				case TYPE_INT:
 				case TYPE_LONG:
