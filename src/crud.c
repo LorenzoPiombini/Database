@@ -14,6 +14,8 @@
 #include "crud.h"
 #include "types.h"
 #include "input.h"
+#include "string_utilities.h"
+#include "common.h"
 
 static char prog[] = "db";
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type);
@@ -216,7 +218,6 @@ int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Head
 
 int is_db_file(struct Header_d *hd, int *fds)
 {
-
 	while((is_locked(3,fds[0],fds[1],fds[2])) == LOCKED);
 	if (!read_header(fds[2], hd)) return STATUS_ERROR;
 
@@ -229,7 +230,8 @@ int check_data(char *file_path,char *data_to_add,
 		struct Record_f *rec,
 		struct Header_d *hd,
 		int *lock_f,
-		int option)
+		int option,
+		int update)
 {
 	int fields_count = 0;
 	unsigned char check = 0;
@@ -246,9 +248,7 @@ int check_data(char *file_path,char *data_to_add,
 		return -1;
 	}
 
-	
 	int mode = check_handle_input_mode(data_to_add, FWRT) | WR;
-
 
 	if(mode == -1){
 		fprintf(stderr,"(%s): check the input, value might be missng.\ndata_to_add:%s\n",prog,data_to_add);
@@ -266,11 +266,9 @@ int check_data(char *file_path,char *data_to_add,
 			return STATUS_ERROR;
 		}
 
-		check = perform_checks_on_schema(mode,data_to_add, fields_count,file_path, rec, hd,pos,option);
-
+		check = perform_checks_on_schema(fds,mode,data_to_add, fields_count,file_path, rec, hd,pos,option,update);
 	} else {
-
-		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd, pos,option);
+		check = perform_checks_on_schema(fds,mode,data_to_add, -1,file_path, rec, hd, pos,option,update);
 	}
 
 	if (check == SCHEMA_ERR || check == 0) return STATUS_ERROR;
@@ -330,7 +328,8 @@ int write_record(int *fds,
 		int update,
 		char files[3][MAX_FILE_PATH_LENGTH],
 		int *lock_f,
-		int mode)
+		int mode,
+		struct Schema *sch)
 {
 	if(mode == IMPORT){
 		if(!__IMPORT_EZ) return -1;
@@ -382,6 +381,74 @@ int write_record(int *fds,
 		return STATUS_ERROR;
 	}
 
+	/*check if a field has CONTS_UNIQUE*/
+	int inx = sch->fields_num;
+	if(sch->has_unique(sch->constraints,&inx)){
+		switch(rec->fields[inx].type){
+		case TYPE_INT:
+			if(set_tbl(ht,(void*)&rec->fields[inx].data.i,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				free_ht_array(ht, index);
+				return STATUS_ERROR;
+			}
+			break;
+		case TYPE_LONG:
+		{
+			if(rec->fields[inx].data.l > (long)UINT_MAX){
+				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				return STATUS_ERROR;
+			}
+			if(set_tbl(ht,(void*)&rec->fields[inx].data.l,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				free_ht_array(ht, index);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		case TYPE_FLOAT:
+		{
+			ui32 f = htonf(rec->fields[inx].data.f);
+			if( f > (ui32)UINT_MAX){
+				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				return STATUS_ERROR;
+			}
+
+			if(set_tbl(ht,(void*)&f,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				free_ht_array(ht, index);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		case TYPE_DOUBLE:
+		{
+			ui64 d = htonf(rec->fields[inx].data.d);
+			if( d > (ui64)UINT_MAX){
+				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				return STATUS_ERROR;
+			}
+
+			if(set_tbl(ht,(void*)d,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				free_ht_array(ht, index);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		case TYPE_STRING:
+		{
+			if(set_tbl(ht,rec->fields[inx].data.s,eof,STR,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				free_ht_array(ht, index);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		default:
+			break;
+		}
+	}
+	
 	if(set_tbl(ht,key,eof,key_type,0) == -1){
 		free_ht_array(ht, index);
 		return STATUS_ERROR;
@@ -709,6 +776,10 @@ int update_rec(char *file_path,
 			goto clean_on_error;
 		}
 
+		int i;
+		for(i = 0; i < rec_old.fields_num; i++)
+			rec->field_set[i] = rec_old.field_set[i];
+
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	}
@@ -767,11 +838,11 @@ clean_on_error:
 int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,int indexing)
 {
 	if(key_type == UINT){
-		if(!set(key, key_type, offset, indexing == 1 ? ht : &ht[0])) return -1;
+		if(!set(key, key_type, offset, indexing >= 1 ? &ht[indexing] : &ht[0])) return -1;
 
 		return 0;
 	} else if (key_type == STR) {
-		if(!set((void *)key, key_type, offset,indexing == 1 ? ht : &ht[0])) return -1;
+		if(!set((void *)key, key_type, offset,indexing >= 1 ? &ht[indexing] : &ht[0])) return -1;
 
 		return 0;
 	}
@@ -782,7 +853,7 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
 		return -1;
 	} else if (key_type == UINT) {
 		if (key_conv) {
-			if (!set(key_conv, key_type, offset,indexing == 1 ? ht : &ht[0])){
+			if (!set(key_conv, key_type, offset,indexing >= 1 ? &ht[indexing] : &ht[0])){
 				free(key_conv);
 				return -1;
 			}
@@ -790,7 +861,7 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
 		}
 	} else if (key_type == STR) {
 		/*create a new key value pair in the hash table*/
-		if (!set((void *)key, key_type, offset, indexing == 1 ? ht : &ht[0])) return -1;
+		if (!set((void *)key, key_type, offset, indexing >= 1 ? &ht[indexing]: &ht[0])) return -1;
 	}
 	return 0;
 }

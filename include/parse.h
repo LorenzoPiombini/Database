@@ -7,29 +7,42 @@
 
 #define NO_TYPE 0
 
-int parse_d_flag_input(char *file_path, 
+int parse_d_flag_input(
+			int *fds,
+			char *file_path, 
 			int fields_num, 
 			char *buffer, 
 			struct Schema *sch, 
 			int check_sch,
 			struct Record_f *rec, 
-			int *pos);
+			int *pos,
+			int update);
 
-unsigned char perform_checks_on_schema(int mode, char *buffer, 
+unsigned char perform_checks_on_schema(
+					int *fds,
+					int mode,
+					char *buffer, 
 					int fields_count,
 					char *file_path, 
 					struct Record_f *rec, 
 					struct Header_d *hd,
 					int *pos,
-					int option);
+					int option,
+					int update
+					);
 
-int parse_input_with_no_type(char *file_path, int fields_num, 
-							char names[][MAX_FIELD_LT], 
-							int *types_i, 
-							char **values,
-							struct Schema *sch, 
-							int check_sch,
-							struct Record_f *rec);
+int parse_input_with_no_type(
+			int *fds,
+			char *file_path, 
+			int fields_num, 
+			char names[][MAX_FIELD_LT], 
+			int *types_i, 
+			char **values,
+			struct Schema *sch, 
+			int check_sch,
+			struct Record_f *rec,
+			int update);
+
 int create_header(struct Header_d *hd);
 int write_empty_header(int fd, struct Header_d *hd);
 int write_header(int fd, struct Header_d *hd);
@@ -45,7 +58,6 @@ int sort_input_like_header_schema(int schema_tp,
 					int *types_i);
 
 unsigned char ck_schema_contain_input(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd, int fields_num);
-int change_fields_name(char *buffer,struct Schema *sch);
 unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struct Schema *sch);
 int create_file_definition_with_no_value(int mode, int fields_num, char *buffer, struct Schema *sch);
 unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec,unsigned char check,int option);

@@ -247,9 +247,9 @@ int convert_options(char *options)
 	for (i = 0; i < l; i++)
 		options[i] = tolower(options[i]);
 
-	if (strcmp(options, ALL_OP) == 0) return ALL;
-	if (strcmp(options, ADD_AR_OP) == 0) return AAR;
-	if (strcmp(options, FORCE) == 0) return FRC;
+	if (strncmp(options, ALL_OP,strlen(ALL_OP)) == 0) return ALL;
+	if (strncmp(options, ADD_AR_OP,strlen(ADD_AR_OP)) == 0) return AAR;
+	if (strncmp(options, FORCE,strlen(FORCE)) == 0) return FRC;
 
 
 	return -1;

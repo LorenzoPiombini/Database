@@ -232,6 +232,9 @@ void array_push(void *arr, void *el)
 
 void array_free(void*arr)
 {
+	if(!arr)
+		return;
+
 	struct Metadata *h = (struct Metadata *)arr - 1;
 	switch(h->type){
 	case INT:
@@ -245,7 +248,7 @@ void array_free(void*arr)
 	{
 		char **c = (char**)arr;
 		int i;
-		for(i = 0; i < h->elements; i++){
+		for(i = 0; i < h->capacity; i++){
 			if(c[i])
 				free(c[i]);
 		}

@@ -9,8 +9,8 @@
 #include "debug.h"
 #include "endian.h"
 #include "types.h"
-#include "freestand.h"
 #include "common.h"
+#include "string_utilities.h"
 
 
 void print_hash_table(HashTable tbl)
@@ -244,7 +244,8 @@ file_offset get(void *key, HashTable *tbl, int key_type)
 				temp = temp->next;
 				break;
 			}
-			if(!temp->key.k.s)return -1;
+			if(!temp->key.k.s)
+				return -1;
 			if (strcmp(temp->key.k.s, (char *)key) == 0)
 				return temp->value;
 

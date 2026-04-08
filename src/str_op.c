@@ -197,7 +197,8 @@ int check_handle_input_mode(char *buffer, int op)
 		int additional_c_delim_count = v > 1 ? v-1 : 0;
 		if((c_delim - v - additional_c_delim_count - c_CT - c_ct) > 0) return HYB;
 		if((c_delim - v - additional_c_delim_count - c_CT - c_ct) == 0) return TYPE;
-		if(c_delim - c_CT - c_ct  <= v) return TYPE;
+		if(c_delim - c_CT - c_ct  <= v
+				|| c_delim - c_CT - c_ct >= v) return TYPE;
 		break;
 	}
 	case FWRT:
@@ -1714,6 +1715,7 @@ int map_constraints(char *c)
 	return -1;
 }
 
+
 int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 {
 	/*
@@ -1724,7 +1726,7 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 
 	char *c = NULL;
 	if(!(c = strstr(buff,CON_)))
-			return -1;
+			return 0; /*no constraints in the input*/
 
 	replace('@','^',buff);
 
@@ -1732,6 +1734,51 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 	if(!field_count){
 		field_count = count_fields(buff,NULL);
 		no_type = 1;
+	}
+
+	int field_pos[field_count];
+	memset(field_pos,-1,field_count * sizeof(int));
+
+	/* 
+	 * if the buff has types, we nee to know the fields position
+	 * to properly store the costraints
+	 * */
+
+	if(!no_type){
+		int sz = (int)strlen(buff);
+		char cpy[sz+1];
+		memset(cpy,0,sz+1);
+		strncpy(cpy,buff,sz);
+
+		int i = 0;
+		char *t = NULL;
+		while((t = strstr(cpy,T_))){
+			assert(i < field_count);
+			*t = ' ';
+			while(t != &cpy[0] && *t && *t != ':') t--;
+			if(t == &cpy[0]){
+				field_pos[i++] = 0;
+				continue;
+			}
+
+			if(*t == ':')
+				field_pos[i++] = (int) (++t - cpy);
+
+		}
+
+		while((t = strstr(cpy,TYPE_))){
+			assert(i < field_count);
+
+			*t = ' ';
+			while(t != &cpy[0] && *t && *t != ':') t--;
+			if(t == &cpy[0]){
+				field_pos[i++] = 0;
+				continue;
+			}
+
+			if(*t == ':')
+				field_pos[i++] = (int) (++t - cpy);
+		}
 	}
 
 	*cnstr = array_init(field_count,INT);
@@ -1749,9 +1796,24 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 				next = strstr(c,T_);
 				if(!next)
 					next = strstr(c,TYPE_);
-			}
 
-			*c++ = ' ';
+				int position = (int)(c - buff);
+				if(field_pos[f] != position){
+					int i;
+					for(i = 0; i < field_count; i++){
+						if(position > field_pos[i])
+							f = i;	
+
+						if(position < field_pos[i])
+							break;
+					}
+				}
+			}
+			if(c)
+				*c++ = ' ';
+			else
+				break;
+
 			char *p = c;
 			while(*p && *p != ':') p++;
 
@@ -1815,7 +1877,7 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 				break;
 
 		}while( (!no_type && next && c < next) || no_type);
-		array_push(*cnstr,&or_c);
+		array_insert_at(f,*cnstr,&or_c);
 	}
 	replace('@',':',buff);
 	replace('^','@',buff);
@@ -1865,6 +1927,7 @@ unsigned char check_fields_integrity(char names[][MAX_FILED_LT], int fields_coun
 	int c = 0;
 
 	if(fields_count == 0) return 0;
+
 	int i,j;
 	for (i = 0; i < fields_count; i++) {
 		if ((fields_count - i) == 1)
@@ -2432,6 +2495,9 @@ void free_strs(int fields_num, int count, ...)
 	int i,j;
 	for (i = 0; i < count; i++){
 		char **str = va_arg(args, char **);
+		if(!str)
+			continue;
+
 		for (j = 0; j < fields_num; j++){
 			if (str[j]){
 				free(str[j]);

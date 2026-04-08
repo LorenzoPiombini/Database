@@ -36,7 +36,7 @@ typedef enum
 {
     ALL, /*delete the all file*/
     AAR, /*append to array*/
-    FRC /*Force operation */
+    FRC, /*Force operation */
 } Option_t;
 
 #endif

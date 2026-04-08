@@ -47,7 +47,7 @@ unsigned char append_to_file(int *fds, char *file_path, char *key,
 	memset(&sch,0,sizeof(struct Schema));
 	struct Header_d hd = {0, 0, &sch};
 	int lock_f = 0;
-	if(check_data(file_path,data_to_add,fds,files, &rec,&hd,&lock_f,-1) == -1) return -1;
+	if(check_data(file_path,data_to_add,fds,files, &rec,&hd,&lock_f,-1,0) == -1) return -1;
 
 	file_offset eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
@@ -83,18 +83,6 @@ int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int 
 	switch(mode){
 	case TYPE_DF:
 	{
-		fields_count = count_fields(schema_def,NULL);
-
-		if (fields_count == 0) {
-			fprintf(stderr,"(%s): type syntax might be wrong.\n",prog);
-			return -1;
-		}
-
-		if (fields_count > MAX_FIELD_NR) {
-			fprintf(stderr,"(%s): too many fields, max %d fields each file definition.\n"
-					,prog, MAX_FIELD_NR);
-			return -1;
-		}
 
 		if (!create_file_definition_with_no_value(mode,fields_count, schema_def, &sch)) {
 			fprintf(stderr,"(%s): can't create file definition %s:%d.\n",prog, F, L - 1);

@@ -24,8 +24,8 @@ struct Schema {
 	int *types;
 	ui8 *is_dropped;
 	ui8 *constraints;
-	/*this can be null if no constrains DEFAULT are provided*/
 	void **defaults; 
+	ui8 (*has_unique)(ui8*,int*);
 };/*48 b*/
 
 struct Header_d{
@@ -128,7 +128,7 @@ int init_array(struct array **v, enum ValueType type);
 int insert_element(void *element, struct array *v, enum ValueType type);
 void free_dynamic_array(struct array *v, enum ValueType type);
 int create_record(char *file_name, struct Schema sch, struct Record_f *rec);
-unsigned char set_field(struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value,ui8 field_bit);
+unsigned char set_field(int *fds,struct Record_f *rec, int index, char *field_name, enum ValueType type, char *value,ui8 field_bit);
 void free_record(struct Record_f *rec, int fields_num);
 void print_record(int count, struct Record_f recs);
 void free_record_array(int len, struct Record_f **recs);
@@ -142,5 +142,7 @@ int free_schema(struct Schema *sch);
 void free_type_file(struct Record_f *rec,int optimized);
 int parse_record_to_json(struct Record_f *rec,char **buffer);
 int drop_field(struct Schema *s, char *fields);
+int change_fields_name(char *buffer,struct Schema *sch);
+ui8 has_constrain_unique(ui8 *constraints, int *field_num);
 
 #endif /*record.h*/

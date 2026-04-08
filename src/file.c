@@ -15,7 +15,7 @@
 #include "endian.h"
 #include "debug.h"
 #include "lock.h"
-#include "freestand.h"
+#include "string_utilities.h"
 
 static char prog[] = "db";
 static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);

@@ -286,9 +286,9 @@ static int l_write_record(lua_State *L)
 		goto err_key;
 	}
 
-	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) 
+	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
 		goto err_invalid_data;
-	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1) == -1) 
+	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
 		goto err_write_rec;
 
 	port_record(L,&rec);
@@ -385,8 +385,7 @@ static int l_update_record(lua_State *L)
 	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	int check = -1;
-	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1)) == -1) goto err_invalid_data;
-	/*TODO: update this function to accept a index nr*/
+	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,1)) == -1) goto err_invalid_data;
 	if(update_rec(file_name,fds,key,key_type,&rec,hd,check,&lock,NULL,-1) == -1) goto err_update_rec;
 	port_record(L,&rec);
 
@@ -447,7 +446,7 @@ static int l_create_record(lua_State *L)
 		goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) 
 		goto err_not_db_file;
-	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1) == -1) 
+	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
 		goto err_invalid_data;
 
 	rec.offset = go_to_EOF(fds[1]);

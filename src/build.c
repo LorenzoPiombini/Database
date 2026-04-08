@@ -367,7 +367,7 @@ int import_data_to_system(char *data_file)
 		
 		printf("key: '%s' - '%s'\n",key,file_name);
 		/*check data (schema) and writing to file*/
-		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f,-1) == -1) {
+		if(check_data(file_name,cpy,fds,files,&rec,&hd,&lock_f,-1,0) == -1) {
 			printf("key value: %s\n",key);
 			free_record(&rec,rec.fields_num);
 			free(content);
@@ -380,7 +380,7 @@ int import_data_to_system(char *data_file)
 		int key_type = STR;
 		if(is_integer(key)) key_type = -1;
 
-		if(write_record(fds,(void*)key,key_type,&rec, 0,files,&lock_f,IMPORT) == -1) {
+		if(write_record(fds,(void*)key,key_type,&rec, 0,files,&lock_f,IMPORT,hd.sch_d) == -1) {
 			free_record(&rec,rec.fields_num);
 			memset(&rec,0,sizeof(struct Record_f));
 			continue;

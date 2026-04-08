@@ -267,6 +267,7 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 
 int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c, int *constraints, char **def_value)
 {
+	sch->has_unique = has_constrain_unique;
 	sch->types = (int*)malloc(sizeof(int)*fields_c);
 	if(!sch->types){
 		fprintf(stderr,"(%s): malloc() failed, %s:%d.\n",ERR_MSG_PAR-2);
@@ -332,7 +333,6 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 			sch->constraints[i] = constraints[i];
 			if(constraints[i] == CONST_DEFAULT 
 					|| ((constraints[i] & CONST_DEFAULT) == CONST_DEFAULT)){
-
 
 				if(types_i[i] == -1){
 					/*you have to infere the type from the default value*/
@@ -665,8 +665,20 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 				default:
 					break;
 				}
-			} 
+			}
 
+			if(constraints[i] & CONST_UNIQUE){
+				sch->defaults[i] = (void*)malloc(sizeof(int));
+				if(!sch->defaults[i]){
+					fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+					free_schema(sch);
+					return -1;
+				}
+
+				/*this is the index nr that the DB 
+				 * will use to enforce the UNIQUE constraints */
+				*(int*)sch->defaults[i] = 1;
+			}
 		}
 	}
 
@@ -691,12 +703,14 @@ int free_schema(struct Schema *sch)
 	return 0;
 }
 
-unsigned char set_field(struct Record_f *rec, 
-		int index, 
-		char *field_name, 
-		enum ValueType type, 
-		char *value,
-		ui8 field_bit)
+unsigned char set_field(
+				int *fds,
+				struct Record_f *rec, 
+				int index, 
+				char *field_name, 
+				enum ValueType type, 
+				char *value,
+				ui8 field_bit)
 {
 	strncpy(rec->fields[index].field_name,field_name,strlen(field_name));
 	rec->fields[index].type = type;
@@ -947,8 +961,8 @@ unsigned char set_field(struct Record_f *rec,
 									return 0;
 								}
 								memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
-								if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
-											types_i, values_in,&sch,0,rec->fields[index].data.file.recs) == -1){
+								if(parse_input_with_no_type(fds,rec->fields[index].field_name,fields_count, names, 
+											types_i, values_in,&sch,0,rec->fields[index].data.file.recs,0) == -1){
 									fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 									free_strs(fields_count,1,values_in);
 									close_file(1,fd_schema);	
@@ -1009,8 +1023,8 @@ unsigned char set_field(struct Record_f *rec,
 										}
 
 										memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
-										if(parse_input_with_no_type(rec->fields[index].field_name,fields_count, names, 
-													types_i, values_in,&sch,0,&rec->fields[index].data.file.recs[0]) == -1){
+										if(parse_input_with_no_type(fds,rec->fields[index].field_name,fields_count, names, 
+													types_i, values_in,&sch,0,&rec->fields[index].data.file.recs[0],0) == -1){
 											fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 											free_strs(fields_count,1,values_in);
 											close_file(1,fd_schema);	
@@ -1035,14 +1049,15 @@ unsigned char set_field(struct Record_f *rec,
 										rec->fields[index].data.file.recs = new_rec;
 
 
-										if(parse_input_with_no_type(rec->fields[index].field_name,
+										if(parse_input_with_no_type(fds,rec->fields[index].field_name,
 													fields_count, 
 													names, 
 													types_i, 
 													values_in,
 													&sch,
 													0,
-													&rec->fields[index].data.file.recs[new_count-1]) == -1){
+													&rec->fields[index].data.file.recs[new_count-1],
+													0) == -1){
 											fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 											free_strs(fields_count,1,values_in);
 											close_file(1,fd_schema);	
@@ -1080,13 +1095,13 @@ unsigned char set_field(struct Record_f *rec,
 									}
 
 									memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
-									if(parse_d_flag_input(rec->fields[index].field_name, 
+									if(parse_d_flag_input(fds,rec->fields[index].field_name, 
 												f_count,
 												value,
 												&sch, 
 												0,
 												&rec->fields[index].data.file.recs[0],
-												NULL) == -1) {
+												NULL,0) == -1) {
 										fprintf(stderr,"(%s): error creating the record, %s:%d.\n",ERR_MSG_PAR- 1);
 										close_file(1,fd_schema);	
 										return 0;
@@ -1120,13 +1135,13 @@ unsigned char set_field(struct Record_f *rec,
 											}
 
 											memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
-											if(parse_d_flag_input(rec->fields[index].field_name, 
+											if(parse_d_flag_input(fds,rec->fields[index].field_name, 
 														f_count,
 														values[i],
 														&sch, 
 														0,
 														&rec->fields[index].data.file.recs[0],
-														NULL) == -1) {
+														NULL,0) == -1) {
 												fprintf(stderr,"(%s): error creating the record, %s:%d.\n",ERR_MSG_PAR- 1);
 												close_file(1,fd_schema);	
 												return 0;
@@ -1146,13 +1161,13 @@ unsigned char set_field(struct Record_f *rec,
 											rec->fields[index].data.file.count = new_count;
 											rec->fields[index].data.file.recs = new_rec;
 
-											if(parse_d_flag_input(rec->fields[index].field_name, 
+											if(parse_d_flag_input(fds,rec->fields[index].field_name, 
 														f_count,
 														values[i],
 														&sch, 
 														0,
 														&rec->fields[index].data.file.recs[new_count-1],
-														NULL) == -1) {
+														NULL,0) == -1) {
 												fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 												close_file(1,fd_schema);	
 												return 0;
@@ -1232,10 +1247,10 @@ unsigned char set_field(struct Record_f *rec,
 									}
 
 									memset(rec->fields[index].data.file.recs,0,sizeof(struct Record_f));
-									check = perform_checks_on_schema(mode,&values[i][2], fields_count,
+									check = perform_checks_on_schema(fds,mode,&values[i][2], fields_count,
 											rec->fields[index].field_name,
 											&rec->fields[index].data.file.recs[0],
-											&hd,NULL,-1);
+											&hd,NULL,-1,0);
 
 								}else{
 									int new_count = rec->fields[index].data.file.count + 1;
@@ -1255,10 +1270,10 @@ unsigned char set_field(struct Record_f *rec,
 
 
 
-									check = perform_checks_on_schema(mode,&values[i][2], fields_count,
+									check = perform_checks_on_schema(fds,mode,&values[i][2], fields_count,
 											rec->fields[index].field_name,
 											&rec->fields[index].data.file.recs[new_count-1],
-											&hd,NULL,-1);
+											&hd,NULL,-1,0);
 								}
 							}else{
 								if(!rec->fields[index].data.file.recs){
@@ -1270,10 +1285,10 @@ unsigned char set_field(struct Record_f *rec,
 									}
 
 									memset(rec->fields[index].data.file.recs,0,count * sizeof(struct Record_f));
-									check = perform_checks_on_schema(mode,&values[i][2], -1,
+									check = perform_checks_on_schema(fds,mode,&values[i][2], -1,
 											rec->fields[index].field_name,
 											&rec->fields[index].data.file.recs[0],
-											&hd,NULL,-1);
+											&hd,NULL,-1,0);
 
 								}else{
 									int new_count = rec->fields[index].data.file.count + 1;
@@ -1291,10 +1306,10 @@ unsigned char set_field(struct Record_f *rec,
 									rec->fields[index].data.file.count = new_count;
 									rec->fields[index].data.file.recs = new_rec;
 
-									check = perform_checks_on_schema(mode,&values[i][2], fields_count,
+									check = perform_checks_on_schema(fds,mode,&values[i][2], fields_count,
 											rec->fields[index].field_name,
 											&rec->fields[index].data.file.recs[new_count-1],
-											&hd,NULL,-1);
+											&hd,NULL,-1,0);
 								}
 
 							}
@@ -1379,10 +1394,10 @@ unsigned char set_field(struct Record_f *rec,
 								}
 
 								memset(rec->fields[index].data.file.recs,0,count*sizeof(struct Record_f));
-								check = perform_checks_on_schema(mode,&value[2], fields_count,
+								check = perform_checks_on_schema(fds,mode,&value[2], fields_count,
 										rec->fields[index].field_name,
 										&rec->fields[index].data.file.recs[0],
-										&hd,NULL,-1);
+										&hd,NULL,-1,0);
 							}
 						} else {
 							if(!rec->fields[index].data.file.recs){
@@ -1393,9 +1408,9 @@ unsigned char set_field(struct Record_f *rec,
 									return 0;
 								}
 								memset(rec->fields[index].data.file.recs,0,count*sizeof(struct Record_f));
-								check = perform_checks_on_schema(mode,&value[2], -1,rec->fields[index].field_name,
+								check = perform_checks_on_schema(fds,mode,&value[2], -1,rec->fields[index].field_name,
 										&rec->fields[index].data.file.recs[0],
-										&hd,NULL,-1);
+										&hd,NULL,-1,0);
 
 							}
 
@@ -2391,7 +2406,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 		switch (src->fields[i].type)
 		{
 			case -1:
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, NULL,src->field_set[i])) {
 					printf("set_fields() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2406,7 +2421,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 					return 0;
 				}
 
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, data,src->field_set[i])) {
 					printf("set_fields() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2414,7 +2429,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 				}
 				break;
 			case TYPE_STRING:
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, src->fields[i].data.s,src->field_set[i])){
 					printf("set_field() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2429,7 +2444,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 					return 0;
 				}
 
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, data,src->field_set[i])){
 					printf("set_field() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2444,7 +2459,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 					free_record(dest, dest->fields_num);
 					return 0;
 				}
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, data,src->field_set[i])) {
 					printf("set_field() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2458,7 +2473,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 					free_record(dest, dest->fields_num);
 					return 0;
 				}
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, data,src->field_set[i])) {
 					printf("set_field() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2476,7 +2491,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 					free_record(dest, dest->fields_num);
 					return 0;
 				}
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, data,src->field_set[i])) {
 					printf("set_field() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2493,7 +2508,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 					return 0;
 				}
 
-				if (!set_field(dest, i, src->fields[i].field_name,
+				if (!set_field(NULL,dest, i, src->fields[i].field_name,
 							src->fields[i].type, data,src->field_set[i])) {
 					printf("set_field() failed %s:%d.\n", F, L - 2);
 					free_record(dest, dest->fields_num);
@@ -2518,7 +2533,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 						return 0;
 					}
 
-					if (!set_field(dest, i, src->fields[i].field_name,
+					if (!set_field(NULL,dest, i, src->fields[i].field_name,
 								src->fields[i].type, data,src->field_set[i])) {
 						printf("set_field() failed %s:%d.\n", F, L - 2);
 						free_record(dest, dest->fields_num);
@@ -2543,7 +2558,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 						return 0;
 					}
 
-					if (!set_field(dest, i, src->fields[i].field_name,
+					if (!set_field(NULL,dest, i, src->fields[i].field_name,
 								src->fields[i].type, data,src->field_set[i])){
 						printf("set_field() failed %s:%d.\n", F, L - 2);
 						free_record(dest, dest->fields_num);
@@ -2568,7 +2583,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 						return 0;
 					}
 
-					if (!set_field(dest, i, src->fields[i].field_name,
+					if (!set_field(NULL,dest, i, src->fields[i].field_name,
 								src->fields[i].type, data,src->field_set[i])){
 						printf("set_field() failed %s:%d.\n", F, L - 2);
 						free_record(dest, dest->fields_num);
@@ -2594,7 +2609,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 						return 0;
 					}
 
-					if (!set_field(dest, i, src->fields[i].field_name,
+					if (!set_field(NULL,dest, i, src->fields[i].field_name,
 								src->fields[i].type, data,src->field_set[i])) {
 						printf("set_field() failed %s:%d.\n", F, L - 2);
 						free_record(dest, dest->fields_num);
@@ -2612,7 +2627,7 @@ unsigned char copy_rec(struct Record_f *src, struct Record_f *dest, struct Schem
 			case TYPE_ARRAY_STRING:
 			case TYPE_SET_STRING:
 				{
-					if (!set_field(dest, i, src->fields[i].field_name,
+					if (!set_field(NULL,dest, i, src->fields[i].field_name,
 								src->fields[i].type, 
 								src->fields[i].data.v.elements.s[0],
 								src->field_set[i])) {
@@ -3859,4 +3874,87 @@ int drop_field(struct Schema *s, char *fields)
 		}
 	}while((field = tok(NULL,":")));
 	return -1;
+}
+int change_fields_name(char *buffer,struct Schema *sch)
+{
+	clear_tok();
+	if(!buffer)
+		return -1;
+
+	if(strstr(buffer, "TYPE_STRING") 
+		||	strstr(buffer, "TYPE_LONG") 
+		||	strstr(buffer, "TYPE_INT")
+		|| 	strstr(buffer, "TYPE_BYTE")
+		|| 	strstr(buffer, "TYPE_FLOAT")
+		||	strstr(buffer, "TYPE_PACK")
+		|| 	strstr(buffer, "TYPE_DOUBLE")
+		|| 	strstr(buffer, "TYPE_DATE") 
+		|| 	strstr(buffer, "TYPE_KEY")
+		|| 	strstr(buffer, "TYPE_FILE")
+		||	strstr(buffer, "TYPE_ARRAY_INT") 
+		||	strstr(buffer, "TYPE_ARRAY_FLOAT") 
+		||	strstr(buffer, "TYPE_ARRAY_LONG") 
+		||  strstr(buffer, "TYPE_ARRAY_STRING") 
+		||	strstr(buffer, "TYPE_ARRAY_BYTE") 
+		||	strstr(buffer, "TYPE_ARRAY_DOUBLE")
+		||	strstr(buffer, "TYPE_SET_BYTE") 
+		||	strstr(buffer, "TYPE_SET_INT") 
+		||	strstr(buffer, "TYPE_SET_LONG") 
+		||	strstr(buffer, "TYPE_SET_DOUBLE") 
+		||	strstr(buffer, "TYPE_SET_FLOAT") 
+		||	strstr(buffer, "TYPE_SET_STRING")){
+		fprintf(stderr,"schema different then file definition.\n");
+		return -1;
+	}
+
+	char *t = tok(buffer,":");
+	if(!t)
+		return -1;
+
+	ui8 change = 0;
+	while(t){
+		int sz = (int)strlen(t);
+		int i; 
+		for(i = 0; i < sch->fields_num; i++){
+			if(sz != (int)strlen(sch->fields_name[i]))
+				continue;
+
+			if(strncmp(sch->fields_name[i],t,sz) != 0)
+				continue;
+
+			free(sch->fields_name[i]);
+			sch->fields_name[i] = NULL;
+			t = tok(NULL,":");
+			if(!t)
+				return -1;
+			
+			change = 1;
+			int tsz = strlen(t);
+			sch->fields_name[i] = (char *) malloc(tsz+1);
+			if(!sch->fields_name[i]){
+				fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				return -1;
+			}
+
+			sch->fields_name[i][tsz] = '\0';
+			strncpy(sch->fields_name[i],t,tsz);
+		}
+		t = tok(NULL,":");
+	}
+
+	if(change)
+		return 0;
+	else
+		return -1;
+}
+ui8 has_constrain_unique(ui8 *constraints, int *field_num)
+{
+	int i;
+	for(i = 0; i < *field_num; i++){
+		if(constraints[i] & CONST_UNIQUE){
+			*field_num = i;
+			return 1;
+		}
+	}
+	return 0;
 }

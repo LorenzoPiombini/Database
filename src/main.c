@@ -509,6 +509,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (cpy_dta[0] != '\0') { 
+			int fds[] = {fd_index, fd_data, fd_schema};
 			/* creates a file with full definitons (fields and value)*/
 			int mode = check_handle_input_mode(cpy_dta, FWRT) | WR;
 
@@ -569,8 +570,16 @@ int main(int argc, char *argv[])
 
 				set_schema(names,types_i,&sch,fields_count,NULL,NULL);	
 
-				if(parse_input_with_no_type(cpy_fp,fields_count, names, 
-							types_i, values,&sch,0,&rec) == -1){
+				if(parse_input_with_no_type(fds,
+							cpy_fp,
+							fields_count, 
+							names,
+							types_i, 
+							values,
+							&sch,
+							0,
+							&rec,
+							0) == -1){
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					free_strs(fields_count,1,values);
 					goto clean_on_error_2;
@@ -586,7 +595,7 @@ int main(int argc, char *argv[])
 					goto clean_on_error_2;
 				}
 
-				if(parse_d_flag_input(cpy_fp, fields_count,cpy_dta, &sch, 0,&rec,NULL) == -1) {
+				if(parse_d_flag_input(fds,cpy_fp, fields_count,cpy_dta, &sch, 0,&rec,NULL,0) == -1) {
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					goto clean_on_error_2;
 				}
@@ -1273,7 +1282,7 @@ int main(int argc, char *argv[])
 					goto clean_on_error_7;
 				}
 			}
-			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) {
+			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value,0)) == -1) {
 				fprintf(stderr,"(%s): schema different than file definition or worng syntax\n",prog);
 				goto clean_on_error_7;
 			}
@@ -1289,7 +1298,7 @@ int main(int argc, char *argv[])
 			}
 
 
-			if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1) == -1){
+			if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1,hd.sch_d) == -1){
 				fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
 				goto clean_on_error_7;
 			}
@@ -1325,7 +1334,7 @@ int main(int argc, char *argv[])
 				}
 			}
 
-			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value)) == -1) goto clean_on_error;
+			if((check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value,update)) == -1) goto clean_on_error;
 
 			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f,option,index_nr) == -1) goto clean_on_error;
 

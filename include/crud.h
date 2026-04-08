@@ -27,14 +27,18 @@ int check_data(char *file_path,char *data_to_add,
 		struct Record_f *rec,
 		struct Header_d *hd,
 		int *lock,
-		int option);
-int write_record(int *fds,void *key,
-		int key_type, 
+		int option,
+		int update);
+
+int write_record(int *fds,
+		void *key,
+		int key_type,
 		struct Record_f *rec, 
 		int update,
 		char files[3][MAX_FILE_PATH_LENGTH],
-		int *lock,
-		int mode);
+		int *lock_f,
+		int mode,
+		struct Schema *sch);
 int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Header_d hd);
 int is_db_file(struct Header_d *hd, int *fds);
 int write_index(int *fds, int index, HashTable *ht, char *file_name);
