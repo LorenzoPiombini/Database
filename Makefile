@@ -16,7 +16,8 @@ OBJlibp = obj/debug.o  obj/sort.o obj/parse.o
 OBJlibpPR = obj/debug_prod.o  obj/sort_prod.o obj/parse_prod.o
 OBJlibl = obj/debug.o  obj/lock.o
 OBJliblPR = obj/debug_prod.o  obj/lock_prod.o
-OBJlibcrud = obj/crud.o obj/file.o obj/date.o obj/hash_tbl.o obj/debug.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o obj/input.o obj/key.o
+OBJlibcrud = obj/crud.o obj/file.o obj/date.o obj/hash_tbl.o obj/debug.o obj/common.o obj/string_utilities.o obj/str_op.o obj/lock.o obj/record.o obj/endian.o obj/parse.o obj/globals.o obj/sort.o obj/input.o obj/key.o
+
 OBJlibexpl = obj/export_db_lua.o 
 OBJlibexplPR = obj/export_db_lua_prod.o 
 
@@ -69,7 +70,6 @@ INCLUDEDIR = /usr/local/include
 SHAREDLIBl = lib$(LIBNAMEl).so
 
 
-SCRIPTS = SHOW FILE LIST WRITE UPDATE DEL DELa KEYS 
 
 default: $(TARGET)
 
@@ -124,7 +124,7 @@ clean:
 
 	
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $?  -lm -ldl -lmem -llog -lfree -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
+	sudo gcc -o $@ $?   -ldl  -llog -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 	make lua
 
 obj/%.o : src/%.c 
@@ -132,7 +132,7 @@ obj/%.o : src/%.c
 #	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 lua: lua_obj
-	gcc -shared -g3 -o db.so obj/export_db_lua.o obj/key.o  -L/usr/local/lib -lcrud -llua5.4 -lm -ldl -lfree -fsanitize=address -lmem -llog
+	gcc -shared -g3 -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address 
 	mv db.so /usr/local/lib/lua/5.4/db.so
 
 lua_obj: 
@@ -279,7 +279,19 @@ $(BINDIR)/DELa:
 		chmod +x $@; \
 	fi
 
-install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
+$(BINDIR)/CHANGE_NAMES:
+	@if [ ! -f $@ ]; then \
+		echo "Creating $@ . . ."; \
+		echo "#!/bin/bash" > $@; \
+		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ]; then" >> $@; \
+		echo "echo \"Usage: CHANGE_NAMES [file name] [fields:to:change]\"" >> $@; \
+   		echo "exit 1" >> $@; \
+   		echo "fi" >> $@; \
+		echo "$(TARGET) -Mf \"\$$1\" -R \"\$$2\"" >> $@; \
+		chmod +x $@; \
+	fi
+
+install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa $(BINDIR)/CHANGE_NAMES check-linker-path
 	install -d $(INCLUDEDIR)
 	install -m 644 include/date.h lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)

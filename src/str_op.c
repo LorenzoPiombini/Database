@@ -97,10 +97,10 @@ char *get_sub_str(char *start_delim, char *end_delim, char *str, int loop)
 	if(loop){
 		int i = 0;
 		while(*str){
-			while(*str && *str != '[') str++;
+			while(*str && *str != *start_delim) str++;
 
 			str++;
-			while(*str && *str != ']'){
+			while(*str && *str != *end_delim){
 				sub_str[i] = *str;
 				i++,str++;
 			}
@@ -1779,6 +1779,39 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 			if(*t == ':')
 				field_pos[i++] = (int) (++t - cpy);
 		}
+	} else {
+		/*understand the field position even with no type*/
+		int sz = (int)strlen(buff);
+		char cpy[sz+1], *p = &cpy[0];
+		memset(cpy,0,sz+1);
+		strncpy(cpy,buff,sz);
+		
+
+		int i =0;
+		field_pos[i++] = p - cpy;		
+		do{
+			char *f = strstr(p,":");
+			if(!f)
+				break;
+
+			*f++ = ' ';
+			p = f; 
+			f = strstr(p,":");
+			if(!f)
+				break;
+
+			int s = f - p;
+			
+			char ch[s+1];
+			ch[s] = '\0';
+			strncpy(ch,p,s);
+		
+			if(!strstr(ch,CON_) && !strstr(ch,C_)){
+				field_pos[i++] = p - cpy;	
+				p += s;
+				continue;
+			}
+		}while(*p);
 	}
 
 	*cnstr = array_init(field_count,INT);
@@ -1809,10 +1842,22 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 					}
 				}
 			}
-			if(c)
+			if(c){
 				*c++ = ' ';
-			else
+				int position = (int)(c - buff);
+				if(field_pos[f] != position){
+					int i;
+					for(i = 0; i < field_count; i++){
+						if(position > field_pos[i])
+							f = i;	
+
+						if(position < field_pos[i])
+							break;
+					}
+				}
+			}else{
 				break;
+			}
 
 			char *p = c;
 			while(*p && *p != ':') p++;
