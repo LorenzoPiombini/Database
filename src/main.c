@@ -509,7 +509,6 @@ int main(int argc, char *argv[])
 		}
 
 		if (cpy_dta[0] != '\0') { 
-			int fds[] = {fd_index, fd_data, fd_schema};
 			/* creates a file with full definitons (fields and value)*/
 			int mode = check_handle_input_mode(cpy_dta, FWRT) | WR;
 
@@ -570,7 +569,7 @@ int main(int argc, char *argv[])
 
 				set_schema(names,types_i,&sch,fields_count,NULL,NULL);	
 
-				if(parse_input_with_no_type(fds,
+				if(parse_input_with_no_type(
 							cpy_fp,
 							fields_count, 
 							names,
@@ -595,7 +594,7 @@ int main(int argc, char *argv[])
 					goto clean_on_error_2;
 				}
 
-				if(parse_d_flag_input(fds,cpy_fp, fields_count,cpy_dta, &sch, 0,&rec,NULL,0) == -1) {
+				if(parse_d_flag_input(cpy_fp, fields_count,cpy_dta, &sch, 0,&rec,NULL,0) == -1) {
 					fprintf(stderr,"(%s): error creating the record, %s:%d.\n",prog, __FILE__, __LINE__ - 1);
 					goto clean_on_error_2;
 				}

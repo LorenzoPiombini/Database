@@ -266,9 +266,9 @@ int check_data(char *file_path,char *data_to_add,
 			return STATUS_ERROR;
 		}
 
-		check = perform_checks_on_schema(fds,mode,data_to_add, fields_count,file_path, rec, hd,pos,option,update);
+		check = perform_checks_on_schema(mode,data_to_add, fields_count,file_path, rec, hd,pos,option,update);
 	} else {
-		check = perform_checks_on_schema(fds,mode,data_to_add, -1,file_path, rec, hd, pos,option,update);
+		check = perform_checks_on_schema(mode,data_to_add, -1,file_path, rec, hd, pos,option,update);
 	}
 
 	if (check == SCHEMA_ERR || check == 0) return STATUS_ERROR;
@@ -683,6 +683,11 @@ int update_rec(char *file_path,
 		int changed = 0;
 		ui16 updates = 0; /* bool value if 0 no updates*/
 		ui32 i;
+
+		/*TODO: this might be very wrong
+		 * this loop use rec_old.counts 
+		 * but positions is intended to hold the fields position in the rocord
+		 * */
 		for (i = 0; i < rec_old.count; i++) {
 			if (positions[i] == 'n') continue;
 
@@ -776,6 +781,8 @@ int update_rec(char *file_path,
 			goto clean_on_error;
 		}
 
+		/*THIS IS TO SECURE PROPER MEMORY MANAGMENT
+		 * when the new updating record will be freed*/
 		int i;
 		for(i = 0; i < rec_old.fields_num; i++)
 			rec->field_set[i] = rec_old.field_set[i];

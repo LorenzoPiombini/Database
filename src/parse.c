@@ -31,10 +31,9 @@ static char *print_constraints(struct Schema sch, int i);
 static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch);
 static int write_hd_VS1(ui8 **buf, long *bwritten, struct Schema **sch);
 static int is_input_correct(char names[][MAX_FIELD_LT],int fields_num);
-static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,struct Record_f *rec);
+static int enforce_constraints(struct Schema *sch, int i, int found,struct Record_f *rec);
 
-int parse_d_flag_input(	int *fds,
-						char *file_path, 
+int parse_d_flag_input(	char *file_path, 
 						int fields_num, 
 						char *buffer, 
 						struct Schema *sch, 
@@ -199,7 +198,7 @@ int parse_d_flag_input(	int *fds,
 			found = 0;
 			for (; j < mv_field_value; j++) {
 				if (strcmp(sch->fields_name[i], names[j]) == 0) {
-					if (!set_field(fds,rec, i, names[j], types_i[j], values[j],1)) {
+					if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						if (fields_num == 1) 
 							free_strs(fields_num,1,values);
@@ -218,7 +217,7 @@ int parse_d_flag_input(	int *fds,
 			ui8 bitfield = 0; 
 			if (found == 0) rec->field_set[i] = bitfield;
 
-			if(!update && (enforce_constraints(fds,sch,i,found,rec) == -1)){
+			if(!update && (enforce_constraints(sch,i,found,rec) == -1)){
 				free_strs(fields_num, 1, values);
 				return -1;
 			}
@@ -235,18 +234,12 @@ int parse_d_flag_input(	int *fds,
 		create_record(file_path, *sch,rec);
 		int i;
 		for (i = 0; i < fields_num; i++) {
-			if (!set_field(fds,rec, i, names[i], types_i[i], values[i],1)) {
+			if (!set_field(rec, i, names[i], types_i[i], values[i],1)) {
 				printf("set_field failed %s:%d.\n", F, L - 2);
 				free_strs(fields_num, 1, values);
 				return -1;
 			}
 
-			/*
-			if(!update && (enforce_constraints(sch,i,1) == -1)){
-				free_strs(fields_num, 1, values);
-				return -1;
-			}
-			*/
 		}
 	}
 
@@ -254,8 +247,7 @@ int parse_d_flag_input(	int *fds,
 	return 0;
 }
 
-int parse_input_with_no_type(	int *fds,
-								char *file_path, 
+int parse_input_with_no_type(	char *file_path, 
 								int fields_num, 
 								char names[][MAX_FIELD_LT], 
 								int *types_i, 
@@ -295,14 +287,14 @@ int parse_input_with_no_type(	int *fds,
 				if (strcmp(sch->fields_name[i], names[j]) == 0) {
 					switch(check_sch){
 						case SCHEMA_CT_NT:
-							if (!set_field(fds,rec, i, names[j], types_i[j], values[j],1)) {
+							if (!set_field(rec, i, names[j], types_i[j], values[j],1)) {
 								printf("set_field failed %s:%d.\n", F, L - 2);
 								return -1;
 							}
 							found++;
 							break;
 						case SCHEMA_CT:
-							if (!set_field(fds,rec, i, names[j], types_i[i], values[j],1)) {
+							if (!set_field(rec, i, names[j], types_i[i], values[j],1)) {
 								printf("set_field failed %s:%d.\n", F, L - 2);
 								return -1;
 							}
@@ -314,7 +306,7 @@ int parse_input_with_no_type(	int *fds,
 				}
 			}
 
-			if(!update && (enforce_constraints(fds,sch,i,found,rec) == -1))
+			if(!update && (enforce_constraints(sch,i,found,rec) == -1))
 				return -1;
 #if 0
 			char *number = "0";
@@ -328,14 +320,14 @@ int parse_input_with_no_type(	int *fds,
 				case TYPE_LONG:
 				case TYPE_BYTE:
 				case TYPE_PACK:
-					if (!set_field(fds,rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
+					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
 					}
 					break;
 				case TYPE_STRING:
-					if (!set_field(fds,rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
+					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
@@ -343,7 +335,7 @@ int parse_input_with_no_type(	int *fds,
 					break;
 				case TYPE_FLOAT:
 				case TYPE_DOUBLE:
-					if (!set_field(fds,rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
+					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
@@ -352,7 +344,7 @@ int parse_input_with_no_type(	int *fds,
 				case TYPE_ARRAY_INT:
 				case TYPE_ARRAY_BYTE:
 				case TYPE_ARRAY_LONG:
-					if (!set_field(fds,rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
+					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], number,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
@@ -360,21 +352,21 @@ int parse_input_with_no_type(	int *fds,
 					break;
 				case TYPE_ARRAY_FLOAT:
 				case TYPE_ARRAY_DOUBLE:
-					if (!set_field(fds,rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
+					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], fp,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
 					}
 					break;
 				case TYPE_ARRAY_STRING:
-					if (!set_field(fds,rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
+					if (!set_field(rec, i, sch->fields_name[i], sch->types[i], str,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
 					}
 					break;
 				case TYPE_FILE:
-					if (!set_field(fds,rec,i,sch->fields_name[i], sch->types[i],NULL,bitfield))
+					if (!set_field(rec,i,sch->fields_name[i], sch->types[i],NULL,bitfield))
 					{
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
@@ -394,7 +386,7 @@ int parse_input_with_no_type(	int *fds,
 		create_record(file_path, *sch,rec);
 		int i;
 		for (i = 0; i < fields_num; i++) {
-			if (!set_field(fds,rec, i, names[i], types_i[i], values[i],1)) {
+			if (!set_field(rec, i, names[i], types_i[i], values[i],1)) {
 				printf("set_field failed %s:%d.\n", F, L - 2);
 				return -1;
 			}
@@ -1959,7 +1951,6 @@ int schema_nw_assyign_type(struct Schema *sch_d, char names[][MAX_FIELD_LT], int
 }
 
 unsigned char perform_checks_on_schema(
-		int *fds,
 		int mode,
 		char *buffer, 
 		int fields_count,
@@ -2041,7 +2032,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								hd->sch_d, SCHEMA_EQ,rec,update) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d.\n",
 							__FILE__,__LINE__-2);
@@ -2075,7 +2066,7 @@ unsigned char perform_checks_on_schema(
 						}
 					}
 				}
-				if(parse_input_with_no_type(fds,file_path, count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								hd->sch_d, 
 								SCHEMA_CT_NT,rec,update) == -1){	
 					fprintf(stderr,"can't parse input to record,%s:%d\n",
@@ -2108,7 +2099,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 								hd->sch_d, SCHEMA_EQ,rec,update) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
@@ -2152,7 +2143,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 							hd->sch_d, SCHEMA_EQ,rec,update) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d.\n",__FILE__,__LINE__-2);
 					goto clean_on_error;
@@ -2190,7 +2181,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, count, names, 
+				if(parse_input_with_no_type(file_path, count, names, 
 							result == SCHEMA_CT_NT ? types_i : hd->sch_d->types, 
 							values,
 							hd->sch_d, 
@@ -2228,7 +2219,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, count, names, types_i, values,
 							hd->sch_d, SCHEMA_NW,rec,update) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
@@ -2345,7 +2336,7 @@ unsigned char perform_checks_on_schema(
 				}
 			}
 
-			if(parse_input_with_no_type(fds,file_path, fields_count, names, types_i, values,
+			if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 						hd->sch_d, check,rec,update) == -1){
 				fprintf(stderr,"can't parse input to record,%s:%d",
 					__FILE__,__LINE__-2);
@@ -2405,7 +2396,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, fields_count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 							hd->sch_d, SCHEMA_EQ,rec,update) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
@@ -2448,7 +2439,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, fields_count, names, 
+				if(parse_input_with_no_type(file_path, fields_count, names, 
 							result == SCHEMA_CT_NT ? types_i : hd->sch_d->types, 
 							values,
 							hd->sch_d, 
@@ -2487,7 +2478,7 @@ unsigned char perform_checks_on_schema(
 					}
 				}
 
-				if(parse_input_with_no_type(fds,file_path, fields_count, names, types_i, values,
+				if(parse_input_with_no_type(file_path, fields_count, names, types_i, values,
 							hd->sch_d, SCHEMA_NW,rec,update) == -1){
 					fprintf(stderr,"can't parse input to record,%s:%d",
 							__FILE__,__LINE__-2);
@@ -2510,21 +2501,21 @@ unsigned char perform_checks_on_schema(
 		unsigned char check = check_schema(fields_count, buffer, hd);
 		switch (check){
 		case SCHEMA_EQ:
-			if(parse_d_flag_input(fds,file_path, fields_count, buffer,hd->sch_d, SCHEMA_EQ,rec, pos,update) == -1) return SCHEMA_ERR;
+			if(parse_d_flag_input(file_path, fields_count, buffer,hd->sch_d, SCHEMA_EQ,rec, pos,update) == -1) return SCHEMA_ERR;
 
 			return SCHEMA_EQ;
 		case SCHEMA_ERR:
 			return SCHEMA_ERR;
 		case SCHEMA_NW:
-			if(parse_d_flag_input(fds,file_path, fields_count, buffer,hd->sch_d, SCHEMA_NW,rec,pos,update) == -1) return SCHEMA_ERR;
+			if(parse_d_flag_input(file_path, fields_count, buffer,hd->sch_d, SCHEMA_NW,rec,pos,update) == -1) return SCHEMA_ERR;
 
 			return SCHEMA_NW;
 		case SCHEMA_CT:
-			if(parse_d_flag_input(fds,file_path, fields_count, buffer, hd->sch_d, SCHEMA_CT,rec,pos,update) == -1) return SCHEMA_ERR;
+			if(parse_d_flag_input(file_path, fields_count, buffer, hd->sch_d, SCHEMA_CT,rec,pos,update) == -1) return SCHEMA_ERR;
 
 			return SCHEMA_CT;
 		case SCHEMA_CT_NT:
-			if(parse_d_flag_input(fds,file_path, fields_count, buffer, hd->sch_d, SCHEMA_CT_NT,rec,pos,update) == -1) return SCHEMA_ERR;
+			if(parse_d_flag_input(file_path, fields_count, buffer, hd->sch_d, SCHEMA_CT_NT,rec,pos,update) == -1) return SCHEMA_ERR;
 
 			return SCHEMA_CT_NT;
 		default:
@@ -2532,7 +2523,7 @@ unsigned char perform_checks_on_schema(
 			return 0;
 		}
 	} else { /* in this case the SCHEMA IS ALWAYS NEW*/
-		if(parse_d_flag_input(fds,file_path, fields_count, buffer,hd->sch_d, 0,rec,pos,update) == -1) return SCHEMA_ERR;
+		if(parse_d_flag_input(file_path, fields_count, buffer,hd->sch_d, 0,rec,pos,update) == -1) return SCHEMA_ERR;
 
 		return SCHEMA_NW;
 	}
@@ -4593,7 +4584,7 @@ static int is_input_correct(char names[][MAX_FIELD_LT],int fields_num)
 	return 1;
 }
 
-static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,struct Record_f *rec)
+static int enforce_constraints(struct Schema *sch, int i, int found,struct Record_f *rec)
 {
 	if(sch->constraints[i] & CONST_NOT_NULL 
 					&& !(sch->constraints[i] & CONST_DEFAULT) 
@@ -4610,7 +4601,7 @@ static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,str
 					return -1;
 				}
 
-				if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
+				if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
 					printf("set_field failed %s:%d.\n", F, L - 2);
 					return -1;
 				}
@@ -4622,7 +4613,7 @@ static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,str
 					return -1;
 				}
 
-				if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
+				if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
 					printf("set_field failed %s:%d.\n", F, L - 2);
 					return -1;
 				}
@@ -4634,7 +4625,7 @@ static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,str
 					return -1;
 				}
 
-				if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] ,b, 1)) {
+				if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,b, 1)) {
 					printf("set_field failed %s:%d.\n", F, L - 2);
 					return -1;
 				}
@@ -4646,7 +4637,7 @@ static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,str
 					return -1;
 				}
 
-				if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] ,b,1)) {
+				if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,b,1)) {
 					printf("set_field failed %s:%d.\n", F, L - 2);
 					return -1;
 				}
@@ -4658,13 +4649,13 @@ static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,str
 					return -1;
 				}
 
-				if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] ,b,1)) {
+				if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,b,1)) {
 					printf("set_field failed %s:%d.\n", F, L - 2);
 					return -1;
 				}
 				break;
 			case TYPE_STRING: 
-				if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] , (char*)sch->defaults[i],1)) {
+				if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , (char*)sch->defaults[i],1)) {
 					printf("set_field failed %s:%d.\n", F, L - 2);
 					return -1;
 				}
@@ -4675,7 +4666,7 @@ static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,str
 					char date_buff[11] = {0};
 					convert_number_to_date(date_buff,n);
 
-					if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] ,date_buff,1)) {
+					if (!set_field(rec, i, sch->fields_name[i],sch->types[i] ,date_buff,1)) {
 						printf("set_field failed %s:%d.\n", F, L - 2);
 						return -1;
 					}
@@ -4688,7 +4679,7 @@ static int enforce_constraints(int *fds,struct Schema *sch, int i, int found,str
 					return -1;
 				}
 
-				if (!set_field(fds,rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
+				if (!set_field(rec, i, sch->fields_name[i],sch->types[i] , b,1)) {
 					printf("set_field failed %s:%d.\n", F, L - 2);
 					return -1;
 				}

@@ -42,11 +42,16 @@ int write_record(int *fds,
 int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Header_d hd);
 int is_db_file(struct Header_d *hd, int *fds);
 int write_index(int *fds, int index, HashTable *ht, char *file_name);
-int update_rec(char *file_path,
-		int *fds,void *key,
-		int key_type,struct Record_f *rec,
-		struct Header_d hd,int check,
-		int *lock_f, char *options, int index);
+int update_rec(	char *file_path,
+				int *fds,
+				void *key,
+				int key_type,
+				struct Record_f *rec,
+				struct Header_d hd,
+				int check,
+				int *lock_f, 
+				char *options, 
+				int index);
 int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,int indexing);
 
 #endif

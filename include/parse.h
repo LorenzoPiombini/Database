@@ -8,7 +8,6 @@
 #define NO_TYPE 0
 
 int parse_d_flag_input(
-			int *fds,
 			char *file_path, 
 			int fields_num, 
 			char *buffer, 
@@ -19,7 +18,6 @@ int parse_d_flag_input(
 			int update);
 
 unsigned char perform_checks_on_schema(
-					int *fds,
 					int mode,
 					char *buffer, 
 					int fields_count,
@@ -32,7 +30,6 @@ unsigned char perform_checks_on_schema(
 					);
 
 int parse_input_with_no_type(
-			int *fds,
 			char *file_path, 
 			int fields_num, 
 			char names[][MAX_FIELD_LT], 
