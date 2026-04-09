@@ -646,11 +646,24 @@ int update_rec(char *file_path,
 	/*used to return proper value in case of nothing to update*/
 	int no_updates = 0;
 	if(rec_old.count > 1){
+		int option = 0;
+		if(options){
+			option = convert_options(options);
+			if(option == -1){
+				fprintf(stderr,"invalid option: '%s'\n",options);
+				goto clean_on_error;
+			}
+		}
+
+
 		/* here we have the all record in memory and we have
 		   to check which fields in the record we have to update*/
 
-		char positions[rec_old.count];
-		memset(positions,0,rec_old.count);
+		char *positions = malloc(rec_old.count*rec_old.fields_num);
+		if(!positions)
+			goto clean_on_error;
+
+		memset(positions,0,rec_old.count * rec_old.fields_num);
 
 
 		/* 
@@ -663,19 +676,11 @@ int update_rec(char *file_path,
 		 * 	at that index position of 'y'.
 		 * */
 
-		int option = 0;
-		if(options){
-			option = convert_options(options);
-			if(option == -1){
-				fprintf(stderr,"invalid option: '%s'\n",options);
-				goto clean_on_error;
-			}
-		}
-
 		find_fields_to_update(recs, positions, rec, option);
 
 		if (positions[0] != 'n' && positions[0] != 'y' && positions[0] != 'e') {
 			printf("check on fields failed, %s:%d.\n", F, L - 1);
+			free(positions);
 			goto clean_on_error;
 		}
 
@@ -684,68 +689,75 @@ int update_rec(char *file_path,
 		ui16 updates = 0; /* bool value if 0 no updates*/
 		ui32 i;
 
-		/*TODO: this might be very wrong
-		 * this loop use rec_old.counts 
-		 * but positions is intended to hold the fields position in the rocord
-		 * */
+		int j;
 		for (i = 0; i < rec_old.count; i++) {
-			if (positions[i] == 'n') continue;
+			for(j = 0; j < rec_old.fields_num; j++){
+				if (positions[i * rec_old.count + j] == 'n') continue;
 
-			if (positions[i] == 'e'){
-				no_updates = 1;
-				continue;
+				if (positions[i * rec_old.count +j] == 'e'){
+					no_updates = 1;
+					continue;
+				}
+
+				no_updates = 0;
+				++updates;
+				changed = 1;
+				if (find_record_position(fds[1], recs[i]->offset) == -1) {
+					__er_file_pointer(F, L - 1);
+					free(positions);
+					goto clean_on_error;
+				}
+
+				file_offset right_update_pos = 0;
+				if ((rec_old.count - i) > 1)
+					right_update_pos = recs[i+1]->offset;
+
+
+				/*the 1 is a flag that make the program know that is an update operation*/
+				if(buffered_write(&fds[1], recs[i], 1,recs[i]->offset,right_update_pos) == -1){
+					printf("error write file, %s:%d.\n", F, L - 1);
+					free(positions);
+					goto clean_on_error;
+				}
+
 			}
-
-			no_updates = 0;
-			++updates;
-			changed = 1;
-			if (find_record_position(fds[1], recs[i]->offset) == -1) {
-				__er_file_pointer(F, L - 1);
-				goto clean_on_error;
-			}
-
-			file_offset right_update_pos = 0;
-			if ((rec_old.count - i) > 1)
-				right_update_pos = recs[i+1]->offset;
-
-
-			/*the 1 is a flag that make the program know that is an update operation*/
-			if(buffered_write(&fds[1], recs[i], 1,recs[i]->offset,right_update_pos) == -1){
-				printf("error write file, %s:%d.\n", F, L - 1);
-				goto clean_on_error;
-			}
-
 		}
 
 		if((check == SCHEMA_CT  ||  check == SCHEMA_CT_NT) && !changed) {
 			if(no_updates) {
 				fprintf(stderr,"nothing to update\n");
+				free(positions);
 				goto clean_on_error;
 			}
 
 			file_offset eof = go_to_EOF(fds[1]); /* file pointer to the end*/
 			if (eof == -1) {
 				__er_file_pointer(F, L - 1);
+				free(positions);
 				goto clean_on_error;
 			}
 
 			/*writing the new part of the schema to the file*/
 			if(buffered_write(&fds[1], rec, 0,0,0) == -1){
 				printf("write to file failed, %s:%d.\n", F, L - 1);
+				free(positions);
 				goto clean_on_error;
 			}
 
 			if(find_record_position(fds[1],recs[rec_old.count - 1]->offset) == -1){
 				__er_file_pointer(F, L - 1);
+				free(positions);
 				goto clean_on_error;
 			}
 			if(buffered_write(&fds[1], recs[rec_old.count-1], 1,recs[rec_old.count-1]->offset,eof) == -1){
 				printf("error write file, %s:%d.\n", F, L - 1);
+				free(positions);
 				goto clean_on_error;
 			}
 
 		}
 
+		free(positions);
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	} /*end of if(update_pos > 0) */
