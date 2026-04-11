@@ -1,6 +1,7 @@
 #ifndef _KEY_H
 #define _KEY_H 1
 
+#include "types.h"
 #define MAKE_KEY_JS_STRING 1 /*used in get_ all_keys_for_file*/
 enum mode{
 	REG,

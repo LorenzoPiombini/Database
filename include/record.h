@@ -9,14 +9,9 @@
 
 #define HEADER_ID_SYS 0x657A3234
 #define VS 1
-#define VS_NEWEST 2
 #define MAX_HD_SIZE 7232
 #define MAX_FIELD_NR 200 /*max field nr in a file */
 #define MAX_FIELD_LT 32	 /*max char length for a field name*/
-
-struct Defaults{
-		
-};
 
 struct Schema {
 	ui16 fields_num;
