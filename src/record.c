@@ -2171,8 +2171,10 @@ static void display_data(struct Record_f rec, int max,int tab)
 		if(rec.fields[i].is_dropped)
 			continue;
 
-		if(tab)printf("\t");
-		printf("%-*s\t", max++, rec.fields[i].field_name);
+		if(tab)
+			printf("\t");
+
+		printf("%-*s\t", 10+(max - (int)strlen(rec.fields[i].field_name)), rec.fields[i].field_name);
 
 		int t = (int)rec.fields[i].type;
 		switch (t){
