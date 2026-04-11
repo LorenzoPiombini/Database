@@ -28,8 +28,10 @@ static int check_double_compatibility(struct Schema *sch, char ***values);
 static char *get_def_value(struct Schema sch,int i);
 static char *print_constraints(struct Schema sch, int i);
 /*this allows for compatibility between different versions*/
-static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch);
+static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch);
+/*static int read_hd_V1_1(ui8 **buf, long *bread, struct Schema **sch);*/
 static int write_hd_VS1(ui8 **buf, long *bwritten, struct Schema **sch);
+/*static int write_hd_VS1_1(ui8 **buf, long *bwritten, struct Schema **sch);*/
 static int is_input_correct(char names[][MAX_FIELD_LT],int fields_num);
 static int enforce_constraints(struct Schema *sch, int i, int found,struct Record_f *rec);
 
@@ -613,11 +615,11 @@ int write_header(int fd, struct Header_d *hd)
 	return 1; /* succssed */
 }
 
-static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
+static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch)
 {
 	ui16 field_n = 0;
-	memcpy(&field_n,&(*buf)[bread],sizeof(ui16));
-	bread += sizeof(ui16);
+	memcpy(&field_n,&(*buf)[*bread],sizeof(ui16));
+	*bread += sizeof(ui16);
 	(*sch)->fields_num = swap16(field_n);
 
 	if ((*sch)->fields_num == 0) {
@@ -660,8 +662,8 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 	ui16 i;
 	for (i = 0; i < (*sch)->fields_num; i++) {
 		ui32 l_end = 0;
-		memcpy(&l_end,&(*buf)[bread],sizeof(ui32));
-		bread += sizeof(ui32);
+		memcpy(&l_end,&(*buf)[*bread],sizeof(ui32));
+		*bread += sizeof(ui32);
 
 		size_t l = (size_t)swap32(l_end);
 
@@ -673,28 +675,28 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 		} 
 
 		memset((*sch)->fields_name[i],0,l);
-		memcpy((*sch)->fields_name[i],&(*buf)[bread],l);
-		bread += l;
+		memcpy((*sch)->fields_name[i],&(*buf)[*bread],l);
+		*bread += l;
 
 		ui32 type = 0;
-		memcpy(&type,&(*buf)[bread],sizeof(type));
-		bread += sizeof(type);
+		memcpy(&type,&(*buf)[*bread],sizeof(type));
+		*bread += sizeof(type);
 
 		(*sch)->types[i] = swap32(type);
 
-		memcpy(&(*sch)->is_dropped[i],&(*buf)[bread],sizeof(ui8));
-		bread += sizeof(ui8);
+		memcpy(&(*sch)->is_dropped[i],&(*buf)[*bread],sizeof(ui8));
+		*bread += sizeof(ui8);
 
-		memcpy(&(*sch)->constraints[i],&(*buf)[bread],sizeof(ui8));
-		bread += sizeof(ui8);
+		memcpy(&(*sch)->constraints[i],&(*buf)[*bread],sizeof(ui8));
+		*bread += sizeof(ui8);
 
 		if((*sch)->constraints[i] & CONST_DEFAULT){
 			switch((*sch)->types[i]){
 			case TYPE_INT:
 			{
 				int n = 0;
-				memcpy(&n,&(*buf)[bread],sizeof(int));
-				bread += sizeof(int);
+				memcpy(&n,&(*buf)[*bread],sizeof(int));
+				*bread += sizeof(int);
 
 				n = swap32(n);
 				(*sch)->defaults[i] = (void*) malloc(sizeof(int));
@@ -709,8 +711,8 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 			case TYPE_LONG:
 			{
 				long n = 0;
-				memcpy(&n,&(*buf)[bread],sizeof(long));
-				bread += sizeof(long);
+				memcpy(&n,&(*buf)[*bread],sizeof(long));
+				*bread += sizeof(long);
 
 				n = swap64(n);
 
@@ -726,8 +728,8 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 			case TYPE_BYTE:
 			{
 				ui8 n = 0;
-				memcpy(&n,&(*buf)[bread],sizeof(ui8));
-				bread += sizeof(ui8);
+				memcpy(&n,&(*buf)[*bread],sizeof(ui8));
+				*bread += sizeof(ui8);
 
 				(*sch)->defaults[i] = (void*) malloc(sizeof(ui8));
 				if(!(*sch)->defaults[i]){
@@ -743,8 +745,8 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 			case TYPE_DATE:
 			{
 				ui32 n = 0;
-				memcpy(&n,&(*buf)[bread],sizeof(ui32));
-				bread += sizeof(ui32);
+				memcpy(&n,&(*buf)[*bread],sizeof(ui32));
+				*bread += sizeof(ui32);
 
 				n = swap32(n);
 				(*sch)->defaults[i] = (void*) malloc(sizeof(ui32));
@@ -760,8 +762,8 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 			case TYPE_FLOAT:
 			{
 				ui32 fne = 0;
-				memcpy(&fne,&(*buf)[bread],sizeof(ui32));
-				bread += sizeof(ui32);
+				memcpy(&fne,&(*buf)[*bread],sizeof(ui32));
+				*bread += sizeof(ui32);
 
 				float f = ntohf(fne);
 
@@ -777,8 +779,8 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 			case TYPE_DOUBLE:
 			{
 				ui32 f = 0;
-				memcpy(&f,&(*buf)[bread],sizeof(ui32));
-				bread += sizeof(ui32);
+				memcpy(&f,&(*buf)[*bread],sizeof(ui32));
+				*bread += sizeof(ui32);
 
 				double d = ntohd(f);
 
@@ -794,15 +796,15 @@ static int read_hd_V1(ui8 **buf, long bread, struct Schema **sch)
 			case TYPE_STRING:
 			{ 
 				ui32 sz = 0;
-				memcpy(&sz,&(*buf)[bread],sizeof(ui32));
-				bread += sizeof(ui32);
+				memcpy(&sz,&(*buf)[*bread],sizeof(ui32));
+				*bread += sizeof(ui32);
 				
 				sz = swap32(sz);
 				char str[sz];	
 				str[sz-1] = '\0';
 
-				memcpy(str,&(*buf)[bread],sz);
-				bread += sz;
+				memcpy(str,&(*buf)[*bread],sz);
+				*bread += sz;
 
 				(*sch)->defaults[i] = (void*)duplicate_str(str);
 				if(!(*sch)->defaults[i]){
@@ -861,7 +863,7 @@ int read_header(int fd, struct Header_d *hd)
 
 	switch(hd->version){
 	case VS:
-		if(read_hd_V1(&buf,bread,&hd->sch_d) == -1){
+		if(read_hd_V1(&buf,&bread,&hd->sch_d) == -1){
 			free(buf);
 			return 0;
 		}
@@ -2657,12 +2659,14 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						if(size_new == size_old){
 							if (strcmp(rec_old[0]->fields[j].data.s, rec->fields[j].data.s) != 0) {
 								free(rec_old[0]->fields[j].data.s);
-								rec_old[0]->fields[j].data.s = NULL;
 								rec_old[0]->fields[j].data.s = duplicate_str(rec->fields[j].data.s);
 								if (!rec_old[0]->fields[j].data.s){
 									fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
 									return 0;
 								}
+								/*free the memory in the new record*/
+								free(rec->fields[j].data.s);
+								rec->fields[j].data.s = NULL;
 								changed = 1;
 								break;
 							}
@@ -2678,6 +2682,10 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 								fprintf(stderr, "duplicate_str failed, %s:%d.\n", F, L - 2);
 								return 0;
 							}
+
+							/*free the memory in the new record*/
+							free(rec->fields[j].data.s);
+							rec->fields[j].data.s = NULL;
 
 							changed = 1;
 							rec->field_set[j] = 0;
@@ -4673,3 +4681,26 @@ static int enforce_constraints(struct Schema *sch, int i, int found,struct Recor
 	}
 	return 0;
 }
+#if 0
+static int write_hd_VS1_1(ui8 **buf, long *bwritten, struct Schema **sch){
+
+	if(write_hd_VS1(buf,bwritten,sch) == -1)
+		return -1;
+
+	memcpy(&(*buf)[*bwritten],&(*sch)->auto_key,sizeof(ui8));
+	*bwritten += sizeof(ui8);
+
+	return 0;
+}
+
+static int read_hd_V1_1(ui8 **buf, long *bread, struct Schema **sch){
+
+	if(read_hd_V1(buf,bread,sch) == -1)
+		return -1;
+
+
+	memcpy(&(*sch)->auto_key,&(*buf)[*bread],sizeof(ui8));
+	*bread += sizeof(ui8);
+	return 0;
+}
+#endif
