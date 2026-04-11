@@ -699,6 +699,115 @@ int update_rec(char *file_path,
 					continue;
 				}
 
+				/* 
+				 **
+				 ** if the field update has a unique costrain, 
+				 ** we have to delete the key at index one and replace it with 
+				 ** the new field value. 
+				 ** 
+				 */
+				if(hd.sch_d->constraints[j] & CONST_UNIQUE){
+					/*LOAD ALL INDEX*/
+					HashTable *ht = NULL;
+					int inx = 0;
+					if (!read_all_index_file(fds[0], &ht, &inx)) {
+						fprintf(stderr,"cannot read index file. %s:%d\n",__FILE__,__LINE__);
+						free(positions);
+						free_ht_array(ht, inx);
+						goto clean_on_error;
+					}
+					switch(recs[i]->fields[j].type){
+					case TYPE_INT:
+						if(set_tbl(ht,(void*)&recs[i]->fields[j].data.i,recs[i]->offset,UINT,1) == -1){
+							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+							free_ht_array(ht, inx);
+							free(positions);
+							goto clean_on_error;
+						}
+						break;
+					case TYPE_LONG:
+					{
+						if(rec->fields[inx].data.l > (long)UINT_MAX){
+								fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+								free_ht_array(ht, inx);
+								free(positions);
+								goto clean_on_error;
+							}
+
+							if(set_tbl(ht,(void*)&recs[i]->fields[j].data.l,recs[i]->offset,UINT,1) == -1){
+								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[i]->fields[j].field_name);
+								free_ht_array(ht, inx);
+								free(positions);
+								goto clean_on_error;
+							}
+							break;
+					}
+					case TYPE_FLOAT:
+					{
+						ui32 f = htonf(recs[i]->fields[j].data.f);
+						if( f > (ui32)UINT_MAX){
+							fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+							free_ht_array(ht, inx);
+							free(positions);
+							goto clean_on_error;
+						}
+
+						if(set_tbl(ht,(void*)&f,recs[i]->offset,UINT,1) == -1){
+							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[i]->fields[j].field_name);
+							free_ht_array(ht, inx);
+							free(positions);
+							goto clean_on_error;
+						}
+						break;
+					}
+					case TYPE_DOUBLE:
+					{
+						ui64 d = htonf(recs[i]->fields[j].data.d);
+						if( d > (ui64)UINT_MAX){
+							fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+							free_ht_array(ht, inx);
+							free(positions);
+							goto clean_on_error;
+						}
+
+						if(set_tbl(ht,(void*)d,recs[i]->offset,UINT,1) == -1){
+							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[i]->fields[j].field_name);
+							free_ht_array(ht, inx);
+							free(positions);
+							goto clean_on_error;
+						}
+						break;
+					}
+					case TYPE_STRING:
+					{
+						if(set_tbl(ht,recs[i]->fields[j].data.s,recs[i]->offset,STR,1) == -1){
+							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+							free_ht_array(ht, inx);
+							free(positions);
+							goto clean_on_error;
+						}
+						break;
+					}
+					default:
+						fprintf(stderr,"(%s): type of field '%s' is %s, not yet implemented!\n",
+							prog,
+							recs[i]->fields[j].field_name,
+							type_to_str(recs[i]->fields[j].type));
+						free_ht_array(ht, inx);
+						free(positions);
+						goto clean_on_error;
+					}
+
+					if(write_index(fds,inx,ht,file_path) == -1){
+						fprintf(stderr,"(%s): write_index() failed. %s:%d.\n",prog,__FILE__,__LINE__-1);
+						free(positions);
+						free(ht);
+						goto clean_on_error;
+					}
+
+					free(ht);
+				}
+
 				no_updates = 0;
 				++updates;
 				changed = 1;
@@ -754,7 +863,6 @@ int update_rec(char *file_path,
 				free(positions);
 				goto clean_on_error;
 			}
-
 		}
 
 		free(positions);
@@ -792,12 +900,6 @@ int update_rec(char *file_path,
 			printf("error write file, %s:%d.\n", F, L - 1);
 			goto clean_on_error;
 		}
-
-		/*THIS IS TO SECURE PROPER MEMORY MANAGMENT
-		 * when the new updating record will be freed*/
-		int i;
-		for(i = 0; i < rec_old.fields_num; i++)
-			rec->field_set[i] = rec_old.field_set[i];
 
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
