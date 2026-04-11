@@ -47,6 +47,7 @@ void print_types(void)
                sizeof(unsigned char), 8 * sizeof(unsigned char));
         printf("\tTYPE_DOUBLE, floating point number, %ld bytes (%ld bits).\n",
                sizeof(double), 8 * sizeof(double));
+		printf("\tTYPE_DATE, unsigned integer, %ld bytes, (%ld bits).\n",sizeof(ui32),8*sizeof(ui32));
 }
 
 int check_input_and_values(struct String file_path, struct String data_to_add, struct String key, char *argv[],
@@ -199,8 +200,7 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 	}
 
 
-	if ((!data_to_add.is_empty(&data_to_add) || update) && key.is_empty(&key) )
-	{
+	if (update && key.is_empty(&key) ){
 		printf("option -k is required.\n\n");
 		print_usage(argv);
 		return 0;
