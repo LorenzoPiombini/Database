@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#include "key.h"
 #include "journal.h"
 #include "string_utilities.h"
 #include "globals.h"
@@ -626,7 +628,7 @@ int main(int argc, char *argv[])
 				return 0;
 			}
 
-			/*  write the index file */
+			/* write the index file */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
 			int index_num = indexes > 0 ? indexes : 5;
 
@@ -650,24 +652,51 @@ int main(int argc, char *argv[])
 						goto clean_on_error_2;
 					}
 
-					int key_type = 0;
-					void *key_conv = key_converter(kcpy, &key_type);
-					if (key_type == UINT && !key_conv) {
-						fprintf(stderr, "(%s): error to convert key.\n",prog);
-						goto clean_on_error_2;
-					} else if (key_type == UINT) {
-						if (key_conv) {
-							if (!set(key_conv, key_type, offset, &ht)) {
-								free(key_conv);
-								goto clean_on_error_2;
-							}
-							free(key_conv);
-						}
-					} else if (key_type == STR) {
+					if(kcpy[0] == '\0'){
+						
 						/*create a new key value pair in the hash table*/
-						if (!set((void *)kcpy, key_type, offset, &ht)) {
+						
+						int fds[] = {fd_index,fd_data,fd_schema};
+						i64 k = generate_numeric_key(fds,INCREM,-1);
+
+						if(k == -1){
+							fprintf(stderr,"increment key failed. %s:%d\n",__FILE__,__LINE__-2);
 							destroy_hasht(&ht);
 							goto clean_on_error_2;
+						}
+
+						if(k > (i64)(MAX_KEY-1)){
+							fprintf(stderr,"(%s): key is out of range.\n",prog);
+							destroy_hasht(&ht);
+							goto clean_on_error_2;
+						}
+
+						ui32 n = (ui32)k;
+						if (!set((void *)&n, UINT, offset, &ht)) {
+							destroy_hasht(&ht);
+							goto clean_on_error_2;
+						}
+
+					} else {
+						int key_type = 0;
+						void *key_conv = key_converter(kcpy, &key_type);
+						if (key_type == UINT && !key_conv) {
+							fprintf(stderr, "(%s): error to convert key.\n",prog);
+							goto clean_on_error_2;
+						} else if (key_type == UINT) {
+							if (key_conv) {
+								if (!set(key_conv, key_type, offset, &ht)) {
+									free(key_conv);
+									goto clean_on_error_2;
+								}
+								free(key_conv);
+							}
+						} else if (key_type == STR) {
+							/*create a new key value pair in the hash table*/
+							if (!set((void *)kcpy, key_type, offset, &ht)) {
+								destroy_hasht(&ht);
+								goto clean_on_error_2;
+							}
 						}
 					}
 
@@ -1007,7 +1036,6 @@ int main(int argc, char *argv[])
 						break;
 					default:
 						goto clean_on_error_5;
-
 				}
 			}
 
@@ -1297,11 +1325,31 @@ int main(int argc, char *argv[])
 			}
 
 
-			if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1,hd.sch_d) == -1){
-				fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
-				goto clean_on_error_7;
-			}
+			if(kcpy[0] == '\0'){
+				i64 k = generate_numeric_key(fds,INCREM,-1);
+				if(k == -1){
+					fprintf(stderr,"increment key failed. %s:%d\n",__FILE__,__LINE__-2);
+					goto clean_on_error_7;
+				}
 
+				if(k > (i64)(MAX_KEY-1)){
+					fprintf(stderr,"(%s): key is out of range.\n",prog);
+					goto clean_on_error_7;
+				}
+
+				ui32 n = (ui32)k;
+				
+				if(write_record(fds,(void *)&n, UINT, &rec, update, files, &lock_f, -1,hd.sch_d) == -1){
+					fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
+					goto clean_on_error_7;
+				}
+
+			} else {
+				if(write_record(fds,(void *)kcpy, -1, &rec, update, files, &lock_f, -1,hd.sch_d) == -1){
+					fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
+					goto clean_on_error_7;
+				}
+			}
 			free_record(&rec, rec.fields_num);
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_index, fd_data, fd_schema);

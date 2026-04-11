@@ -3,13 +3,13 @@
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
-#include <record.h>
-#include <hash_tbl.h>
-#include <file.h>
-#include <str_op.h>
+
+#include "record.h"
+#include "hash_tbl.h"
+#include "file.h"
+#include "str_op.h"
 #include "key.h"
 #include "string_utilities.h"
-
 
 /*order starting number*/
 #define ORDER_BASE 100
@@ -27,7 +27,7 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
 		if(!read_index_nr(0,fds[0],&p_ht)){
-			/*log failure*/
+			/*TODO log failure*/
 			return -1;
 		}
 
@@ -56,7 +56,7 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
 		if(!read_index_nr(0,fds[0],&p_ht)){
-			/*log failure*/
+			/* NOTE log failure*/
 			return -1;
 		}
 
