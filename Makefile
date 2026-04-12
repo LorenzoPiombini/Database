@@ -124,7 +124,7 @@ clean:
 
 	
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $?   -ldl  -llog -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
+	sudo gcc -o $@ $?   -ldl  -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 	make lua
 
 obj/%.o : src/%.c 
@@ -200,11 +200,15 @@ $(BINDIR)/WRITE:
 	@if [ ! -f $@ ]; then \
 		echo "Creating $@ . . ."; \
 		echo "#!/bin/bash" > $@; \
-		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ] || [ -z \"\$$3\" ]; then" >> $@; \
-		echo "echo \"Usage: WRITE [file name] [fields name and type] [key]\"" >> $@; \
+		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ]; then" >> $@; \
+		echo "echo \"Usage: WRITE [file name] [fields name and type] (optional: [key])\"" >> $@; \
 		echo "exit 1" >> $@; \
 		echo "fi" >> $@; \
-		echo "$(TARGET) -f \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
+		echo "if [ -n \"\$$3\" ]; then" >> $@; \
+		echo "\t$(TARGET) -f \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
+		echo "exit 0" >> $@; \
+		echo "fi" >> $@; \
+		echo "\t$(TARGET) -f \"\$$1\" -a \"\$$2\"" >> $@; \
 		chmod +x $@; \
 	fi
 
