@@ -3466,20 +3466,19 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 {
 	int dif = 0;
 
-	ui32 i,j, column = (ui32)rec_old[0]->fields_num;
-	for (i = 0; i < rec_old[0]->count; i++) {
-		for (j = 0; j < (ui32)rec_old[0]->fields_num; j++) {
-			if (positions[i * column + j ] != 'y' 
-					|| positions[i * column + j] != 'e')
-				positions[i * column + j] = 'n';
+	ui32 j;
+	for (j = 0; j < (ui32)rec_old[0]->count; j++) {
+			if (positions[j] != 'y' 
+					|| positions[j] != 'e')
+				positions[j] = 'n';
 
-			int index = compare_rec(rec_old[i],rec,option);
+			int index = compare_rec(rec_old[j],rec,option);
 			if(index == E_RCMP){
-				positions[i * column + j ] = '0';
+				positions[j] = '0';
 				return;
 			}
 			if(index == -1){
-				positions[i * column + j] = 'e';
+				positions[j] = 'e';
 				continue;
 			}
 
@@ -3489,70 +3488,70 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			}
 			switch (rec->fields[index].type) {
 				case TYPE_INT:
-					rec_old[i]->fields[index].data.i = rec->fields[index].data.i;
-					positions[i * column + j] = 'y';
+					rec_old[j]->fields[index].data.i = rec->fields[index].data.i;
+					positions[j] = 'y';
 					break;
 				case TYPE_LONG:
-					rec_old[i]->fields[index].data.l = rec->fields[index].data.l;
-					positions[i * column + j] = 'y';
+					rec_old[j]->fields[index].data.l = rec->fields[index].data.l;
+					positions[j] = 'y';
 					break;
 				case TYPE_PACK:
-					rec_old[i]->fields[index].data.p = rec->fields[index].data.p;
-					positions[i * column + j] = 'y';
+					rec_old[j]->fields[index].data.p = rec->fields[index].data.p;
+					positions[j] = 'y';
 					break;
 				case TYPE_FLOAT:
-					rec_old[i]->fields[index].data.f = rec->fields[index].data.f;
-					positions[i * column + j]= 'y';
+					rec_old[j]->fields[index].data.f = rec->fields[index].data.f;
+					positions[j] = 'y';
 					break;
 				case TYPE_STRING:
-					if (rec_old[i]->fields[index].data.s != NULL) {
-						free(rec_old[i]->fields[index].data.s);
-						rec_old[i]->fields[index].data.s = NULL;
+					if (rec_old[j]->fields[index].data.s != NULL) {
+						free(rec_old[j]->fields[index].data.s);
+						rec_old[j]->fields[index].data.s = NULL;
 					}
 
-					rec_old[i]->fields[index].data.s = duplicate_str(rec->fields[index].data.s);
-					positions[i * column + j] = 'y';
+					rec_old[j]->fields[index].data.s = duplicate_str(rec->fields[index].data.s);
+					positions[j] = 'y';
 					break;
 				case TYPE_BYTE:
-					rec_old[i]->fields[index].data.b = rec->fields[index].data.b;
-					positions[i * column + j] = 'y';
+					rec_old[j]->fields[index].data.b = rec->fields[index].data.b;
+					positions[j] = 'y';
 					break;
 				case TYPE_DOUBLE:
-					rec_old[i]->fields[index].data.d = rec->fields[index].data.d;
-					positions[i * column + j] = 'y';
+					rec_old[j]->fields[index].data.d = rec->fields[index].data.d;
+					positions[j] = 'y';
 					break;
 				case TYPE_ARRAY_INT:
 				case TYPE_SET_INT:
-					if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+					if (rec->fields[index].data.v.size == rec_old[j]->fields[index].data.v.size){
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.i[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.elements.i[a] =
+							rec_old[j]->fields[index].data.v.elements.i[a] =
 								rec->fields[index].data.v.elements.i[a];
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}else{
 
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.i[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 						/*
@@ -3561,40 +3560,40 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						 * and in the old record we create a new one we the data
 						 * of the new record
 						 * */
-						rec_old[i]->fields[index].data.v.
-							destroy(&rec_old[i]->fields[index].data.v, 
+						rec_old[j]->fields[index].data.v.
+							destroy(&rec_old[j]->fields[index].data.v, 
 									rec->fields[index].type);
 
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.
+							rec_old[j]->fields[index].data.v.
 								insert((void *)&rec->fields[index].data.v.elements.i[a],
-										&rec_old[i]->fields[index].data.v, 
+										&rec_old[j]->fields[index].data.v, 
 										rec->fields[index].type);
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}
 				case TYPE_ARRAY_LONG:
 				case TYPE_SET_LONG:
-					if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+					if (rec->fields[index].data.v.size == rec_old[j]->fields[index].data.v.size){
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.l[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.elements.l[a] =
+							rec_old[j]->fields[index].data.v.elements.l[a] =
 								rec->fields[index].data.v.elements.l[a];
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}else{
 						/*
@@ -3606,47 +3605,47 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.l[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
-						rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, 
+						rec_old[j]->fields[index].data.v.destroy(&rec_old[j]->fields[index].data.v, 
 								rec->fields[index].type);
 
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.
+							rec_old[j]->fields[index].data.v.
 								insert((void *)&rec->fields[index].data.v.elements.l[a],
-										&rec_old[i]->fields[index].data.v, 
+										&rec_old[j]->fields[index].data.v, 
 										rec->fields[index].type);
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}
 				case TYPE_ARRAY_FLOAT:
 				case TYPE_SET_FLOAT:
-					if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+					if (rec->fields[index].data.v.size == rec_old[j]->fields[index].data.v.size){
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.f[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.elements.f[a] =
+							rec_old[j]->fields[index].data.v.elements.f[a] =
 								rec->fields[index].data.v.elements.f[a];
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}else{
 						/*
@@ -3658,48 +3657,48 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.f[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
-						rec_old[i]->fields[index].data.v.
-							destroy(&rec_old[i]->fields[index].data.v, 
+						rec_old[j]->fields[index].data.v.
+							destroy(&rec_old[j]->fields[index].data.v, 
 									rec->fields[index].type);
 
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.
+							rec_old[j]->fields[index].data.v.
 								insert((void *)&rec->fields[index].data.v.elements.f[a],
-										&rec_old[i]->fields[index].data.v, 
+										&rec_old[j]->fields[index].data.v, 
 										rec->fields[index].type);
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}
 				case TYPE_ARRAY_DOUBLE:
 				case TYPE_SET_DOUBLE:
-					if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+					if (rec->fields[index].data.v.size == rec_old[j]->fields[index].data.v.size){
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.d[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.elements.d[a] =
+							rec_old[j]->fields[index].data.v.elements.d[a] =
 								rec->fields[index].data.v.elements.d[a];
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}else{
 						/*
@@ -3711,59 +3710,59 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.d[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
-						rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, 
+						rec_old[j]->fields[index].data.v.destroy(&rec_old[j]->fields[index].data.v, 
 								rec->fields[index].type);
 
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.
+							rec_old[j]->fields[index].data.v.
 								insert((void *)&rec->fields[index].data.v.elements.d[a],
-										&rec_old[i]->fields[index].data.v, 
+										&rec_old[j]->fields[index].data.v, 
 										rec->fields[index].type);
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}
 				case TYPE_ARRAY_BYTE:
 				case TYPE_SET_BYTE:
-					if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+					if (rec->fields[index].data.v.size == rec_old[j]->fields[index].data.v.size){
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.b[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v.elements.b[a] =
+							rec_old[j]->fields[index].data.v.elements.b[a] =
 								rec->fields[index].data.v.elements.b[a];
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}else{
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.b[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 						/*
@@ -3772,29 +3771,29 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						 * and in the old record we create a new one we the data
 						 * of the new record
 						 * */
-						rec_old[i]->fields[index].data.v.
-							destroy(&rec_old[i]->fields[index].data.v, 
+						rec_old[j]->fields[index].data.v.
+							destroy(&rec_old[j]->fields[index].data.v, 
 									rec->fields[index].type);
 
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++) {
-							rec_old[i]->fields[index].data.v.
+							rec_old[j]->fields[index].data.v.
 								insert((void *)&rec->fields[index].data.v.elements.b[a],
-										&rec_old[i]->fields[index].data.v, 
+										&rec_old[j]->fields[index].data.v, 
 										rec->fields[index].type);
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}
 				case TYPE_ARRAY_STRING:
 				case TYPE_SET_STRING:
-					if (rec->fields[index].data.v.size == rec_old[i]->fields[index].data.v.size){
+					if (rec->fields[index].data.v.size == rec_old[j]->fields[index].data.v.size){
 						if(option == AAR){
 							int a,b;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								if(rec_old[i]->fields[index].data.v.
+								if(rec_old[j]->fields[index].data.v.
 										insert((void *)rec->fields[index].data.v.elements.s[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type) == -1){
 									b = 1;
 									break;
@@ -3802,33 +3801,33 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 
 							}
 							if(!b)
-								positions[i*column+j] = 'y';
+								positions[j] = 'y';
 							break;
 						}
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							free(rec_old[i]->fields[index].data.v.elements.s[a]);
+							free(rec_old[j]->fields[index].data.v.elements.s[a]);
 
-							rec_old[i]->fields[index].data.v.elements.s[a] =
+							rec_old[j]->fields[index].data.v.elements.s[a] =
 								duplicate_str(rec->fields[index].data.v.elements.s[a]);
-							if (!rec_old[i]->fields[index].data.v.elements.s[a]){
+							if (!rec_old[j]->fields[index].data.v.elements.s[a]){
 								fprintf(stderr, "duplicate_str() failed %s:%d.\n", F, L - 2);
 								positions[0] = '0';
 								return;
 							}
 						}
-						positions[i*column+ j] = 'y';
+						positions[j] = 'y';
 						break;
 					}else{
 						if(option == AAR){
 							int a;
 							for (a = 0; a < rec->fields[index].data.v.size; a++) {
-								rec_old[i]->fields[index].data.v.
+								rec_old[j]->fields[index].data.v.
 									insert((void *)&rec->fields[index].data.v.elements.s[a],
-											&rec_old[i]->fields[index].data.v, 
+											&rec_old[j]->fields[index].data.v, 
 											rec->fields[index].type);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 						/*
@@ -3837,15 +3836,15 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						 * and in the old record we create a new one we the data
 						 * of the new record
 						 * */
-						rec_old[i]->fields[index].data.v.destroy(&rec_old[i]->fields[index].data.v, rec->fields[index].type);
+						rec_old[j]->fields[index].data.v.destroy(&rec_old[j]->fields[index].data.v, rec->fields[index].type);
 						int a;
 						for (a = 0; a < rec->fields[index].data.v.size; a++){
-							rec_old[i]->fields[index].data.v
+							rec_old[j]->fields[index].data.v
 								.insert((void *)rec->fields[index].data.v.elements.s[a],
-										&rec_old[i]->fields[index].data.v,
+										&rec_old[j]->fields[index].data.v,
 										rec->fields[index].type);
 						}
-						positions[i*column+j] = 'y';
+						positions[j] = 'y';
 						break;
 					}
 				case TYPE_FILE:
@@ -3870,7 +3869,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						if(!read_header(fd_sch,&hd)){
 							fprintf(stderr,"(%s): read_header() failed, %s:%d.\n","db",F,L-1);
 							close_file(1,fd_sch);
-							positions[0] = '0';
+							positions[j] = 'y';
 							return;
 						}
 						close_file(1,fd_sch);
@@ -3879,10 +3878,10 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 						/*resize the memory accordingly*/
 						size_t n_size = 0;
 						if(option == AAR){
-							n_size = rec_old[i]->fields[index].data.file.count + rec->fields[index].data.file.count;
+							n_size = rec_old[j]->fields[index].data.file.count + rec->fields[index].data.file.count;
 
 							struct Record_f *n_recs = (struct Record_f*)realloc(
-									rec_old[i]->fields[index].data.file.recs,
+									rec_old[j]->fields[index].data.file.recs,
 									n_size * sizeof(struct Record_f));
 							if(!n_recs){
 								fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__ - 4);
@@ -3891,15 +3890,15 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 								return;
 							}
 
-							rec_old[i]->fields[index].data.file.recs = n_recs;
-							rec_old[i]->fields[index].data.file.count = n_size;
-							rec_old[i]->field_set[index] = 1;
+							rec_old[j]->fields[index].data.file.recs = n_recs;
+							rec_old[j]->fields[index].data.file.count = n_size;
+							rec_old[j]->field_set[index] = 1;
 							ui32 k,t;
 							for(t = 0,k = rec->fields[index].data.file.count;
-									k < rec_old[i]->fields[index].data.file.count; 
+									k < rec_old[j]->fields[index].data.file.count; 
 									k++,t++){
 								if(!copy_rec(&rec->fields[index].data.file.recs[t],
-											&rec_old[i]->fields[index].data.file.recs[k],
+											&rec_old[j]->fields[index].data.file.recs[k],
 											hd.sch_d)){
 									fprintf(stderr,"(%s): copy_rec() failed, %s:%d.\n","db",F,L-1);
 									positions[0] = '0';
@@ -3907,7 +3906,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 									return;
 								}
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}else{
 							/*
@@ -3916,11 +3915,11 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 							 * this function also zeros the memory out
 							 * when the second parameter is on (1)
 							 * */
-							/*free_type_file(rec_old[i],1);*/
+							/*free_type_file(rec_old[j],1);*/
 
-							if(rec_old[i]->fields[index].data.file.count != rec->fields[index].data.file.count){
+							if(rec_old[j]->fields[index].data.file.count != rec->fields[index].data.file.count){
 								struct Record_f *n_recs = (struct Record_f*)realloc(
-										rec_old[i]->fields[index].data.file.recs,
+										rec_old[j]->fields[index].data.file.recs,
 										rec->fields[index].data.file.count * sizeof(struct Record_f));
 
 								if(!n_recs){
@@ -3931,18 +3930,18 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 									return;
 								}
 
-								rec_old[i]->fields[index].data.file.recs = n_recs;
-								rec_old[i]->fields[index].data.file.count = rec->fields[index].data.file.count;
+								rec_old[j]->fields[index].data.file.recs = n_recs;
+								rec_old[j]->fields[index].data.file.count = rec->fields[index].data.file.count;
 							}
 
-							rec_old[i]->field_set[index] = 1;
+							rec_old[j]->field_set[index] = 1;
 							ui32 k,x;
-							for(k = 0; k < rec_old[i]->fields[index].data.file.count; k++){
+							for(k = 0; k < rec_old[j]->fields[index].data.file.count; k++){
 								for(x = 0; x < (ui32)rec->fields[index].data.file.recs->fields_num; x++){
 									if(!rec->fields[index].data.file.recs->field_set[x] )
 										continue;
 
-									struct Record_f *or = rec_old[i]->fields[index].data.file.recs;
+									struct Record_f *or = rec_old[j]->fields[index].data.file.recs;
 									struct Record_f *nr = rec->fields[index].data.file.recs;
 									switch(nr->fields[x].type){
 										case TYPE_INT:
@@ -4185,7 +4184,7 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 								}
 								free_schema(hd.sch_d);
 							}
-							positions[i*column+j] = 'y';
+							positions[j] = 'y';
 							break;
 						}
 					}
@@ -4194,7 +4193,6 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 					positions[0] = '0';
 					return;
 			}
-		}
 	}
 }	
 

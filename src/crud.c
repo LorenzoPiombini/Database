@@ -659,11 +659,8 @@ int update_rec(char *file_path,
 		/* here we have the all record in memory and we have
 		   to check which fields in the record we have to update*/
 
-		char *positions = malloc(rec_old.count*rec_old.fields_num);
-		if(!positions)
-			goto clean_on_error;
-
-		memset(positions,0,rec_old.count * rec_old.fields_num);
+		char positions[rec_old.count];
+		memset(positions,0,rec_old.count);
 
 
 		/* 
@@ -680,192 +677,169 @@ int update_rec(char *file_path,
 
 		if (positions[0] != 'n' && positions[0] != 'y' && positions[0] != 'e') {
 			printf("check on fields failed, %s:%d.\n", F, L - 1);
-			free(positions);
 			goto clean_on_error;
 		}
 
 		/* write the update records to file */
 		int changed = 0;
 		ui16 updates = 0; /* bool value if 0 no updates*/
-		ui32 i;
-
 		int j;
-		for (i = 0; i < rec_old.count; i++) {
-			for(j = 0; j < rec_old.fields_num; j++){
-				if (positions[i * rec_old.count + j] == 'n') continue;
+		for (j = 0; j < (int)rec_old.count; j++) {
+			if (positions[j] == 'n') continue;
 
-				if (positions[i * rec_old.count +j] == 'e'){
-					no_updates = 1;
-					continue;
+			if (positions[j] == 'e'){
+				no_updates = 1;
+				continue;
+			}
+
+			/* 
+			 **
+			 ** if the field update has a unique costrain, 
+			 ** we have to delete the key at index one and replace it with 
+			 ** the new field value. 
+			 ** 
+			 */
+			int f = (int) rec_old.fields_num;
+			if(hd.sch_d->has_unique(hd.sch_d->constraints,&f) && rec->field_set[f]){
+				/*LOAD ALL INDEX*/
+				HashTable *ht = NULL;
+				int inx = 0;
+				if (!read_all_index_file(fds[0], &ht, &inx)) {
+					fprintf(stderr,"cannot read index file. %s:%d\n",__FILE__,__LINE__);
+					free_ht_array(ht, inx);
+					goto clean_on_error;
 				}
-
-				/* 
-				 **
-				 ** if the field update has a unique costrain, 
-				 ** we have to delete the key at index one and replace it with 
-				 ** the new field value. 
-				 ** 
-				 */
-				if(hd.sch_d->constraints[j] & CONST_UNIQUE){
-					/*LOAD ALL INDEX*/
-					HashTable *ht = NULL;
-					int inx = 0;
-					if (!read_all_index_file(fds[0], &ht, &inx)) {
-						fprintf(stderr,"cannot read index file. %s:%d\n",__FILE__,__LINE__);
-						free(positions);
-						free_ht_array(ht, inx);
-						goto clean_on_error;
-					}
-					switch(recs[i]->fields[j].type){
+				switch(recs[j]->fields[f].type){
 					case TYPE_INT:
-						if(set_tbl(ht,(void*)&recs[i]->fields[j].data.i,recs[i]->offset,UINT,1) == -1){
+						if(set_tbl(ht,(void*)&recs[j]->fields[f].data.i,recs[j]->offset,UINT,1) == -1){
 							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
 							free_ht_array(ht, inx);
-							free(positions);
 							goto clean_on_error;
 						}
 						break;
 					case TYPE_LONG:
-					{
-						if(rec->fields[inx].data.l > (long)UINT_MAX){
+						{
+							if(rec->fields[f].data.l > (long)UINT_MAX){
 								fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
 								free_ht_array(ht, inx);
-								free(positions);
 								goto clean_on_error;
 							}
 
-							if(set_tbl(ht,(void*)&recs[i]->fields[j].data.l,recs[i]->offset,UINT,1) == -1){
-								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[i]->fields[j].field_name);
+							if(set_tbl(ht,(void*)&recs[j]->fields[f].data.l,recs[j]->offset,UINT,1) == -1){
+								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[j]->fields[f].field_name);
 								free_ht_array(ht, inx);
-								free(positions);
 								goto clean_on_error;
 							}
 							break;
-					}
+						}
 					case TYPE_FLOAT:
-					{
-						ui32 f = htonf(recs[i]->fields[j].data.f);
-						if( f > (ui32)UINT_MAX){
-							fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-							free_ht_array(ht, inx);
-							free(positions);
-							goto clean_on_error;
-						}
+						{
+							ui32 f = htonf(recs[j]->fields[f].data.f);
+							if( f > (ui32)UINT_MAX){
+								fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+								free_ht_array(ht, inx);
+								goto clean_on_error;
+							}
 
-						if(set_tbl(ht,(void*)&f,recs[i]->offset,UINT,1) == -1){
-							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[i]->fields[j].field_name);
-							free_ht_array(ht, inx);
-							free(positions);
-							goto clean_on_error;
+							if(set_tbl(ht,(void*)&f,recs[j]->offset,UINT,1) == -1){
+								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[j]->fields[f].field_name);
+								free_ht_array(ht, inx);
+								goto clean_on_error;
+							}
+							break;
 						}
-						break;
-					}
 					case TYPE_DOUBLE:
-					{
-						ui64 d = htonf(recs[i]->fields[j].data.d);
-						if( d > (ui64)UINT_MAX){
-							fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-							free_ht_array(ht, inx);
-							free(positions);
-							goto clean_on_error;
-						}
+						{
+							ui64 d = htonf(recs[j]->fields[f].data.d);
+							if( d > (ui64)UINT_MAX){
+								fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+								free_ht_array(ht, inx);
+								goto clean_on_error;
+							}
 
-						if(set_tbl(ht,(void*)d,recs[i]->offset,UINT,1) == -1){
-							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[i]->fields[j].field_name);
-							free_ht_array(ht, inx);
-							free(positions);
-							goto clean_on_error;
+							if(set_tbl(ht,(void*)d,recs[j]->offset,UINT,1) == -1){
+								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[j]->fields[f].field_name);
+								free_ht_array(ht, inx);
+								goto clean_on_error;
+							}
+							break;
 						}
-						break;
-					}
 					case TYPE_STRING:
-					{
-						if(set_tbl(ht,recs[i]->fields[j].data.s,recs[i]->offset,STR,1) == -1){
-							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-							free_ht_array(ht, inx);
-							free(positions);
-							goto clean_on_error;
+						{
+							if(set_tbl(ht,recs[j]->fields[f].data.s,recs[j]->offset,STR,1) == -1){
+								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[f].field_name);
+								free_ht_array(ht, inx);
+								goto clean_on_error;
+							}
+							break;
 						}
-						break;
-					}
 					default:
 						fprintf(stderr,"(%s): type of field '%s' is %s, not yet implemented!\n",
-							prog,
-							recs[i]->fields[j].field_name,
-							type_to_str(recs[i]->fields[j].type));
+								prog,
+								recs[j]->fields[f].field_name,
+								type_to_str(recs[j]->fields[f].type));
 						free_ht_array(ht, inx);
-						free(positions);
 						goto clean_on_error;
-					}
+				}
 
-					if(write_index(fds,inx,ht,file_path) == -1){
-						fprintf(stderr,"(%s): write_index() failed. %s:%d.\n",prog,__FILE__,__LINE__-1);
-						free(positions);
-						free(ht);
-						goto clean_on_error;
-					}
-
+				if(write_index(fds,inx,ht,file_path) == -1){
+					fprintf(stderr,"(%s): write_index() failed. %s:%d.\n",prog,__FILE__,__LINE__-1);
 					free(ht);
-				}
-
-				no_updates = 0;
-				++updates;
-				changed = 1;
-				if (find_record_position(fds[1], recs[i]->offset) == -1) {
-					__er_file_pointer(F, L - 1);
-					free(positions);
 					goto clean_on_error;
 				}
 
-				file_offset right_update_pos = 0;
-				if ((rec_old.count - i) > 1)
-					right_update_pos = recs[i+1]->offset;
-
-
-				/*the 1 is a flag that make the program know that is an update operation*/
-				if(buffered_write(&fds[1], recs[i], 1,recs[i]->offset,right_update_pos) == -1){
-					printf("error write file, %s:%d.\n", F, L - 1);
-					free(positions);
-					goto clean_on_error;
-				}
-
+				free(ht);
 			}
+
+			no_updates = 0;
+			++updates;
+			changed = 1;
+			if (find_record_position(fds[1], recs[j]->offset) == -1) {
+				__er_file_pointer(F, L - 1);
+				goto clean_on_error;
+			}
+
+			file_offset right_update_pos = 0;
+			if ((rec_old.count - j) > 1)
+				right_update_pos = recs[j+1]->offset;
+
+
+			/*the 1 is a flag that make the program know that is an update operation*/
+			if(buffered_write(&fds[1], recs[j], 1,recs[j]->offset,right_update_pos) == -1){
+				printf("error write file, %s:%d.\n", F, L - 1);
+				goto clean_on_error;
+			}
+
 		}
 
 		if((check == SCHEMA_CT  ||  check == SCHEMA_CT_NT) && !changed) {
 			if(no_updates) {
 				fprintf(stderr,"nothing to update\n");
-				free(positions);
 				goto clean_on_error;
 			}
 
 			file_offset eof = go_to_EOF(fds[1]); /* file pointer to the end*/
 			if (eof == -1) {
 				__er_file_pointer(F, L - 1);
-				free(positions);
 				goto clean_on_error;
 			}
 
 			/*writing the new part of the schema to the file*/
 			if(buffered_write(&fds[1], rec, 0,0,0) == -1){
 				printf("write to file failed, %s:%d.\n", F, L - 1);
-				free(positions);
 				goto clean_on_error;
 			}
 
 			if(find_record_position(fds[1],recs[rec_old.count - 1]->offset) == -1){
 				__er_file_pointer(F, L - 1);
-				free(positions);
 				goto clean_on_error;
 			}
 			if(buffered_write(&fds[1], recs[rec_old.count-1], 1,recs[rec_old.count-1]->offset,eof) == -1){
 				printf("error write file, %s:%d.\n", F, L - 1);
-				free(positions);
 				goto clean_on_error;
 			}
 		}
 
-		free(positions);
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	} /*end of if(update_pos > 0) */
