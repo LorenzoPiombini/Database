@@ -1325,6 +1325,7 @@ int main(int argc, char *argv[])
 			}
 
 
+			ui32 n = 0;
 			if(kcpy[0] == '\0'){
 				i64 k = generate_numeric_key(fds,INCREM,-1);
 				if(k == -1){
@@ -1337,7 +1338,7 @@ int main(int argc, char *argv[])
 					goto clean_on_error_7;
 				}
 
-				ui32 n = (ui32)k;
+				n = (ui32)k;
 				
 				if(write_record(fds,(void *)&n, UINT, &rec, update, files, &lock_f, -1,hd.sch_d) == -1){
 					fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
@@ -1353,7 +1354,10 @@ int main(int argc, char *argv[])
 			free_record(&rec, rec.fields_num);
 			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
 			close_file(3, fd_index, fd_data, fd_schema);
-			fprintf(stderr,"record %s wrote succesfully.\n", kcpy);
+			if(kcpy[0] == '\0')
+				fprintf(stderr,"record %u wrote succesfully.\n", n);
+			else
+				fprintf(stderr,"record %s wrote succesfully.\n", kcpy);
 			free_schema(&sch);
 			return 0;
 

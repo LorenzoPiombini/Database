@@ -383,7 +383,7 @@ int write_record(int *fds,
 
 	/*check if a field has CONTS_UNIQUE*/
 	int inx = sch->fields_num;
-	if(sch->has_unique(sch->constraints,&inx)){
+	if(sch->has_unique(sch->constraints,&inx) && rec->field_set[inx]){
 		switch(rec->fields[inx].type){
 		case TYPE_INT:
 			if(set_tbl(ht,(void*)&rec->fields[inx].data.i,eof,UINT,1) == -1){
