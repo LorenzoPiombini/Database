@@ -2903,6 +2903,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 										&rec_old[0]->fields[j].data.v, 
 										rec->fields[j].type);
 						}
+
 						changed = 1;
 						break;
 					}
@@ -3155,6 +3156,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						break;
 					}
 					rec->field_set[i] = 0;
+					free(rec->fields[i].data.s);
 					break;
 				}
 				break;

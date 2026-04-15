@@ -1503,152 +1503,154 @@ int count_fields(char *fields, const char *user_target)
 
 int get_type(char *s){
 
-	if (strncmp(s, "TYPE_INT",8) == 0) {
+	int sz = (int) strlen(s);
+
+	if (sz == 8 && strncmp(s, "TYPE_INT",8) == 0) {
 		return 0;
-	} else if (strncmp(s, "TYPE_LONG",9) == 0){
+	} else if (sz == 9 && strncmp(s, "TYPE_LONG",9) == 0){
 		return 1;
-	} else if (strncmp(s, "TYPE_FLOAT",10) == 0) {
+	} else if (sz == 10 && strncmp(s, "TYPE_FLOAT",10) == 0) {
 		return 2;
 	}
-	else if (strncmp(s, "TYPE_STRING",11) == 0)
+	else if (sz == 11 && strncmp(s, "TYPE_STRING",11) == 0)
 	{
 		return 3;
 	}
-	else if (strncmp(s, "TYPE_BYTE",9) == 0)
+	else if (sz == 9 && strncmp(s, "TYPE_BYTE",9) == 0)
 	{
 		return 4;
 	}
-	else if(strncmp(s, "TYPE_PACK",9) == 0)
+	else if(sz == 9 && strncmp(s, "TYPE_PACK",9) == 0)
 	{
 		return 5;
 	}
-	else if (strncmp(s, "TYPE_DOUBLE",11) == 0)
+	else if (sz == 11 && strncmp(s, "TYPE_DOUBLE",11) == 0)
 	{
 		return 6;
-	}else if (strncmp(s, "TYPE_KEY",8) == 0)
+	}else if (sz == 8 && strncmp(s, "TYPE_KEY",8) == 0)
 	{
 		return 15;
 	}
-	else if (strncmp(s, "t_i",3) == 0)
+	else if (sz == 3 && strncmp(s, "t_i",3) == 0)
 	{
 		return 0;
 	}
-	else if (strncmp(s, "t_l",3) == 0)
+	else if (sz == 3 && strncmp(s, "t_l",3) == 0)
 	{
 		return 1;
 	}
-	else if (strncmp(s, "t_f",3) == 0)
+	else if (sz == 3 && strncmp(s, "t_f",3) == 0)
 	{
 		return 2;
 	}
-	else if (strncmp(s, "t_s",3) == 0)
+	else if (sz == 3 && strncmp(s, "t_s",3) == 0)
 	{
 		return 3;
 	}
-	else if (strncmp(s, "t_b",3) == 0)
+	else if (sz == 3 && strncmp(s, "t_b",3) == 0)
 	{
 		return 4;
 	}
-	else if (strncmp(s, "t_pk",4) == 0)
+	else if (sz == 3 && strncmp(s, "t_pk",4) == 0)
 	{
 		return 5;
 	}
-	else if (strncmp(s, "t_d",3) == 0)
+	else if (sz == 3 && strncmp(s, "t_d",3) == 0)
 	{
 		return 6;
 	}
-	else if (strncmp(s, "TYPE_ARRAY_INT",14) == 0)
+	else if (sz == 14 && strncmp(s, "TYPE_ARRAY_INT",14) == 0)
 	{
 		return 7;
 	}
-	else if (strncmp(s, "TYPE_ARRAY_LONG",15) == 0)
+	else if (sz == 15 && strncmp(s, "TYPE_ARRAY_LONG",15) == 0)
 	{
 		return 8;
 	}
-	else if (strncmp(s, "TYPE_ARRAY_FLOAT",16) == 0)
+	else if (sz == 16 && strncmp(s, "TYPE_ARRAY_FLOAT",16) == 0)
 	{
 		return 9;
 	}
-	else if (strncmp(s, "TYPE_ARRAY_STRING",17) == 0)
+	else if (sz == 17 && strncmp(s, "TYPE_ARRAY_STRING",17) == 0)
 	{
 		return 10;
 	}
-	else if (strncmp(s, "TYPE_ARRAY_BYTE",15) == 0)
+	else if (sz == 15 && strncmp(s, "TYPE_ARRAY_BYTE",15) == 0)
 	{
 		return 11;
 	}
-	else if (strncmp(s, "TYPE_ARRAY_DOUBLE",17) == 0)
+	else if (sz == 17 && strncmp(s, "TYPE_ARRAY_DOUBLE",17) == 0)
 	{
 		return 12;
 	}
-	else if (strncmp(s, "TYPE_FILE",9) == 0)
+	else if (sz == 9 && strncmp(s, "TYPE_FILE",9) == 0)
 	{
 		return 13;
 	}
-	else if (strncmp(s, "TYPE_DATE",9) == 0){
+	else if (sz == 9 && strncmp(s, "TYPE_DATE",9) == 0){
 		return 14;
-	}else if (strncmp(s, "TYPE_SET_INT",12) == 0){
+	}else if (sz == 12 && strncmp(s, "TYPE_SET_INT",12) == 0){
 		return 16;
-	}else if (strncmp(s, "TYPE_SET_LONG",13) == 0){
+	}else if (sz == 13 && strncmp(s, "TYPE_SET_LONG",13) == 0){
 		return 16;
-	}else if (strncmp(s, "TYPE_SET_FLOAT",14) == 0){
+	}else if (sz == 14 && strncmp(s, "TYPE_SET_FLOAT",14) == 0){
 		return 18;
-	}else if (strncmp(s, "TYPE_SET_BYTE",12) == 0){
+	}else if (sz == 12 && strncmp(s, "TYPE_SET_BYTE",12) == 0){
 		return 19;
-	}else if (strncmp(s, "TYPE_SET_STRING",15) == 0){
+	}else if (sz == 15 && strncmp(s, "TYPE_SET_STRING",15) == 0){
 		return 20;
-	}else if (strncmp(s, "TYPE_SET_DOUBLE",15) == 0){
+	}else if (sz == 15 && strncmp(s, "TYPE_SET_DOUBLE",15) == 0){
 		return 21;
-	}else if (strncmp(s, "t_ai",4) == 0)	{
+	}else if (sz == 4 && strncmp(s, "t_ai",4) == 0)	{
 		return 7;
 	}
-	else if (strncmp(s, "t_al",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_al",4) == 0)
 	{
 		return 8;
 	}
-	else if (strncmp(s, "t_af",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_af",4) == 0)
 	{
 		return 9;
 	}
-	else if (strncmp(s, "t_as",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_as",4) == 0)
 	{
 		return 10;
 	}
-	else if (strncmp(s, "t_ab",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_ab",4) == 0)
 	{
 		return 11;
 	}
-	else if (strncmp(s, "t_ad",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_ad",4) == 0)
 	{
 		return 12;
 	}
-	else if (strncmp(s, "t_fl",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_fl",4) == 0)
 	{
 		return 13;
-	}else if (strncmp(s, "t_dt",4) == 0){
+	}else if (sz == 4 && strncmp(s, "t_dt",4) == 0){
 		return 14;
-	}else if (strncmp(s, "t_ky",4) == 0){
+	}else if (sz == 4 && strncmp(s, "t_ky",4) == 0){
 		return 15;
-	}else if (strncmp(s, "t_si",4) == 0)	{
+	}else if (sz == 4 && strncmp(s, "t_si",4) == 0)	{
 		return 16;
 	}
-	else if (strncmp(s, "t_sl",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_sl",4) == 0)
 	{
 		return 17;
 	}
-	else if (strncmp(s, "t_sf",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_sf",4) == 0)
 	{
 		return 18;
 	}
-	else if (strncmp(s, "t_ss",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_ss",4) == 0)
 	{
 		return 19;
 	}
-	else if (strncmp(s, "t_sb",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_sb",4) == 0)
 	{
 		return 20;
 	}
-	else if (strncmp(s, "t_sd",4) == 0)
+	else if (sz == 4 && strncmp(s, "t_sd",4) == 0)
 	{
 		return 21;
 	}
