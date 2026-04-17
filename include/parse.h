@@ -59,7 +59,14 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 int create_file_definition_with_no_value(int mode, int fields_num, char *buffer, struct Schema *sch);
 unsigned char compare_old_rec_update_rec(struct Record_f **rec_old, struct Record_f *rec,unsigned char check,int option);
 
-void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec,int option);
+void find_fields_to_update(
+		struct Record_f **rec_old,
+		char *positions,
+		struct Record_f *rec,
+		int option,
+		struct Header_d hd,
+		int *fds,
+		char *file_path);
 void print_schema(struct Schema sch);
 void print_header(struct Header_d hd);
 size_t compute_size_header(void *header);

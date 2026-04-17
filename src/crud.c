@@ -471,6 +471,10 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 {
 	close_file(1, fds[0]);
 	fds[0] = open_file(file_name, 1); /*opening with o_trunc*/
+	if(file_error_handler(1,fds[0]) != 0) {
+		free_ht_array(ht, index);
+		return STATUS_ERROR;
+	}
 
 	/* write the new indexes to file */
 	if (!write_index_file_head(fds[0], index)) {
@@ -606,7 +610,6 @@ int update_rec(char *file_path,
 	struct Record_f rec_old;
 	memset(&rec_old,0,sizeof(struct Record_f));
 	int r = 0;
-
 	if(!(*lock_f)){
 		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
 		while((r = lock(fds[0],WLOCK)) == WTLK);
@@ -673,7 +676,7 @@ int update_rec(char *file_path,
 		 * 	at that index position of 'y'.
 		 * */
 
-		find_fields_to_update(recs, positions, rec, option);
+		find_fields_to_update(recs, positions, rec, option,hd,fds,file_path);
 
 		if (positions[0] != 'n' && positions[0] != 'y' && positions[0] != 'e') {
 			printf("check on fields failed, %s:%d.\n", F, L - 1);
@@ -692,105 +695,7 @@ int update_rec(char *file_path,
 				continue;
 			}
 
-			/* 
-			 **
-			 ** if the field update has a unique costrain, 
-			 ** we have to delete the key at index one and replace it with 
-			 ** the new field value. 
-			 ** 
-			 */
-			int f = (int) rec_old.fields_num;
-			if(hd.sch_d->has_unique(hd.sch_d->constraints,&f) && rec->field_set[f]){
-				/*LOAD ALL INDEX*/
-				HashTable *ht = NULL;
-				int inx = 0;
-				if (!read_all_index_file(fds[0], &ht, &inx)) {
-					fprintf(stderr,"cannot read index file. %s:%d\n",__FILE__,__LINE__);
-					free_ht_array(ht, inx);
-					goto clean_on_error;
-				}
-				switch(recs[j]->fields[f].type){
-					case TYPE_INT:
-						if(set_tbl(ht,(void*)&recs[j]->fields[f].data.i,recs[j]->offset,UINT,1) == -1){
-							fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-							free_ht_array(ht, inx);
-							goto clean_on_error;
-						}
-						break;
-					case TYPE_LONG:
-						{
-							if(rec->fields[f].data.l > (long)UINT_MAX){
-								fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-								free_ht_array(ht, inx);
-								goto clean_on_error;
-							}
-
-							if(set_tbl(ht,(void*)&recs[j]->fields[f].data.l,recs[j]->offset,UINT,1) == -1){
-								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[j]->fields[f].field_name);
-								free_ht_array(ht, inx);
-								goto clean_on_error;
-							}
-							break;
-						}
-					case TYPE_FLOAT:
-						{
-							ui32 f = htonf(recs[j]->fields[f].data.f);
-							if( f > (ui32)UINT_MAX){
-								fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-								free_ht_array(ht, inx);
-								goto clean_on_error;
-							}
-
-							if(set_tbl(ht,(void*)&f,recs[j]->offset,UINT,1) == -1){
-								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[j]->fields[f].field_name);
-								free_ht_array(ht, inx);
-								goto clean_on_error;
-							}
-							break;
-						}
-					case TYPE_DOUBLE:
-						{
-							ui64 d = htonf(recs[j]->fields[f].data.d);
-							if( d > (ui64)UINT_MAX){
-								fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-								free_ht_array(ht, inx);
-								goto clean_on_error;
-							}
-
-							if(set_tbl(ht,(void*)d,recs[j]->offset,UINT,1) == -1){
-								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,recs[j]->fields[f].field_name);
-								free_ht_array(ht, inx);
-								goto clean_on_error;
-							}
-							break;
-						}
-					case TYPE_STRING:
-						{
-							if(set_tbl(ht,recs[j]->fields[f].data.s,recs[j]->offset,STR,1) == -1){
-								fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[f].field_name);
-								free_ht_array(ht, inx);
-								goto clean_on_error;
-							}
-							break;
-						}
-					default:
-						fprintf(stderr,"(%s): type of field '%s' is %s, not yet implemented!\n",
-								prog,
-								recs[j]->fields[f].field_name,
-								type_to_str(recs[j]->fields[f].type));
-						free_ht_array(ht, inx);
-						goto clean_on_error;
-				}
-
-				if(write_index(fds,inx,ht,file_path) == -1){
-					fprintf(stderr,"(%s): write_index() failed. %s:%d.\n",prog,__FILE__,__LINE__-1);
-					free(ht);
-					goto clean_on_error;
-				}
-
-				free(ht);
-			}
-
+			
 			no_updates = 0;
 			++updates;
 			changed = 1;

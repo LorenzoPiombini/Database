@@ -1213,13 +1213,12 @@ int main(int argc, char *argv[])
 
 			Node *record_del = NULL;
 			if (key_conv) {
-				record_del = delete (key_conv, &ht[index_nr], key_type);
+				record_del = ht_delete(key_conv, &ht[index_nr], key_type);
 				free(key_conv);
 			}else if (key_type == STR) {
-					record_del = delete ((void *)kcpy, &ht[index_nr], key_type);
-
+					record_del = ht_delete((void *)kcpy, &ht[index_nr], key_type);
 			} else {
-				fprintf(stderr, "error key_converter().\n");
+				fprintf(stderr,"error key_converter().\n");
 				free_ht_array(ht, index);
 				goto clean_on_error_6;
 			}

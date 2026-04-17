@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <assert.h>
+
 #include "record.h"
 #include "file.h"
 #include "endian.h"
@@ -14,6 +16,8 @@
 #include "debug.h"
 #include "input.h"
 #include "date.h"
+#include "hash_tbl.h"
+#include "crud.h"
 
 static char prog[] = "db";
 static int schema_check_type(int count,
@@ -34,6 +38,7 @@ static int write_hd_VS1(ui8 **buf, long *bwritten, struct Schema **sch);
 /*static int write_hd_VS1_1(ui8 **buf, long *bwritten, struct Schema **sch);*/
 static int is_input_correct(char names[][MAX_FIELD_LT],int fields_num);
 static int enforce_constraints(struct Schema *sch, int i, int found,struct Record_f *rec);
+static int unique_constraint_update(int *fds, struct Record_f *rec, struct Record_f *old_rec, int index, char *file_path);
 
 int parse_d_flag_input(	char *file_path, 
 						int fields_num, 
@@ -3464,7 +3469,14 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 }
 
 
-void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Record_f *rec, int option)
+void find_fields_to_update(
+		struct Record_f **rec_old,
+		char *positions,
+		struct Record_f *rec,
+		int option,
+		struct Header_d hd,
+		int *fds,
+		char *file_path)
 {
 	int dif = 0;
 
@@ -3487,6 +3499,13 @@ void find_fields_to_update(struct Record_f **rec_old, char *positions, struct Re
 			if(index == DIF){
 				dif++; 
 				continue;
+			}
+			int f = rec->fields_num;
+			if(hd.sch_d->has_unique(hd.sch_d->constraints,&f) && f == index){
+				if(unique_constraint_update(fds,rec,rec_old[j],f,file_path) == -1){
+					positions[0] = '0';
+					return;
+				}
 			}
 			switch (rec->fields[index].type) {
 				case TYPE_INT:
@@ -4681,26 +4700,149 @@ static int enforce_constraints(struct Schema *sch, int i, int found,struct Recor
 	}
 	return 0;
 }
-#if 0
-static int write_hd_VS1_1(ui8 **buf, long *bwritten, struct Schema **sch){
 
-	if(write_hd_VS1(buf,bwritten,sch) == -1)
+/* 
+ **
+ ** if the field update has a unique costrain, 
+ ** we have to delete the key at index one and replace it with 
+ ** the new field value. 
+ ** 
+ */
+static int unique_constraint_update(int *fds, struct Record_f *rec, struct Record_f *old_rec, int index, char *file_path)
+{
+	/*LOAD ALL INDEX*/
+	HashTable *ht = NULL;
+	int inx = 0;
+	if (!read_all_index_file(fds[0], &ht, &inx)) {
+		fprintf(stderr,"cannot read index file. %s:%d\n",__FILE__,__LINE__);
+		free_ht_array(ht, inx);
 		return -1;
+	}
+	
+	switch(old_rec->fields[index].type){
+	case TYPE_LONG:
+	{
+		Node *n = ht_delete((void*)&old_rec->fields[index].data.l,&ht[1],UINT);
+		assert(n != NULL);
+		free_ht_node(n);
+		break;
+	}
+	case TYPE_DOUBLE:
+	{
 
-	memcpy(&(*buf)[*bwritten],&(*sch)->auto_key,sizeof(ui8));
-	*bwritten += sizeof(ui8);
+		ui64 d = htonf(rec->fields[index].data.d);
+		ui32 f = (ui32)d;
+		Node *n = ht_delete((void*)&f,&ht[1],UINT);
+		assert(n != NULL);
+		free_ht_node(n);
+		break;
+	}
+	case TYPE_FLOAT:
+	{
+		ui32 f = htonf(rec->fields[index].data.f);
+		Node *n = ht_delete((void*)&f,&ht[1],UINT);
+		assert(n != NULL);
+		free_ht_node(n);
+		break;
+	}
+	case TYPE_INT:
+	{
+		Node *n = ht_delete((void*)&old_rec->fields[index].data.i,&ht[1],UINT);
+		assert(n != NULL);
+		free_ht_node(n);
+		break;
+	}
+	case TYPE_STRING:
+	{
+		Node *n = ht_delete((void*)old_rec->fields[index].data.s,&ht[1],STR);
+		assert(n != NULL);
+		free_ht_node(n);
+		break;
+	}
+	default:
 
-	return 0;
-}
+	}
+	switch(rec->fields[index].type){
+		case TYPE_INT:
+			if(set_tbl(ht,(void*)&rec->fields[index].data.i,old_rec->offset,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
+				free_ht_array(ht, inx);
+				return -1;
+			}
+			break;
+		case TYPE_LONG:
+			{
+				if(rec->fields[index].data.l > (long)UINT_MAX){
+					fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+					free_ht_array(ht, inx);
+					return -1;
+				}
 
-static int read_hd_V1_1(ui8 **buf, long *bread, struct Schema **sch){
+				if(set_tbl(ht,(void*)&rec->fields[index].data.l,old_rec->offset,UINT,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
+					free_ht_array(ht, inx);
+					return -1;
+				}
+				break;
+			}
+		case TYPE_FLOAT:
+			{
+				ui32 f = htonf(rec->fields[index].data.f);
+				if(f > (ui32)MAX_KEY){
+					fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+					free_ht_array(ht, inx);
+					return -1;
+				}
 
-	if(read_hd_V1(buf,bread,sch) == -1)
+				if(set_tbl(ht,(void*)&f,old_rec->offset,UINT,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
+					free_ht_array(ht, inx);
+					return -1;
+				}
+				break;
+			}
+		case TYPE_DOUBLE:
+			{
+				ui64 d = htonf(rec->fields[index].data.d);
+				if(d > (ui64)MAX_KEY){
+					fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+					free_ht_array(ht, inx);
+					return -1;
+				}
+
+				if(set_tbl(ht,(void*)d,old_rec->offset,UINT,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
+					free_ht_array(ht, inx);
+					return -1;
+				}
+				break;
+			}
+		case TYPE_STRING:
+			{
+				if(set_tbl(ht,rec->fields[index].data.s,old_rec->offset,STR,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
+					free_ht_array(ht, inx);
+					return -1;
+				}
+				break;
+			}
+		default:
+			fprintf(stderr,"(%s): type of field '%s' is %s, not yet implemented!\n",
+					prog,
+					rec->fields[index].field_name,
+					type_to_str(rec->fields[index].type));
+			free_ht_array(ht, inx);
+			return -1;
+	}
+
+
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	three_file_path(file_path,files);
+	if(write_index(fds,5,ht,files[0]) == -1){
+		fprintf(stderr,"(%s): write_index() failed. %s:%d.\n",prog,__FILE__,__LINE__-1);
 		return -1;
+	}
 
-
-	memcpy(&(*sch)->auto_key,&(*buf)[*bread],sizeof(ui8));
-	*bread += sizeof(ui8);
-	return 0;
+	free(ht);
+	return 0 ;	
 }
-#endif

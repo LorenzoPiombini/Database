@@ -443,7 +443,7 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 	return 1; /* succseed!*/
 }
 
-Node *delete(void *key, HashTable *tbl, int key_type)
+Node *ht_delete(void *key, HashTable *tbl, int key_type)
 {
 	int index = hash(key, tbl->size, key_type);
 	Node *current = tbl->data_map[index];
