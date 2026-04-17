@@ -759,7 +759,7 @@ int update_rec(char *file_path,
 		}
 	}
 
-	unsigned char comp_rr = compare_old_rec_update_rec(recs, rec, check,op);
+	unsigned char comp_rr = compare_old_rec_update_rec(recs, rec, check,op,hd,fds,file_path);
 	if (comp_rr == 0) {
 		fprintf(stderr,"(%s):compare records failed, %s:%d.\n",prog, F, L -2);
 		goto clean_on_error;

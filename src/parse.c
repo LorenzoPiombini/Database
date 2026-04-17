@@ -2558,7 +2558,10 @@ unsigned char perform_checks_on_schema(
 unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 		struct Record_f *rec, 
 		unsigned char check,
-		int option)
+		int option,
+		struct Header_d hd,
+		int *fds,
+		char *file_path)
 {
 	int changed = 0;
 	int update_new = 0;
@@ -2572,6 +2575,13 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 
 			if(!rec->field_set[j])
 				continue;
+
+			int f = rec->fields_num;
+			if(hd.sch_d->has_unique(hd.sch_d->constraints,&f) && rec->field_set[f]){
+				if(unique_constraint_update(fds,rec,rec_old[0],f,file_path) == -1){
+					return 0;
+				}
+			}
 
 			switch (rec->fields[j].type) {
 			case -1:
@@ -2988,7 +2998,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				}
 				break;
 			}
-			case TYPE_FILE:
+			case TYPE_FILE: /*TODO is this necessary????*/
 			{	
 				if(!rec_old[0]->field_set[j]){
 					update_new = 1;
@@ -2998,7 +3008,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 				
 
 				if(!compare_old_rec_update_rec(&rec_old[0]->fields[j].data.file.recs,
-							rec->fields[j].data.file.recs,check,option))
+							rec->fields[j].data.file.recs,check,option,hd,fds,file_path))
 					return 0;
 				else
 					break;
