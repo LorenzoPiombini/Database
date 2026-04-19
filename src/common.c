@@ -158,75 +158,132 @@ void array_insert_at(int i, void *arr, void *el)
 	}
 }
 
-void array_push(void *arr, void *el)
+int array_push(void **arr, void *el)
 {
 
-	struct Metadata *h = (struct Metadata*)arr - 1;
+	struct Metadata *h = (struct Metadata*)*arr - 1;
 	switch(h->type){
 	case LONG:
+	{
 		if(h->elements == h->capacity){
 			/*realloc*/
-		}else{
-			long *a = (long*)arr;
+			void *r = realloc((struct Metadata*)*arr-1,(sizeof(long)*(h->capacity * 2))+ sizeof(struct Metadata));
+			if(!r){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__);
+				return -1;
+			}
+			h = (struct Metadata*)r;
+			h->capacity = h->capacity * 2;
+			*arr = (struct Metadata*) r + 1;
+		}
+			long *a = (long*)*arr;
 			a[h->elements] = *(long*)el;
-			arr = (void*)a;
+			*arr = (void*)a;
 			h->elements++;
-		}
-		return;
+		return 0;
+	}
 	case INT:
+	{
 		if(h->elements == h->capacity){
 			/*realloc*/
-		}else{
-			int *a = (int*)arr;
-			a[h->elements] = *(int*)el;
-			arr = (void*)a;
-			h->elements++;
+			void *r = realloc((struct Metadata*)*arr-1,(sizeof(int)*(h->capacity * 2))+ sizeof(struct Metadata));
+			if(!r){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__);
+				return -1;
+			}
+			h = (struct Metadata*)r;
+			h->capacity = h->capacity * 2;
+			*arr = (struct Metadata*)r + 1;
+
 		}
-		return; 
+		int *a = (int*)arr;
+		a[h->elements] = *(int*)el;
+		*arr = (void*)a;
+		h->elements++;
+		
+		return 0; 
+	}
 	case DOUBLE:
+	{
 		if(h->elements == h->capacity){
 			/*realloc*/
-		}else{
-			double *a = (double*)arr;
-			a[h->elements] = *(double*)el;
-			arr = (void*)a;
-			h->elements++;
+			void *r = realloc((struct Metadata*)*arr-1,(sizeof(double)*(h->capacity * 2))+ sizeof(struct Metadata));
+			if(!r){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__);
+				return -1;
+			}
+			h = (struct Metadata*)r;
+			h->capacity = h->capacity * 2;
+			*arr = (struct Metadata*)r + 1;
+
 		}
-		return;
+		double *a = (double*)*arr;
+		a[h->elements] = *(double*)el;
+		*arr = (void*)a;
+		h->elements++;
+		return 0;
+	}
 	case FLOAT:
+	{
 		if(h->elements == h->capacity){
 			/*realloc*/
-		}else{
-			float *a = (float*)arr;
-			a[h->elements] = *(float*)el;
-			arr = (void*)a;
-			h->elements++;
+			void *r = realloc((struct Metadata*)*arr-1,(sizeof(float)*(h->capacity * 2))+ sizeof(struct Metadata));
+			if(!r){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__);
+				return -1;
+			}
+			h = (struct Metadata*)r;
+			h->capacity = h->capacity * 2;
+			*arr = (struct Metadata*)r + 1;
 		}
-		return;
+		float *a = (float*)*arr;
+		a[h->elements] = *(float*)el;
+		*arr = (void*)a;
+		h->elements++;
+		return 0;
+	}
 	case BYTE:
+	{
 		if(h->elements == h->capacity){
 			/*realloc*/
-		}else{
-			unsigned char *a = (unsigned char*)arr;
-			a[h->elements] = *(unsigned char*)el;
-			arr = (void*)a;
-			h->elements++;
+			void *r = realloc((struct Metadata*)*arr-1,(sizeof(unsigned char)*(h->capacity * 2))+ sizeof(struct Metadata));
+			if(!r){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__);
+				return -1;
+			}
+			h = (struct Metadata*)r;
+			h->capacity = h->capacity * 2;
+			*arr = (struct Metadata*)r + 1;
 		}
-		return;
+		unsigned char *a = (unsigned char*)*arr;
+		a[h->elements] = *(unsigned char*)el;
+		*arr = (void*)a;
+		h->elements++;
+		return 0;
+	}
 	case STRING:
+	{
 		if(h->elements == h->capacity){
 			/*realloc*/
-		}else{
-			char **a = (char **)arr;
-			a[h->elements] = (char*)malloc(strlen((char*)el)+1);
-			a[h->elements][strlen((char*) el)] = '\0';
-			memcpy(a[h->elements],(char*) el,strlen((char*)el));
-			h->elements++;
-			arr = (void*)a;
+			void *r = realloc((struct Metadata*)*arr-1,(sizeof(char*)*(h->capacity * 2))+ sizeof(struct Metadata));
+			if(!r){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__);
+				return -1;
+			}
+			h = (struct Metadata*)r;
+			h->capacity = h->capacity * 2;
+			*arr = (struct Metadata*)r + 1;
 		}
-		return;
+		char **a = (char **)*arr;
+		a[h->elements] = (char*)malloc(strlen((char*)el)+1);
+		a[h->elements][strlen((char*) el)] = '\0';
+		memcpy(a[h->elements],(char*) el,strlen((char*)el));
+		h->elements++;
+		*arr = (void*)a;
+		return 0;
+	}
 	default:
-		return;
+		return -1;
 	}
 }
 
