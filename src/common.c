@@ -85,21 +85,29 @@ void *array_init(size_t size, int type)
 	}
 }
 
-void array_insert_at(int i, void *arr, void *el)
+int array_insert_at(int i, void **arr, void *el)
 {
-	struct Metadata *h = (struct Metadata*)arr - 1;
+	struct Metadata *h = (struct Metadata*)*arr - 1;
 	switch(h->type){
 	case LONG:
-		if(h->capacity < i){
-			/*TODO: realloc?*/
-			assert(0);
-		}else{
-			long *a = (long*)arr;
-			a[i] = *(long*)el;
-			arr = (void*)a;
-			h->elements++;
+	{
+		if(h->capacity <= i){
+			int new_size = (i - h->capacity) + 1;
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(long)*(h->capacity + new_size)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			h->capacity += new_size;
+			*arr = (struct Metadata*) n + 1;
 		}
-		return;
+		long *a = (long*)*arr;
+		a[i] = *(long*)el;
+		*arr = (void*)a;
+		h->elements++;
+		return 0;
+	}
 	case INT:
 		if(h->capacity < i){
 			/*realloc*/
@@ -110,7 +118,7 @@ void array_insert_at(int i, void *arr, void *el)
 			arr = (void*)a;
 			h->elements++;
 		}
-		return; 
+		return 0; 
 	case DOUBLE:
 		if(h->capacity < i){
 			/*realloc*/
@@ -120,7 +128,7 @@ void array_insert_at(int i, void *arr, void *el)
 			arr = (void*)a;
 			h->elements++;
 		}
-		return;
+		return 0;
 	case FLOAT:
 		if(h->capacity < i){
 			/*realloc*/
@@ -130,7 +138,7 @@ void array_insert_at(int i, void *arr, void *el)
 			arr = (void*)a;
 			h->elements++;
 		}
-		return;
+		return 0;
 	case BYTE:
 		if(h->capacity < i){
 			/*realloc*/
@@ -140,7 +148,7 @@ void array_insert_at(int i, void *arr, void *el)
 			arr = (void*)a;
 			h->elements++;
 		}
-		return;
+		return 0;
 	case STRING:
 		if(h->capacity < i){
 			/*realloc*/
@@ -152,9 +160,9 @@ void array_insert_at(int i, void *arr, void *el)
 			h->elements++;
 			arr = (void*)a;
 		}
-		return;
+		return 0;
 	default:
-		return;
+		return -1;
 	}
 }
 
@@ -173,8 +181,10 @@ int array_push(void **arr, void *el)
 				return -1;
 			}
 			h = (struct Metadata*)r;
-			h->capacity = h->capacity * 2;
+			/*zeroed out the new alloc*/
 			*arr = (struct Metadata*) r + 1;
+			memset(&((long*)*arr)[h->capacity],0,sizeof(long) * h->capacity);
+			h->capacity = h->capacity * 2;
 		}
 			long *a = (long*)*arr;
 			a[h->elements] = *(long*)el;
