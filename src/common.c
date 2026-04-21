@@ -99,8 +99,9 @@ int array_insert_at(int i, void **arr, void *el)
 				return -1;
 			}
 			h = (struct Metadata*)n;
-			h->capacity += new_size;
 			*arr = (struct Metadata*) n + 1;
+			memset(&((long*)*arr)[h->capacity],0,sizeof(long) * new_size);
+			h->capacity += new_size;
 		}
 		long *a = (long*)*arr;
 		a[i] = *(long*)el;
@@ -109,58 +110,111 @@ int array_insert_at(int i, void **arr, void *el)
 		return 0;
 	}
 	case INT:
-		if(h->capacity < i){
+	{
+		if(h->capacity <= i){
 			/*realloc*/
-			assert(0);
-		}else{
-			int *a = (int*)arr;
-			a[i] = *(int*)el;
-			arr = (void*)a;
-			h->elements++;
+			int new_size = (i - h->capacity) + 1;
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(int)*(h->capacity + new_size)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((long*)*arr)[h->capacity],0,sizeof(int) * new_size);
+			h->capacity += new_size;
 		}
+		int *a = (int*)*arr;
+		a[i] = *(int*)el;
+		*arr = (void*)a;
+		h->elements++;
 		return 0; 
+	}
 	case DOUBLE:
-		if(h->capacity < i){
+	{
+		if(h->capacity <= i){
 			/*realloc*/
-		}else{
-			double *a = (double*)arr;
-			a[i] = *(double*)el;
-			arr = (void*)a;
-			h->elements++;
+			int new_size = (i - h->capacity) + 1;
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(double)*(h->capacity + new_size)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((long*)*arr)[h->capacity],0,sizeof(double) * new_size);
+			h->capacity += new_size;
 		}
+		double *a = (double*)*arr;
+		a[i] = *(double*)el;
+		*arr = (void*)a;
+		h->elements++;
 		return 0;
+	}
 	case FLOAT:
+	{
 		if(h->capacity < i){
 			/*realloc*/
-		}else{
-			float *a = (float*)arr;
-			a[i] = *(float*)el;
-			arr = (void*)a;
-			h->elements++;
+			int new_size = (i - h->capacity) + 1;
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(float)*(h->capacity + new_size)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((long*)*arr)[h->capacity],0,sizeof(float) * new_size);
+			h->capacity += new_size;
 		}
+		float *a = (float*)*arr;
+		a[i] = *(float*)el;
+		*arr = (void*)a;
+		h->elements++;
 		return 0;
+	}
 	case BYTE:
+	{
 		if(h->capacity < i){
 			/*realloc*/
-		}else{
-			unsigned char *a = (unsigned char*)arr;
-			a[i] = *(unsigned char*)el;
-			arr = (void*)a;
-			h->elements++;
+			int new_size = (i - h->capacity) + 1;
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(unsigned char)*(h->capacity + new_size)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((long*)*arr)[h->capacity],0,sizeof(unsigned char) * new_size);
+			h->capacity += new_size;
 		}
+		unsigned char *a = (unsigned char*)*arr;
+		a[i] = *(unsigned char*)el;
+		*arr = (void*)a;
+		h->elements++;
 		return 0;
+	}
 	case STRING:
+	{
 		if(h->capacity < i){
 			/*realloc*/
-		}else{
-			char **a = (char **)arr;
-			a[i] = (char*)malloc(strlen((char*)el)+1);
-			a[i][strlen((char*) el)] = '\0';
-			memcpy(a[i],(char*) el,strlen((char*)el));
-			h->elements++;
-			arr = (void*)a;
+			int new_size = (i - h->capacity) + 1;
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(char*)*(h->capacity + new_size)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			h->capacity += new_size;
+			*arr = (struct Metadata*) n + 1;
 		}
+		char **a = (char **)*arr;
+		a[i] = (char*)malloc(strlen((char*)el)+1);
+		a[i][strlen((char*) el)] = '\0';
+		memcpy(a[i],(char*) el,strlen((char*)el));
+		h->elements++;
+		*arr = (void*)a;
 		return 0;
+	}
 	default:
 		return -1;
 	}
@@ -168,7 +222,6 @@ int array_insert_at(int i, void **arr, void *el)
 
 int array_push(void **arr, void *el)
 {
-
 	struct Metadata *h = (struct Metadata*)*arr - 1;
 	switch(h->type){
 	case LONG:
