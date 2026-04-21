@@ -1738,6 +1738,7 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 		no_type = 1;
 	}
 
+	char **val = NULL; 
 	int field_pos[field_count];
 	memset(field_pos,-1,field_count * sizeof(int));
 
@@ -1791,29 +1792,31 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 
 		int i =0;
 		field_pos[i++] = p - cpy;		
-		do{
-			char *f = strstr(p,":");
-			if(!f)
-				break;
+		if(field_count > 1){
+			do{
+				char *f = strstr(p,":");
+				if(!f)
+					break;
 
-			*f++ = ' ';
-			p = f; 
-			f = strstr(p,":");
-			if(!f)
-				break;
+				*f++ = ' ';
+				p = f; 
+				f = strstr(p,":");
+				if(!f)
+					break;
 
-			int s = f - p;
-			
-			char ch[s+1];
-			ch[s] = '\0';
-			strncpy(ch,p,s);
-		
-			if(!strstr(ch,CON_) && !strstr(ch,C_)){
-				field_pos[i++] = p - cpy;	
-				p += s;
-				continue;
-			}
-		}while(*p);
+				int s = f - p;
+
+				char ch[s+1];
+				ch[s] = '\0';
+				strncpy(ch,p,s);
+
+				if(!strstr(ch,CON_) && !strstr(ch,C_)){
+					field_pos[i++] = p - cpy;	
+					p += s;
+					continue;
+				}
+			}while(*p);
+		}
 	}
 
 	*cnstr = array_init(field_count,INT);
@@ -1891,15 +1894,15 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 
 				while(*c && *c != ':') *c++ = ' ';
 
-				if(!(*value)){
-					*value = (char**)array_init(10,STRING);
-					if(!(*value)){
+				if(!val){
+					val = (char**)array_init(10,STRING);
+					if(!val){
 						fprintf(stderr,"array_init failed, %s:%d.\n",F, L - 2);
 						array_free(*cnstr);
 						return -1;
 					}
 				}
-				array_insert_at(f,*value,b);
+				array_insert_at(f,(void **)&val,b);
 			}else{
 
 				while(*c && *c != ':') *c++ = ' ';
@@ -1924,8 +1927,12 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 				break;
 
 		}while( (!no_type && next && c < next) || no_type);
-		array_insert_at(f,*cnstr,&or_c);
+		array_insert_at(f,(void**)cnstr,&or_c);
 	}
+
+	if(val)
+		*value = val;
+
 	replace('@',':',buff);
 	replace('^','@',buff);
 	/*change the buffer to hold only the fields */
