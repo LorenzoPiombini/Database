@@ -5,6 +5,7 @@
 #include "input.h"
 #include "str_op.h"
 
+
 void print_usage(char *argv[])
 {
         printf("Usage: %s -f <database file>\n", argv[0]);
@@ -65,7 +66,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 							unsigned char journal_display,
 							unsigned char nr_of_record_display,
 							unsigned char del_field,
-							unsigned char modify_schema)
+							unsigned char modify_schema,
+							unsigned char swap_index)
 {
 	if((del_field && file_path.is_empty(&file_path)) 
 			|| (del_field && ( del 					
@@ -79,7 +81,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 						|| index_add 
 						|| modify_schema
 						|| import_from_data
-						|| nr_of_record_display))){
+						|| nr_of_record_display
+						|| swap_index))){
 		printf("option -d must be used with -f.\n\n");
 		printf("isam.db -f [file_name] -d [fields:that:you:want:to:drop].\n\n");
 		print_usage(argv);
@@ -107,7 +110,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 				|| create		 			
 				|| index_add 
 				|| import_from_data
-				|| nr_of_record_display))){
+				|| nr_of_record_display
+				|| swap_index))){
 		printf("option -M must be used with -f.\n\n");
 		printf("isam.db -Mf [file_name] -R [fields:that:you:want:to:change:the:name].\n\n");
 		print_usage(argv);
@@ -126,7 +130,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 			|| index_add 
 			|| modify_schema
 			|| import_from_data
-			|| nr_of_record_display)){
+			|| nr_of_record_display
+			|| swap_index)){
                 printf("option -j must be used by itself.\n");
                 return 0;
         }
@@ -143,7 +148,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 				|| index_add 
 				|| modify_schema
 				|| import_from_data
-				|| nr_of_record_display)){
+				|| nr_of_record_display
+				|| swap_index)){
                 printf("option -c must be used by itself.\n");
                 printf(" -c <txt-with-files-definitions>.\n");
                 return 0;
@@ -158,7 +164,9 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 					|| import_from_data
 					|| !key.is_empty(&key)
 					|| !data_to_add.is_empty(&data_to_add) 
-					|| build)){
+					|| build
+					|| nr_of_record_display
+					|| swap_index)){
                 print_usage(argv);
                 fprintf(stderr, "\nyou can use option -A only with options -f -i and -x\n");
                 return 0;
@@ -177,15 +185,26 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
                 return 0;
         }
 
-	if(import_from_data && (!file_path.is_empty(&file_path)  || del || update || del_file || list_def ||
-                       new_file || !key.is_empty(&key)   || !data_to_add.is_empty(&key) || build || index_add || create)){
+		if(import_from_data && (!file_path.is_empty(&file_path) 
+					|| del
+					|| update 
+					|| del_file
+					|| list_def 
+					|| new_file 
+					|| !key.is_empty(&key)
+					|| !data_to_add.is_empty(&data_to_add) 
+					|| build
+					|| index_add 
+					|| create
+					|| nr_of_record_display
+					|| swap_index)){
                 printf("option -B must be used by itself.\n");
                 printf(" -B <txt with files data to import>.\n");
-		fprintf(stderr,"!! the file system MUST exist already !!\n");
-                return 0;
-	}
+				fprintf(stderr,"!! the file system MUST exist already !!\n");
+				return 0;
+		}
 
-    if (  !file_path.is_empty(&file_path)  || file_field){
+    if (!file_path.is_empty(&file_path)  || file_field){
 		if(file_path.str){
 			if(!is_file_name_valid(file_path.str)){
 				printf("file name or path not valid.\n");
@@ -224,7 +243,8 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 			|| create		 			
 			|| index_add 
 			|| import_from_data
-			|| nr_of_record_display)){
+			|| nr_of_record_display
+			|| swap_index)){
              
 		printf("you cannot use option -e with other options! Only -ef <fileName>.\n");
 		print_usage(argv);
@@ -235,6 +255,27 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 	{
 		printf("missing record key, option -k.\n");
 		print_usage(argv);
+		return 0;
+	}
+
+	if(swap_index )
+
+	if((swap_index && !file_path.is_empty(&file_path)) 
+			|| (swap_index && ( del 					
+						|| update 					
+						|| del_file
+						|| list_def 
+						|| new_file 				
+						|| !key.is_empty(&key)
+						|| !data_to_add.is_empty(&data_to_add) 
+						|| build
+						|| create		 			
+						|| index_add 
+						|| modify_schema
+						|| import_from_data
+						|| nr_of_record_display))){
+		fprintf(stderr,"option -S is allowed only with options -s (source index) and -i (dest index)\n");
+		fprintf(stderr,"Usage: -Sf [file_name] -s 3 -i 2\n");
 		return 0;
 	}
 	return 1;

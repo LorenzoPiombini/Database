@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
 	unsigned char journal_display = 0;
 	unsigned char nr_of_record_display = 0;
 	unsigned char modify_schema = 0;
+	unsigned char swap_index = 0;
 	/*------------------------------------------*/
 
 	/* parameters populated with the flag from getopt()*/
@@ -81,9 +82,14 @@ int main(int argc, char *argv[])
 	int index_nr = 0;
 	int only_dat = 0;
 
-	while ((c = getopt(argc, argv, "jnItAf:F:a:k:d:D:R:uleB:b:s:x:c:C:i:o:X:NM")) != -1)
+	while ((c = getopt(argc, argv, "jnItAf:F:a:k:d:D:R:uleB:b:s:x:c:C:i:o:X:NMS")) != -1)
 	{
 		switch (c){
+		case 'S':
+		{
+			swap_index = 1;
+			break;
+		}
 		case 'C':
 		{
 			init(&constrains_def,optarg);
@@ -116,8 +122,10 @@ int main(int argc, char *argv[])
 			break;
 		}
 		case 'n':
+		{
 			new_file = 1; 
 			break;
+		}
 		case 'f':
 		{
 			init(&file_path,optarg);
@@ -242,12 +250,26 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!check_input_and_values(file_path, data_to_add, key,
-			argv, del, list_def, new_file, update, del_file,	
-			build, create, options, index_add, file_field,
-			import_from_data,
-			journal_display,
-			nr_of_record_display,del_field,modify_schema)) {
+	if (!check_input_and_values(file_path, 
+				data_to_add,
+				key,
+				argv, 
+				del, 
+				list_def, 
+				new_file,
+				update, 
+				del_file,	
+				build, 
+				create, 
+				options, 
+				index_add,
+				file_field,
+				import_from_data,
+				journal_display,
+				nr_of_record_display,
+				del_field,
+				modify_schema,
+				swap_index)) {
 		return -1;
 	}
 
@@ -259,9 +281,6 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	if(nr_of_record_display){
-
-	}
 	if (create){
 		if(txt_f.str){
 			if (!create_system_from_txt_file(txt_f.str)) {

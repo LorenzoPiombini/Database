@@ -1,5 +1,5 @@
 #ifndef INPUT_H
-#define INPUT_H
+#define INPUT_H 1
 
 #include "record.h"
 #include "string_utilities.h"
@@ -28,7 +28,8 @@ int check_input_and_values( struct String file_path,
 							unsigned char journal_display,
 							unsigned char nr_of_record_display,
 							unsigned char del_field,
-							unsigned char modify_schema);
+							unsigned char modify_schema,
+							unsigned char swap_index);
 
 void print_types(void);
 int convert_options(char *options);

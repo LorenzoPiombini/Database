@@ -758,3 +758,69 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 
 	return 1;
 }
+
+int swap_indexes(int src,int dest, HashTable *ht)
+{
+	if(0 == len(ht[src]) && 0 == len(ht[dest])) 
+		return -1;
+	
+
+	if(0 == len(ht[dest])){
+		/*in this case the dest hash tasble is empty*/
+		/*copy src hash table into dest*/
+		ht[dest].size = ht[src].size;
+		ht[dest].write = write_ht;
+		int i;
+		for(i = 0; i < ht[src].size; i ++){
+			Node *c = ht[src].data_map[i];
+			Node *n = ht[dest].data_map[i];
+			while(c){
+				n = malloc(sizeof *n);
+				if(!n){
+					fprintf(stderr,"malloc failed, %s:%d.\n",__FILE__,__LINE__- 2);
+					return -1;
+				}
+
+				switch(c->key.type){
+				case STR:
+				{
+					n->key.type = c->key.type;
+					n->key.size = c->key.size;
+					n->key.k.s = duplicate_str(c->key.k.s);
+					if(!n->key.k.s){
+						fprintf(stderr, "duplicate_str failed, %s:%d",F,L-2);
+						return -1;
+					}
+					break;
+				}
+				case UINT:
+				{
+					n->key.type = c->key.type;
+					n->key.size = c->key.size;
+					if(c->key.size == 16)
+						n->key.k.n16 = c->key.k.n16;
+					else
+						n->key.k.n = c->key.k.n;
+					break;
+				}
+				default:
+					fprintf(stderr, "key type not supported.\n");
+					return -1;
+				}
+
+				n = n->next;
+				c = c->next;
+			}
+		}
+		free_nodes(ht[src].data_map,ht[src].size);
+		ht[src].size = 0;
+		return 0;
+	}
+
+	if(0 < len(ht[dest]) && src){
+		/**/
+
+	}
+	return 0;
+}
+
