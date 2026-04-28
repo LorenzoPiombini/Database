@@ -864,7 +864,14 @@ int main(int argc, char *argv[])
 				close_file(1,fd_schema);
 				return STATUS_ERROR;
 			}
-		} else {
+		} else if (swap_index){
+			if(open_files(cpy_fp,fds,files,ONLY_INDEX) == -1) {
+				return STATUS_ERROR;
+			}
+
+			fd_index = fds[0];
+			while((is_locked(1,fd_index)) == LOCKED);
+		}else {
 			if(open_files(cpy_fp,fds,files,0) == -1) {
 				return STATUS_ERROR;
 			}
@@ -879,6 +886,53 @@ int main(int argc, char *argv[])
 				close_file(3,fd_schema,fd_data,fd_index);
 				return STATUS_ERROR;
 			}
+		}
+
+		if(swap_index){
+			/* acquire lock */
+			int r = 0;
+			while(is_locked(1, fd_index) == LOCKED);
+			while((r = lock(fd_index,WLOCK)) == WTLK);
+			if(r == -1){
+				fprintf(stderr,"can't acquire or release proper lock.\n");
+				while((r = lock(fd_schema,UNLOCK)) == WTLK);
+				close_file(1,fd_index);
+				return STATUS_ERROR;
+			}
+
+			HashTable *ht = NULL;
+			int index = 0;
+			int *p_index = &index;
+			if(!read_all_index_file(fd_index, &ht, p_index)) {
+				fprintf(stderr,"(%s): cannot read index file, %s:%d\n",prog,__FILE__,__LINE__-1);
+				free_ht_array(ht,index);
+				while((r = lock(fd_index,UNLOCK)) == WTLK);
+				close_file(1,fd_index);
+				return -1;
+			}
+
+			if(swap_indexes(bucket_ht,indexes,ht) == -1){
+				fprintf(stderr,"(%s): cannot swap indexes, %s:%d.\n",prog,__FILE__,__LINE__-1);
+				free_ht_array(ht,index);
+				while((r = lock(fd_index,UNLOCK)) == WTLK);
+				close_file(1,fd_index);
+				return -1;
+			}
+
+			
+			if(write_index(fds,index,ht,files[0]) == -1){
+				fprintf(stderr,"(%s): cannot swap indexes, %s:%d.\n",prog,__FILE__,__LINE__-1);
+				free_ht_array(ht,index);
+				while((r = lock(fd_index,UNLOCK)) == WTLK);
+				close_file(1,fd_index);
+				return -1;
+			}
+
+			free(ht);
+			while((r = lock(fd_index,UNLOCK)) == WTLK);
+			close_file(1,fd_index);
+			fprintf(stdout,"(%s): index %d swapped with %d.\n",prog,bucket_ht,indexes);
+			return 0;
 		}
 
 		if (del_field){
@@ -916,7 +970,6 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			fprintf(stderr,"field(s) dropped ->(%s)\n",cpy_dta);
 			free_schema(hd.sch_d);
 			while((r = lock(fd_schema,UNLOCK)) == WTLK);
 			close_file(1,fd_schema);

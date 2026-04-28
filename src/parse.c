@@ -1308,94 +1308,86 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 	}
 
 	assert((fields_num - count) > 0);
-	if (count) {
-		int number_new_field = fields_num - count;
-		char **new_fields = (char**) realloc(sch->fields_name, (sch->fields_num + number_new_field)*sizeof(char*));
-		if(!new_fields){
-			fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
-			array_free(constraints);
-			array_free(def_values);
-			return 0;
-		}
-
-		sch->fields_name = new_fields;
-		memset(&sch->fields_name[sch->fields_num],0,number_new_field);
-
-		int *types = (int*) realloc(sch->types,
-				(sch->fields_num + number_new_field) * fields_num*sizeof(int));
-		if(!types){
-			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
-			array_free(constraints);
-			array_free(def_values);
-			return 0;
-		}
-		sch->types = types;
-		memset(&sch->types[sch->fields_num],-1,number_new_field);
-
-		ui8 *nd = (ui8*) realloc(sch->is_dropped,(sch->fields_num + number_new_field));
-		if(!nd){
-			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
-			array_free(constraints);
-			array_free(def_values);
-			return 0;
-		}
-
-		sch->is_dropped = nd;
-		memset(&sch->is_dropped[sch->fields_num],0,number_new_field);
-		ui8* nc = realloc(sch->constraints,sch->fields_num + number_new_field);
-		if(!nc){
-			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
-			array_free(constraints);
-			array_free(def_values);
-			return 0;
-		}
-		sch->constraints  = nc;
-		memset(&sch->constraints[sch->fields_num],0,number_new_field);
-		
-		void** ndf = realloc(sch->defaults,(sch->fields_num+number_new_field) * sizeof(void*));
-		if(!ndf){
-			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
-			array_free(constraints);
-			array_free(def_values);
-			return 0;
-		}
-		sch->defaults = ndf;
-		memset(&sch->defaults[sch->fields_num],0,count * sizeof(void*));
-
-		/* check which fields are already in the schema if any */
-		int i, j;
-		for (i = 0, j = 0; i < fields_num; i++) {
-			if(names[i][0] == '\0')
-				continue;
-
-			sch->fields_name[sch->fields_num] = (char*) malloc(strlen(names[i])+1);
-			if(!sch->fields_name[sch->fields_num]){
-				fprintf(stderr," malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
-				array_free(constraints);
-				array_free(def_values);
-				return 0;
-			}
-
-			memset(sch->fields_name[sch->fields_num],0,strlen(names[i])+1);
-			strncpy(sch->fields_name[sch->fields_num],names[i],strlen(names[i]));
-			sch->types[sch->fields_num] = types_i[i];
-			sch->is_dropped[sch->fields_num] = 0;
-			if(constraints){
-				sch->constraints[sch->fields_num] = constraints[j];
-				if(constraints[j] & CONST_DEFAULT){
-					/* TODO: assaign def*/
-				}
-				j++;
-			}
-			sch->fields_num++;
-		}
-
+	int number_new_field = fields_num - count;
+	char **new_fields = (char**) realloc(sch->fields_name, (sch->fields_num + number_new_field)*sizeof(char*));
+	if(!new_fields){
+		fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 		array_free(constraints);
 		array_free(def_values);
-		return 1;
+		return 0;
 	}
 
-	/*unreachable*/
+	sch->fields_name = new_fields;
+	memset(&sch->fields_name[sch->fields_num],0,number_new_field);
+
+	int *types = (int*) realloc(sch->types,
+			(sch->fields_num + number_new_field) * sizeof(int));
+	if(!types){
+		fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+		array_free(constraints);
+		array_free(def_values);
+		return 0;
+	}
+	sch->types = types;
+	memset(&sch->types[sch->fields_num],-1,number_new_field);
+
+	ui8 *nd = (ui8*) realloc(sch->is_dropped,(sch->fields_num + number_new_field));
+	if(!nd){
+		fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+		array_free(constraints);
+		array_free(def_values);
+		return 0;
+	}
+
+	sch->is_dropped = nd;
+	memset(&sch->is_dropped[sch->fields_num],0,number_new_field);
+	ui8* nc = realloc(sch->constraints,sch->fields_num + number_new_field);
+	if(!nc){
+		fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+		array_free(constraints);
+		array_free(def_values);
+		return 0;
+	}
+	sch->constraints  = nc;
+	memset(&sch->constraints[sch->fields_num],0,number_new_field);
+
+	void** ndf = realloc(sch->defaults,(sch->fields_num+number_new_field) * sizeof(void*));
+	if(!ndf){
+		fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+		array_free(constraints);
+		array_free(def_values);
+		return 0;
+	}
+	sch->defaults = ndf;
+	memset(&sch->defaults[sch->fields_num],0,number_new_field * sizeof(void*));
+
+	/* check which fields are already in the schema if any */
+	for (i = 0, j = 0; i < fields_num; i++) {
+		if(names[i][0] == '\0')
+			continue;
+
+		sch->fields_name[sch->fields_num] = (char*) malloc(strlen(names[i])+1);
+		if(!sch->fields_name[sch->fields_num]){
+			fprintf(stderr," malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			array_free(constraints);
+			array_free(def_values);
+			return 0;
+		}
+
+		memset(sch->fields_name[sch->fields_num],0,strlen(names[i])+1);
+		strncpy(sch->fields_name[sch->fields_num],names[i],strlen(names[i]));
+		sch->types[sch->fields_num] = types_i[i];
+		sch->is_dropped[sch->fields_num] = 0;
+		if(constraints){
+			sch->constraints[sch->fields_num] = constraints[j];
+			if(constraints[j] & CONST_DEFAULT){
+				/* TODO: assaign def*/
+			}
+			j++;
+		}
+		sch->fields_num++;
+	}
+
 	array_free(constraints);
 	array_free(def_values);
 	return 1;
@@ -1413,71 +1405,71 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 	char **cnts_value = NULL;
 	int *cnstr = NULL;
 	switch(mode){
-	case NO_TYPE_DF:
-	{
-		if(get_constrains(buffer,0,&cnstr,&cnts_value) == -1){
+		case NO_TYPE_DF:
+			{
+				if(get_constrains(buffer,0,&cnstr,&cnts_value) == -1){
+					array_free(cnstr);
+					array_free(cnts_value);
+					return 0;
+				}
+
+				if((fields_num = get_fields_name_with_no_type(buffer,names)) == -1) return 0;
+				if(!is_input_correct(names,fields_num)){
+					array_free(cnstr);
+					array_free(cnts_value);
+					return 0;
+				}
+
+				break;
+			}
+		case TYPE_DF:
+			{
+
+				if(fields_num == 0)
+					fields_num = count_fields(buffer,NULL);
+
+				if(get_constrains(buffer,fields_num,&cnstr,&cnts_value) == -1){
+					array_free(cnstr);
+					array_free(cnts_value);
+					return 0;
+				}
+
+				get_fileds_name(buffer, fields_num, 2,names);
+				if(get_value_types(buffer, fields_num, 2,types_i) == -1) {
+					array_free(cnstr);
+					array_free(cnts_value);
+					return 0;
+				}
+
+				if(!is_input_correct(names,fields_num)){
+					array_free(cnstr);
+					array_free(cnts_value);
+					return 0;
+				}
+
+				break;
+			}
+		case HYB_DF:
+			{
+				if(get_constrains(buffer,0,&cnstr,&cnts_value) == -1){
+					array_free(cnstr);
+					array_free(cnts_value);
+					return 0;
+				}
+
+
+				if((fields_num = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) return 0;
+				if(!is_input_correct(names,fields_num)){
+					array_free(cnstr);
+					array_free(cnts_value);
+					return 0;
+				}
+				break;
+			}
+		default:
 			array_free(cnstr);
 			array_free(cnts_value);
 			return 0;
-		}
-
-		if((fields_num = get_fields_name_with_no_type(buffer,names)) == -1) return 0;
-		if(!is_input_correct(names,fields_num)){
-			array_free(cnstr);
-			array_free(cnts_value);
-			return 0;
-		}
-
-		break;
-	}
-	case TYPE_DF:
-	{
-
-		if(fields_num == 0)
-			fields_num = count_fields(buffer,NULL);
-
-		if(get_constrains(buffer,fields_num,&cnstr,&cnts_value) == -1){
-			array_free(cnstr);
-			array_free(cnts_value);
-			return 0;
-		}
-
-		get_fileds_name(buffer, fields_num, 2,names);
-		if(get_value_types(buffer, fields_num, 2,types_i) == -1) {
-			array_free(cnstr);
-			array_free(cnts_value);
-			return 0;
-		}
-
-		if(!is_input_correct(names,fields_num)){
-			array_free(cnstr);
-			array_free(cnts_value);
-			return 0;
-		}
-
-		break;
-	}
-	case HYB_DF:
-	{
-		if(get_constrains(buffer,0,&cnstr,&cnts_value) == -1){
-			array_free(cnstr);
-			array_free(cnts_value);
-			return 0;
-		}
-
-
-		if((fields_num = get_name_types_hybrid(mode,buffer,names,types_i)) == -1) return 0;
-		if(!is_input_correct(names,fields_num)){
-			array_free(cnstr);
-			array_free(cnts_value);
-			return 0;
-		}
-		break;
-	}
-	default:
-	array_free(cnstr);
-	array_free(cnts_value);
-	return 0;
 	}
 
 
@@ -1497,24 +1489,24 @@ int create_file_definition_with_no_value(int mode, int fields_num, char *buffer,
 		array_free(cnts_value);
 		return 0;
 	}
-	
+
 	array_free(cnts_value);
 	array_free(cnstr);
 	return 1; /*schema creation succssed*/
 }
 
 static int schema_check_type(int count,int mode,struct Schema *sch,
-			char names[][MAX_FILED_LT],
-			int *types_i,
-			char ***values,
-			int option)
+		char names[][MAX_FILED_LT],
+		int *types_i,
+		char ***values,
+		int option)
 {
 	int name_check = 0;
 	char *decimal = ".00";
 	switch(mode){
-	case SCHEMA_EQ:
-	{
-		int i;
+		case SCHEMA_EQ:
+			{
+				int i;
 		for(i = 0; i < sch->fields_num; i++){
 			if(strlen(sch->fields_name[i]) != strlen(names[i])) continue;
 			if(strncmp(sch->fields_name[i],names[i],strlen(sch->fields_name[i])) == 0) name_check++;
