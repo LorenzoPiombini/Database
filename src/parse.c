@@ -1273,48 +1273,38 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		return 0;
 	}
 
-	int x = 0;
-	int found = 0;
-	unsigned char new_fields = 0;
-
-	int pos[fields_num]; /* to store the field position that are already in the schema*/
-	memset(pos,-1,fields_num);
-	
 	ui16 i;
-	int j;
+	int j,count = 0;
 	for (i = 0; i < sch->fields_num; i++) {
 		for (j = 0; j < fields_num; j++) {
-			if(pos[j] == j) continue;
-			if (strncmp(sch->fields_name[i], names[j],strlen(names[j])) == 0) {
-				found++;
-				pos[x] = i; /* save the position of the field that is already in the schema*/
-				x++;
-			} else {
-				new_fields = 1;
-			} 
+			if(names[j][0] == '\0')
+				continue;
 
-			if (found == fields_num) {
-				int k;
-				for(k = 0; k < fields_num; k++){
-					if(sch->is_dropped[pos[k]]){
-						/*this reactivate the field*/
-						sch->is_dropped[pos[k]] = 0;
-						printf("fields already exist.\n");
-						array_free(constraints);
-						array_free(def_values);
-						return 1;
-					}
-				}
-				printf("fields already exist.\n");
-				array_free(def_values);
-				array_free(constraints);
-				return 0;
-			}
+			int name_size = (int)strlen(names[j]);
+			if((int)strlen(sch->fields_name[i]) != name_size)
+					continue;
+
+			if (strncmp(sch->fields_name[i], names[j],name_size) == 0) {
+				if(sch->is_dropped[i])
+					sch->is_dropped[i] = 0;
+				names[j][0] = '\0';
+				count++;
+				continue;
+			} 
 		}
 	}
 
-	if (new_fields) {
-		char **new_fields = (char**) realloc(sch->fields_name, (sch->fields_num + fields_num)*sizeof(char*));
+	if (count == fields_num) {
+		printf("fields already exist.\n");
+		array_free(def_values);
+		array_free(constraints);
+		return 0;
+	}
+
+	assert((fields_num - count) > 0);
+	if (count) {
+		int number_new_field = fields_num - count;
+		char **new_fields = (char**) realloc(sch->fields_name, (sch->fields_num + number_new_field)*sizeof(char*));
 		if(!new_fields){
 			fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
 			array_free(constraints);
@@ -1323,10 +1313,10 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		}
 
 		sch->fields_name = new_fields;
-		memset(&sch->fields_name[sch->fields_num],0,fields_num);
+		memset(&sch->fields_name[sch->fields_num],0,number_new_field);
 
 		int *types = (int*) realloc(sch->types,
-				(sch->fields_num + fields_num) * fields_num*sizeof(int));
+				(sch->fields_num + number_new_field) * fields_num*sizeof(int));
 		if(!types){
 			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			array_free(constraints);
@@ -1334,9 +1324,9 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 			return 0;
 		}
 		sch->types = types;
-		memset(&sch->types[sch->fields_num],-1,fields_num);
+		memset(&sch->types[sch->fields_num],-1,number_new_field);
 
-		ui8 *nd = (ui8*) realloc(sch->is_dropped,(sch->fields_num + fields_num));
+		ui8 *nd = (ui8*) realloc(sch->is_dropped,(sch->fields_num + number_new_field));
 		if(!nd){
 			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			array_free(constraints);
@@ -1345,9 +1335,8 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		}
 
 		sch->is_dropped = nd;
-		memset(&sch->is_dropped[sch->fields_num],0,fields_num);
-
-		ui8* nc = realloc(sch->constraints,sch->fields_num+fields_num);
+		memset(&sch->is_dropped[sch->fields_num],0,number_new_field);
+		ui8* nc = realloc(sch->constraints,sch->fields_num + number_new_field);
 		if(!nc){
 			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			array_free(constraints);
@@ -1355,10 +1344,9 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 			return 0;
 		}
 		sch->constraints  = nc;
-		memset(&sch->constraints[sch->fields_num],0,fields_num);
-
+		memset(&sch->constraints[sch->fields_num],0,number_new_field);
 		
-		void** ndf = realloc(sch->defaults,(sch->fields_num+fields_num) * sizeof(void*));
+		void** ndf = realloc(sch->defaults,(sch->fields_num+number_new_field) * sizeof(void*));
 		if(!ndf){
 			fprintf(stderr,"realloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			array_free(constraints);
@@ -1366,13 +1354,13 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 			return 0;
 		}
 		sch->defaults = ndf;
-		memset(&sch->defaults[sch->fields_num],0,fields_num * sizeof(void*));
+		memset(&sch->defaults[sch->fields_num],0,count * sizeof(void*));
 
 		/* check which fields are already in the schema if any */
 		int i, j;
 		for (i = 0, j = 0; i < fields_num; i++) {
-			if(pos[i] == i) 
-				continue; 
+			if(names[i][0] == '\0')
+				continue;
 
 			sch->fields_name[sch->fields_num] = (char*) malloc(strlen(names[i])+1);
 			if(!sch->fields_name[sch->fields_num]){
@@ -1400,6 +1388,8 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 		array_free(def_values);
 		return 1;
 	}
+
+	/*unreachable*/
 	array_free(constraints);
 	array_free(def_values);
 	return 1;
