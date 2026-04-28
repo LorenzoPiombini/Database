@@ -146,6 +146,20 @@ obj/%_prod.o : src/%.c
 
 
 
+$(BINDIR)/SWAP_INDEXES:
+	@if [ !  -f $@ ]; then \
+		echo "Creating $@ . . ."; \
+		echo "#!/bin/bash" > $@; \
+		echo "#Check if both arguments are provided" >> $@; \
+		echo "if [ -z \"\$$1\" ] || [ -z \"\$$2\" ] || [ -z \"\$$3\" ]; then" >> $@; \
+		echo "echo \"Usage: SWAP_INDEXES [file name] [source index] [dest index]\"" >> $@; \
+		echo "exit 1" >> $@; \
+		echo "fi" >> $@; \
+		echo "" >> $@; \
+		echo "$(TARGET) -Sf \"\$$1\" -s \"\$$2\" -i \"\$$3\"">> $@; \
+		chmod +x $@; \
+	fi
+
 $(BINDIR)/SHOW:
 	@if [ !  -f $@ ]; then \
 		echo "Creating $@ . . ."; \
@@ -295,9 +309,9 @@ $(BINDIR)/CHANGE_NAMES:
 		chmod +x $@; \
 	fi
 
-install: $(TARGET) $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa $(BINDIR)/CHANGE_NAMES check-linker-path
+install: $(TARGET) $(BINDIR)/SWAP_INDEXES $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa $(BINDIR)/CHANGE_NAMES check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/date.h lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h $(INCLUDEDIR)/
+	install -m 644 include/date.h lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h include/string_utilities.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
