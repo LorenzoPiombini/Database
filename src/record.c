@@ -3860,20 +3860,37 @@ int drop_field(struct Schema *s, char *fields)
 	if(!s)
 		return -1;
 
+	int pos[s->fields_num];
+	memset(pos,-1,sizeof(int) * s->fields_num);
+
 	char *field = tok(fields,":");
 	do{
 		size_t field_sz = strlen(field);
-		int i; 
+		int i;
 		for(i = 0; i < s->fields_num; i++){
 			if(field_sz != strlen(s->fields_name[i]))
 				continue;
 
 			if(strncmp(s->fields_name[i],field,field_sz) == 0){
-				s->is_dropped[i] = 1;
-				return 0;
+				if(!s->is_dropped[i]){
+					s->is_dropped[i] = 1;
+					pos[i] = 1;
+				}
 			}
 		}
 	}while((field = tok(NULL,":")));
+
+	int i, dr = 0;
+	for(;i < s->fields_num; i++){
+		if(pos[i] != -1){
+			fprintf(stdout,"field '%s' dropped.\n",s->fields_name[i]);
+			dr++;
+		}
+	}
+
+	if(dr)
+		return 0;
+	
 	return -1;
 }
 int change_fields_name(char *buffer,struct Schema *sch)

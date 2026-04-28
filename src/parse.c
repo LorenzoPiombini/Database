@@ -1285,8 +1285,14 @@ unsigned char add_fields_to_schema(int mode, int fields_num, char *buffer, struc
 					continue;
 
 			if (strncmp(sch->fields_name[i], names[j],name_size) == 0) {
-				if(sch->is_dropped[i])
+				if(sch->is_dropped[i]){
 					sch->is_dropped[i] = 0;
+					if(fields_num == 1){
+						array_free(def_values);
+						array_free(constraints);
+						return 1;
+					}
+				}
 				names[j][0] = '\0';
 				count++;
 				continue;
