@@ -100,8 +100,8 @@ static int append(struct String *str, char *str_to_appen)
 
 static i8 empty(struct String *str)
 {
-	if(str->base[0] == '\0') return 1; 
 	if(str->str) return *str->str == '\0';
+	if(str->base[0] == '\0') return 1; 
 	return 0;
 }
 
