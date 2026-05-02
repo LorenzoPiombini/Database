@@ -132,7 +132,7 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 
 	/* 2 is for '[' and ']' */
 	if(mode == MAKE_KEY_JS_STRING){
-									/*times 2 each key is for "" */
+		/*times 2 each key is for "" */
 		str_size += (2 + all_keys.length + (2*all_keys.length));
 	}else{
 		str_size += (2 + all_keys.length);
