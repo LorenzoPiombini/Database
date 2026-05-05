@@ -4,11 +4,12 @@ db = require("db")
 ORDER_BASE = 100
 
 --- database files
-name_file = "db/name_file"
-customers = "db/customers"
+-- name_file = "db/name_file" /* i do not need it for now */
+customers = "/root/db/customer"
+price_level = "/root/db/price_level"
 sales_orders = {}
-sales_orders["head"] = "db/sales_orders_head"
-sales_orders["lines"] = "db/sales_orders_lines"
+sales_orders["head"] = "/root/db/sales_orders_head"
+sales_orders["lines"] = "/root/db/sales_orders_lines"
 
 --- database crud functions
 write_record = db.write_record
@@ -42,10 +43,8 @@ function write_to_name_file(data)
 end
 
 function write_customers(data)
-	local key = get_numeric_key(name_file, 0)
-	local data_with_c_number = string.format("%s:c_number:%d", data, key)
 
-	local cli_rec = create_rec(customers, data_with_c_number)
+	local cli_rec = create_rec(customers, data)
 	if cli_rec == nil then
 		return nil
 	end
@@ -56,23 +55,19 @@ function write_customers(data)
 	-- we are saving the same record with a different key, to get better
 	-- searching performance,data integrety  and user experience
 	-- if this one fails, it means that we have this customer in the DB already
-	local res = indexing(customers, f.c_name, 1, cli_rec.offset)
-	if res ~= 1 then
+	-- USING INDEX 2 BECAUSE INDEX 1 and 0 ARE USED INTERNALY FROM THE DB system
+	-- @@ we are creating a reference to the customer record, based on the customer name @@
+	local res = indexing(customers, f.name, 2, cli_rec.offset)
+	if res ~= 2 then
 		return -1
 	end
 
-	local k, rec = w_rec("db/customers", data_with_c_number)
-	local name_file_data = string_data_to_add_template(name_file)
-	if rec == nil or k == nil then
+	local k, rec = w_rec(customers, data)
+	if k >= 0 then
+		return 0,k
+	else
 		return -1
 	end
-
-	local res = write_to_name_file(string.format(name_file_data, f.c_name, f.c_code, key))
-	if key == res then
-		return 0, key
-	end
-
-	return nil
 end
 
 function update_orders(orders_head, orders_lines, key)
@@ -188,25 +183,49 @@ local function rec_to_json(rec)
 end
 
 function get_customer(key)
-	local cust
+	local cust,pr_l
 	if type(key) == 'string' then
 		local sanitized_key = string.gsub(key,"%%%d+"," ") -- decode URL encoding
-		cust = g_rec(customers,sanitized_key,1); -- 1 is the index number in the file	
+		cust = g_rec(customers,sanitized_key,2); -- 2 is the index number in the file	
 	else
 		cust = g_rec(customers,key)
 	end
 
 	if cust == nil  then return nil end
-	
-	if cust.fields.on_credit_old ~= nil then
-		if cust.fields.on_credit_old == 1 then
-			return '{ message: "Customer on a credit hold , see a manager."}'
-		end
-	end
 
+	if cust["price_level_id"] ~= nil then
+		-- TODO: get price_level data
+		pr_l = g_rec(price_level,cust.price_level_id,1) -- 1 is the file index
+		if pr_l == nil then return nil end
+	end
+	
 	return rec_to_json(cust)
 end
 
+function get_customer_for_new_sales_order()
+	local cust,pr_l
+	if type(key) == 'string' then
+		local sanitized_key = string.gsub(key,"%%%d+"," ") -- decode URL encoding
+		cust = g_rec(customers,sanitized_key,2); -- 2 is the index number in the file	
+	else
+		cust = g_rec(customers,key)
+	end
+
+	if cust == nil  then return nil end
+
+	if cust["price_level_id"] ~= nil then
+		-- get price_level data
+		pr_l = g_rec(price_level,cust.price_level_id,1) -- 1 is the file index
+		if pr_l == nil then return nil end
+		-- create a json string that will be used to populate the new_sales_order
+		local json_price_level = string.gsub(rec_to_json(pr_l), "{", ",")
+		local json_cust =  string.gsub(rec_to_json(cust),"}","")
+		return string.format("%s%s",json_cust,json_price_level)
+	end
+	
+
+	return rec_to_json(cust)
+end
 function get_order(data)
 	local ord = g_rec(sales_orders.head, data)
 	if ord == nil then
