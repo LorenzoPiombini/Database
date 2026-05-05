@@ -1,40 +1,37 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 /*my libs*/
 #include <crud.h>
 #include <key.h>
 #include <str_op.h>
 #include <types.h>
-#include <memory.h>
 #include <file.h>
-#include <freestand.h>
 #include "end_points.h"
 #include "handlesig.h"
-#include "load.h"
+#include "load_db.h"
 #include "common.h"
 #include "lua_start.h"
+#include "string_utilities.h"
 
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
+#define EIGTH_Kib 1024*8
 int work_process(int sock)
 {
 	char err[1024];
 	char succ[1024];
 	int data_sock = -1;
-	char buffer[EIGTH_Kib];
+	char buffer[EIGTH_Kib] = {0};
 	char *d_buff = NULL;
-
-	if(init_prog_memory() == -1){
-		kill(getppid(),SIGINT);
-		sys_exit(1);
-	}
 
 	init_lua(); /*start the Lua interpreter*/
 
-	set_memory(buffer,0,EIGTH_Kib);
 	for(;;){
 		/*accept connection*/
 		check_config_file();
@@ -42,18 +39,23 @@ int work_process(int sock)
 			break;
 		}
 
-		set_memory(buffer,0,EIGTH_Kib);
-		if(read(data_sock,buffer,sizeof(buffer)) == -1){
+		memset(buffer,0,EIGTH_Kib);
+		int r = 0;
+		if((r=read(data_sock,buffer,sizeof(buffer))) == -1){
 			break;
 		}
 
-		buffer[sizeof(buffer) - 1] = '\0';
 
-		int operation_to_perform = (int)buffer[0] - '0';	
+		if(r == 0)
+			continue;
+
+		buffer[sizeof(buffer) - 1] = '\0';
+		int operation_to_perform = (int)(*((ui16*)buffer));	
+
 		switch(operation_to_perform){
 		case NEW_CUST:
 		{
-			char *cust_data = &buffer[1];
+			char *cust_data = &buffer[2];
 
 			long long res = -1, key = -1;
 			if(execute_lua_function("write_customers","s>ii",cust_data,&res,&key) == -1 || res == 2 ){
@@ -62,7 +64,7 @@ int work_process(int sock)
 			}
 			clear_lua_stack();
 
-			set_memory(succ,0,1024);
+			memset(succ,0,1024);
 			if(copy_to_string(succ,
 								1024,
 								"{\"message\":\"customer nr %d, created!\"}",
@@ -72,15 +74,13 @@ int work_process(int sock)
 
 			close(data_sock);
 			data_sock = -1;
-			clear_memory();
 			continue;
 
 new_cust_error:
-			set_memory(err,0,1024);
+			memset(err,0,1024);
 			write(data_sock,err,sizeof(err));
 			close(data_sock);
 			data_sock = -1;
-			clear_memory();
 			continue;
 		}
 		case NEW_SORD:
@@ -95,67 +95,63 @@ new_cust_error:
 			char *t = NULL;
 
 			char key_up[1024];
-			set_memory(key_up,0,1024);
+			memset(key_up,0,1024);
 			if(operation_to_perform == UPDATE_SORD){
 				/*get the key of the record that we have to update*/
-				t = tok(&buffer[1],"^");
+				t = tok(&buffer[2],"^");
 				if(t){
-					len = string_length(t);	
+					len = strlen(t);	
 				}else{
-					set_memory(err,0,1024);
+					memset(err,0,1024);
 					write(data_sock,err,sizeof(err));
 					close(data_sock);
 					data_sock = -1;
-					clear_memory();
 					continue;
 				}
 
 				if(len >= 1024){/*if the length is >= than 1024 we need a code refactor*/
 					fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__- 10);
-					set_memory(err,0,1024);
+					memset(err,0,1024);
 					write(data_sock,err,sizeof(err));
 					close(data_sock);
 					data_sock = -1;
-					clear_memory();
 					continue;
 				}
-				string_copy(key_up,t,len);
+				strncpy(key_up,t,len);
 			}
 
-			t = tok(&buffer[1],"^");
+			t = tok(&buffer[2],"^");
 			if(t){
-				len = string_length(t);	
+				len = strlen(t);	
 			}else{
-				set_memory(err,0,1024);
+				memset(err,0,1024);
 				write(data_sock,err,sizeof(err));
 				close(data_sock);
 				data_sock = -1;
-				clear_memory();
 				continue;
 			}
 
 			char orders_head[len+1];
-			set_memory(orders_head,0,len+1);
-			string_copy(orders_head,t,len);
+			memset(orders_head,0,len+1);
+			strncpy(orders_head,t,len);
 
-			display_to_stdout("%s\n",orders_head);
+			fprintf(stdout,"%s\n",orders_head);
 			t = tok(NULL,"^");
 			if(t){
-				len = string_length(t);	
+				len = strlen(t);	
 			}else{
-				set_memory(err,0,1024);
+				memset(err,0,1024);
 				write(data_sock,err,sizeof(err));
 				close(data_sock);
 				data_sock = -1;
-				clear_memory();
 				continue;
 			}
 
 			char orders_line[len+1];
-			set_memory(orders_line,0,len+1);
-			string_copy(orders_line,t,len);
+			memset(orders_line,0,len+1);
+			strncpy(orders_line,t,len);
 
-			display_to_stdout("%s\n",orders_line);
+			fprintf(stdout,"%s\n",orders_line);
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
@@ -200,10 +196,9 @@ new_cust_error:
 			clear_lua_stack();
 
 			if(operation_to_perform == NEW_SORD){
-				set_memory(succ,0,1024);
+				memset(succ,0,1024);
 				if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, created!\"}",key_ord) == -1){
 					/*log error*/
-					clear_memory();
 					close(data_sock);
 					data_sock = -1;
 					continue;
@@ -212,7 +207,7 @@ new_cust_error:
 				if(write(data_sock,succ,sizeof(succ)) == -1) goto new_up_ords_err;
 
 			}else if(operation_to_perform == UPDATE_SORD){
-				set_memory(succ,0,1024);
+				memset(succ,0,1024);
 				if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %s, updated!\"}",key_up) == -1){
 					/*log error*/
 					goto new_up_ords_err;
@@ -221,14 +216,12 @@ new_cust_error:
 			}
 
 
-			clear_memory();
 			close(data_sock);
 			data_sock = -1;
 			continue;
 
 new_up_ords_err:
-			clear_memory();
-			set_memory(err,0,1024);
+			memset(err,0,1024);
 			write(data_sock,err,sizeof(err));
 			close(data_sock);
 			data_sock = -1;
@@ -239,7 +232,7 @@ new_up_ords_err:
 		{
 			/*get the all keys for the sales order file or the CUSTOMER*/
 			int fds[3];
-			set_memory(fds,-1,sizeof(int)*3);
+			memset(fds,-1,sizeof(int)*3);
 			char files[3][256] = {0};
 
 			if(operation_to_perform == S_ORD){
@@ -252,7 +245,7 @@ new_up_ords_err:
 			if(operation_to_perform == S_ORD)
 				keys = get_all_keys_for_file(fds,0,0);
 			else if (operation_to_perform == CUSTOMER_GET_ALL)
-				keys = get_all_keys_for_file(fds,1,MAKE_KEY_JS_STRING);
+				keys = get_all_keys_for_file(fds,2,MAKE_KEY_JS_STRING);
 
 			if(!keys){
 				/*log errors*/	
@@ -262,68 +255,82 @@ new_up_ords_err:
 				else if(operation_to_perform == CUSTOMER_GET_ALL)
 					erro_message = "{\"message\": \"there are no customers\"}";
 
-				set_memory(err,0,1024);
-				string_copy(err,erro_message,string_length(erro_message));
+				memset(err,0,1024);
+				strncpy(err,erro_message,strlen(erro_message));
 				write(data_sock,err,sizeof(err));
-				clear_memory();
 				close(fds[0]);
+				close(data_sock);
 				continue;
 			}
 
-			size_t l = string_length(keys);
-			size_t mes_l = string_length("{\"message\" : ") + l + string_length(" }");
+			size_t l = strlen(keys);
+			size_t mes_l = strlen("{\"message\" : ") + l + strlen(" }");
 			if((mes_l) >= 1024) {
 
-				d_buff = (char *)ask_mem(mes_l+1);
-				if(!d_buff) goto error_s_ord;
+				d_buff = (char *)malloc(mes_l+1);
+				if(!d_buff){
+					fprintf(stderr,"malloc() failed. %s:%d.\n",__FILE__,__LINE__-2);
+					goto error_s_ord;
+				}
 
-				set_memory(d_buff, 0,mes_l+1);
-				if(copy_to_string(d_buff,mes_l+1,"{ \"message\" : %s}",keys) == -1) goto error_s_ord;
+				memset(d_buff, 0,mes_l+1);
+				if(copy_to_string(d_buff,mes_l+1,"{ \"message\" : %s}",keys) == -1) {
+					free(d_buff);
+					free(keys);
+					goto error_s_ord;
+				}
 
-				if(write(data_sock,d_buff,string_length(d_buff)) == -1) goto error_s_ord;
+				free(keys);
+				keys = NULL;
+				if(write(data_sock,d_buff,strlen(d_buff)) == -1) {
+					free(d_buff);
+					goto error_s_ord;
+				}
 
-				clear_memory();
 				close(data_sock);
 				close(fds[0]);
+				free(d_buff);
 				continue;
 			}else{
 
-				set_memory(succ,0,1024);
+				memset(succ,0,1024);
 				if(copy_to_string(succ,mes_l,"{ \"message\" : %s}",keys) == -1) goto error_s_ord;
 
-				if(write(data_sock,succ,string_length(succ)) == -1) goto error_s_ord;
+				if(write(data_sock,succ,strlen(succ)) == -1) goto error_s_ord;
 
-				clear_memory();
+				free(keys);
+				keys = NULL;
 				close(data_sock);
 				close(fds[0]);
 				continue;
 			}
 error_s_ord:
+			if(keys)
+				free(keys);
+
 			close(fds[0]);
-			set_memory(err,0,1024);
+			memset(err,0,1024);
 			write(data_sock,err,sizeof(err));
-			clear_memory();
-			close(fds[0]);
 			continue;
 		}
 		case CUSTOMER_GET:
 		case S_ORD_GET:
 		{
 			ui32 k = 0;
-			ui8 type = is_num(&buffer[1]);
+			ui8 type = is_num(&buffer[2]);
 			switch(type){
 			case UINT:
 			{
 				/*convert to number */	
-				long l = string_to_long(&buffer[1]);
+				long l = string_to_long(&buffer[2]);
 				if(error_value == INVALID_VALUE){
 					/*log error*/
-					set_memory(err,0,1024);
+					memset(err,0,1024);
 					write(data_sock,err,sizeof(err));
-					clear_memory();
 					close(data_sock);
 					continue;
 				}
+
 				k = (ui32) l;
 
 				char *json = NULL;
@@ -345,40 +352,37 @@ error_s_ord:
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
-
 				}
 
 				/*copy the json string from lua to memory*/
-				size_t size_json = string_length(json);
-				char *msg = (char*) ask_mem(size_json+1);
+				size_t size_json = strlen(json);
+				char *msg = (char*) malloc(size_json+1);
 				if(!msg){
+					fprintf(stderr,"malloc() failed. %s:%d.\n",__FILE__,__LINE__-2);
 					clear_lua_stack();
 					goto s_ord_get_exit_error;
 				}
-				set_memory(msg,0,size_json+1);
-				copy_memory(msg,json,size_json);
+				memset(msg,0,size_json+1);
+				memcpy(msg,json,size_json);
 				clear_lua_stack();
 				json = NULL;
 
 				if(write(data_sock,msg,size_json) == -1 ) goto s_ord_get_exit_error;
-				/*printf("%s\nsize is %ld\nlast char is '%c'\n",message,string_length(message),message[string_length(message)-1]);*/
+				/*printf("%s\nsize is %ld\nlast char is '%c'\n",message,strlen(message),message[string_length(message)-1]);*/
 
-				clear_memory();
 				close(data_sock);
 				continue;
 s_ord_get_exit_error:
-				set_memory(err,0,1024);
+				memset(err,0,1024);
 				write(data_sock,err,2);
-				clear_memory();
 				close(data_sock);
 				continue;
-
 			}
 			case STR:
 			{
 				char *json = NULL;
 				if(operation_to_perform == S_ORD_GET){
-					if(execute_lua_function("get_order","s>s",&buffer[1],&json) == -1){
+					if(execute_lua_function("get_order","s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -387,7 +391,7 @@ s_ord_get_exit_error:
 						goto s_ord_get_exit_error;
 					}
 				}else{
-					if(execute_lua_function("get_customer","s>s",&buffer[1],&json) == -1){
+					if(execute_lua_function("get_customer","s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -399,42 +403,47 @@ s_ord_get_exit_error:
 				}
 
 				/*copy the json string from lua to memory*/
-				size_t size_json = string_length(json);
-				char *msg = (char*) ask_mem(size_json+1);
+				size_t size_json = strlen(json);
+				char *msg = (char*) malloc(size_json+1);
 				if(!msg){
+					fprintf(stderr,"malloc() failed. %s:%d.\n",__FILE__,__LINE__-2);
 					clear_lua_stack();
 					goto s_ord_get_exit_error;
 				}
-				set_memory(msg,0,size_json+1);
-				copy_memory(msg,json,size_json);
+				memset(msg,0,size_json+1);
+				memcpy(msg,json,size_json);
 				clear_lua_stack();
 				json = NULL;
 
-				if(write(data_sock,msg,size_json) == -1 ) goto s_ord_get_exit_error;
+				if(write(data_sock,msg,size_json) == -1 ) {
+					free(msg);
+					goto s_ord_get_exit_error;
+				}
 
-				clear_memory();
+				free(msg);
 				close(data_sock);
 				continue;
 			}
 			default:
-				set_memory(err,0,1024);
+				memset(err,0,1024);
 				write(data_sock,err,sizeof(err));
 				close(data_sock);
 				continue;
 			}
 		}
 		default:
-			set_memory(err,0,1024);
+			memset(err,0,1024);
 			write(data_sock,err,sizeof(err));
 			close(data_sock);
 			continue;
 		}
 
 	}
-	close_prog_memory();
 	close_lua();
-	kill(getppid(),SIGINT);
-	sys_exit(1);
+	pid_t p = getppid();
+	if(p != -1)
+		kill(p,SIGINT);
+	exit(1);
 	return 0;/*unrechable*/
 }
 
