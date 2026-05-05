@@ -114,6 +114,7 @@ err_get_record_failed:
 		lua_pushstring(L,"get_record failed.");
 		close_file(3,fds[0],fds[1],fds[2]);
 		free_schema(hd.sch_d);
+		free_record(&rec,rec.fields_num);
 		return 2;
 
 err_not_db_file:
@@ -126,12 +127,14 @@ err_rec_not_found:
 		lua_pushstring(L,"record not found.");
 		close_file(3,fds[0],fds[1],fds[2]);
 		free_schema(hd.sch_d);
+		free_record(&rec,rec.fields_num);
 		return 2;
 err_exp_data_to_lua:
 		lua_pushnil(L);
 		lua_pushstring(L,"cannot export record data.");
 		close_file(3,fds[0],fds[1],fds[2]);
 		free_schema(hd.sch_d);
+		free_record(&rec,rec.fields_num);
 		return 2;
 }
 
@@ -332,6 +335,7 @@ err_invalid_data:
 	lua_pushstring(L,"data not valid.");
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
+	free_record(&rec,rec.fields_num);
 	return 3;
 }
 
@@ -610,6 +614,7 @@ err_ask_mem:
 	lua_pushnil(L);
 	lua_pushstring(L,"malloc() failed");
 	close_file(1,fds[2]);
+	free(st);
 	free_schema(hd.sch_d);
 	return 2;
 }
@@ -738,7 +743,7 @@ static int l_save_key_at_index(lua_State *L)
 	if (!read_all_index_file(fds[0], &ht, &tbl_ix))
 		goto err_load_index;
 
-	if(set_tbl(&ht[index],key,record_offset,key_type,1) == -1) 
+	if(set_tbl(ht,key,record_offset,key_type,index) == -1) 
 		goto err_set_index;
 
 	/*this function frees the ht array*/
