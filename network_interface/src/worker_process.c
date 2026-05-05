@@ -42,6 +42,7 @@ int work_process(int sock)
 		memset(buffer,0,EIGTH_Kib);
 		int r = 0;
 		if((r=read(data_sock,buffer,sizeof(buffer))) == -1){
+			close(data_sock);
 			break;
 		}
 
@@ -313,6 +314,7 @@ error_s_ord:
 			write(data_sock,err,sizeof(err));
 			continue;
 		}
+		case S_ORD_CUSTOMER_GET:
 		case CUSTOMER_GET:
 		case S_ORD_GET:
 		{
@@ -334,7 +336,8 @@ error_s_ord:
 				k = (ui32) l;
 
 				char *json = NULL;
-				if(operation_to_perform == S_ORD_GET){
+				switch(operation_to_perform){
+				case S_ORD_GET:
 					if(execute_lua_function("get_order","I>s",k,&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
@@ -343,7 +346,8 @@ error_s_ord:
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
-				}else{
+					break;
+				case CUSTOMER_GET:
 					if(execute_lua_function("get_customer","I>s",k,&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
@@ -352,6 +356,20 @@ error_s_ord:
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
+					break;
+				case S_ORD_CUSTOMER_GET:
+					if(execute_lua_function("get_customer_for_new_sales_order","I>s",k,&json) == -1){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
+					}
+					if(!json){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
+					}
+					break;
+				default:
+					fprintf(stderr,"database endpoint not supported\n");
+					goto s_ord_get_exit_error;
 				}
 
 				/*copy the json string from lua to memory*/

@@ -6,6 +6,7 @@ enum endp{
 	NEW_SORD,
 	NEW_SORD_LINES,
 	CUSTOMER_GET,
+	S_ORD_CUSTOMER_GET, /*this is for new sales orders menu*/
 	S_ORD,
 	S_ORD_GET,
 	UPDATE_SORD,
@@ -16,6 +17,7 @@ enum endp{
 
 #define NEW_S_ORDER "/new_sales_order"
 #define CUSTOMERS "/customers"
+#define SALES_NEW_ORDER_CUSTOMERS "/sales_new_order_customers"
 #define NEW_CUSTOMER "/new_customer"
 #define SALES_ORDERS "/sales_orders"
 #define UPDATE_ORDERS "/update_orders/sales"
