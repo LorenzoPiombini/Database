@@ -1828,7 +1828,7 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 	int f; 
 	for(f = 0; f < field_count; f++){
 		char *next = NULL;
-		int	or_c = 0;
+		int	or_c = 0, exit = 0;
 		do{
 			if(!no_type){
 				next = strstr(c,T_);
@@ -1923,11 +1923,15 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 			}
 			
 			
-			if(!(c = strstr(buff,CON_)))
+			if(!(c = strstr(buff,CON_)) || (c = strstr(buff,C_))){
+				exit = 1;
 				break;
+			}
 
 		}while( (!no_type && next && c < next) || no_type);
 		array_insert_at(f,(void**)cnstr,&or_c);
+		if(exit)
+			break;
 	}
 
 	if(val)
