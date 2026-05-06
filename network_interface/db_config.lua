@@ -202,20 +202,15 @@ function get_customer(key)
 	return rec_to_json(cust)
 end
 
-function get_customer_for_new_sales_order()
+function get_customer_for_new_sales_order(key)
 	local cust,pr_l
-	if type(key) == 'string' then
-		local sanitized_key = string.gsub(key,"%%%d+"," ") -- decode URL encoding
-		cust = g_rec(customers,sanitized_key,2); -- 2 is the index number in the file	
-	else
-		cust = g_rec(customers,key)
-	end
+	cust = g_rec(customers,key,2) -- 2 is the index number in the file	
 
 	if cust == nil  then return nil end
 
-	if cust["price_level_id"] ~= nil then
+	if cust.fields["price_level_id"] ~= nil then
 		-- get price_level data
-		pr_l = g_rec(price_level,cust.price_level_id,1) -- 1 is the file index
+		pr_l = g_rec(price_level,cust.fields.price_level_id,1) -- 1 is the file index
 		if pr_l == nil then return nil end
 		-- create a json string that will be used to populate the new_sales_order
 		local json_price_level = string.gsub(rec_to_json(pr_l), "{", ",")
@@ -226,6 +221,7 @@ function get_customer_for_new_sales_order()
 
 	return rec_to_json(cust)
 end
+
 function get_order(data)
 	local ord = g_rec(sales_orders.head, data)
 	if ord == nil then
