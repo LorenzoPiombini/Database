@@ -543,7 +543,7 @@ void destroy_hasht(HashTable *tbl)
 			default:
 				fprintf(stderr, "key type not supported.\n");
 				current = NULL;
-				break;
+				return;
 			}
 		}
 	}
@@ -752,6 +752,7 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 			}
 			default:
 				fprintf(stderr, "key type not supported");
+				return 0;
 			}
 		}
 	}
@@ -813,15 +814,43 @@ int swap_indexes(int src,int dest, HashTable *ht)
 				c = c->next;
 			}
 		}
+		/*free memory for the source hast table*/
 		destroy_hasht(&ht[src]);
 		memset(&ht[src],0,sizeof(HashTable));
 		ht[src].size = 7;
 		ht[src].write = write_ht;
 		return 0;
 	}
+	
 
-	if(0 < len(ht[dest]) && src){
-		/**/
+	if(0 < len(ht[dest]) && 0 < len(ht[src])){
+		/*in this case is a real swap*/
+		HashTable dest_cpy = {0};
+		dest_cpy.size = ht[dest].size;
+		dest_cpy.write = write_ht;
+		if(!copy_ht(&ht[dest],&dest_cpy,0)){
+			fprintf(stderr,"copy_ht() faield, %s:%d\n",__FILE__,__LINE__-1);
+			destroy_hasht(&dest_cpy);
+			return -1;
+		}
+		
+		if(copy_ht(&ht[src],&ht[dest],1)){
+			fprintf(stderr,"copy_ht() faield, %s:%d\n",__FILE__,__LINE__-1);
+			destroy_hasht(&dest_cpy);
+			return -1;
+		}
+
+		if(copy_ht(&dest_cpy,&ht[src],1)){
+			fprintf(stderr,"copy_ht() faield, %s:%d\n",__FILE__,__LINE__-1);
+			destroy_hasht(&dest_cpy);
+			return -1;
+		}
+		destroy_hasht(&dest_cpy);
+		return 0;
+	}
+
+	if(0 < len(ht[dest]) && 0 == len(ht[src])){
+
 
 	}
 	return 0;
