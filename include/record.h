@@ -64,6 +64,7 @@ enum ValueType
 };
 
 struct Record_f;	
+
 struct array{
 	union {
 		int *i;
