@@ -7,6 +7,7 @@
 #define CUSTOMER_FILE "/root/db/customer"
 #define NAME_FILE "/root/db/name_file"
 #define ITEM_FILE "/root/db/item"
+#define PRICE_LEVEL_FILE "/root/db/price_level"
 
 /*****/
 

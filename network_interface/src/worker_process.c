@@ -248,7 +248,7 @@ new_up_ords_err:
 				keys = get_all_keys_for_file(fds,2,MAKE_KEY_JS_STRING);
 				break;
 			case ITEM_GET_ALL:
-				if(open_files(CUSTOMER_FILE,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
+				if(open_files(ITEM_FILE,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
 				keys = get_all_keys_for_file(fds,1,MAKE_KEY_JS_STRING);
 				break;
 			default:
@@ -259,6 +259,20 @@ new_up_ords_err:
 			if(!keys){
 				/*log errors*/	
 				char *erro_message = 0x0;
+				switch(operation_to_perform){
+				case S_ORD:
+					erro_message = "{\"message\": \"there are no orders\"}";
+					break;
+				case CUSTOMER_GET_ALL:
+					erro_message = "{\"message\": \"there are no customers\"}";
+					break;
+				case ITEM_GET_ALL:
+					erro_message = "{\"message\": \"there are no items\"}";
+					break;
+				default:
+					goto error_s_ord;
+				}
+
 				if(operation_to_perform == S_ORD)
 					erro_message = "{\"message\": \"there are no orders\"}";
 				else if(operation_to_perform == CUSTOMER_GET_ALL)
@@ -325,6 +339,7 @@ error_s_ord:
 		case S_ORD_CUSTOMER_GET:
 		case CUSTOMER_GET:
 		case S_ORD_GET:
+		case ITEM_GET:
 		{
 			ui32 k = 0;
 			ui8 type = is_num(&buffer[2]);
@@ -345,6 +360,16 @@ error_s_ord:
 
 				char *json = NULL;
 				switch(operation_to_perform){
+				case ITEM_GET:
+					if(execute_lua_function("get_item","I>s",k,&json) == -1){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
+					}
+					if(!json){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
+					}
+					break;
 				case S_ORD_GET:
 					if(execute_lua_function("get_order","I>s",k,&json) == -1){
 						clear_lua_stack();
@@ -408,6 +433,16 @@ s_ord_get_exit_error:
 			{
 				char *json = NULL;
 				switch(operation_to_perform){
+				case ITEM_GET:
+					if(execute_lua_function("get_item","s>s",&buffer[2],&json) == -1){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
+					}
+					if(!json){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
+					}
+					break;
 				case S_ORD_GET:
 					if(execute_lua_function("get_order","s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();

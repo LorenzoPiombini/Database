@@ -7,6 +7,7 @@ ORDER_BASE = 100
 -- name_file = "db/name_file" /* i do not need it for now */
 customers = "/root/db/customer"
 price_level = "/root/db/price_level"
+items = "/root/db/item"
 sales_orders = {}
 sales_orders["head"] = "/root/db/sales_orders_head"
 sales_orders["lines"] = "/root/db/sales_orders_lines"
@@ -180,6 +181,19 @@ local function rec_to_json(rec)
 	json = string.sub(json, 1, #json - 1)
 	json = string.format("%s%s", json, "}")
 	return json
+end
+
+function get_item(key)
+	local item
+	if type(key) == 'string' then
+		item = g_rec(items,key,2)
+	else
+		item = g_rec(items,key)
+	end
+
+	if item == nil then return nil end
+	
+	return rec_to_json(item)
 end
 
 function get_customer(key)
