@@ -19,6 +19,22 @@ int map_end_point(char *end_point)
 	}
 
 
+	/*
+	 * ITEM SECTION Note: anything that contains '/items' should be tested before 
+	 * this if statement
+	 * */
+	if(strstr(end_point,ITEMS)){
+		s = strlen(end_point);
+		so_s = strlen(ITEMS);
+		if(s == s_so){
+			if(strncmp(end_point,ITEMS,so_s) == 0)
+				return ITEM_GET_ALL;
+		}else if(s > s_so){
+			if(strncmp(end_point,ITEMS,so_s) == 0)
+				return ITEM_GET;
+		}
+	}
+
 	if(strstr(end_point,SALES_ORDERS)){
 		s = strlen(end_point);
 		so_s = strlen(SALES_ORDERS);

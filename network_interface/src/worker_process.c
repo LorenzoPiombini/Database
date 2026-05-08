@@ -228,6 +228,7 @@ new_up_ords_err:
 			data_sock = -1;
 			continue;
 		}	
+		case ITEM_GET_ALL:
 		case CUSTOMER_GET_ALL: 
 		case S_ORD:
 		{
@@ -236,17 +237,24 @@ new_up_ords_err:
 			memset(fds,-1,sizeof(int)*3);
 			char files[3][256] = {0};
 
-			if(operation_to_perform == S_ORD){
+			char *keys = 0x0;
+			switch(operation_to_perform){
+			case S_ORD:
 				if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
-			}else if(operation_to_perform == CUSTOMER_GET_ALL){
+				keys = get_all_keys_for_file(fds,0,0);
+				break;
+			case CUSTOMER_GET_ALL:
 				if(open_files(CUSTOMER_FILE,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
+				keys = get_all_keys_for_file(fds,2,MAKE_KEY_JS_STRING);
+				break;
+			case ITEM_GET_ALL:
+				if(open_files(CUSTOMER_FILE,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
+				keys = get_all_keys_for_file(fds,1,MAKE_KEY_JS_STRING);
+				break;
+			default:
+				break;
 			}
 
-			char *keys = 0x0;
-			if(operation_to_perform == S_ORD)
-				keys = get_all_keys_for_file(fds,0,0);
-			else if (operation_to_perform == CUSTOMER_GET_ALL)
-				keys = get_all_keys_for_file(fds,2,MAKE_KEY_JS_STRING);
 
 			if(!keys){
 				/*log errors*/	
@@ -399,7 +407,8 @@ s_ord_get_exit_error:
 			case STR:
 			{
 				char *json = NULL;
-				if(operation_to_perform == S_ORD_GET){
+				switch(operation_to_perform){
+				case S_ORD_GET:
 					if(execute_lua_function("get_order","s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
@@ -408,7 +417,8 @@ s_ord_get_exit_error:
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
-				}else{
+					break;
+				case CUSTOMER_GET:
 					if(execute_lua_function("get_customer","s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
@@ -416,8 +426,21 @@ s_ord_get_exit_error:
 					if(!json){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
+				}
+					break;
+				case S_ORD_CUSTOMER_GET:
+					if(execute_lua_function("get_customer_for_new_sales_order","s>s",&buffer[2],&json) == -1){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
 					}
-
+					if(!json){
+						clear_lua_stack();
+						goto s_ord_get_exit_error;
+					}
+					break;
+				default:
+					fprintf(stderr,"database endpoint not supported\n");
+					goto s_ord_get_exit_error;
 				}
 
 				/*copy the json string from lua to memory*/
