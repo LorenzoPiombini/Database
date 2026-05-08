@@ -4825,7 +4825,7 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 				break;
 			}
 		default:
-			fprintf(stderr,"(%s): type of field '%s' is %s, not yet implemented!\n",
+			fprintf(stderr,"(%s): type of field '%s' is %s, not yet implemented or supported!\n",
 					prog,
 					rec->fields[index].field_name,
 					type_to_str(rec->fields[index].type));

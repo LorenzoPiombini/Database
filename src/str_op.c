@@ -1923,7 +1923,7 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 			}
 			
 			
-			if(!(c = strstr(buff,CON_)) || (c = strstr(buff,C_))){
+			if(!(c = strstr(buff,CON_)) && !(c = strstr(buff,C_))){
 				exit = 1;
 				break;
 			}
