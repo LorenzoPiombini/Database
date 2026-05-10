@@ -26,10 +26,10 @@ int map_end_point(char *end_point)
 	if(strstr(end_point,ITEMS)){
 		s = strlen(end_point);
 		so_s = strlen(ITEMS);
-		if(s == s_so){
+		if(s == so_s){
 			if(strncmp(end_point,ITEMS,so_s) == 0)
 				return ITEM_GET_ALL;
-		}else if(s > s_so){
+		}else if(s > so_s){
 			if(strncmp(end_point,ITEMS,so_s) == 0)
 				return ITEM_GET;
 		}
