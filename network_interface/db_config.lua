@@ -186,7 +186,7 @@ end
 function get_item(key)
 	local item
 	if type(key) == 'string' then
-		item = g_rec(items,key,2)
+		item = g_rec(items,key,1)
 	else
 		item = g_rec(items,key)
 	end
@@ -236,10 +236,23 @@ function get_customer_for_new_sales_order(key)
 	return rec_to_json(cust)
 end
 
+-- the get_order function has to rebuild the order!
+-- the order data are spread between 
+-- 	@ sales_order_head
+-- 	@ sales_order_lines
+-- 	@ items
+-- 	@ price_level
+-- this is because we want to maintain the database normalized
 function get_order(data)
 	local ord = g_rec(sales_orders.head, data)
-	if ord == nil then
-		return nil
+
+	if ord == nil then return nil end
+
+	local disc_to_add_to_line
+	if ord.fields.price_level_id ~= nil then
+		local pr_l = g_rec(price_level,ord.fields.price_level_id,1)
+		if pr_l == nil then return nil end
+		disc_to_add_to_line = string.format('"disc":"%.2f"',pr_l.fields.percentage)
 	end
 
 	local head_json = rec_to_json(ord)
@@ -248,14 +261,21 @@ function get_order(data)
 	for i = 1, ord.fields.lines_nr do
 		local key_line = string.format("%d/%d", data, i)
 		local line = g_rec(sales_orders.lines, key_line)
-		if line == nil then
-			return nil
-		end
+
+		if line == nil then return nil end
+
+		local item = g_rec(items,line.fields.item_id,1)
+		if item == nil then return nil end
+
+		local str_to_add_to_line = string.format('"uom":"%s","unit_price":"%.2f"',item.fields.uom,item.fields.unit_price)
+
 		local line_title = string.format("line_%d", i)
-		json = string.format('%s"%s":%s,', json, line_title, rec_to_json(line))
+		local line_from_file = rec_to_json(line)
+		line_from_file = string.sub(line_from_file,2,-1)
+		json = string.format('%s"%s":{%s,%s,%s,', json, line_title,str_to_add_to_line,disc_to_add_to_line,line_from_file)
 	end
 
-	json = string.sub(json, 1, #json - 1)
+	json = string.format(json,1,#json-1)
 	json = string.format("%s}}", json)
 	return json
 end
