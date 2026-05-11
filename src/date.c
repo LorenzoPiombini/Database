@@ -16,6 +16,7 @@ enum date_delim{
 };
 
 static int is_valid_date(char *date);
+static int detect_date_format(char *date);
 
 unsigned char is_date_this_week(char* str_d,int format)
 {
@@ -58,6 +59,17 @@ int get_week_number(struct tm* time_in)
 	return week_n;
 }
 
+/*TODO*/
+static int detect_date_format(char *date){
+	int i;
+	char *p = date;
+	for(i = 0; *p != '-' && *p; p++,i++);
+
+	if(i == 4)
+		return YYYY_MM_DD;
+
+	return -1;
+}
 
 int convert_date_str(int format, char *str, struct tm* input_date)
 {
@@ -286,7 +298,7 @@ int create_string_date(long time, char* date_str, int format)
 				return -1;
 			}
 		}else{
-			if(copy_to_string(date_str,9,"%s-%d-%d",month,
+			if(copy_to_string(date_str,10,"%s-%d-%d",month,
 						date_t->tm_mday,
 						date_t->tm_year -100) == -1){
 				printf("copy_to_string failed, %s:%d.\n",F,L-2);
@@ -360,6 +372,9 @@ ui32 convert_date_to_number(int format, char *date)
 {
 	
 	long seconds = 0;
+	if(format == -1){
+		format = detect_date_format(date);
+	}
 	if((seconds = convert_str_date_to_seconds(date,format)) == -1){
 		fprintf(stderr,"convert_str_date_to_seconds failed, %s:%d\n",__FILE__,__LINE__-1);
 		return 0;
