@@ -248,11 +248,11 @@ function get_order(data)
 
 	if ord == nil then return nil end
 
-	local disc_to_add_to_line
+	local disc = 0
 	if ord.fields.price_level_id ~= nil then
 		local pr_l = g_rec(price_level,ord.fields.price_level_id,1)
 		if pr_l == nil then return nil end
-		disc_to_add_to_line = string.format('"disc":"%.2f"',pr_l.fields.percentage)
+		disc = pr_l.fields.percentage
 	end
 
 	local head_json = rec_to_json(ord)
@@ -264,18 +264,33 @@ function get_order(data)
 
 		if line == nil then return nil end
 
+		-- change the date format to conform with what the browser expect  
+		if line.fields.request_date ~= nil then
+			m,d,y = string.match(line.fields.request_date,"(%d+)-(%d+)-(%d+)")
+			y = tonumber(y) + 2000
+			line.fields.request_date = string.format('%s-%s-%s',y,m,d)
+		end
+
 		local item = g_rec(items,line.fields.item_id,1)
 		if item == nil then return nil end
 
-		local str_to_add_to_line = string.format('"uom":"%s","unit_price":"%.2f"',item.fields.uom,item.fields.unit_price)
+		local total = item.fields.unit_price * line.fields.qty
+		if disc ~= 0 then
+			total = total * ((100 - disc)/100)
+		end
+		local str_to_add_to_line = string.format('"uom":"%s","unit_price":"%.2f","disc":"%.2f","total":"%.2f"',
+								item.fields.uom,
+								item.fields.unit_price,
+								disc,
+								total)
 
 		local line_title = string.format("line_%d", i)
 		local line_from_file = rec_to_json(line)
 		line_from_file = string.sub(line_from_file,2,-1)
-		json = string.format('%s"%s":{%s,%s,%s,', json, line_title,str_to_add_to_line,disc_to_add_to_line,line_from_file)
+		json = string.format('%s"%s":{%s,%s,', json, line_title,str_to_add_to_line,line_from_file)
 	end
 
-	json = string.format(json,1,#json-1)
+	json = string.sub(json,1,#json-1)
 	json = string.format("%s}}", json)
 	return json
 end
