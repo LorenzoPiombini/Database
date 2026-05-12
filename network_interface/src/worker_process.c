@@ -421,6 +421,7 @@ error_s_ord:
 				if(write(data_sock,msg,size_json) == -1 ) goto s_ord_get_exit_error;
 				/*printf("%s\nsize is %ld\nlast char is '%c'\n",message,strlen(message),message[string_length(message)-1]);*/
 
+				free(msg);
 				close(data_sock);
 				continue;
 s_ord_get_exit_error:
