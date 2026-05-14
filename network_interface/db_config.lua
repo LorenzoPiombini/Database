@@ -2,6 +2,7 @@ db = require("db")
 
 --- DB GLOBALS
 ORDER_BASE = 100
+KEY_NOT_FOUND = 16
 
 --- database files
 -- name_file = "db/name_file" /* i do not need it for now */
@@ -106,8 +107,15 @@ function update_orders(orders_head, orders_lines, key)
 				line = string.sub(line, 3, #line)
 			end
 			local up = update_record(sales_orders.lines, line, k_line)
-			if up == nil then
-				return nil
+			if up == KEY_NOT_FOUND  then
+				local r = write_record(sales_orders.lines,line,k_line)
+				if r == nil then 
+					print("cannot write!") 
+					return -1 
+				end
+			elseif up ~= 0 then
+				print("error!")
+				return -1
 			end
 		end
 	end
