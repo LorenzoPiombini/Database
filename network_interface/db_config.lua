@@ -85,7 +85,7 @@ function update_orders(orders_head, orders_lines, key)
 
 	-- update the lines first
 	if f.lines_nr == 1 then
-		local k_line = string.format("%s/%d", tostring(key), i)
+		local k_line = string.format("%s/%d", tostring(key), f.lines_nr)
 		local line = string.sub(orders_lines, 2, -2)
 		local data = string.sub(line, 3, #line)
 		local up = update_record(sales_orders.lines, data, k_line)
