@@ -102,7 +102,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			return STATUS_ERROR;
 		}
 	} else{
-
+		/*RAM FILE mode*/
 		file_offset pos_after_read = 0;
 		ram.offset = offset;
 		if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
@@ -531,7 +531,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 			if(err == ENOENT)
 				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
 
 			return STATUS_ERROR;
 		}
@@ -622,6 +622,7 @@ int update_rec(char *file_path,
 
 	i8 err = 0;
 	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds,index)) == -1){
+		free_record(&rec_old, rec_old.fields_num);
 		return -1;
 	}
 
@@ -765,6 +766,11 @@ int update_rec(char *file_path,
 		goto clean_on_error;
 	}
 
+	if(comp_rr == UPDATE_NOT){
+		no_updates = 1;
+		goto clean_on_error;
+	}
+
 	if (rec_old.count == 1 && comp_rr == UPDATE_OLD) {
 		/* set the position back to the record */
 		if (find_record_position(fds[1], recs[0]->offset) == -1) {
@@ -780,6 +786,13 @@ int update_rec(char *file_path,
 			goto clean_on_error;
 		}
 
+		if(rec_old.count == 1){
+			int i;
+			for(i = 0; i < rec->fields_num;i++){
+				if(rec_old.field_set[i]) 
+					rec->field_set[i] = rec_old.field_set[i];
+			}
+		}
 		free_record(&rec_old, rec_old.fields_num);
 		return 0;
 	}
@@ -827,6 +840,13 @@ int update_rec(char *file_path,
 	}
 
 clean_on_error:
+	if(rec_old.count == 1){
+		int i;
+		for(i = 0; i < rec->fields_num;i++){
+			if(rec_old.field_set[i]) 
+				rec->field_set[i] = rec_old.field_set[i];
+		}
+	}
 	free_record(&rec_old, rec_old.fields_num);
 	if(no_updates)
 		return 0;

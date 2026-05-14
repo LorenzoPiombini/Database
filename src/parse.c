@@ -3069,6 +3069,8 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 			return UPDATE_OLD;
 		}else if (!changed && update_new){
 			return UPDATE_OLDN;
+		}else{
+			return UPDATE_NOT;
 		}
 	}
 
@@ -3159,7 +3161,6 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 						break;
 					}
 					rec->field_set[i] = 0;
-					free(rec->fields[i].data.s);
 					break;
 				}
 				break;

@@ -390,12 +390,18 @@ static int l_update_record(lua_State *L)
 	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	int check = -1;
 	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,1)) == -1) goto err_invalid_data;
-	if(update_rec(file_name,fds,key,key_type,&rec,hd,check,&lock,NULL,-1) == -1) goto err_update_rec;
-	port_record(L,&rec);
+	int r = 0;
+	if((r = update_rec(file_name,fds,key,key_type,&rec,hd,check,&lock,NULL,-1)) == -1) goto err_update_rec;
+
+
+	if(r == KEY_NOT_FOUND)
+		goto err_update_rec;
 
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);
+	lua_Integer ok = 0;
+	lua_pushinteger(L,ok);
 	return 1;
 
 err_open_file:

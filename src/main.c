@@ -1162,6 +1162,7 @@ int main(int argc, char *argv[])
 		if (del) { 
 			/* del a record in a file or the all content in the file */
 
+			free_schema(hd.sch_d);
 			/* acquire lock*/
 			int lock_f = 0;
 			int r = 0;
