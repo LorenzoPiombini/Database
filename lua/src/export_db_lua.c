@@ -414,12 +414,11 @@ err_not_db_file:
 	close_file(3,fds[0],fds[1],fds[2]);
 	return 2;
 err_update_rec:
-	lua_pushnil(L);
-	lua_pushstring(L,"write record failed");
+	lua_pushinteger(L,(lua_Integer)r);
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);
-	return 3;
+	return 1;
 err_invalid_data:
 	lua_pushnil(L);
 	lua_pushstring(L,"data not valid.");
