@@ -53,5 +53,4 @@ int update_rec(	char *file_path,
 				char *options, 
 				int index);
 int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,int indexing);
-
 #endif

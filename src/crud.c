@@ -479,6 +479,7 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 	/* write the new indexes to file */
 	if (!write_index_file_head(fds[0], index)) {
 		fprintf(stderr,"write index head to file failed, %s:%d.\n", F,L - 1);
+		free_ht_array(ht, index);
 		return -1;	
 	}
 

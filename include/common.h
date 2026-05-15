@@ -40,6 +40,7 @@ void array_free(void* arr);
 #define NO_ELEMENT 15 /* ?? */	
 #define KEY_NOT_FOUND 16 /*key not in the index file*/
 #define UPDATE_NOT 17 /*nothing tio update*/
+#define INDEX_OUT_OF_RANGE 18 /*indexing error */
 #define E_RCMP 201 /* record comparison failed*/	
 #define DIF 202 /* new record is different*/	
 

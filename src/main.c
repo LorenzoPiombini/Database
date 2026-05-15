@@ -1355,7 +1355,6 @@ int main(int argc, char *argv[])
 			close_file(3, fd_index, fd_data,fd_schema);
 			free_ht_array(ht,index);
 			free_schema(hd.sch_d);
-			free(ht);
 			return 0;
 			
 			clean_on_error_6:
