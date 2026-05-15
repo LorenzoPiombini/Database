@@ -3,6 +3,7 @@ db = require("db")
 --- DB GLOBALS
 ORDER_BASE = 100
 KEY_NOT_FOUND = 16
+INDEX_OUT_OF_RANGE = 18 
 
 --- database files
 -- name_file = "db/name_file" /* i do not need it for now */
@@ -21,6 +22,7 @@ string_data_to_add_template = db.string_data_to_add_template
 indexing = db.save_key_at_index
 create_rec = db.create_record
 g_rec = db.get_record
+d_rec = db.delete_record
 
 --- look for documentation in lua/src/export_db_lua.c
 --- return two results, the record created and its key, if the key is not passed
@@ -115,6 +117,24 @@ function update_orders(orders_head, orders_lines, key)
 				end
 			elseif up ~= 0 then
 				print("error!")
+				return -1
+			end
+		end
+	end
+	
+	-- check if lines are different, 
+	local head_on_file = g_rec(sales_orders.head,key)
+	if head_on_file == nil then return -1 end
+
+	if head_on_file.fields.lines_nr > f.lines_nr then
+		-- we need to delete some records in sales_orders_lines
+		for i = f.lines_nr + 1, head_on_file.fields.lines_nr do
+			local k = string.format("%d/%d",key,i)
+			--delete record with key k
+			local r,message = d_rec(sales_orders.lines,k)
+			if r ~= 0 then 
+				print("error in cleaning sales_order_lines");
+				print(message)
 				return -1
 			end
 		end
@@ -216,7 +236,6 @@ function get_customer(key)
 	if cust == nil  then return nil end
 
 	if cust["price_level_id"] ~= nil then
-		-- TODO: get price_level data
 		pr_l = g_rec(price_level,cust.price_level_id,1) -- 1 is the file index
 		if pr_l == nil then return nil end
 	end
