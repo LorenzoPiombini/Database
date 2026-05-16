@@ -47,8 +47,10 @@ int work_process(int sock)
 		}
 
 
-		if(r == 0)
+		if(r == 0){
+			close(data_sock);
 			continue;
+		}
 
 		buffer[sizeof(buffer) - 1] = '\0';
 		int operation_to_perform = (int)(*((ui16*)buffer));	
@@ -152,7 +154,6 @@ new_cust_error:
 			memset(orders_line,0,len+1);
 			strncpy(orders_line,t,len);
 
-			fprintf(stdout,"%s\n",orders_line);
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
