@@ -21,6 +21,7 @@ static int l_create_record(lua_State *L);
 static int l_string_data_to_add_template(lua_State *L);
 static int l_get_numeric_key(lua_State *L);
 static int l_save_key_at_index(lua_State *L);
+static int l_delete_record(lua_State *L);
 
 /* functions that will be callable from Lua scripts*/
 static const luaL_Reg db_funcs[] = {
@@ -34,6 +35,7 @@ static const luaL_Reg db_funcs[] = {
 	{"save_key_at_index",
 		l_save_key_at_index},               /* save_key_at_index(file_name,key,index,offset)*/
 	{"update_record",l_update_record},		/* update_record(file_name,data,key) */
+	{"delete_record",l_delete_record},		/* delete_record(file_name,key) -- index is optional */
 	{NULL,NULL}
 };
 
@@ -428,6 +430,121 @@ err_invalid_data:
 	return 3;
 }
 
+/*
+ * from lua:
+ * 	.delete_record(file_name,key)
+ * 	or
+ * 	.delete_record(file_name,key,index)
+ *
+ * 	if index is not specified, index 0 will be used
+ * */
+static int l_delete_record(lua_State *L)
+{
+	char *file_name = (char*)luaL_checkstring(L,1);
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+
+	char *k_str = NULL;
+	void *key = NULL;
+	uint32_t n = 0;
+
+	int key_type = 0;
+	int type = lua_type(L,2);
+	switch(type){
+	case -1:
+	case LUA_TNIL:
+		lua_pushnil(L);
+		lua_pushstring(L,"key is missing for delete function.");
+		return 2;
+	case LUA_TNUMBER:
+		n = (uint32_t) luaL_checkinteger(L,2);
+		key = (void*)&n;
+		key_type = UINT;
+		break;
+	case LUA_TSTRING:
+		k_str = (char*)luaL_checkstring(L,2);
+		key = (void*)k_str;
+		key_type = STR;
+		break;
+	default:
+		lua_pushnil(L);
+		lua_pushstring(L,"wrong key type");
+		return 2;
+	}
+
+	int index_nr = 0;
+	type = lua_type(L,3);
+	switch(type){
+	case -1:
+	case LUA_TNIL:
+		break;
+	case LUA_TNUMBER:
+		index_nr = (int)luaL_checkinteger(L,3);
+		break;
+	default:
+		lua_pushnil(L);
+		lua_pushstring(L,"wrong index type");
+		return 2;
+	}
+
+	int fds[1] = {-1};
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1) goto err_open_file;
+	
+	HashTable *ht = NULL;
+	int index = 0, *p_index = &index;
+	/* load all indexes in memory */
+	if (!read_all_index_file(fds[0], &ht, p_index)) {
+		free_ht_array(ht,index);
+		goto err_reading_index;
+	}
+
+	if(index_nr > index)
+		goto err_index_out_of_range;
+
+	Node *record_del = ht_delete(key, &ht[index_nr], key_type);
+	if(!record_del)
+		goto err_record_not_found;
+
+	/*delete was succesfull*/
+
+	free_ht_node(record_del);
+	/*
+	 * NOTE: this function frees the ht array elements on succseed
+	 *		if it fails free completely the array,	 
+	 * */
+	if(write_index(fds,index,ht,file_names[0]) == -1) 
+		goto err_write_index;
+
+	close_file(1,fds[0]);
+	free(ht);
+	lua_pushinteger(L,(lua_Integer)0);
+	return 1;
+	
+err_open_file:
+	lua_pushinteger(L,(lua_Integer) -1);
+	return 1;
+err_reading_index:
+	lua_pushinteger(L,(lua_Integer) -1);
+	return 1;
+err_index_out_of_range:
+	lua_pushinteger(L,(lua_Integer)INDEX_OUT_OF_RANGE);
+	free_ht_array(ht,index);
+	close_file(1,fds[0]);
+	return 1;
+err_record_not_found:
+	free_ht_array(ht,index);
+	lua_pushinteger(L,(lua_Integer)-1);
+	lua_pushstring(L,"record not found");
+	close_file(1,fds[0]);
+	return 2;
+err_write_index:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not write index file.");
+	close_file(1,fds[0]);
+	return 2;
+}
 /*
  * this function return a record (table) to Lua,
  * without writing to the file.
