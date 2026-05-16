@@ -97,7 +97,7 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
-	sudo gcc -Wall -fPIC -shared -llua5.4 -o $(SHAREDLIBexpl) $(OBJlibexpl)
+	sudo gcc -Wall -fPIC -shared -llua5.4 -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBdate) $(OBJlibdate)
 
 libraryPR:
@@ -124,25 +124,25 @@ clean:
 
 	
 $(TARGET): $(OBJ)
-	sudo gcc -o $@ $?   -ldl  -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
+	sudo gcc -o $@ $?  -ldl  -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 	make lua
 
 obj/%.o : src/%.c 
 	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
-#	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
+	#	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
 
 lua: lua_obj
-	gcc -shared -g3 -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address 
-	mv db.so /usr/local/lib/lua/5.4/db.so
+	gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address 
+	mv db.so /usr/local/lib/lua/5.4/
 
 lua_obj: 
-	sudo gcc -fPIC -Wall -c lua/src/export_db_lua.c    -Iinclude -Ilua/include -I/usr/include/lua5.4     -o obj/export_db_lua.o
+	sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -Iinclude -Ilua/include -I/usr/include/lua5.4  -o obj/export_db_lua.o
 
 $(TARGET)_prod: $(OBJ_PROD)
 	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack
 
 obj/%_prod.o : src/%.c
-	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC
+	sudo gcc -Wall -g3 -c $< -o $@ -DPROD -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC
 
 
 
