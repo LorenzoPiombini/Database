@@ -22,6 +22,7 @@ static int l_string_data_to_add_template(lua_State *L);
 static int l_get_numeric_key(lua_State *L);
 static int l_save_key_at_index(lua_State *L);
 static int l_delete_record(lua_State *L);
+static int l_get_all_key(lua_State *L);
 
 /* functions that will be callable from Lua scripts*/
 static const luaL_Reg db_funcs[] = {
@@ -36,6 +37,7 @@ static const luaL_Reg db_funcs[] = {
 		l_save_key_at_index},               /* save_key_at_index(file_name,key,index,offset)*/
 	{"update_record",l_update_record},		/* update_record(file_name,data,key) */
 	{"delete_record",l_delete_record},		/* delete_record(file_name,key) -- index is optional */
+	{"get_all_key",l_get_all_key},			/* get_all_key(file_name,index,mode)*/
 	{NULL,NULL}
 };
 
@@ -815,6 +817,52 @@ err_key_gen:
 }
 
 
+static int l_get_all_key(lua_State *L)
+{
+	/*char *get_all_keys_for_file(int *fds,int index,int mode)*/
+	char *file_name = (char*)luaL_checkstring(L,1);	
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+	int index = (int)luaL_checkinteger(L,2);	
+	luaL_argcheck(L, index >= 0, 2,"index cannot be negative");
+
+	int mode = 0, type = lua_type(L,3);
+	switch(type){
+	case -1:
+	case LUA_TNIL:
+		break;
+	case LUA_TSTRING:
+		lua_pushnil(L);
+		lua_pushstring(L,"mode must be a number.");
+		return 2;
+	case LUA_TNUMBER:
+		mode = (unsigned int)luaL_checkinteger(L,3);
+		break;
+	default:
+		break;
+	}
+
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1)
+		goto err_open_file;
+
+	char *r = get_all_keys_for_file(fds,index,mode == MAKE_KEY_JS_STRING ? MAKE_KEY_JS_STRING : 0);
+	if(!r)
+		goto error;
+
+	lua_pushstring(L,r);
+	free(r);
+	return 1;
+
+err_open_file:
+	lua_pushinteger(L,(lua_Integer) -1);
+	return 1;
+error:
+	return 1;
+}
 static int l_save_key_at_index(lua_State *L)
 {
 	char *file_name = (char*)luaL_checkstring(L,1);	
@@ -854,7 +902,6 @@ static int l_save_key_at_index(lua_State *L)
 	int fds[3];
 	memset(fds,-1,sizeof(int)*3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
-
 
 	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1)
 		goto err_open_file;
