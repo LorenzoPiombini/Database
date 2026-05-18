@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
 
@@ -157,6 +158,28 @@ fcall:
 		}
 	}
 	va_end(vl);
+	return 0;
+}
+
+int get_function_signature(char *function_name,char *signature)
+{
+	int size = strlen(function_name);
+	char *var = malloc(size+3);
+	memset(var,0,size+2);
+	strncpy(var,function_name,size);
+	strncat(var,"_s",3);
+
+	lua_getglobal(L,var);
+
+	char *s  = (char*)lua_tostring(L,-1);
+	if(s){
+		strncpy(signature,s,strlen(s));
+	}else{
+		lua_pop(L,1);
+		return -1;
+	}
+	
+	lua_pop(L,1);
 	return 0;
 }
 

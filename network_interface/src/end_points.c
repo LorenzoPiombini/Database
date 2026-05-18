@@ -19,6 +19,11 @@ int map_end_point(char *end_point)
 	}
 
 
+	if(strstr(end_point,REPORTS)){
+		so_s = strlen(REPORTS);
+		if(strncmp(end_point,REPORTS,so_s) == 0) return RPT;
+	}
+
 	/*
 	 * ITEM SECTION Note: anything that contains '/items' should be tested before 
 	 * this if statement

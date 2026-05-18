@@ -25,9 +25,9 @@ enum endp{
 	ITEM_GET_ALL,
 	NEW_ITEM,
 	UPDATE_ITEM,
-	ITEM_GET
+	ITEM_GET,
+	RPT
 };
-
 
 #define NEW_S_ORDER "/new_sales_order"
 #define CUSTOMERS "/customers"
@@ -38,7 +38,7 @@ enum endp{
 #define ITEMS "/items"
 #define NEW_ITEM "/new_item"
 #define UPDATE_ITEM "/update_item/item"
-
+#define REPORTS "/reports"
 
 int map_end_point(char *end_point);
 

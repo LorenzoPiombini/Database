@@ -86,6 +86,31 @@ new_cust_error:
 			data_sock = -1;
 			continue;
 		}
+		case RPT:
+		{
+			char *function_to_execute = &buffer[2];
+
+			char sig[20] = {0};
+			if(get_function_signature(function_to_execute,sig) == -1)
+				goto report_error;
+
+			long long res = -1;
+			char *json = NULL;
+			if(execute_lua_function(function_to_execute,sig,json) == -1){
+				/*send error and resume*/
+				goto report_error;
+			}
+
+			clear_lua_stack();
+			break;
+
+report_error:
+			memset(err,0,1024);
+			write(data_sock,err,sizeof(err));
+			close(data_sock);
+			data_sock = -1;
+			continue;
+		}
 		case NEW_SORD:
 		case UPDATE_SORD:
 		{
