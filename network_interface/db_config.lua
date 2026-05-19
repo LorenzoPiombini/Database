@@ -321,3 +321,62 @@ function get_order(data)
 	json = string.format("%s}}", json)
 	return json
 end
+
+-- helper function for reports on open orders
+local function get_order_info(keys_head)
+	totals = {}
+	for n in string.gmatch(keys_head,"%d+") do
+		local k = tonumber(n)
+		local h = g_rec(sales_orders.head,k)
+
+		if h == nil then return -1 end
+
+		local disc = 0
+		if h.fields.price_level_id ~= nil then
+			local pr_l = g_rec('/root/db/price_level',h.fields.price_level_id,1)
+			if pr_l == nil then return nil end
+			disc = pr_l.fields.percentage
+		end
+
+		local total = 0
+		for i = 1, h.fields.lines_nr do
+			local k_lines = string.format("%d/%d",k,i)
+			local line = g_rec(sales_orders.lines,k_lines)
+			if line == nil then return -1 end
+
+			local item = g_rec('/root/db/item',line.fields.item_id,1)
+			if item == nil then return nil end
+
+			total = item.fields.unit_price * line.fields.qty
+			if disc ~= 0 then
+				total = total * ((100-disc)/ 100)
+			end
+		end
+		
+		totals[n] = string.format('"%s":"%s","%s":%.2f',"customer_id",h.fields.customer_id,"total",total)
+	end
+	return totals
+end
+
+-- function signature 
+-- this will be use from work_process.c to execute the function open_orders()
+-- this way we won't need to recompile the C back end all the time 
+-- when adding a new report
+
+open_orders_s = ">s"
+
+function open_orders()
+	local all_head_k = g_all_key(sales_orders.head,0)
+	if type(all_head_k) ~= "string" then return -1 end
+
+
+	local totals = get_order_info(all_head_k)
+	local json = "{"
+	for n in string.gmatch(all_head_k,"%d+") do
+		json = string.format('%s"%d":{%s},',json,n,totals[n])
+	end
+	json = string.sub(json,1,#json-1)
+	json = string.format('%s}',json)
+	print(json)
+end
+
