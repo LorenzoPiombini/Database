@@ -326,6 +326,7 @@ end
 -- helper function for reports on open orders
 local function get_order_info(keys_head)
 	totals = {}
+	local orders_tot = 0.0
 	for n in string.gmatch(keys_head,"%d+") do
 		local k = tonumber(n)
 		local h = g_rec(sales_orders.head,k)
@@ -353,9 +354,10 @@ local function get_order_info(keys_head)
 				total = total * ((100-disc)/ 100)
 			end
 		end
-		
+		orders_tot = orders_tot + total
 		totals[n] = string.format('"%s":"%s","%s":%.2f',"customer_id",h.fields.customer_id,"total",total)
 	end
+	totals["orders_total"] = string.format('%.2f',orders_tot)
 	return totals
 end
 
@@ -376,8 +378,7 @@ function open_orders()
 	for n in string.gmatch(all_head_k,"%d+") do
 		json = string.format('%s"%d":{%s},',json,n,totals[n])
 	end
-	json = string.sub(json,1,#json-1)
-	json = string.format('%s}',json)
-	print(json)
+	json = string.format('%s"orders_total":%.2f}',json,totals['orders_total'])
+	return json
 end
 
