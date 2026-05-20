@@ -186,6 +186,7 @@ int get_function_signature(char *function_name,char *signature)
 static int load(lua_State *L, char *file_config)
 {
 	if(luaL_loadfile(L,file_config) || lua_pcall(L,0,0,0)){
+		fprintf(stderr,"%s\n",lua_tostring(L,-1));
 		return -1;
 	}
 	return 0;
