@@ -176,10 +176,12 @@ int get_function_signature(char *function_name,char *signature)
 		strncpy(signature,s,strlen(s));
 	}else{
 		lua_pop(L,1);
+		free(var);
 		return -1;
 	}
 	
 	lua_pop(L,1);
+	free(var);
 	return 0;
 }
 
