@@ -70,7 +70,7 @@ void *array_init(size_t size, int type)
 	}	
 	case FLOAT:
 	{
-		struct Metadata *head = malloc(sizeof(double)*size +sizeof(struct Metadata));
+		struct Metadata *head = malloc(sizeof(float)*size +sizeof(struct Metadata));
 		if(!head)
 			return NULL;
 

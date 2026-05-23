@@ -17,6 +17,7 @@ enum arr_type{
 	STRING,
 	DOUBLE,
 	FLOAT,
+	VOID
 };
 void *array_init(size_t size, int type);
 int array_push(void **arr, void *el);
@@ -45,7 +46,5 @@ void array_free(void* arr);
 #define DIF 202 /* new record is different*/	
 
 	
-#if defined(ARRAY_MACRO)
-#endif
 
 #endif
