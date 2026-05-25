@@ -1,3 +1,6 @@
+/*
+ * this is the implementation of a dynamic array
+ * */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -85,6 +88,10 @@ void *array_init(size_t size, int type)
 	}
 }
 
+/*
+ * insert at, should always expand the memory allocation at least one
+ * 
+ * */
 int array_insert_at(int i, void **arr, void *el)
 {
 	struct Metadata *h = (struct Metadata*)*arr - 1;
@@ -102,8 +109,27 @@ int array_insert_at(int i, void **arr, void *el)
 			*arr = (struct Metadata*) n + 1;
 			memset(&((long*)*arr)[h->capacity],0,sizeof(long) * new_size);
 			h->capacity += new_size;
+		}else {
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(long)*(h->capacity + 1)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((long*)*arr)[h->capacity],0,sizeof(long) * 1);
+			h->capacity++;
 		}
+
+		/*move the data over to the right*/
 		long *a = (long*)*arr;
+		int j;
+		for(j = h->capacity - 1; j != i; j--){
+				a[j-1] = a[j] ^ a[j-1];
+				a[j] = a[j - 1] ^ a[j];
+				a[j-1] = a[j] ^ a[j-1];
+		}
+
 		a[i] = *(long*)el;
 		*arr = (void*)a;
 		h->elements++;
@@ -121,10 +147,29 @@ int array_insert_at(int i, void **arr, void *el)
 			}
 			h = (struct Metadata*)n;
 			*arr = (struct Metadata*) n + 1;
-			memset(&((long*)*arr)[h->capacity],0,sizeof(int) * new_size);
+			memset(&((int*)*arr)[h->capacity],0,sizeof(int) * new_size);
 			h->capacity += new_size;
+		}else {
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(int)*(h->capacity + 1)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((int*)*arr)[h->capacity],0,sizeof(int) * 1);
+			h->capacity++;
 		}
+
+		/*move the data over to the right*/
 		int *a = (int*)*arr;
+		int j;
+		for(j = h->capacity - 1; j != i; j--){
+				a[j-1] = a[j] ^ a[j-1];
+				a[j] = a[j - 1] ^ a[j];
+				a[j-1] = a[j] ^ a[j-1];
+		}
+
 		a[i] = *(int*)el;
 		*arr = (void*)a;
 		h->elements++;
@@ -142,10 +187,28 @@ int array_insert_at(int i, void **arr, void *el)
 			}
 			h = (struct Metadata*)n;
 			*arr = (struct Metadata*) n + 1;
-			memset(&((long*)*arr)[h->capacity],0,sizeof(double) * new_size);
+			memset(&((double*)*arr)[h->capacity],0,sizeof(double) * new_size);
 			h->capacity += new_size;
+		}else {
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(double)*(h->capacity + 1)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((double*)*arr)[h->capacity],0,sizeof(double) * 1);
+			h->capacity++;
 		}
+
+		/*move the data over to the right*/
 		double *a = (double*)*arr;
+		int j;
+		for(j = h->capacity - 1; j != i; j--){
+			double temp = a[j-1];
+			a[j-1] = a[j];
+			a[j] = temp;
+		}
 		a[i] = *(double*)el;
 		*arr = (void*)a;
 		h->elements++;
@@ -163,10 +226,28 @@ int array_insert_at(int i, void **arr, void *el)
 			}
 			h = (struct Metadata*)n;
 			*arr = (struct Metadata*) n + 1;
-			memset(&((long*)*arr)[h->capacity],0,sizeof(float) * new_size);
+			memset(&((float*)*arr)[h->capacity],0,sizeof(float) * new_size);
 			h->capacity += new_size;
+		}else {
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(float)*(h->capacity + 1)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((float*)*arr)[h->capacity],0,sizeof(long) * 1);
+			h->capacity++;
 		}
+
+		/*move the data over to the right*/
 		float *a = (float*)*arr;
+		int j;
+		for(j = h->capacity - 1; j != i; j--){
+			float temp = a[j-1];
+			a[j-1] = a[j];
+			a[j] = temp;
+		}
 		a[i] = *(float*)el;
 		*arr = (void*)a;
 		h->elements++;
@@ -184,10 +265,28 @@ int array_insert_at(int i, void **arr, void *el)
 			}
 			h = (struct Metadata*)n;
 			*arr = (struct Metadata*) n + 1;
-			memset(&((long*)*arr)[h->capacity],0,sizeof(unsigned char) * new_size);
+			memset(&((unsigned char*)*arr)[h->capacity],0,sizeof(unsigned char) * new_size);
 			h->capacity += new_size;
+		}else {
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(unsigned char)*(h->capacity + 1)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((unsigned char*)*arr)[h->capacity],0,sizeof(unsigned char) * 1);
+			h->capacity++;
 		}
+
+		/*move the data over to the right*/
 		unsigned char *a = (unsigned char*)*arr;
+		int j;
+		for(j = h->capacity - 1; j != i; j--){
+				a[j-1] = a[j] ^ a[j-1];
+				a[j] = a[j - 1] ^ a[j];
+				a[j-1] = a[j] ^ a[j-1];
+		}
 		a[i] = *(unsigned char*)el;
 		*arr = (void*)a;
 		h->elements++;
@@ -204,10 +303,35 @@ int array_insert_at(int i, void **arr, void *el)
 				return -1;
 			}
 			h = (struct Metadata*)n;
-			h->capacity += new_size;
 			*arr = (struct Metadata*) n + 1;
+			memset(&((char**)*arr)[h->capacity],0,sizeof(char*) * new_size);
+			h->capacity += new_size;
+		}else {
+			void *n = realloc((struct Metadata*)*arr - 1, (sizeof(char*)*(h->capacity + 1)) + sizeof(struct Metadata));
+			if(!n){
+				fprintf(stderr,"realloc() failed. %s:%d\n",__FILE__,__LINE__ -2);
+				return -1;
+			}
+			h = (struct Metadata*)n;
+			*arr = (struct Metadata*) n + 1;
+			memset(&((char**)*arr)[h->capacity],0,sizeof(char*) * 1);
+			h->capacity++;
 		}
+
 		char **a = (char **)*arr;
+		int j;
+		for(j= h->capacity -1; j != i; j--){
+			if(a[j-1] && !a[j]){
+				int size = (int) strlen(a[j-1]);
+				a[j] = (char*) malloc(size+1);
+				if(!a[j])
+					return -1;
+				memset(a[j], 0,size+1);
+				strncpy(a[j],a[j-1],size);
+				free(a[j-1]);
+				a[j-1] = NULL;
+			}
+		}
 		a[i] = (char*)malloc(strlen((char*)el)+1);
 		a[i][strlen((char*) el)] = '\0';
 		memcpy(a[i],(char*) el,strlen((char*)el));
