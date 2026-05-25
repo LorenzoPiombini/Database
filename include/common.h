@@ -10,6 +10,11 @@ struct Metadata{
 	int type;
 };
 
+struct Mix_t{
+	int type;
+	void *v;
+};
+
 enum arr_type{
 	INT,
 	LONG,

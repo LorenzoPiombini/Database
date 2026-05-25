@@ -83,6 +83,18 @@ void *array_init(size_t size, int type)
 		head->type = type;
 		return (void*)(head +1);
 	}	
+	case VOID:
+	{
+		struct Metadata *head = malloc(sizeof(Mix_t)*size +sizeof(struct Metadata));
+		if(!head)
+			return NULL;
+
+		memset(head,0,sizeof(Mix_t)*size+sizeof(struct Metadata));
+		head->capacity = (long long)size;
+		head->elements = (long long) 0;
+		head->type = type;
+		return (void*)(head +1);
+	}
 	default:
 		return NULL;
 	}
