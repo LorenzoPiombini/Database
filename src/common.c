@@ -83,6 +83,9 @@ void *array_init(size_t size, int type)
 		head->type = type;
 		return (void*)(head +1);
 	}	
+	/* this was more of a challenge that i want to accomplish
+	 * I hardly find the need to have an array of mixed type, 
+	 * but was fun to implement*/
 	case VOID:
 	{
 		struct Metadata *head = malloc(sizeof(struct Mix_t)*size +sizeof(struct Metadata));
