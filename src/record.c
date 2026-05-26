@@ -3880,7 +3880,7 @@ int drop_field(struct Schema *s, char *fields)
 		}
 	}while((field = tok(NULL,":")));
 
-	int i, dr = 0;
+	int i = 0, dr = 0;
 	for(;i < s->fields_num; i++){
 		if(pos[i] != -1){
 			fprintf(stdout,"field '%s' dropped.\n",s->fields_name[i]);

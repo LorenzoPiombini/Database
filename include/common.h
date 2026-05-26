@@ -27,6 +27,7 @@ enum arr_type{
 void *array_init(size_t size, int type);
 int array_push(void **arr, void *el);
 int array_insert_at(int i, void **arr, void *el);
+int array_mix_element(int type,struct Mix_t *el,void *value);
 void array_free(void* arr);
 
 #define MAX_FILE_PATH_LENGTH 256
