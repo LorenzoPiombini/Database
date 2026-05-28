@@ -1,11 +1,10 @@
-/*
- * this is the implementation of a dynamic array
- * */
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include "common.h"
+
+static int BST_node_init(struct BSTnode **node, struct BSTnode **v);
 
 void *array_init(size_t size, int type)
 {
@@ -664,4 +663,86 @@ void array_free(void*arr)
 	}
 }
 
+static int BST_node_init(struct BSTnode **node, struct BSTnode **v)
+{
+	*node = malloc(sizeof **node);
+	if(!(*node)){
+		return -1;
+	}
+	memset(*node,0,sizeof(**node));
+	(*node)->value = malloc(sizeof(struct Mix_t));
+	if(!(*node)->value){
+		return -1;
+	}
+	memset((*node)->value,0,sizeof(struct Mix_t));
+	(*node)->value = (*v)->value;
+	return 0;
+}
+int comparison(void *src, void *dest)
+{
+    struct Mix_t *s = (struct Mix_t*)src;
+    struct Mix_t *d = (struct Mix_t*)dest;
+	if(s->type != d->type){
+		return ERR;	
+	}
 
+	switch(s->type){
+	case BYTE:
+		if((unsigned char*)s->v > (unsigned char*)d->v) return LEFT;
+		if((unsigned char*)s->v == (unsigned char*)d->v) return 0;
+		return RIGHT;
+	case INT:
+		if((int*)s->v > (int*)d->v) return LEFT;
+		if((int*)s->v == (int*)d->v) return 0;
+		return RIGHT;
+	case LONG:
+		if((long*)s->v > (long*)d->v) return LEFT;
+		if((long*)s->v == (long*)d->v) return 0;
+		return RIGHT;
+	default:
+		return ERR;
+	}
+}
+int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(void*,void*))
+{
+	if((*root) && (*root)->value)
+		return BST_insert(root,node,comparison);
+
+    if(BST_node_init(root,&node) == -1)
+		return -1;
+	else 
+		return 0;
+
+	int result = comparison((*root)->value,node->value);
+	switch(result){
+	case LEFT:
+		/*GO LEFT*/
+		if((*root)->left)
+			return BST_insert(&(*root)->left,node,comparison);
+		if(BST_node_init(&(*root)->left, &node) == -1)
+			return -1;
+		(*root)->left->value = (void*)malloc(sizeof(struct Mix_t));
+		if(!(*root)->left->value){
+			return -1;
+		}	
+		memcpy((struct Mix_t*)(*root)->left->value, (struct Mix_t*)node->value,sizeof(struct Mix_t));
+	case RIGHT:
+		/*GO right*/
+		if((*root)->right)
+			return BST_insert(&(*root)->right,node,comparison);
+		if(BST_node_init(&(*root)->right,&node) == -1)
+			return -1;
+		(*root)->right->value = (void*)malloc(sizeof(struct Mix_t));
+		if(!(*root)->right->value){
+			return -1;
+		}	
+		memcpy((struct Mix_t*)(*root)->right->value, (struct Mix_t*)node->value,sizeof(struct Mix_t));
+	case ERR:
+		/*CLEANUP*/
+		fprintf(stderr,"comparison() failed, check the types\n");
+		return -1;
+	default:
+		return 0;	
+	}
+	return 0;
+}

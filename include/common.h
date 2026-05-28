@@ -1,8 +1,24 @@
 #ifndef COMMON_H
-#define COMMON_H
+#define COMMON_H 
 
+/* ==== BINARY SEARCH TREE ==== */
+#define ERR -2
+#define LEFT -1
+#define RIGHT 1
+struct BSTnode{
+	void* value;
+	struct BSTnode *left;
+	struct BSTnode *right;
+};
 
+struct Tree{
+	struct BSTnode *root;
+};
 
+int comparison(void *src, void *dest);
+int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(void*,void*));
+
+/* =========================== */
 /*used for arrays in the database*/
 struct Metadata{
 	long long elements;
