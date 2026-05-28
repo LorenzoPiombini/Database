@@ -26,7 +26,7 @@ int main()
 	if(array_mix_element(INT,&element,&number) == -1)
 		return -1;
 
-	free(node.value);
+	free(node.value->v);
 	node.value = (void*)&element;
 	if(BST_insert(&root,&node,comp) == -1)
 		return -1;
@@ -38,10 +38,12 @@ int main()
 	if(array_mix_element(INT,&element,&number) == -1)
 		return -1;
 
-	free(node.value);
+	free(node.value->v);
 	node.value = (void*)&element;
 	if(BST_insert(&root,&node,comp) == -1)
 		return -1;
+
+	free(node.value->v);
 
 	struct Mix_t* mixed_array = array_init(5,VOID);
 	if(!mixed_array){

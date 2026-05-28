@@ -112,7 +112,7 @@ int array_mix_element(int type,struct Mix_t *el, void* value)
 		if(!el->v){
 			return -1;
 		}
-		el->v = value;	
+		*(int*)el->v = *(int *)value;	
 		return 0;
 	}
 	case LONG:
