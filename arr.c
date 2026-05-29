@@ -8,63 +8,54 @@ int main()
 	int (*comp)(void*,void*) = NULL; 
 	comp = comparison;
 
-	struct Mix_t element ={-1,NULL};
+	struct BSTnode node = {0};
 	int number = 10;
-	if(array_mix_element(INT,&element,&number) == -1)
+	if(mix_type_init(INT,(struct Mix_t**)&node.value,&number) == -1)
 		return -1;
 
 	struct BSTnode *root = NULL;
-	struct BSTnode node = {0};
-	node.value = (void*)&element;
 	if(BST_insert(&root,&node,comp) == -1)
 		return -1;
 
-	free(element.v);
-	element.type = -1;
-	element.v = NULL;
+	FREE_MIX_TYPE(node.value);
 	number = 9;
-	if(array_mix_element(INT,&element,&number) == -1)
+	if(mix_type_init(INT,(struct Mix_t**)&node.value,&number) == -1)
 		return -1;
 
-	free(node.value->v);
-	node.value = (void*)&element;
 	if(BST_insert(&root,&node,comp) == -1)
 		return -1;
 
-	free(element.v);
-	element.type = -1;
-	element.v = NULL;
+	FREE_MIX_TYPE(node.value);
 	number = 11;
-	if(array_mix_element(INT,&element,&number) == -1)
+	if(mix_type_init(INT,(struct Mix_t**)&node.value,&number) == -1)
 		return -1;
 
-	free(node.value->v);
-	node.value = (void*)&element;
 	if(BST_insert(&root,&node,comp) == -1)
 		return -1;
 
-	free(node.value->v);
+	FREE_MIX_TYPE(node.value);
 
 	struct Mix_t* mixed_array = array_init(5,VOID);
 	if(!mixed_array){
 		return -1;
 	}
-	struct Mix_t el = {-1, NULL};
+
+	struct Mix_t *el = NULL;
 	char value[] ="this is a string";
-	if(array_mix_element(STRING,&el,&value) == -1){
+	if(mix_type_init(STRING,&el,&value) == -1){
 		return -1;
 	}
 
-
-	if(array_push((void**)&mixed_array,&el) == -1){
+	if(array_push((void**)&mixed_array,el) == -1){
 		array_free(mixed_array);
 		return -1;
 	}
 
 	long num = 9;
-	el.type = -1;
-	el.v = NULL;
-	if(array_mix_element(LONG,&el,&num) == -1){
+	FREE_MIX_TYPE(el);
+	free(el);
+	el = NULL;
+	if(mix_type_init(LONG,&el,&num) == -1){
 		return -1;
 	}
 
@@ -84,6 +75,9 @@ int main()
 			break;
 		}
 	}
+	FREE_MIX_TYPE(el);
+	free(el);
+	el = NULL;
 	printf("]\n");
 	array_free((void*)mixed_array);
 	void* a = array_init(5,LONG);
