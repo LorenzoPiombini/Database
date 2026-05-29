@@ -11,9 +11,6 @@ struct BSTnode{
 	struct BSTnode *right;
 };
 
-struct Tree{
-	struct BSTnode *root;
-};
 
 int comparison(void *src, void *dest);
 int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(void*,void*));
@@ -30,6 +27,13 @@ struct Mix_t{
 	int type;
 	void *v;
 };
+int mix_type_init(int type,struct Mix_t **el,void *value);
+#define FREE_MIX_TYPE(n) \
+						do{ \
+						free(((struct Mix_t*)n)->v);\
+						free((struct Mix_t*)n);\
+						n = NULL;\
+						}while(0)
 
 enum arr_type{
 	INT,
@@ -43,7 +47,6 @@ enum arr_type{
 void *array_init(size_t size, int type);
 int array_push(void **arr, void *el);
 int array_insert_at(int i, void **arr, void *el);
-int array_mix_element(int type,struct Mix_t *el,void *value);
 void array_free(void* arr);
 
 #define MAX_FILE_PATH_LENGTH 256

@@ -102,68 +102,76 @@ void *array_init(size_t size, int type)
 	}
 }
 
-int array_mix_element(int type,struct Mix_t *el, void* value)
+int mix_type_init(int type,struct Mix_t **el, void* value)
 {
+	if(!(*el)){
+		*el = malloc(sizeof(struct Mix_t));
+		if(!(*el)){
+			return -1;
+		}
+		memset(*el,0,sizeof(struct Mix_t));
+	}
+
 	switch(type){
 	case INT:
 	{ 
-		el->type = type;
-		el->v = (void*)malloc(sizeof(int));
-		if(!el->v){
+		(*el)->type = type;
+		(*el)->v = (void*)malloc(sizeof(int));
+		if(!(*el)->v){
 			return -1;
 		}
-		*(int*)el->v = *(int *)value;	
+		*(int*)(*el)->v = *(int *)value;	
 		return 0;
 	}
 	case LONG:
 	{
-		el->type = type;
-		el->v = (void*)malloc(sizeof(long));
-		if(!el->v){
+		(*el)->type = type;
+		(*el)->v = (void*)malloc(sizeof(long));
+		if(!(*el)->v){
 			return -1;
 		}
-		*(long*)el->v = *(long*)value;	
+		*(long*)(*el)->v = *(long*)value;	
 		return 0;
 	}
 	case BYTE:
 	{
-		el->type = type;
-		el->v = (void*)malloc(sizeof(unsigned char));
-		if(!el->v){
+		(*el)->type = type;
+		(*el)->v = (void*)malloc(sizeof(unsigned char));
+		if(!(*el)->v){
 			return -1;
 		}
-		el->v = value;	
+		*(unsigned char*)(*el)->v = *(unsigned char*)value;	
 		return 0;
 	}
 	case FLOAT:
 	{
-		el->type = type;
-		el->v = (void*)malloc(sizeof(float));
-		if(!el->v){
+		(*el)->type = type;
+		(*el)->v = (void*)malloc(sizeof(float));
+		if(!(*el)->v){
 			return -1;
 		}
-		el->v = value;	
+		*(float*)(*el)->v = *(float*)value;	
 		return 0;
 	}
 	case DOUBLE:
 	{
-		el->type = type;
-		el->v = (void*)malloc(sizeof(double));
-		if(!el->v){
+		(*el)->type = type;
+		(*el)->v = (void*)malloc(sizeof(double));
+		if(!(*el)->v){
 			return -1;
 		}
-		el->v = value;	
+		*(double*)(*el)->v = *(double*)value;	
 		return 0;
 	}
 	case STRING:
 	{
 		size_t size = strlen((char*)value);
-		el->type = type;
-		el->v = (void*)malloc(sizeof(char*)*(size+1));
-		if(!el->v){
+		(*el)->type = type;
+		(*el)->v = (void*)malloc(sizeof(char*)*(size+1));
+		if(!(*el)->v){
 			return -1;
 		}
-		memcpy(el->v,value,size);
+		memcpy((char*)(*el)->v,(char*)value,size);
 		return 0;
 	}
 	default:
@@ -675,9 +683,17 @@ static int BST_node_init(struct BSTnode **node, struct BSTnode **v)
 		return -1;
 	}
 	memset((*node)->value,0,sizeof(struct Mix_t));
-	(*node)->value = (*v)->value;
+
+	struct Mix_t* node_value = (struct Mix_t*)(*node)->value;
+	if(mix_type_init((int)((struct Mix_t*)(*v)->value)->type,
+							&node_value,
+							(void*)((struct Mix_t*)(*v)->value)->v) == -1){
+		return -1;
+	}
+
 	return 0;
 }
+
 int comparison(void *src, void *dest)
 {
     struct Mix_t *s = (struct Mix_t*)src;
@@ -688,30 +704,31 @@ int comparison(void *src, void *dest)
 
 	switch(s->type){
 	case BYTE:
-		if((unsigned char*)s->v > (unsigned char*)d->v) return LEFT;
-		if((unsigned char*)s->v == (unsigned char*)d->v) return 0;
+		if(*(unsigned char*)s->v > *(unsigned char*)d->v) return LEFT;
+		if(*(unsigned char*)s->v == *(unsigned char*)d->v) return 0;
 		return RIGHT;
 	case INT:
-		if((int*)s->v > (int*)d->v) return LEFT;
-		if((int*)s->v == (int*)d->v) return 0;
+		if(*(int*)s->v > *(int*)d->v) return LEFT;
+		if(*(int*)s->v == *(int*)d->v) return 0;
 		return RIGHT;
 	case LONG:
-		if((long*)s->v > (long*)d->v) return LEFT;
-		if((long*)s->v == (long*)d->v) return 0;
+		if(*(long*)s->v > *(long*)d->v) return LEFT;
+		if(*(long*)s->v == *(long*)d->v) return 0;
 		return RIGHT;
 	default:
 		return ERR;
 	}
 }
+
 int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(void*,void*))
 {
-	if((*root) && (*root)->value)
-		return BST_insert(root,node,comparison);
 
-    if(BST_node_init(root,&node) == -1)
-		return -1;
-	else 
-		return 0;
+	if(!(*root)){
+		if(BST_node_init(root,&node) == -1)
+			return -1;
+		else 
+			return 0;
+	}
 
 	int result = comparison((*root)->value,node->value);
 	switch(result){
@@ -721,22 +738,14 @@ int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(voi
 			return BST_insert(&(*root)->left,node,comparison);
 		if(BST_node_init(&(*root)->left, &node) == -1)
 			return -1;
-		(*root)->left->value = (void*)malloc(sizeof(struct Mix_t));
-		if(!(*root)->left->value){
-			return -1;
-		}	
-		memcpy((struct Mix_t*)(*root)->left->value, (struct Mix_t*)node->value,sizeof(struct Mix_t));
+		return 0;
 	case RIGHT:
 		/*GO right*/
 		if((*root)->right)
 			return BST_insert(&(*root)->right,node,comparison);
 		if(BST_node_init(&(*root)->right,&node) == -1)
 			return -1;
-		(*root)->right->value = (void*)malloc(sizeof(struct Mix_t));
-		if(!(*root)->right->value){
-			return -1;
-		}	
-		memcpy((struct Mix_t*)(*root)->right->value, (struct Mix_t*)node->value,sizeof(struct Mix_t));
+		return 0;
 	case ERR:
 		/*CLEANUP*/
 		fprintf(stderr,"comparison() failed, check the types\n");
