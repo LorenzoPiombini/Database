@@ -6,7 +6,7 @@
 #define LEFT -1
 #define RIGHT 1
 struct BSTnode{
-	void* value;
+	void *value;
 	struct BSTnode *left;
 	struct BSTnode *right;
 };
@@ -14,6 +14,7 @@ struct BSTnode{
 
 int comparison(void *src, void *dest);
 int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(void*,void*));
+void BST_free(struct BSTnode **root);
 
 /* =========================== */
 /*used for arrays in the database*/

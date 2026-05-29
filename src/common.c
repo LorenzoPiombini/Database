@@ -755,3 +755,19 @@ int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(voi
 	}
 	return 0;
 }
+
+void BST_free(struct BSTnode **root)
+{
+	if(!(*root))
+		return;
+	
+	if((*root)->left)
+		BST_free(&(*root)->left);
+
+	if((*root)->right)
+		BST_free(&(*root)->right);
+		
+	FREE_MIX_TYPE((*root)->value);
+	free(*root);
+	*root = NULL;
+}
