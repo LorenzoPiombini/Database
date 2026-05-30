@@ -1,12 +1,12 @@
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdarg.h>
 #endif /*linux*/
 
 #include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <errno.h>
 #include <stdlib.h>
 #include "file.h"
@@ -26,7 +26,7 @@ static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 int open_file(char *fileName, int use_trunc)
 {
 	int fd = 0;
@@ -83,7 +83,7 @@ void delete_file(unsigned short count, ...)
 	int sum = 0;
 	short i = 0;
 	va_list args;
-	va_start(args, count);
+	va_start(args, (int)count);
 
 	for (i = 0; i < count; i++) {
 		char *file_name = va_arg(args, char *);
@@ -192,7 +192,7 @@ file_offset get_file_size(int fd, char *file_name)
 }
 #endif /*linux*/
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	unsigned char write_index_file_head(int fd, int index_num)
 #elif defined(_WIN32)
 	unsigned char write_index_file_head(HANDLE file_handle,int index_num)
@@ -220,7 +220,7 @@ file_offset get_file_size(int fd, char *file_name)
 		bwritten += sizeof(ui64);
 	}
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (write(fd, buff, bwritten) == -1){
 #elif defined(_WIN32)
 	DWORD written = 0;
@@ -234,7 +234,7 @@ file_offset get_file_size(int fd, char *file_name)
 	free(buff);
 	return 1;
 }
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 unsigned char write_index_body(int fd, int i, HashTable *ht)
 #elif defined(_WIN32)
 unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
@@ -243,7 +243,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	file_offset pos = 0;
 
 	ui32 i_n = swap32(i);
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (write(fd, &i_n, sizeof(i_n)) == -1){
 #elif defined(_WIN32)
 	DWORD written = 0;
@@ -270,7 +270,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 		__er_file_pointer(F, L - 2);
 		return 0;
 	}
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (find_record_position(fd, sizeof(int)) == -1) {
 #elif defined(_WIN32)
 	if (find_record_position(file_handle, sizeof(int)) == -1) {
@@ -280,7 +280,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	}
 
 	if (i != 0) {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 		if (move_in_file_bytes(fd, i * sizeof(pos)) == -1) {
 #elif defined(_WIN32)
 		if (move_in_file_bytes(file_handle, i * sizeof(pos)) == -1) {
@@ -291,7 +291,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	}
 
 	ui64 p_n = swap64(pos);
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (write(fd, &p_n, sizeof(p_n)) == -1){
 #elif defined(_WIN32)
 	written = 0;
@@ -301,7 +301,7 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 		return 0;
 	}
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (go_to_EOF(fd) == STATUS_ERROR)
 #elif defined(_WIN32)
 	if (go_to_EOF(file_handle) == STATUS_ERROR)
@@ -313,13 +313,13 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 	return 1;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 unsigned char read_index_nr(int i_num, int fd, HashTable **ht)
 #elif defined(_WIN32) 
 unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 #endif
 {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (begin_in_file(fd) == STATUS_ERROR)
 #elif defined(_WIN32) 
 	if (begin_in_file(file_handle) == STATUS_ERROR)
@@ -330,7 +330,7 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 	}
 
 	ui32 a_s = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR)
 #elif defined(_WIN32) 
 	DWORD written = 0;
@@ -355,7 +355,7 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 	}
 
 	file_offset move_to = i_num * sizeof(file_offset);
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR)
 #elif defined(_WIN32) 
 	if (move_in_file_bytes(file_handle, move_to) == STATUS_ERROR)
@@ -366,7 +366,7 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 	}
 
 	ui64 i_p = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &i_p, sizeof(i_p)) == STATUS_ERROR)
 #elif defined(_WIN32)
 	written = 0;
@@ -383,7 +383,7 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 		printf("wrong reading from file, check position. %s:%d.\n", F, L - 8);
 		return 0;
 	}
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (find_record_position(fd, index_pos) == STATUS_ERROR)
 #elif defined(_WIN32)
 	if (find_record_position(file_handle, index_pos) == STATUS_ERROR)
@@ -393,7 +393,7 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 		return 0;
 	}
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (!read_index_file(fd, *ht)){
 #elif defined(_WIN32)
 	if (!read_index_file(file_handle, *ht)){
@@ -405,14 +405,14 @@ unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht)
 	return 1;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 unsigned char indexes_on_file(int fd, int *p_i_nr)
 #elif defined(_WIN32)
 unsigned char indexes_on_file(HANDLE file_handle, int *p_i_nr)
 #endif
 {
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (begin_in_file(fd) == STATUS_ERROR) {
 #elif defined(_WIN32)
 	if (begin_in_file(file_handle) == STATUS_ERROR) {
@@ -422,7 +422,7 @@ unsigned char indexes_on_file(HANDLE file_handle, int *p_i_nr)
 	}
 
 	ui32 a_s = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR) {
 #elif defined(_WIN32)
 	DWORD written = 0;
@@ -442,7 +442,7 @@ unsigned char indexes_on_file(HANDLE file_handle, int *p_i_nr)
 	return 1;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 unsigned char nr_bucket(int fd, int *p_buck)
 #elif defined(_WIN32)
 unsigned char nr_bucket(HANDLE file_handle, int *p_buck)
@@ -450,7 +450,7 @@ unsigned char nr_bucket(HANDLE file_handle, int *p_buck)
 {
 	HashTable ht = {0};
 	HashTable *pht = &ht;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (!read_index_nr(0, fd, &pht)) {
 #elif defined(_WIN32)
 	if (!read_index_nr(0,file_handle, &pht)) {
@@ -467,14 +467,14 @@ unsigned char nr_bucket(HANDLE file_handle, int *p_buck)
 	return 1;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index)
 #elif defined(_WIN32)
 unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_index)
 #endif
 {
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (begin_in_file(fd) == STATUS_ERROR) {
 #elif defined(_WIN32)
 	if (begin_in_file(file_handle) == STATUS_ERROR) {
@@ -484,7 +484,7 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 	}
 
 	ui32 a_s = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR) {
 #elif defined(_WIN32)
 	if (!ReadFile(file_handle,&a_s,sizeof(a_s),&written,NULL)){
@@ -513,7 +513,7 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 		(*ht)[i].write = write_ht;
 
 	file_offset move_to = (array_size * sizeof(file_offset)) + sizeof(int);
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (move_in_file_bytes(fd, move_to) == STATUS_ERROR) {
 #elif defined(_WIN32)
 	if (move_in_file_bytes(file_handle, move_to) == STATUS_ERROR) {
@@ -525,7 +525,7 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 
 	for (i = 0; i < array_size; i++)
 	{
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 		if (!read_index_file(fd, &((*ht)[i])))
 #elif defined(_WIN32)
 		if (!read_index_file(file_handle, &((*ht)[i])))
@@ -538,7 +538,7 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 
 		if ((array_size - i) > 1)
 		{
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 			if (move_in_file_bytes(fd, sizeof(int)) == STATUS_ERROR)
 #elif defined(_WIN32)
 			if (move_in_file_bytes(file_handle, sizeof(int)) == STATUS_ERROR)
@@ -554,14 +554,14 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 }
 
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 unsigned char read_index_file(int fd, HashTable *ht)
 #elif defined(_WIN32)
 unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 #endif
 {
 	ui32 s_n = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &s_n, sizeof(s_n)) < 0)
 #elif defined(_WIN32)
 	DWORD written = 0;
@@ -575,7 +575,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 	ht->size = (int)swap32(s_n); 
 
 	ui32 ht_ln = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &ht_ln, sizeof(ht_ln)) == STATUS_ERROR)
 #elif defined(_WIN32)
 	written = 0;
@@ -590,7 +590,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 	register int i = 0;
 	for (i = 0; i < ht_l; i++) {
 		ui32 type = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 		if (read(fd, &type, sizeof(type)) == -1) 
 #elif defined(_WIN32)
 		written = 0;
@@ -609,7 +609,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		case STR:
 		{
 			ui64 key_l = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 			if (read(fd, &key_l, sizeof(key_l)) > 0) 
 #elif defined(_WIN32)
 			written = 0;
@@ -626,7 +626,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 
 				memset(key,0,size+1);
 				ui64 v_n = 0l;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 				if (read(fd, key, size + 1) == -1 ||
 					read(fd, &v_n, sizeof(v_n)) == -1) 
 #elif defined(_WIN32)
@@ -691,7 +691,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 			ui32 k = 0;
 			ui16 k16 = 0;
 			ui64 value = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 			if (read(fd, &size, sizeof(size)) == -1)
 #elif defined(_WIN32)
 			written = 0;
@@ -703,7 +703,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 				return 0;
 			}
 			if(size == 16){
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 				if (read(fd, &k16, sizeof(k16)) == -1)
 #elif defined(_WIN32)
 				written = 0;
@@ -715,7 +715,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 					return 0;
 				}
 			}else{
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 				if (read(fd, &k, sizeof(k)) == -1)
 #elif defined(_WIN32)
 				written = 0;
@@ -729,7 +729,7 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 
 			}
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 			if (read(fd, &value, sizeof(value)) == -1)
 #elif defined(_WIN32)
 			written = 0;
@@ -5322,14 +5322,14 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 }
 
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 file_offset get_update_offset(int fd)
 #elif defined(_WIN32)
 file_offset get_update_offset(HANDLE file_handle)
 #endif
 {
 	ui64 urec_ne = 0;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &urec_ne, sizeof(urec_ne)) == STATUS_ERROR)
 #elif defined(_WIN32)
 	if (!ReadFile(file_handle,&urec_ne,sizeof(urec_ne),&written,NULL))
@@ -6516,7 +6516,7 @@ int file_error_handler(int count, ...)
 {
 	va_list args;
 	va_start(args, count);
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	int fds[count];
 #elif defined(_WIN32)
 	HANDLE handles[count];
@@ -6525,7 +6525,7 @@ int file_error_handler(int count, ...)
 
 	int err = 0, exist = 0;
 	for (i = 0; i < count; i++) {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 		int fd = va_arg(args, int);
 		if (fd == STATUS_ERROR) 
 #elif defined(_WIN32)
@@ -6536,7 +6536,7 @@ int file_error_handler(int count, ...)
 			j++;
 			continue;
 		}
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 		if (fd == ENOENT) err++;
 		if (fd == EEXIST) exist++;
 		fds[i] = fd;
@@ -6549,7 +6549,7 @@ int file_error_handler(int count, ...)
 	if(j != 0 ){
 		int x;
 		for(x = 0 ;x < 0; x++){
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 			if(fds[x] != -1	) close(fds[x]);
 #elif defined(_WIN32)
 			if(handles[x] !=  INVALID_HANDLE_VALUE || handles[x] != ERROR_FILE_NOT_FOUND)
@@ -6557,7 +6557,7 @@ int file_error_handler(int count, ...)
 #endif
 	   } 
 	}
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if(err > 0) return ENOENT;	
 	if(exist > 0) return EEXIST;	
 #elif defined(_WIN32)
@@ -6582,7 +6582,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 				F, L - 3);
 		return -1;
 	}
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	int fd = open_file(buff, 0);
 	if (file_error_handler(1, fd) > 0) 
 #elif defined(_WIN32)
@@ -6806,14 +6806,14 @@ size_t get_offset_ram_file(struct Ram_file *ram)
 	return ram->size;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 int get_all_record(int fd, struct Ram_file *ram)
 #elif defined(_WIN32)
 int get_all_record(HANDLE file_handle, struct Ram_file *ram)
 #endif
 {
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	file_offset eof = go_to_EOF(fd);
 	if(begin_in_file(fd) == -1) return -1;
 #elif defined(_WIN32)
@@ -6823,7 +6823,7 @@ int get_all_record(HANDLE file_handle, struct Ram_file *ram)
 
 	if(init_ram_file(ram,(size_t)eof) == -1) return -1;	
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if(read(fd,ram->mem,ram->capacity) == -1) return -1;
 #elif defined(_WIN32)
 	DWORD written = 0;
@@ -11092,7 +11092,7 @@ static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, siz
 	return -1;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 int buffered_write(int *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
 #elif defined(_WIN32)
 int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
@@ -11134,7 +11134,7 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 		strncpy(buf,rec->file_name,strlen(rec->file_name));
 		strncat(buf,".dat",strlen(".dat")+1);		
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 		close(*fd);
 		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
 		if(file_error_handler(1,*fd) != 0) 
@@ -11148,7 +11148,7 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 			return -1;
 		}
 	}
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if(write(*fd,ram.mem,ram.size) == -1)
 #elif defined(_WIN32)
 	DWORD written = 0;
@@ -11161,7 +11161,7 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 	}
 
 	if(update){
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 		close(*fd);
 		*fd = open_file(buf,0); /*open the file in nirmal mode*/
 		if(file_error_handler(1,*fd) != 0) 
@@ -11179,14 +11179,14 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 	return 0;
 }
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 static size_t get_string_size(int fd, struct Ram_file *ram)
 #elif defined(_WIN32)
 static size_t get_string_size(struct Ram_file *ram)
 #endif
 {
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	if(fd != -1 && ram) {
 		fprintf(stderr,"(%s): wrong usage of %s(), you can pass either fd or Ram_file, both is not allowed.\n",prog,__func__);
 		return -1;
@@ -11227,7 +11227,7 @@ static size_t get_string_size(struct Ram_file *ram)
 #if defined(_WIN32) 
 #include <windows.h>
 #include "file.h"
-#include "types.h"
+#include "db_types.h"
 #include "str_op.h"
 #include "common.h"
 #include "endian.h"

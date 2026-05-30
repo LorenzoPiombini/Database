@@ -2,7 +2,7 @@
 #define _STRING_UTILS_H
 
 
-#include <types.h>
+#include "db_types.h"
 
 extern i64 error_value;
 #define INVALID_VALUE 22 /*EINVAL*/

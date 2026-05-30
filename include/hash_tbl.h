@@ -2,7 +2,7 @@
 #define HASH_TBL_H
 
 
-#include "types.h"
+#include "db_types.h"
 
 #define MAX_KEY 4294967296
 #define MAX_HT_BUCKET 503 

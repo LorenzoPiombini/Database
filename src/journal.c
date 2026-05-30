@@ -12,7 +12,7 @@
 #include "file.h"
 #include "endian.h"
 #include "str_op.h"
-#include "types.h"
+#include "db_types.h"
 
 static char p[] ="db";
 

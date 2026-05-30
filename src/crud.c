@@ -12,7 +12,7 @@
 #include "hash_tbl.h"
 #include "parse.h"
 #include "crud.h"
-#include "types.h"
+#include "db_types.h"
 #include "input.h"
 #include "string_utilities.h"
 #include "common.h"
@@ -687,7 +687,6 @@ int update_rec(char *file_path,
 
 		/* write the update records to file */
 		int changed = 0;
-		ui16 updates = 0; /* bool value if 0 no updates*/
 		int j;
 		for (j = 0; j < (int)rec_old.count; j++) {
 			if (positions[j] == 'n') continue;
@@ -699,7 +698,6 @@ int update_rec(char *file_path,
 
 			
 			no_updates = 0;
-			++updates;
 			changed = 1;
 			if (find_record_position(fds[1], recs[j]->offset) == -1) {
 				__er_file_pointer(F, L - 1);

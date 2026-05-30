@@ -8,7 +8,7 @@
 #include "record.h"
 #include "file.h"
 #include "endian.h"
-#include "types.h"
+#include "db_types.h"
 #include "str_op.h"
 #include "parse.h"
 #include "common.h"

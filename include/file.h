@@ -1,12 +1,13 @@
 #ifndef FILE_H
 #define FILE_H 1
 
+#include "db_types.h"
 #include "record.h"
 #include "hash_tbl.h"
 #include "parse.h"
 
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 
 #define STD_RAM_FILE 4096*1000 /* 4 MiB */  
 

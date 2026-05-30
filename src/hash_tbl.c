@@ -8,7 +8,7 @@
 #include "str_op.h"
 #include "debug.h"
 #include "endian.h"
-#include "types.h"
+#include "db_types.h"
 #include "common.h"
 #include "string_utilities.h"
 

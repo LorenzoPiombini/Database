@@ -14,7 +14,7 @@
 #include "lock.h"
 #include "common.h"
 #include "input.h"
-#include "types.h"
+#include "db_types.h"
 #include "date.h"
 
   

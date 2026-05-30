@@ -1,7 +1,7 @@
 #ifndef RECORD_H
 #define RECORD_H
 
-#include <types.h>
+#include "db_types.h"
 #define MAX_FILE_NAME_LEN 256
 
 /*default dynamic array size*/

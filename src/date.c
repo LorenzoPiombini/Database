@@ -100,7 +100,7 @@ int convert_date_str(int format, char *str, struct tm* input_date)
 	
 	input_date->tm_year = year - 1900;
 	input_date->tm_isdst = -1;
-#if PROD
+#if PROD || defined(__APPLE__)
 	input_date->tm_zone = "EST";
 #else
 	input_date->__tm_zone = "EST";

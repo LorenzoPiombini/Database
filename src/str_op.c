@@ -6,7 +6,7 @@
 #include <ctype.h>
 
 #include "str_op.h"
-#include "types.h"
+#include "db_types.h"
 #include "string_utilities.h"
 #include "common.h"
 #include "globals.h"

@@ -1,7 +1,7 @@
 #ifndef ENDIAN_H
 #define ENDIAN_H
 
-#include "types.h"
+#include "db_types.h"
 /*assign a value to the double to get the corrisponding value int*/
 typedef union
 {

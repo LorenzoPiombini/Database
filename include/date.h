@@ -2,7 +2,7 @@
 #define _DATE_H
 
 #include <time.h>
-#include "types.h"
+#include "db_types.h"
 
 #define ISO_W_ADJ 10
 #define DD_MM_YYYY 0

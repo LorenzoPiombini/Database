@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <unistd.h>
 
+#include "db_types.h"
 #include "common.h"
 #include "build.h"
 #include "file.h"
