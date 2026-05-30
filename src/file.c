@@ -7648,7 +7648,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						ram->offset = eof;
 						if(eof == ram->capacity){
 							errno = 0;
-							ui8 *n_mem = (ui8*)realloc(ram->mem,(ram->capacity + buff_update) * sizeof(ui8));
+							ui8 *n_mem = (ui8*)realloc(ram->mem,(ram->capacity + buff_update + sizeof(ui16)) * sizeof(ui8));
 							if(!n_mem){
 								fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 								return -1;
@@ -7660,7 +7660,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 						}else if((eof + buff_update) > ram->capacity){
 							errno = 0;
-							ui8 *n_mem = (ui8*)realloc(ram->mem,(ram->capacity + buff_update) * sizeof(ui8));
+							ui8 *n_mem = (ui8*)realloc(ram->mem,(ram->capacity + buff_update +sizeof(ui16)) * sizeof(ui8));
 							if(!n_mem){
 								fprintf(stderr,"realloc failed with '%s', %s:%d.\n",strerror(errno),__FILE__,__LINE__-1);
 								return -1;
