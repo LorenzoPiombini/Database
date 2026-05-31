@@ -170,18 +170,17 @@ int get_function_signature(char *function_name,char *signature)
 	strncat(var,"_s",3);
 
 	lua_getglobal(L,var);
+	free(var);
 
 	char *s  = (char*)lua_tostring(L,-1);
 	if(s){
 		strncpy(signature,s,strlen(s));
 	}else{
 		lua_pop(L,1);
-		free(var);
 		return -1;
 	}
 	
 	lua_pop(L,1);
-	free(var);
 	return 0;
 }
 
