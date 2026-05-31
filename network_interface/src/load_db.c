@@ -1,6 +1,7 @@
 #include <stdio.h>
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <fcntl.h>              /* Definition of O_* constants */
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <ctype.h>
@@ -9,23 +10,22 @@
 #include <assert.h>
 
 /* these are my library */
-#include <memory.h>
-#include <freestand.h>
-#include <types.h>
-#include <crud.h>
-#include <lock.h>
-#include <file.h>
-#include <str_op.h>
-#include <common.h>
-#include "load.h"
+#include "db_types.h"
+#include "crud.h"
+#include "lock.h"
+#include "file.h"
+#include "str_op.h"
+#include "common.h"
+#include "load_db.h"
 #include "request.h"
 #include "end_points.h"
+#include "string_utilities.h"
 
-static char prog[] = "net_interface";
+static char prog[] = "db_interface";
 static char *convert_json(char* body);
 
-
-int load_resource(struct Request *req, struct Content *cont,int data_sock)
+const int EIGTH_Kib = 1024 * 8;
+int load_resource_db(struct Request *req, struct Content *cont,int data_sock)
 {
 	int resource = map_end_point(req->resource); 
 	if(resource == -1) return -1;
@@ -47,16 +47,16 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			if(db[0] == '\0') return -1;
 
 			/*2 stands for  1 '\0', and 1 for the operation*/
-			size_t size_buffer = string_length(db) + 2;
-			char *buffer = (char *) ask_mem(size_buffer);
+			size_t size_buffer = strlen(db) + 2;
+			char *buffer = (char *) malloc(size_buffer);
 
 			buffer[0] = resource + '0';
-			string_copy(&buffer[1],db,size_buffer-1);
+			strncpy(&buffer[1],db,size_buffer-1);
 
 			/*send data to the worker process*/
 			if(write(data_sock,buffer,strlen(buffer)) == -1) return -1;
 
-			/*TODO refactor the socket comunication so that you read once with 
+			/*TODO: refactor the socket comunication so that you read once with 
 			 * the size of the next message then you allocate a buffer accordangly so 
 			 * you can be eficient*/
 			char read_buffer[MAX_CONT_SZ];
@@ -111,7 +111,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			 *  1 for '\0';
 			 * */
 				size_buffer = sizeof(orders_head) + sizeof(orders_line)+3;
-				buffer = (char*)ask_mem(size_buffer);
+				buffer = (char*)malloc(size_buffer);
 				if(!buffer) return -1;
 
 				memset(buffer,0,size_buffer);
@@ -133,7 +133,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			 * */
 				
 				size_buffer = sizeof(orders_head) + sizeof(orders_line)+ strlen(p) +4;
-				buffer = (char*)ask_mem(size_buffer);
+				buffer = (char*)malloc(size_buffer);
 				if(!buffer) return -1;
 
 				memset(buffer,0,size_buffer);
@@ -197,7 +197,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 				return -1;
 			}
 
-			char *read_buffer = (char*)ask_mem(EIGTH_Kib*4);
+			char *read_buffer = (char*)malloc(EIGTH_Kib*4);
 			if(!read_buffer) return -1;
 
 			/*read data from worker proc*/
@@ -214,7 +214,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			if(read_buffer[0] == '\0') return -1;
 
 			size_t mem_size = strlen(read_buffer) + 1;
-			cont->cnt_dy = (char*) ask_mem(mem_size);
+			cont->cnt_dy = (char*) malloc(mem_size);
 			if(!cont->cnt_dy) return -1;
 
 			cont->capacity =mem_size;
@@ -237,7 +237,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 				return -1;
 			}
 
-			char *read_buffer = (char*)ask_mem(EIGTH_Kib*4);
+			char *read_buffer = (char*)malloc(EIGTH_Kib*4);
 			if(!read_buffer) return -1;
 
 			/*read data from worker proc*/
@@ -254,7 +254,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 			if(read_buffer[0] == '\0') return -1;
 
 			size_t mem_size = strlen(read_buffer) + 1;
-			cont->cnt_dy = (char*) ask_mem(mem_size);
+			cont->cnt_dy = (char*) malloc(mem_size);
 			if(!cont->cnt_dy) return -1;
 
 			cont->capacity =mem_size;
@@ -277,7 +277,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 
 			if(write(data_sock,buffer,strlen(buffer)) == -1) return -1;
 
-			char *read_buffer = (char*) ask_mem(EIGTH_Kib);
+			char *read_buffer = (char*) malloc(EIGTH_Kib);
 			if(!read_buffer) return -1;
 
 			ssize_t bread = 0;
@@ -333,7 +333,7 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 						long lines = rec.fields[field_ix].data.l;
 
 						/*stringfy the orders head here*/
-						cont->cnt_dy = (char*)ask_mem(PAGE_SIZE);
+						cont->cnt_dy = (char*)malloc(PAGE_SIZE);
 						if(!cont->cnt_dy){
 							/*log error*/	
 							goto s_ord_get_exit_error;
@@ -377,15 +377,15 @@ int load_resource(struct Request *req, struct Content *cont,int data_sock)
 						for(i = 0;i < lines;i++){
 
 							size_t l = number_of_digit(k) + number_of_digit(i+1)+1;
-							key = (char*) ask_mem(l+1);
+							key = (char*) malloc(l+1);
 							if(!key){
-								fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+								fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 								goto s_ord_get_exit_error;
 							}
 
-							char *line_title = (char*)ask_mem(23);
+							char *line_title = (char*)malloc(23);
 							if(!line_title){
-								fprintf(stderr,"ask_mem() failed, %s:%d.\n",__FILE__,__LINE__-2);
+								fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 								goto s_ord_get_exit_error;
 							}
 							if(copy_to_string(key,l+1,"%d/%ld",k,i+1) == -1) goto s_ord_get_exit_error;
@@ -450,115 +450,105 @@ s_ord_get_exit_error:
 	return 0;
 	}
 
-	void clear_content(struct Content *cont){
-		if(cont->cnt_dy){ 
-			cancel_memory(NULL,cont->cnt_dy,cont->capacity);
-			cont->cnt_dy = NULL;
-		}
-
-		memset(cont->cnt_st,0,MAX_CONT_SZ);
-		cont->size = 0;
 	}	
 
-	static char *convert_json(char* body)
-	{
-		static char db_entry[1024] = {0};
-		memset(db_entry,0,1024);
-		int array = 0;
-		int n_array = 0;
-		int n_obj_arr = 0;
-		int n_obj = 0;
-		int string = 0;
-		int i = 0;
-		for(char *p = &body[1]; *p != '\0'; p++){
-			if(*p == ']'){
-				if(n_array) 
-					n_array = 0;
-				else
-					array = 0;
+static char *convert_json(char* body)
+{
+	static char db_entry[1024] = {0};
+	memset(db_entry,0,1024);
+	int array = 0;
+	int n_array = 0;
+	int n_obj_arr = 0;
+	int n_obj = 0;
+	int string = 0;
+	int i = 0;
+	for(char *p = &body[1]; *p != '\0'; p++){
+		if(*p == ']'){
+			if(n_array) 
+				n_array = 0;
+			else
+				array = 0;
 
-				continue;
-			}
+			continue;
+		}
 
-			if(*p == ',' && !string) {
-				db_entry[i] = ':';
+		if(*p == ',' && !string) {
+			db_entry[i] = ':';
+			i++;
+			continue;
+		}
+
+		if(*p == '}'){
+			if(n_obj_arr){
+				n_obj_arr = 0;
+				db_entry[i] = ']';
 				i++;
-				continue;
-			}
-
-			if(*p == '}'){
-				if(n_obj_arr){
-					n_obj_arr = 0;
-					db_entry[i] = ']';
+				/* 
+				 * the following if statment check if we have more
+				 * than one object in the array
+				 * and format the db_entry accordingly
+				 * */
+				if(*(p + 1) == ','){
+					db_entry[i] = ',';
 					i++;
-					/* 
-					 * the following if statment check if we have more
-					 * than one object in the array
-					 * and format the db_entry accordingly
-					 * */
-					if(*(p + 1) == ','){
-						db_entry[i] = ',';
-						i++;
-						p++;
-					}
-				}else if (n_obj){
-					n_obj = 0;
+					p++;
 				}
-				continue;
+			}else if (n_obj){
+				n_obj = 0;
 			}
+			continue;
+		}
 
-			if(*p == '{'){
-				if(array){
-					n_obj_arr = 1;
-					/*file as a field syntax*/
-					db_entry[i] = '[';
-					i++;
-					db_entry[i] = 'w';
-					i++;
-					db_entry[i] = '|';
-					i++;
-				}else{	
-					n_obj = 1;
-				}
-			}
-
-			if(*p == '['){
-				if(array)
-					n_array = 1;
-				else
-					array = 1;
-				continue;
-			}
-
-			if(*p == ':' && string == 0){
-				db_entry[i] = *p;
+		if(*p == '{'){
+			if(array){
+				n_obj_arr = 1;
+				/*file as a field syntax*/
+				db_entry[i] = '[';
 				i++;
-				continue;
-			}
-
-			if(*p == ' ' && !string) continue;
-			if(*p == '"') {
-				if(string)
-					string = 0;
-				else
-					string = 1;
-				continue;
-			}
-
-			if(string){
-				db_entry[i] = *p;
+				db_entry[i] = 'w';
 				i++;
-				continue;
-			}	
-
-			if(isdigit(*p)){
-				db_entry[i] = *p;
+				db_entry[i] = '|';
 				i++;
-				continue;
+			}else{	
+				n_obj = 1;
 			}
 		}
 
-		return &db_entry[0];
+		if(*p == '['){
+			if(array)
+				n_array = 1;
+			else
+				array = 1;
+			continue;
+		}
+
+		if(*p == ':' && string == 0){
+			db_entry[i] = *p;
+			i++;
+			continue;
+		}
+
+		if(*p == ' ' && !string) continue;
+		if(*p == '"') {
+			if(string)
+				string = 0;
+			else
+				string = 1;
+			continue;
+		}
+
+		if(string){
+			db_entry[i] = *p;
+			i++;
+			continue;
+		}	
+
+		if(isdigit(*p)){
+			db_entry[i] = *p;
+			i++;
+			continue;
+		}
 	}
 
-	
+	return &db_entry[0];
+}
