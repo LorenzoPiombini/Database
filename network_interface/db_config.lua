@@ -324,7 +324,7 @@ function get_order(data)
 end
 
 -- helper function for reports on open orders
-local function get_order_info(keys_head)
+local function get_orders_total(keys_head)
 	totals = {}
 	local orders_tot = 0.0
 	for n in string.gmatch(keys_head,"%d+") do
@@ -367,6 +367,7 @@ end
 -- when adding a new report
 
 open_orders_s = ">s"
+sales_orders_week_s = ">s"
 
 function open_orders()
 	local all_head_k = g_all_key(sales_orders.head,0)
@@ -382,3 +383,79 @@ function open_orders()
 	return json
 end
 
+
+-- return begining of the current week in seconds (since january 1 1970) 
+local function get_week_start()
+	today_second = os.time()
+	start = os.date('%w',today_second)
+	if start == 0 then
+		return today_second
+	end
+	return today_second - (start *(60*60*24))
+end
+
+-- return the end of the current week in seconds (since january 1 1970) 
+local function get_week_end()
+	today_second = os.time()
+	finish = os.date('%w',today_second)
+	if finish == 6 then
+		return today_second
+	end
+	return today_second + ((finish +(6 - finish)) *(60*60*24))
+end
+
+local function convert_date(date)
+	m,d,y = string.match(date,"(%d+)-(%d+)-(%d+)")
+	y = tonumber(y) +2000
+	date = {year  = y ,month = m, day = d}
+	return os.time(date)
+end
+
+local function is_date_this_week(date_second)
+	start = get_week_start()
+	finish = get_week_end()
+	return (start <= date_second) and (finish >= date_second)
+end
+
+local function get_orders_by_week_range(head_keys)
+	local result = '{"message":['
+	for n in string.gmatch(head_keys,"%d+") do
+		local k = tonumber(n)
+		local h = g_rec(sales_orders.head,k)
+
+		if h == nil then return -1 end
+
+		for i = 1, h.fields.lines_nr do
+			local k_lines = string.format("%d/%d",k,i)
+			local line = g_rec(sales_orders.lines,k_lines)
+			if line == nil then return -1 end
+			
+			if is_date_this_week(convert_date(line.fields.request_date)) == true then
+				if string.sub(result,-1) == '[' then
+					result = string.format('%s%d',result,k)
+				else
+					result = string.format('%s,%d',result,k)
+				end
+			end
+		end
+	end
+	
+	if string.sub(result,-1) == '[' then
+		return '{"message":[]}'
+	end
+
+	if string.sub(result,-1) == ',' then
+		result = string.sub(result, 1, #result - 1)
+		return string.format('%s]}',result)
+	else
+		return string.format('%s]}',result)
+	end
+	
+end
+
+function sales_orders_week()
+	local all_head_k = g_all_key(sales_orders.head,0)
+	if type(all_head_k) ~= "string" then return -1 end
+
+	return get_orders_by_week_range(all_head_k)
+end
