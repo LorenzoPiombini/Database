@@ -374,7 +374,7 @@ function open_orders()
 	if type(all_head_k) ~= "string" then return -1 end
 
 
-	local totals = get_order_info(all_head_k)
+	local totals = get_orders_total(all_head_k)
 	local json = "{"
 	for n in string.gmatch(all_head_k,"%d+") do
 		json = string.format('%s"%d":{%s},',json,n,totals[n])
