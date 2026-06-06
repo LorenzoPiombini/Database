@@ -325,7 +325,7 @@ end
 
 -- helper function for reports on open orders
 local function get_orders_total(keys_head)
-	totals = {}
+	local totals = {}
 	local orders_tot = 0.0
 	for n in string.gmatch(keys_head,"%d+") do
 		local k = tonumber(n)
@@ -349,7 +349,7 @@ local function get_orders_total(keys_head)
 			local item = g_rec('/root/db/item',line.fields.item_id,1)
 			if item == nil then return nil end
 
-			total = item.fields.unit_price * line.fields.qty
+			total = total + item.fields.unit_price * line.fields.qty
 			if disc ~= 0 then
 				total = total * ((100-disc)/ 100)
 			end
