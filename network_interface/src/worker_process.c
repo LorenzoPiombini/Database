@@ -13,8 +13,6 @@
 #include <types.h>
 #include <file.h>
 #include "end_points.h"
-#include "handlesig.h"
-#include "load_db.h"
 #include "common.h"
 #include "lua_start.h"
 #include "string_utilities.h"
@@ -346,7 +344,6 @@ new_up_ords_err:
 				memset(d_buff, 0,mes_l+1);
 				if(copy_to_string(d_buff,mes_l+1,"{ \"message\" : %s}",keys) == -1) {
 					free(d_buff);
-					free(keys);
 					goto error_s_ord;
 				}
 
@@ -465,7 +462,11 @@ error_s_ord:
 				clear_lua_stack();
 				json = NULL;
 
-				if(write(data_sock,msg,size_json) == -1 ) goto s_ord_get_exit_error;
+				if(write(data_sock,msg,size_json) == -1 ) {
+					free(msg);
+					goto s_ord_get_exit_error;
+				}
+
 				/*printf("%s\nsize is %ld\nlast char is '%c'\n",message,strlen(message),message[string_length(message)-1]);*/
 
 				free(msg);
