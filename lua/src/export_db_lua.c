@@ -853,7 +853,7 @@ static int l_get_all_key(lua_State *L)
 		goto error;
 
 	lua_pushstring(L,r);
-	close_file(fds[0]);
+	close_file(1,fds[0]);
 	free(r);
 	return 1;
 
@@ -861,7 +861,7 @@ err_open_file:
 	lua_pushinteger(L,(lua_Integer) -1);
 	return 1;
 error:
-	close_file(fds[0]);
+	close_file(1,fds[0]);
 	return 1;
 }
 
