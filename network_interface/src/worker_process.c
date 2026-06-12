@@ -145,6 +145,7 @@ report_error:
 			memset(key_up,0,1024);
 			if(operation_to_perform == UPDATE_SORD){
 				/*get the key of the record that we have to update*/
+				clear_tok();
 				t = tok(&buffer[2],"^");
 				if(t){
 					len = strlen(t);	
@@ -167,6 +168,7 @@ report_error:
 				strncpy(key_up,t,len);
 			}
 
+			clear_tok();
 			t = tok(&buffer[2],"^");
 			if(t){
 				len = strlen(t);	
@@ -277,6 +279,7 @@ new_up_ords_err:
 		case CUSTOMER_GET_ALL: 
 		case S_ORD:
 		{
+			/*TODO this can be moved to lua side completely*/
 			/*get the all keys for the sales order file or the CUSTOMER*/
 			int fds[3];
 			memset(fds,-1,sizeof(int)*3);
