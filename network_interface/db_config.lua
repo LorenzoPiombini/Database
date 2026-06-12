@@ -378,13 +378,13 @@ function open_orders()
 	if totals == -1 then 
 		print("cannot get sales_order_head data!")
 		return '{message: "server error"}'
-	else if totals == -2 then 
+	elseif totals == -2 then 
 		print("cannot get price_level data!")
 		return '{message: "server error"}'
-	else if totals == -3 then 
+	elseif totals == -3 then 
 		print("cannot get sales_order_line data!")
 		return '{message: "server error"}'
-	else if totals == -4 then 
+	elseif totals == -4 then 
 		print("cannot get item data!")
 		return '{message: "server error"}'
 	end
