@@ -336,7 +336,7 @@ local function get_orders_total(keys_head)
 		local disc = 0
 		if h.fields.price_level_id ~= nil then
 			local pr_l = g_rec('/root/db/price_level',h.fields.price_level_id,1)
-			if pr_l == nil then return nil end
+			if pr_l == nil then return -2 end
 			disc = pr_l.fields.percentage
 		end
 
@@ -344,10 +344,10 @@ local function get_orders_total(keys_head)
 		for i = 1, h.fields.lines_nr do
 			local k_lines = string.format("%d/%d",k,i)
 			local line = g_rec(sales_orders.lines,k_lines)
-			if line == nil then return -1 end
+			if line == nil then return -3 end
 
 			local item = g_rec('/root/db/item',line.fields.item_id,1)
-			if item == nil then return nil end
+			if item == nil then return -4 end
 
 			total = total + item.fields.unit_price * line.fields.qty
 			if disc ~= 0 then
@@ -375,6 +375,20 @@ function open_orders()
 
 
 	local totals = get_orders_total(all_head_k)
+	if totals == -1 then 
+		print("cannot get sales_order_head data!")
+		return '{message: "server error"}'
+	else if totals == -2 then 
+		print("cannot get price_level data!")
+		return '{message: "server error"}'
+	else if totals == -3 then 
+		print("cannot get sales_order_line data!")
+		return '{message: "server error"}'
+	else if totals == -4 then 
+		print("cannot get item data!")
+		return '{message: "server error"}'
+	end
+
 	local json = "{"
 	for n in string.gmatch(all_head_k,"%d+") do
 		json = string.format('%s"%d":{%s},',json,n,totals[n])
