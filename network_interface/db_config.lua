@@ -433,24 +433,30 @@ end
 
 local function get_orders_by_week_range(head_keys)
 	local result = '{"message":['
-	for n in string.gmatch(head_keys,"%d+") do
-		local k = tonumber(n)
-		local h = g_rec(sales_orders.head,k)
+	local exit = false
+	for k,v in pairs(head_keys) do
+		local h = g_rec(sales_orders.head,v)
 
 		if h == nil then return -1 end
 
 		for i = 1, h.fields.lines_nr do
-			local k_lines = string.format("%d/%d",k,i)
+			local k_lines = string.format("%d/%d",v,i)
 			local line = g_rec(sales_orders.lines,k_lines)
 			if line == nil then return -1 end
 			
 			if is_date_this_week(convert_date(line.fields.request_date)) == true then
 				if string.sub(result,-1) == '[' then
-					result = string.format('%s%d',result,k)
+					result = string.format('%s%d',result,v)
 				else
-					result = string.format('%s,%d',result,k)
+					result = string.format('%s,%d',result,v)
 				end
+			elseif convert_date(line.fields.request_date) > get_week_end() then
+				exit = true
+				break
 			end
+		end
+		if exit then
+			break
 		end
 	end
 	
@@ -471,5 +477,15 @@ function sales_orders_week()
 	local all_head_k = g_all_key(sales_orders.head,0)
 	if type(all_head_k) ~= "string" then return -1 end
 
-	return get_orders_by_week_range(all_head_k)
+	-- we sort the keys, to increase performance (NOTE: FOR NOW!)
+	-- we need to come up with better solutions
+	-- this patch run on the assumption that the sales order file contains only the open orders
+	-- which will be the case in real life, but the open orders could be thousands
+	local ordered_keys = {}
+	for n in string.gmatch(all_head_k,"%d+") do
+		table.insert(ordered_keys,tonumber(n))
+	end
+	table.sort(ordered_keys)
+
+	return get_orders_by_week_range(ordered_keys)
 end
