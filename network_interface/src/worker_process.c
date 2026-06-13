@@ -114,9 +114,31 @@ new_cust_error:
 			clear_lua_stack();
 			json = NULL;
 
-			if(write(data_sock,msg,size_json) == -1 ) {
+			
+			ui32 limit = 0 | 0xFFFFFFFF;
+			if(size_json > (ui16)limit){
+				fprintf(stderr,"refactor needed in RPT protocol %s:%d\n",__FILE__,__LINE__);
 				free(msg);
 				goto report_error;
+			}
+			ui32 sz = (ui32)size_json;
+			if(write(data_sock,&sz,sizeof(ui32)) == -1){
+				free(msg);
+				goto report_error;
+			}
+
+			/*I NEED A TIMER */
+			char ok = 0;
+			if(read(data_sock,&ok,1) == -1){
+				free(msg);
+				goto report_error;
+			}
+
+			if(ok == '\001'){
+				if(write(data_sock,msg,size_json) == -1 ) {
+					free(msg);
+					goto report_error;
+				}
 			}
 
 			free(msg);
