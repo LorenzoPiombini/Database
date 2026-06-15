@@ -3,6 +3,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <sys/mman.h>
+#include <time.h>
 #endif /*linux*/
 
 #include <string.h>
@@ -11224,6 +11226,45 @@ static size_t get_string_size(struct Ram_file *ram)
 	return -1;
 }
 
+#if defined(__linux__) || defined(__APPLE__)
+int cache_file(int *fds,char *file_name,struct Cache *c,HashTable *cache_register)
+#elif defined(_WIN32)
+int cache_file(HANDLE file_handle,char *file_name,struct Cache *c,HashTable *cache_register)
+#endif
+{
+	
+	/*check if the file is cached already*/
+	if(get((void*)file_name,cache_register,STR) != -1)
+		return FILE_IS_CACHED;
+
+	int index = 0;
+#if defined(__linux__) || defined(__APPLE__)
+	if(!read_all_index_file(fds[0],&c->index_file,&index))
+#elif defined(_WIN32)
+	if(!read_all_index_file(file_handle,&c->index_file,&index))
+#endif
+		return -1;
+#if defined(__linux__) || defined(__APPLE__)
+	if(get_all_record(fds[1],&c->data_file) == -1)
+#elif defined(_WIN32)
+	if(get_all_record(file_handle,&c->data_file) == -1)
+#endif
+	{
+		free_ht_array(c->index_file,index);
+		close_ram_file(&c->data_file);
+		return -1;
+	}
+		
+	time_t ts = time(NULL);
+	if(!set((void*)file_name,STR,ts,cache_register)){
+		free_ht_array(c->index_file,index);
+		close_ram_file(&c->data_file);
+		return -1;
+	}
+
+	return 0;
+}
+
 #if defined(_WIN32) 
 #include <windows.h>
 #include "file.h"
@@ -11257,7 +11298,6 @@ HANDLE open_file(char *fileName, ui32 use_trunc)
 
 HANDLE create_file(char *file_name)
 {
-
 	DWORD err = getFileAttributesA(file_name);
 	if(err !=  INVALID_FILE_ATTRIBUTE){
 		fprintf(stderr,"file %s already exist");
