@@ -11,6 +11,7 @@
 #define LOWER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 65 || (int)*p <= 90) ;*p = ((int)*p) + 22,p++)
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
+HashTable cache_register = {0};
 
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
@@ -91,6 +92,7 @@ static int l_get_record(lua_State *L)
 	if(is_db_file(&hd,fds) == -1) 
 		goto err_not_db_file;
 
+	/*cache the file*/
 	int result = -1;
 	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds,index >=0 ? index : 0)) == -1) goto err_get_record_failed;
 	if(result == KEY_NOT_FOUND) goto err_rec_not_found;
