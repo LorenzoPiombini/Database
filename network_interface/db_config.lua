@@ -419,8 +419,9 @@ local function get_week_end()
 end
 
 local function convert_date(date)
+	if date == nil then return {year  = 1987 ,month = 3, day = 2} end
 	m,d,y = string.match(date,"(%d+)-(%d+)-(%d+)")
-	y = tonumber(y) +2000
+	y = tonumber(y) + 2000
 	date = {year  = y ,month = m, day = d}
 	return os.time(date)
 end
