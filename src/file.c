@@ -6864,6 +6864,14 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 					rec->fields[indexes[i]].data.i = swap32(n);
 					break;
 				}
+			case TYPE_DATE:
+				{
+					ui32 n = 0;
+					memcpy(&n,&ram->mem[ram->offset],sizeof(ui32));
+					move_ram_file_ptr(ram,sizeof(ui32));
+					rec->fields[indexes[i]].data.date = swap32(n);
+					break;
+				}
 			case TYPE_LONG:
 				{
 					ui64 n = 0;
