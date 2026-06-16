@@ -43,7 +43,8 @@ enum arr_type{
 	STRING,
 	DOUBLE,
 	FLOAT,
-	VOID
+	VOID,
+	USER_DEF
 };
 void *array_init(size_t size, int type);
 int array_push(void **arr, void *el);
@@ -68,6 +69,7 @@ void array_free(void* arr);
 #define KEY_NOT_FOUND 16 /*key not in the index file*/
 #define UPDATE_NOT 17 /*nothing tio update*/
 #define INDEX_OUT_OF_RANGE 18 /*indexing error */
+#define CACHE_FAILED 19 /*cache operation failed */
 #define E_RCMP 201 /* record comparison failed*/	
 #define DIF 202 /* new record is different*/	
 

@@ -5,6 +5,7 @@
 #include "record.h"
 #include "hash_tbl.h"
 #include "parse.h"
+#include <time.h>
 
 #define STD_RAM_FILE 4096*1000 /* 4 MiB */  
 
@@ -18,14 +19,19 @@ struct Ram_file{
 };
 
 #define FILE_IS_CACHED -2 /*error value to define the presence of a file in the cache*/
+
+
 struct Cache{
 	HashTable *index_file;
 	struct Ram_file data_file;
-};/*16 bytes*/
+	struct Schema sch;
+	time_t ts;
+	time_t used;
+};
 
 
 /* Key,value pair the key will be the file name in the cache, 
- *  value is the time_stamp since the file has been cached
+ *  value is the position of the file in the cash
  * */
 extern HashTable cache_register;
 
@@ -63,13 +69,13 @@ int get_all_record(int fd, struct Ram_file *ram);
 void clear_ram_file(struct Ram_file *ram);
 void close_ram_file(struct Ram_file *ram);
 int init_ram_file(struct Ram_file *ram, size_t size);
-int cache_file(int *fds,char *file_name,struct Cache *c,HashTable *cache_register);
+int cache_file(int *fds,char *file_name,struct Schema sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 #elif defined(_WIN32)
 
 HANDLE open_file(char *fileName, ui32 use_trunc);
 HANDLE create_file(char *file_name);
 void close_file(int count, ...);
-int cache_file(HANDLE file_handle,char *file_name,struct Cache *c,HashTable *cache_register)
+int cache_file(HANDLE file_handle,char *file_name,struct Schema sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 int delete_file(int count,...);
 file_offset begin_in_file(HANDLE file_handle);
 file_offset get_file_offset(HANDLE file_handle);
