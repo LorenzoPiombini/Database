@@ -265,6 +265,190 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	return 0;
 }
 
+int copy_schema(struct Schema *src,struct Schema *dest)
+{
+	dest->fields_num = src->fields_num;
+	dest->fields_name = (char**)malloc(sizeof(char*) * src->fields_num);
+	if(!dest->fields_name)
+		return -1;
+	dest->types = (int*)malloc(sizeof(int)*src->fields_num);
+	if(!dest->types){
+		free(dest->fields_name);
+		return -1;
+	}
+	dest->is_dropped = (ui8*)malloc(sizeof(ui8)*src->fields_num);
+	if(!dest->is_dropped){
+		free(dest->fields_name);
+		free(dest->types);
+		return -1;
+	}
+
+	dest->constraints = (ui8*)malloc(sizeof(ui8)*src->fields_num);
+	if(!dest->constraints){
+		free(dest->fields_name);
+		free(dest->types);
+		free(dest->is_dropped);
+		return -1;
+	}
+
+	dest->defaults = (void**)malloc(sizeof(void*)*src->fields_num);
+	if(!dest->defaults){
+		free(dest->fields_name);
+		free(dest->types);
+		free(dest->is_dropped);
+		free(dest->constraints);
+		return -1;
+	}
+	
+	memcpy(dest->types,src->types,sizeof(int)*src->fields_num);
+	memcpy(dest->is_dropped,src->is_dropped,sizeof(ui8)*src->fields_num);
+	memcpy(dest->constraints,src->constraints,sizeof(ui8)*src->fields_num);
+	dest->has_unique = src->has_unique;
+
+	int i;
+	for(i = 0; dest->fields_num; i++){
+		size_t sz = strlen(src->fields_name[i]);
+		dest->fields_name[i] = (char*)malloc(sz+1);
+		dest->fields_name[i][sz] = '\0';
+		strncpy(dest->fields_name[i],src->fields_name[i],sz);
+		if(src->constraints[i] == CONST_DEFAULT 
+				|| ((src->constraints[i] & CONST_DEFAULT) == CONST_DEFAULT)){
+
+			switch(src->types[i]){
+			case TYPE_INT:
+			case TYPE_LONG:
+			{
+
+				if (src->types[i] == TYPE_INT) {
+					dest->defaults[i] = (void*)malloc(sizeof(int));
+					if(!dest->defaults[i]){
+						fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+						free_schema(dest);
+						return -1;
+					}
+
+					*(int*)dest->defaults[i] = *(int*)src->defaults[i];
+				}else{
+					dest->defaults[i] = (void*)malloc(sizeof(long));
+					if(!dest->defaults[i]){
+						fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+						free_schema(dest);
+						return -1;
+					}
+
+					*(long*) dest->defaults[i] = *(long*)src->defaults[i];
+				}
+				break;
+			}
+			case TYPE_BYTE:
+				{
+					dest->defaults[i] = (void*)malloc(sizeof(unsigned char));
+					if(!dest->defaults[i]){
+						fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+						free_schema(dest);
+						return -1;
+					}
+					*(unsigned char*)dest->defaults[i] = *(unsigned char*)src->defaults[i];
+					break;
+				}
+				case TYPE_DOUBLE:
+				case TYPE_FLOAT:
+				{
+					if(src->types[i] == TYPE_FLOAT){
+						dest->defaults[i] = (void*)malloc(sizeof(float));
+						if(!dest->defaults[i]){
+							fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+							free_schema(dest);
+							return -1;
+						}
+						*(float*)dest->defaults[i] = *(float*)src->defaults[i];
+
+					}else{
+						dest->defaults[i] = (void*)malloc(sizeof(double));
+						if(!dest->defaults[i]){
+							fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+							free_schema(dest);
+							return -1;
+						}
+						*(double*)dest->defaults[i] = *(double*)src->defaults[i];
+					}
+					break;
+				}
+				case TYPE_DATE:
+				{
+					dest->defaults[i] = (void*)malloc(sizeof(ui32));
+					if(!dest->defaults[i]){
+						fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+						free_schema(dest);
+						return -1;
+					}
+
+					*(ui32*)dest->defaults[i] = *(ui32*) src->defaults[i]; 
+					break;
+				}
+				case TYPE_KEY:
+				{
+					/*
+					 * this is intended to be another file primary key
+					 * so it must be an integer (uint32_t) aka ui32 */
+
+
+					dest->defaults[i] = (void*)malloc(sizeof(ui32));
+					if(!dest->defaults[i]){
+						fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+						free_schema(dest);
+						return -1;
+					}
+
+					*(ui32*)dest->defaults[i] = *(ui32*)src->defaults[i];
+					break;
+				}
+				case TYPE_STRING:
+				{
+					dest->defaults[i] = (void*)duplicate_str((char*)src->defaults[i]);
+					if(!dest->defaults[i]){
+						fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+						free_schema(dest);
+						return -1;
+					}
+					break;
+				}
+				case TYPE_ARRAY_INT:
+				case TYPE_SET_INT:
+					break;
+				case TYPE_ARRAY_LONG:
+				case TYPE_SET_LONG:
+					break;
+				case TYPE_ARRAY_BYTE:
+				case TYPE_SET_BYTE:
+					break;
+				case TYPE_ARRAY_FLOAT:
+				case TYPE_SET_FLOAT:
+					break;
+				case TYPE_ARRAY_DOUBLE:
+				case TYPE_SET_DOUBLE:
+					break;
+				default:
+					break;
+				}
+			}
+
+			if(src->constraints[i] & CONST_UNIQUE){
+				dest->defaults[i] = (void*)malloc(sizeof(int));
+				if(!dest->defaults[i]){
+					fprintf(stderr,"malloc() failed, %s:%d\n",__FILE__,__LINE__-2);
+					free_schema(dest);
+					return -1;
+				}
+
+				/*this is the index nr that the DB 
+				 * will use to enforce the UNIQUE constraints */
+				*(int*)dest->defaults[i] = *(int*) src->defaults[i];
+			}
+	}
+	return 0;
+}
+
 int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int fields_c, int *constraints, char **def_value)
 {
 	sch->has_unique = has_constrain_unique;

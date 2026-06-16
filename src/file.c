@@ -11227,9 +11227,9 @@ static size_t get_string_size(struct Ram_file *ram)
 }
 
 #if defined(__linux__) || defined(__APPLE__)
-int cache_file(int *fds,char *file_name,struct Cache *c,HashTable *cache_register)
+int cache_file(int *fds,char *file_name,struct Schema sch,struct Cache *c,HashTable *cache_register,int cache_pos)
 #elif defined(_WIN32)
-int cache_file(HANDLE file_handle,char *file_name,struct Cache *c,HashTable *cache_register)
+int cache_file(HANDLE file_handle,char *file_name,struct Schema sch,struct Cache *c,HashTable *cache_register,int cache_pos)
 #endif
 {
 	
@@ -11255,8 +11255,14 @@ int cache_file(HANDLE file_handle,char *file_name,struct Cache *c,HashTable *cac
 		return -1;
 	}
 		
-	time_t ts = time(NULL);
-	if(!set((void*)file_name,STR,ts,cache_register)){
+	if(copy_schema(&sch,&c->sch) == -1){
+		free_ht_array(c->index_file,index);
+		close_ram_file(&c->data_file);
+		return -1;
+	}
+
+	c->ts = time(NULL);
+	if(!set((void*)file_name,STR,cache_pos,cache_register)){
 		free_ht_array(c->index_file,index);
 		close_ram_file(&c->data_file);
 		return -1;
