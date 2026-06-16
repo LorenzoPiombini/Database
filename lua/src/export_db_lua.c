@@ -111,7 +111,7 @@ static int l_get_record(lua_State *L)
 		/*TODO: free one spot in the cache*/
 	}
 
-	if(cache_file(fds,file_name,*hd.sch_d,cache,&cache_register,first_free_cache) == -1)
+	if(cache_file(fds,file_name,hd.sch_d,cache,&cache_register,first_free_cache) == -1)
 		goto err_cache;
 
 use_cache:
