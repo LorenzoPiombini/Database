@@ -11234,6 +11234,13 @@ static size_t get_string_size(struct Ram_file *ram)
 	return -1;
 }
 
+/*
+ * parameter cache_pos defines behavior for this funtion.
+ * if you are using an array of struct Cache, cache_pos must be 0 or greater.
+ *
+ * if you are using a single struct Cache, cache_pos must be -1;
+ *
+ * */
 #if defined(__linux__) || defined(__APPLE__)
 int cache_file(int *fds,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos)
 #elif defined(_WIN32)
@@ -11246,30 +11253,73 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 		return FILE_IS_CACHED;
 
 	int index = 0;
+	if(cache_pos != -1){
 #if defined(__linux__) || defined(__APPLE__)
-	if(!read_all_index_file(fds[0],&c->index_file,&index))
+		if(!read_all_index_file(fds[0],&c[cache_pos].index_file,&index))
 #elif defined(_WIN32)
-	if(!read_all_index_file(file_handle,&c->index_file,&index))
+		if(!read_all_index_file(file_handle,&c[cache_pos].index_file,&index))
 #endif
-		return -1;
+		{
+			free_ht_array(c[cache_pos].index_file,index);
+			close_ram_file(&c[cache_pos].data_file);
+			return -1;
+		}
+	}else{
 #if defined(__linux__) || defined(__APPLE__)
-	if(get_all_record(fds[1],&c->data_file) == -1)
+		if(!read_all_index_file(fds[0],&c->index_file,&index))
 #elif defined(_WIN32)
-	if(get_all_record(file_handle,&c->data_file) == -1)
+		if(!read_all_index_file(file_handle,&c->index_file,&index))
 #endif
-	{
-		free_ht_array(c->index_file,index);
-		close_ram_file(&c->data_file);
-		return -1;
-	}
-		
-	if(copy_schema(sch,&c->sch) == -1){
-		free_ht_array(c->index_file,index);
-		close_ram_file(&c->data_file);
-		return -1;
+		{
+			free_ht_array(c->index_file,index);
+			close_ram_file(&c->data_file);
+			return -1;
+		}
 	}
 
-	c->ts = time(NULL);
+	if(cache_pos != -1){
+#if defined(__linux__) || defined(__APPLE__)
+		if(get_all_record(fds[1],&c[cache_pos].data_file) == -1)
+#elif defined(_WIN32)
+		if(get_all_record(file_handle,&c[cache_pos]->data_file) == -1)
+#endif
+		{
+			free_ht_array(c[cache_pos].index_file,index);
+			close_ram_file(&c[cache_pos].data_file);
+			return -1;
+		}
+	}else{
+#if defined(__linux__) || defined(__APPLE__)
+		if(get_all_record(fds[1],&c->data_file) == -1)
+#elif defined(_WIN32)
+		if(get_all_record(file_handle,&c->data_file) == -1)
+#endif
+		{
+			free_ht_array(c->index_file,index);
+			close_ram_file(&c->data_file);
+			return -1;
+		}
+	}
+		
+	if(cache_pos != -1){
+		if(copy_schema(sch,&c[cache_pos].sch) == -1){
+			free_ht_array(c[cache_pos].index_file,index);
+			close_ram_file(&c[cache_pos].data_file);
+			return -1;
+		}
+
+		c->ts = time(NULL);
+	}else{
+		if(copy_schema(sch,&c->sch) == -1){
+			free_ht_array(c->index_file,index);
+			close_ram_file(&c->data_file);
+			return -1;
+		}
+
+		c->ts = time(NULL);
+
+	}
+	
 	if(!set((void*)file_name,STR,cache_pos,cache_register)){
 		free_ht_array(c->index_file,index);
 		close_ram_file(&c->data_file);
