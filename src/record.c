@@ -306,7 +306,7 @@ int copy_schema(struct Schema *src,struct Schema *dest)
 	dest->has_unique = src->has_unique;
 
 	int i;
-	for(i = 0; dest->fields_num; i++){
+	for(i = 0; i < dest->fields_num; i++){
 		size_t sz = strlen(src->fields_name[i]);
 		dest->fields_name[i] = (char*)malloc(sz+1);
 		dest->fields_name[i][sz] = '\0';
