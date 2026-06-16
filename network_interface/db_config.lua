@@ -4,6 +4,7 @@ db = require("db")
 ORDER_BASE = 100
 KEY_NOT_FOUND = 16
 INDEX_OUT_OF_RANGE = 18 
+CACHE_FAILED = 19
 
 --- database files
 -- name_file = "db/name_file" /* i do not need it for now */
@@ -124,8 +125,11 @@ function update_orders(orders_head, orders_lines, key)
 	end
 	
 	-- check if lines are different, 
-	local head_on_file = g_rec(sales_orders.head,key)
-	if head_on_file == nil then return -1 end
+	local head_on_file,err = g_rec(sales_orders.head,key)
+	if head_on_file == nil then 
+		print(err)
+		return -1 
+	end
 
 	if head_on_file.fields.lines_nr > f.lines_nr then
 		-- we need to delete some records in sales_orders_lines
@@ -213,47 +217,63 @@ local function rec_to_json(rec)
 end
 
 function get_item(key)
-	local item
+	local item,err
 	if type(key) == 'string' then
-		item = g_rec(items,key,1)
+		item,err = g_rec(items,key,1)
 	else
-		item = g_rec(items,key)
+		item,err = g_rec(items,key)
 	end
 
-	if item == nil then return nil end
+	if item == nil then 
+		print(err)
+		return nil 
+	end
 	
 	return rec_to_json(item)
 end
 
 function get_customer(key)
-	local cust,pr_l
+	local cust,pr_l,err
 	if type(key) == 'string' then
 		local sanitized_key = string.gsub(key,"%%%d+"," ") -- decode URL encoding
-		cust = g_rec(customers,sanitized_key,2); -- 2 is the index number in the file	
+		cust,err = g_rec(customers,sanitized_key,2); -- 2 is the index number in the file	
 	else
-		cust = g_rec(customers,key)
+		cust,err = g_rec(customers,key)
 	end
 
-	if cust == nil  then return nil end
+	if cust == nil  then
+		print(err)
+		return nil
+	end
+
 
 	if cust["price_level_id"] ~= nil then
-		pr_l = g_rec(price_level,cust.price_level_id,1) -- 1 is the file index
-		if pr_l == nil then return nil end
+		pr_l,err = g_rec(price_level,cust.price_level_id,1) -- 1 is the file index
+		if pr_l == nil then
+			print(err)
+			return nil
+		end
 	end
 	
 	return rec_to_json(cust)
 end
 
 function get_customer_for_new_sales_order(key)
-	local cust,pr_l
-	cust = g_rec(customers,key,2) -- 2 is the index number in the file	
+	local cust,pr_l,err
+	cust,err = g_rec(customers,key,2) -- 2 is the index number in the file	
 
-	if cust == nil  then return nil end
+	if cust == nil  then 
+		print(err)
+		return nil 
+	end
 
 	if cust.fields["price_level_id"] ~= nil then
 		-- get price_level data
 		pr_l = g_rec(price_level,cust.fields.price_level_id,1) -- 1 is the file index
-		if pr_l == nil then return nil end
+		if pr_l == nil then
+			print(err)
+			return nil
+		end
 		-- create a json string that will be used to populate the new_sales_order
 		local json_price_level = string.gsub(rec_to_json(pr_l), "{", ",")
 		local json_cust =  string.gsub(rec_to_json(cust),"}","")
@@ -272,14 +292,21 @@ end
 -- 	@ price_level
 -- this is because we want to maintain the database normalized
 function get_order(data)
-	local ord = g_rec(sales_orders.head, data)
+	local ord,pr_l,item,err
+	ord,err = g_rec(sales_orders.head, data)
 
-	if ord == nil then return nil end
+	if ord == nil then
+		print(err)
+		return nil 
+	end
 
 	local disc = 0
 	if ord.fields.price_level_id ~= nil then
-		local pr_l = g_rec(price_level,ord.fields.price_level_id,1)
-		if pr_l == nil then return nil end
+		pr_l,err = g_rec(price_level,ord.fields.price_level_id,1)
+		if pr_l == nil then
+			print(err)
+			return nil
+		end
 		disc = pr_l.fields.percentage
 	end
 
@@ -288,9 +315,12 @@ function get_order(data)
 	local json = string.format('{ "sales_orders_head":%s,"sales_orders_lines":{', head_json)
 	for i = 1, ord.fields.lines_nr do
 		local key_line = string.format("%d/%d", data, i)
-		local line = g_rec(sales_orders.lines, key_line)
+		local line,err = g_rec(sales_orders.lines, key_line)
 
-		if line == nil then return nil end
+		if line == nil then 
+			print(err)
+			return nil
+		end
 
 		-- change the date format to conform with what the browser expect  
 		if line.fields.request_date ~= nil then
@@ -299,8 +329,11 @@ function get_order(data)
 			line.fields.request_date = string.format('%s-%s-%s',y,m,d)
 		end
 
-		local item = g_rec(items,line.fields.item_id,1)
-		if item == nil then return nil end
+		item, err= g_rec(items,line.fields.item_id,1)
+		if item == nil then
+			print(err)
+			return nil
+		end
 
 		local total = item.fields.unit_price * line.fields.qty
 		if disc ~= 0 then
@@ -329,25 +362,34 @@ local function get_orders_total(keys_head)
 	local orders_tot = 0.0
 	for n in string.gmatch(keys_head,"%d+") do
 		local k = tonumber(n)
-		local h = g_rec(sales_orders.head,k)
+		local h,err = g_rec(sales_orders.head,k)
 
-		if h == nil then return -1 end
+		if h == nil then
+			print(err)
+			return -1 
+		end
 
 		local disc = 0
 		if h.fields.price_level_id ~= nil then
-			local pr_l = g_rec('/root/db/price_level',h.fields.price_level_id,1)
-			if pr_l == nil then return -2 end
+			local pr_l,err = g_rec('/root/db/price_level',h.fields.price_level_id,1)
+			if pr_l == nil then
+				print(err)
+				return -2 
+			end
 			disc = pr_l.fields.percentage
 		end
 
 		local total = 0
 		for i = 1, h.fields.lines_nr do
 			local k_lines = string.format("%d/%d",k,i)
-			local line = g_rec(sales_orders.lines,k_lines)
-			if line == nil then return -3 end
+			local line,err_l = g_rec(sales_orders.lines,k_lines)
+			if line == nil then 
+				print(err_l)
+				return -3 
+			end
 
-			local item = g_rec('/root/db/item',line.fields.item_id,1)
-			if item == nil then return -4 end
+			local item,err_i = g_rec('/root/db/item',line.fields.item_id,1)
+			if item == nil then print(err_i) return -4 end
 
 			total = total + item.fields.unit_price * line.fields.qty
 			if disc ~= 0 then
@@ -436,14 +478,14 @@ local function get_orders_by_week_range(head_keys)
 	local result = '{"message":['
 	local exit = false
 	for k,v in pairs(head_keys) do
-		local h = g_rec(sales_orders.head,v)
+		local h,err_h = g_rec(sales_orders.head,v)
 
-		if h == nil then return -1 end
+		if h == nil then print(err_h) return -1 end
 
 		for i = 1, h.fields.lines_nr do
 			local k_lines = string.format("%d/%d",v,i)
-			local line = g_rec(sales_orders.lines,k_lines)
-			if line == nil then return -1 end
+			local line,err_l = g_rec(sales_orders.lines,k_lines)
+			if line == nil then print(err_l) return -1 end
 			
 			if is_date_this_week(convert_date(line.fields.request_date)) == true then
 				if string.sub(result,-1) == '[' then

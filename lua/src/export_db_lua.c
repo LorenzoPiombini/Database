@@ -6,12 +6,18 @@
 #include "date.h"
 #include "common.h"
 #include "file.h"
+#include "hash_tbl.h"
 #include "key.h"
 
 #define LOWER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 65 || (int)*p <= 90) ;*p = ((int)*p) + 22,p++)
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
-HashTable cache_register = {0};
+
+#define CACHE_SIZE 30
+HashTable cache_register = {7,0,0};
+struct Cache cache[CACHE_SIZE] = {0};
+static int get_free_slot_cache(struct Cache *c);
+
 
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
@@ -87,12 +93,49 @@ static int l_get_record(lua_State *L)
 	memset(fds,-1,3*sizeof(int));
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
+
+	off_t file_pos_in_the_cache = -1;
+	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
+		goto use_cache;
+	}
+
 	if(open_files(file_name,fds,file_names,-1) == -1)
 		goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) 
 		goto err_not_db_file;
 
 	/*cache the file*/
+	int first_free_cache = 0;
+	if((first_free_cache = get_free_slot_cache(cache)) == -1){
+		/*cache is full*/
+		/*TODO: free one spot in the cache*/
+	}
+
+	if(cache_file(fds,file_name,*hd.sch_d,cache,&cache_register,first_free_cache) == -1)
+		goto err_cache;
+
+use_cache:
+	
+	off_t pos = 0;
+	if(file_pos_in_the_cache != -1){
+		struct Cache *p = &cache[file_pos_in_the_cache];
+		if((pos = get(k, p->index_file,key_type)) == -1) goto err_cache_rec_not_found;
+		p->data_file.offset = pos;
+		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
+		if(port_record(L,&rec)) goto err_exp_data_to_lua;
+	}else{
+		struct Cache *p = &cache[first_free_cache];
+		if((pos = get(k, p->index_file,key_type)) == -1) goto err_cache_rec_not_found;
+		p->data_file.offset = pos;
+		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
+		if(port_record(L,&rec)) goto err_exp_data_to_lua;
+	}
+	
+
+	free_record(&rec,rec.fields_num);
+	return 1;
+
+err_cache:
 	int result = -1;
 	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds,index >=0 ? index : 0)) == -1) goto err_get_record_failed;
 	if(result == KEY_NOT_FOUND) goto err_rec_not_found;
@@ -101,9 +144,8 @@ static int l_get_record(lua_State *L)
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);
-
-	return 1;
-
+	lua_pushinteger(L,(lua_Integer)CACHE_FAILED);
+	return 2; /*return the record and the cache error*/
 err_key:
 		lua_pushnil(L);
 		lua_pushstring(L,"only string or unsigned integer are allowed as key.");
@@ -114,6 +156,11 @@ err_open_file:
 		lua_pushstring(L,"could not open the file.");
 		return 2;
 
+err_read_ram_file:
+		lua_pushnil(L);
+		lua_pushstring(L,"red_ram_file failed.");
+		free_record(&rec,rec.fields_num);
+		return 2;
 err_get_record_failed:
 		lua_pushnil(L);
 		lua_pushstring(L,"get_record failed.");
@@ -126,6 +173,11 @@ err_not_db_file:
 		lua_pushnil(L);
 		lua_pushstring(L,"not a db file.");
 		close_file(3,fds[0],fds[1],fds[2]);
+		return 2;
+err_cache_rec_not_found:
+		lua_pushnil(L);
+		lua_pushstring(L,"record not found.");
+		free_record(&rec,rec.fields_num);
 		return 2;
 err_rec_not_found:
 		lua_pushnil(L);
@@ -1259,4 +1311,16 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 	}
 
 	return 0;
+}
+
+
+
+static int get_free_slot_cache(struct Cache *c)
+{
+	int i;
+	for(i = 0; i < CACHE_SIZE; i++)
+		if(c[i].index_file == NULL)
+			return i;
+
+	return -1;
 }
