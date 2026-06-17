@@ -825,6 +825,10 @@ static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch)
 				return -1;
 			}
 		}
+
+		if((*sch)->constraints[i] & CONST_UNIQUE){
+			*(int*)(*sch)->defaults[i] = 1;/*index use by the system to enforce unique*/ 
+		}
 	}
 	return 0;
 }
