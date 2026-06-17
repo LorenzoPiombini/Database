@@ -11308,7 +11308,7 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 			return -1;
 		}
 
-		c->ts = time(NULL);
+		c[cache_pos].ts = time(NULL);
 	}else{
 		if(copy_schema(sch,&c->sch) == -1){
 			free_ht_array(c->index_file,index);
@@ -11317,7 +11317,6 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 		}
 
 		c->ts = time(NULL);
-
 	}
 	
 	if(!set((void*)file_name,STR,cache_pos,cache_register)){
