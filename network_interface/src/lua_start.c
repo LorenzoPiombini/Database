@@ -7,12 +7,14 @@
 
 #include <record.h>
 #include "export_db_lua.h"
+#include "file.h"
 #include "lua_start.h"
 
 lua_State *L = NULL;
 static time_t sec = 0; 
 
 static int load(lua_State *L, char *file_config);
+static void free_inactive_caches(struct Cache *c);
 
 int init_lua()
 {
@@ -37,14 +39,17 @@ void check_config_file()
 	
 	if(sec == 0){
 		sec = file_data.st_mtim.tv_sec;
+		free_inactive_caches(cache);
 		return;
 	}
+
 	if(file_data.st_mtim.tv_sec > sec){
 		clear_lua_stack();
 		if(load(L,"/root/db/lua/db_config.lua") == -1) return;
 		sec = file_data.st_mtim.tv_sec;
 	}
 
+	free_inactive_caches(cache);
 }
 void clear_lua_stack()
 {
@@ -191,4 +196,15 @@ static int load(lua_State *L, char *file_config)
 		return -1;
 	}
 	return 0;
+}
+
+static void free_inactive_caches(struct Cache *c)
+{
+	int i;
+	for(i = 0; i < CACHE_SIZE; i++){
+		if(c[i].ts == 0 || c[i].used == 0) continue;
+
+		if((long)(c[i].used - c[i].ts) > (long) THREE_HOURS)
+			free_cache(&c[i]);
+	}
 }

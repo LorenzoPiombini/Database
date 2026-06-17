@@ -6,6 +6,7 @@
 #include "date.h"
 #include "common.h"
 #include "file.h"
+#include "date.h"
 #include "hash_tbl.h"
 #include "key.h"
 
@@ -13,11 +14,8 @@
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
 
-#define CACHE_SIZE 30
 HashTable cache_register = {7,0,0};
-struct Cache cache[CACHE_SIZE] = {0};
 static int get_free_slot_cache(struct Cache *c);
-
 
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
@@ -54,7 +52,8 @@ int luaopen_db(lua_State *L){
 
 /* 
  * from lua:
- * .get_record(file_name,key)
+ * 	 index is optional, index 0 will be used if not specified
+ * .get_record(file_name,key,index) 
  * */
 static int l_get_record(lua_State *L)
 {
@@ -114,6 +113,7 @@ static int l_get_record(lua_State *L)
 	if(cache_file(fds,file_name,hd.sch_d,cache,&cache_register,first_free_cache) == -1)
 		goto err_cache;
 
+	close_file(3,fds[0],fds[1],fds[2]);
 use_cache:
 	
 	off_t pos = 0;
@@ -123,12 +123,14 @@ use_cache:
 		p->data_file.offset = pos;
 		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
 		if(port_record(L,&rec)) goto err_exp_data_to_lua;
+		p->used = now_seconds();
 	}else{
 		struct Cache *p = &cache[first_free_cache];
 		if((pos = get(k, p->index_file,key_type)) == -1) goto err_cache_rec_not_found;
 		p->data_file.offset = pos;
 		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
 		if(port_record(L,&rec)) goto err_exp_data_to_lua;
+		p->used = now_seconds();
 	}
 	
 

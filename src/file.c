@@ -11264,6 +11264,7 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 			close_ram_file(&c[cache_pos].data_file);
 			return -1;
 		}
+		c[cache_pos].indexes = index;
 	}else{
 #if defined(__linux__) || defined(__APPLE__)
 		if(!read_all_index_file(fds[0],&c->index_file,&index))
@@ -11275,6 +11276,7 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 			close_ram_file(&c->data_file);
 			return -1;
 		}
+		c->indexes = index;
 	}
 
 	if(cache_pos != -1){
@@ -11326,6 +11328,17 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 	}
 
 	return 0;
+}
+
+void free_cache(struct Cache *c)
+{
+	if(c->index_file == NULL)
+		return;
+
+	free_ht_array(c->index_file,c->indexes);
+	close_ram_file(&c->data_file);
+	free_schema(&c->sch);
+	memset(c,0,sizeof *c);
 }
 
 #if defined(_WIN32) 
