@@ -119,7 +119,7 @@ use_cache:
 	off_t pos = 0;
 	if(file_pos_in_the_cache != -1){
 		struct Cache *p = &cache[file_pos_in_the_cache];
-		if((pos = get(k, p->index_file,key_type)) == -1) goto err_cache_rec_not_found;
+		if((pos = get(k, &p->index_file[index],key_type)) == -1) goto err_cache_rec_not_found;
 		p->data_file.offset = pos;
 		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
 		if(port_record(L,&rec)) goto err_exp_data_to_lua;
