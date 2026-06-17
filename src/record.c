@@ -441,9 +441,12 @@ int copy_schema(struct Schema *src,struct Schema *dest)
 					return -1;
 				}
 
+				memset(dest->defaults[i],0,sizeof(int));
+
 				/*this is the index nr that the DB 
 				 * will use to enforce the UNIQUE constraints */
-				*(int*)dest->defaults[i] = *(int*) src->defaults[i];
+				int v = *(int*)src->defaults[i];
+				*(int*)dest->defaults[i] = v;
 			}
 	}
 	return 0;
