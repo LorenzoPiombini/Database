@@ -827,6 +827,12 @@ static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch)
 		}
 
 		if((*sch)->constraints[i] & CONST_UNIQUE){
+			(*sch)->defaults[i] = malloc(sizeof(int));
+			if(!(*sch)->defaults[i]){
+				fprintf(stderr,"malloc() failed %s:%d.\n",__FILE__,__LINE__-2);
+				free_schema(*sch);
+				return -1;
+			}
 			*(int*)(*sch)->defaults[i] = 1;/*index use by the system to enforce unique*/ 
 		}
 	}
