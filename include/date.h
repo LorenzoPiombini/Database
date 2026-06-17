@@ -4,6 +4,7 @@
 #include <time.h>
 #include "db_types.h"
 
+#define THREE_HOURS 60*60*3
 #define ISO_W_ADJ 10
 #define DD_MM_YYYY 0
 #define YYYY_MM_DD 1

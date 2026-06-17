@@ -23,6 +23,7 @@ struct Ram_file{
 
 struct Cache{
 	HashTable *index_file;
+	int indexes;
 	struct Ram_file data_file;
 	struct Schema sch;
 	time_t ts;
@@ -70,12 +71,14 @@ void clear_ram_file(struct Ram_file *ram);
 void close_ram_file(struct Ram_file *ram);
 int init_ram_file(struct Ram_file *ram, size_t size);
 int cache_file(int *fds,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
+void free_cache(struct Cache *c);
 #elif defined(_WIN32)
 
 HANDLE open_file(char *fileName, ui32 use_trunc);
 HANDLE create_file(char *file_name);
 void close_file(int count, ...);
 int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
+void free_cache(struct Cache *c);
 int delete_file(int count,...);
 file_offset begin_in_file(HANDLE file_handle);
 file_offset get_file_offset(HANDLE file_handle);
