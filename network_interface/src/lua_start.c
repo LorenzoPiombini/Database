@@ -136,7 +136,18 @@ fcall:
 			case 'i':
 			{
 				int is_num;
-				long long l = (long long)lua_tonumberx(L,nres,&is_num);
+				int l = (int)lua_tointegerx(L,nres,&is_num);
+				if(!is_num || l < 0){
+					clear_lua_stack();
+					return -1;
+				}
+				*va_arg(vl, int*) = l;
+				break;
+			}
+			case 'l':
+			{
+				int is_num;
+				long long l = (long long)lua_tointegerx(L,nres,&is_num);
 				if(!is_num || l < 0){
 					clear_lua_stack();
 					return -1;
@@ -170,9 +181,10 @@ int get_function_signature(char *function_name,char *signature)
 {
 	int size = strlen(function_name);
 	char *var = malloc(size+3);
-	memset(var,0,size+2);
+	memset(var,0,size+3);
 	strncpy(var,function_name,size);
-	strncat(var,"_s",3);
+	var[size] = '_';
+	var[size+1] = 's';
 
 	lua_getglobal(L,var);
 	free(var);
@@ -204,7 +216,9 @@ static void free_inactive_caches(struct Cache *c)
 	for(i = 0; i < CACHE_SIZE; i++){
 		if(c[i].ts == 0 || c[i].used == 0) continue;
 
-		if((long)(c[i].used - c[i].ts) > (long) THREE_HOURS)
+		if((long)(c[i].used - c[i].ts) > (long) THREE_HOURS){
+			/*TODO: write the file to disk!!!!*/
 			free_cache(&c[i]);
+		}
 	}
 }

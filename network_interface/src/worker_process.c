@@ -28,7 +28,12 @@ int work_process(int sock)
 	char buffer[EIGTH_Kib] = {0};
 	char *d_buff = NULL;
 
-	init_lua(); /*start the Lua interpreter*/
+	/*start the Lua interpreter*/
+	if(init_lua() == -1){
+		/**/
+		return -1;
+	}
+	
 
 	for(;;){
 		/*accept connection*/
@@ -59,7 +64,7 @@ int work_process(int sock)
 			char *cust_data = &buffer[2];
 
 			long long res = -1, key = -1;
-			if(execute_lua_function("write_customers","s>ii",cust_data,&res,&key) == -1 || res == 2 ){
+			if(execute_lua_function("write_customers","s>ll",cust_data,&res,&key) == -1 || res == 2 ){
 				/*send error and resume*/
 				goto new_cust_error;
 			}
@@ -127,7 +132,7 @@ new_cust_error:
 				goto report_error;
 			}
 
-			/*I NEED A TIMER */
+			/*I NEED A TIMER ????*/
 			char ok = 0;
 			if(read(data_sock,&ok,1) == -1){
 				free(msg);
@@ -241,7 +246,7 @@ report_error:
 
 					ui32 key = (ui32)l;
 					long long res = -1;
-					if(execute_lua_function("update_orders","ssI>i",orders_head,orders_line,key,&res) == -1 || res != 0){
+					if(execute_lua_function("update_orders","ssI>l",orders_head,orders_line,key,&res) == -1 || res != 0){
 						/*send error and resume*/
 						clear_lua_stack();
 						goto new_up_ords_err;
@@ -251,7 +256,7 @@ report_error:
 				case STR:
 				{
 					long long res = -1;
-					if(execute_lua_function("update_orders","sss>i",orders_head,orders_line,key_up,&res) == -1 || res != 0){
+					if(execute_lua_function("update_orders","sss>l",orders_head,orders_line,key_up,&res) == -1 || res != 0){
 						/*send error and resume*/
 						clear_lua_stack();
 						goto new_up_ords_err;
@@ -587,7 +592,6 @@ s_ord_get_exit_error:
 			close(data_sock);
 			continue;
 		}
-
 	}
 	close_lua();
 	pid_t p = getppid();
