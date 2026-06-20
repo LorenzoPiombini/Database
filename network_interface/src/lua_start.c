@@ -7,6 +7,7 @@
 
 #include <record.h>
 #include "export_db_lua.h"
+#include "hash_tbl.h"
 #include "file.h"
 #include "lua_start.h"
 
