@@ -304,6 +304,7 @@ int copy_schema(struct Schema *src,struct Schema *dest)
 	memcpy(dest->is_dropped,src->is_dropped,sizeof(ui8)*src->fields_num);
 	memcpy(dest->constraints,src->constraints,sizeof(ui8)*src->fields_num);
 	dest->has_unique = src->has_unique;
+	memset(dest->defaults,0,sizeof(void*)*src->fields_num);
 
 	int i;
 	for(i = 0; i < dest->fields_num; i++){
