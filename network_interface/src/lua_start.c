@@ -220,7 +220,7 @@ static void free_inactive_caches(struct Cache *c)
 
 		if((long)(c[i].used - c[i].ts) > (long) THREE_HOURS){
 			/*TODO: write the file to disk!!!!*/
-			Node r = ht_delete((void*)c[i].file_name,&cache_register,STR);
+			Node *r = ht_delete((void*)c[i].file_name,&cache_register,STR);
 			if(!r){
 				fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%n\n",__FILE__,__LINE__);
 				return;
