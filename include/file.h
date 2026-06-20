@@ -24,6 +24,7 @@ struct Ram_file{
 struct Cache{
 	HashTable *index_file;
 	int indexes;
+	char *file_name;
 	struct Ram_file data_file;
 	struct Schema sch;
 	time_t ts;

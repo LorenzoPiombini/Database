@@ -11311,6 +11311,13 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 		}
 
 		c[cache_pos].ts = time(NULL);
+		c[cache_pos].file_name = duplicate_str(file_name);
+		if(!(c[cache_pos].file_name)){
+			fprintf(stderr,"duplicate_str() failed, %s:%d.\n",F, L - 3);
+			free_ht_array(c[cache_pos].index_file,index);
+			close_ram_file(&c[cache_pos].data_file);
+			return -1;
+		}
 	}else{
 		if(copy_schema(sch,&c->sch) == -1){
 			free_ht_array(c->index_file,index);
@@ -11319,6 +11326,13 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 		}
 
 		c->ts = time(NULL);
+		c->file_name = duplicate_str(file_name);
+		if(!c->file_name){
+			fprintf(stderr,"duplicate_str() failed, %s:%d.\n",F, L - 3);
+			free_ht_array(c->index_file,index);
+			close_ram_file(&c->data_file);
+			return -1;
+		}
 	}
 	
 	if(!set((void*)file_name,STR,cache_pos,cache_register)){
@@ -11326,7 +11340,6 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 		close_ram_file(&c->data_file);
 		return -1;
 	}
-
 	return 0;
 }
 
@@ -11338,6 +11351,7 @@ void free_cache(struct Cache *c)
 	free_ht_array(c->index_file,c->indexes);
 	close_ram_file(&c->data_file);
 	free_schema(&c->sch);
+	free(c->file_name);
 	memset(c,0,sizeof *c);
 }
 
