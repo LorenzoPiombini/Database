@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include "file.h"
+#include "crud.h"
 #include "str_op.h"
 #include "common.h"
 #include "endian.h"

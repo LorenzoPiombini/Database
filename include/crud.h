@@ -11,6 +11,7 @@
 #include "common.h"
 #include "hash_tbl.h"
 #include "str_op.h"
+#include "file.h"
 
 
 extern HashTable *g_ht;
@@ -53,4 +54,5 @@ int update_rec(	char *file_path,
 				char *options, 
 				int index);
 int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,int indexing);
+int write_cache_to_disk(struct Cache *c);
 #endif

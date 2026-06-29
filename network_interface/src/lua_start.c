@@ -5,10 +5,11 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include <record.h>
+#include "record.h>
 #include "export_db_lua.h"
 #include "hash_tbl.h"
 #include "file.h"
+#include "crud.h"
 #include "date.h"
 #include "lua_start.h"
 
@@ -219,7 +220,11 @@ static void free_inactive_caches(struct Cache *c)
 		if(c[i].ts == 0 || c[i].used == 0) continue;
 
 		if((long)(c[i].used - c[i].ts) > (long) THREE_HOURS){
-			/*TODO: write the file to disk!!!!*/
+			if(write_cache_to_disk(&c[i]) == -1){
+				fprintf(stderr,"!!! CANNOT WRITE THE CACHE TO FILE !!!!!!%s:%n\n",__FILE__,__LINE__);
+				return;
+			}
+
 			Node *r = ht_delete((void*)c[i].file_name,&cache_register,STR);
 			if(!r){
 				fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%n\n",__FILE__,__LINE__);

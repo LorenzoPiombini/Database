@@ -16,6 +16,7 @@
 
 HashTable cache_register = {7,0,0};
 static int get_free_slot_cache(struct Cache *c);
+static int check_and_free_one_cache(struct Cache *c);
 
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
@@ -106,8 +107,9 @@ static int l_get_record(lua_State *L)
 	/*cache the file*/
 	int first_free_cache = 0;
 	if((first_free_cache = get_free_slot_cache(cache)) == -1){
-		/*cache is full*/
-		/*TODO: free one spot in the cache*/
+		/*cache is full free one spot in the cache */
+		if((first_free_cache = check_and_free_one_cache(cache)) == -1)
+			goto err_cache;/*we cannot free a cache slot, we use the disk*/
 	}
 
 	if(cache_file(fds,file_name,hd.sch_d,cache,&cache_register,first_free_cache) == -1)
@@ -1323,6 +1325,23 @@ static int get_free_slot_cache(struct Cache *c)
 	for(i = 0; i < CACHE_SIZE; i++)
 		if(c[i].index_file == NULL)
 			return i;
+
+	return -1;
+}
+
+static int check_and_free_one_cache(struct Cache *c)
+{
+	int i;
+	for(i = 0; i < (int)CACHE_SIZE; i++){
+		if((long)(c[i].used - c[i].ts) > (long) THREE_HOURS){
+			if(write_cache_to_disk(&c[i]) == -1){
+				fprintf(stderr,"cannot write cache to disk!!!%s:%d\n",__FILE__,__LINE__);
+				return -1;
+			}
+			free_cache(&c[i]);
+			return i;
+		}
+	}
 
 	return -1;
 }

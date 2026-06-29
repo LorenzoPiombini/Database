@@ -2,7 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "file.h"
+#include <unistd.h>
+#include "crud.h"
 #include "endian.h"
 #include "record.h"
 #include "lock.h"
@@ -11,7 +12,6 @@
 #include "debug.h"
 #include "hash_tbl.h"
 #include "parse.h"
-#include "crud.h"
 #include "db_types.h"
 #include "input.h"
 #include "string_utilities.h"
@@ -463,7 +463,7 @@ int write_record(int *fds,
 
 	if(write_index(fds,index,ht,files[0]) == -1) return -1;
 
-	free(ht);
+	free_ht_array(ht, index);
 	return 0;
 }
 
@@ -472,14 +472,12 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 	close_file(1, fds[0]);
 	fds[0] = open_file(file_name, 1); /*opening with o_trunc*/
 	if(file_error_handler(1,fds[0]) != 0) {
-		free_ht_array(ht, index);
 		return STATUS_ERROR;
 	}
 
 	/* write the new indexes to file */
 	if (!write_index_file_head(fds[0], index)) {
 		fprintf(stderr,"write index head to file failed, %s:%d.\n", F,L - 1);
-		free_ht_array(ht, index);
 		return -1;	
 	}
 
@@ -487,10 +485,8 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 	for (i = 0; i < index; i++) {
 		if (!write_index_body(fds[0], i, &ht[i])) {
 			printf("write to file failed. %s:%d.\n", F, L - 2);
-			free_ht_array(ht, index);
 			return -1;
 		}
-		destroy_hasht(&ht[i]);
 	}
 
 
@@ -569,7 +565,6 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 				destroy_hasht(&ht);
 				return STATUS_ERROR;
 			}
-
 			destroy_hasht(&ht);
 		}
 		break;
@@ -882,6 +877,47 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
 		/*create a new key value pair in the hash table*/
 		if (!set((void *)key, key_type, offset, indexing >= 1 ? &ht[indexing]: &ht[0])) return -1;
 	}
+	return 0;
+}
+
+/*
+struct Cache{
+	HashTable *index_file;
+	int indexes;
+	char *file_name;
+	struct Ram_file data_file;
+	struct Schema sch;
+	time_t ts;
+	time_t used;
+};
+*/
+
+int write_cache_to_disk(struct Cache *c){
+	int fds[3];
+	memset(fds,-1,3*sizeof(int));
+	char file_names[3][MAX_FILE_PATH_LENGTH];
+	memset(file_names,0,3*MAX_FILE_PATH_LENGTH);
+
+	if(open_files(c->file_name,fds,file_names,-1) == -1)
+		return -1;
+
+	if(write_index(fds,c->indexes,c->index_file,file_names[0]) == -1) return -1;
+
+	close_file(1,fds[1]);
+	fds[1] = open_file(c->file_name,1);/*OPEN WITH O_TRUNC*/
+	if(file_error_handler(1,fds[1]) != 0) {
+		close_file(3,fds[0],fds[1],fds[2]);
+		return -1;			
+	}
+
+	if(write(fds[1],c->data_file.mem,c->data_file.size) == -1){
+		close_file(3,fds[0],fds[1],fds[2]);
+		return -1;			
+	}
+
+	/*TODO: write the schema to file*/
+
+	close_file(3,fds[0],fds[1],fds[2]);
 	return 0;
 }
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type)
