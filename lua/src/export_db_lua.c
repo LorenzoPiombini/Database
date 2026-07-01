@@ -94,6 +94,7 @@ static int l_get_record(lua_State *L)
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
 
+	/*check if the file is cached in memory*/
 	off_t file_pos_in_the_cache = -1;
 	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
 		goto use_cache;
@@ -116,6 +117,7 @@ static int l_get_record(lua_State *L)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
 use_cache:
 	
 	off_t pos = 0;
@@ -303,12 +305,7 @@ static int l_write_record(lua_State *L)
 
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-	int lock = 1;
-	if(open_files(file_name,fds,file_names,-1) == -1) 
-		goto err_open_file;
-	if(is_db_file(&hd,fds) == -1) 
-		goto err_not_db_file;
-
+	/*read a key from the function argument,if there is no key,compute one*/
 	int type = lua_type(L,3);
 	void* k = NULL;
 	int key_type = -1;
@@ -350,6 +347,61 @@ static int l_write_record(lua_State *L)
 		goto err_key;
 	}
 
+
+
+	/*check if the file is cached in memory*/
+	off_t file_pos_in_the_cache = -1;
+	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
+		goto use_cache;
+	}
+
+	int lock = 1;
+	if(open_files(file_name,fds,file_names,-1) == -1) 
+		goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) 
+		goto err_not_db_file;
+
+
+	/*cache the file*/
+	int first_free_cache = 0;
+	if((first_free_cache = get_free_slot_cache(cache)) == -1){
+		/*cache is full free one spot in the cache */
+		if((first_free_cache = check_and_free_one_cache(cache)) == -1)
+			goto err_cache;/*we cannot free a cache slot, we use the disk*/
+	}
+
+	if(cache_file(fds,file_name,hd.sch_d,cache,&cache_register,first_free_cache) == -1)
+		goto err_cache;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+
+use_cache:
+
+	/*
+	 * TODO: 
+	 * a) THINK ABOUT THIS STEP.
+	 * 		in the applications, the user sends proper data only, cause the
+	 * 		webUI will generate the payload for enduser, this step might be 
+	 * 		irrelevant
+	 * 	b) is check_data suitable for a cached file?
+	 * */
+
+	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
+		goto err_invalid_data;
+
+	off_t pos = 0;
+	if(file_pos_in_the_cache != -1){
+		struct Cache *p = &cache[file_pos_in_the_cache];
+		/*TODO: WRITE TO CACHE */
+		
+		p->used = now_seconds();
+	}else{
+		struct Cache *p = &cache[first_free_cache];
+		/*TODO: WRITE TO CACHE */
+		p->used = now_seconds();
+	}
+	
+err_cache:
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
 		goto err_invalid_data;
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
