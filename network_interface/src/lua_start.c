@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "record.h>
+#include "record.h"
 #include "export_db_lua.h"
 #include "hash_tbl.h"
 #include "file.h"
@@ -221,13 +221,13 @@ static void free_inactive_caches(struct Cache *c)
 
 		if((long)(c[i].used - c[i].ts) > (long) THREE_HOURS){
 			if(write_cache_to_disk(&c[i]) == -1){
-				fprintf(stderr,"!!! CANNOT WRITE THE CACHE TO FILE !!!!!!%s:%n\n",__FILE__,__LINE__);
+				fprintf(stderr,"!!! CANNOT WRITE THE CACHE TO FILE !!!!!!%s:%d\n",__FILE__,__LINE__);
 				return;
 			}
 
 			Node *r = ht_delete((void*)c[i].file_name,&cache_register,STR);
 			if(!r){
-				fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%n\n",__FILE__,__LINE__);
+				fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
 				return;
 			}
 			free_ht_node(r);

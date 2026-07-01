@@ -374,7 +374,7 @@ static int l_write_record(lua_State *L)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
-
+	free_schema(hd.sch_d);
 use_cache:
 
 	/*
