@@ -18,6 +18,7 @@ HashTable cache_register = {7,0,0};
 static int get_free_slot_cache(struct Cache *c);
 static int check_and_free_one_cache(struct Cache *c);
 
+static int is_test(lua_State *L);
 static int l_get_record(lua_State *L);
 static int l_get_all_records(lua_State *L);
 static int l_write_record(lua_State *L);
@@ -94,6 +95,7 @@ static int l_get_record(lua_State *L)
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
 
+	if(is_test(L)) goto get_rec_test;
 	/*check if the file is cached in memory*/
 	off_t file_pos_in_the_cache = -1;
 	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
@@ -141,8 +143,23 @@ use_cache:
 	free_record(&rec,rec.fields_num);
 	return 1;
 
-err_cache:
+
+get_rec_test:
+	if(open_files(file_name,fds,file_names,-1) == -1)
+		goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) 
+		goto err_not_db_file;
 	int result = -1;
+	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds,index >=0 ? index : 0)) == -1) goto err_get_record_failed;
+	if(result == KEY_NOT_FOUND) goto err_rec_not_found;
+	if(port_record(L,&rec)) goto err_exp_data_to_lua;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
+	free_record(&rec,rec.fields_num);
+	return 1; /*return the record*/
+err_cache:
+	result = -1;
 	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds,index >=0 ? index : 0)) == -1) goto err_get_record_failed;
 	if(result == KEY_NOT_FOUND) goto err_rec_not_found;
 	if(port_record(L,&rec)) goto err_exp_data_to_lua;
@@ -1396,4 +1413,16 @@ static int check_and_free_one_cache(struct Cache *c)
 	}
 
 	return -1;
+}
+
+static int is_test(lua_State *L)
+{	
+	lua_getglobal(L,"TEST");
+	int b = lua_toboolean(L,-1);
+	if(b){
+		lua_pop(L,1);
+		return 1;
+	}
+	lua_pop(L,1);
+	return 0;
 }
