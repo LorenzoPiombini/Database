@@ -73,7 +73,7 @@ void close_file(int count, ...)
 
 	for (i = 0; i < count; i++) {
 		int fd = va_arg(args, int);
-		if (close(fd) != 0)
+		if (fd > 2 && close(fd) != 0)
 			sum++;
 	}
 
@@ -6551,9 +6551,9 @@ int file_error_handler(int count, ...)
 
 	if(j != 0 ){
 		int x;
-		for(x = 0 ;x < 0; x++){
+		for(x = 0 ;x < count; x++){
 #if defined(__linux__) || defined(__APPLE__)
-			if(fds[x] != -1	) close(fds[x]);
+			if(fds[x] != -1 && fds[x] > 2) close(fds[x]);
 #elif defined(_WIN32)
 			if(handles[x] !=  INVALID_HANDLE_VALUE || handles[x] != ERROR_FILE_NOT_FOUND)
 				CloseHandle(handles[x]);
