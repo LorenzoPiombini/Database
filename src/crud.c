@@ -512,7 +512,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		fd_schema = open_file(files[2], 0);
 		if ((err = file_error_handler(1,fd_schema)) != 0) {
 			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+				fprintf(stderr,"(%s): File '%s' doesn't exist. %s:%d\n",prog,file_name,__FILE__,__LINE__-2);
 			else
 				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
 
@@ -577,7 +577,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		/* file_error_handler will close the file descriptors if there are issues */
 		if ((err = file_error_handler(3, fd_index, fd_data,fd_schema)) != 0) {
 			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+				fprintf(stderr,"(%s): File '%s' doesn't exist.%s:%d.\n",prog,file_name,__FILE__,__LINE__-2);
 			else
 				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
 
@@ -904,7 +904,7 @@ int write_cache_to_disk(struct Cache *c){
 	if(write_index(fds,c->indexes,c->index_file,file_names[0]) == -1) return -1;
 
 	close_file(1,fds[1]);
-	fds[1] = open_file(c->file_name,1);/*OPEN WITH O_TRUNC*/
+	fds[1] = open_file(file_names[1],1);/*OPEN WITH O_TRUNC*/
 	if(file_error_handler(1,fds[1]) != 0) {
 		close_file(3,fds[0],fds[1],fds[2]);
 		return -1;			
