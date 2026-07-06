@@ -816,7 +816,11 @@ int main(int argc, char *argv[])
 		}
 
 
-		/*open the file*/
+		/* ====================================================	*/
+		/* we open the file here and we acquire the lock, if we */
+		/* if we cannot aquire the lock the program will exit	*/
+		/* ====================================================	*/
+		
 		int fds[3];
 		memset(fds,-1,sizeof(int)*3);
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
@@ -832,11 +836,12 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-
-			/*this is hanging if another lock has the file lock*/
 			if(acquire_lock(fds,-1) == -1){
-
+				fprintf(stderr,"(%s): File '%s' is locked by another process\n",prog,cpy_fp);
+				close_file(1,fds[2]);
+				return STATUS_ERROR;
 			}
+
 			/* ensure the file is a db file */
 			if (is_db_file(&hd, fds) == -1) {
 				release_lock(fds,-1);
@@ -848,9 +853,10 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			while((is_locked(1,fds[0])) == LOCKED);
 			if(acquire_lock(fds,-1) == -1){
-
+				fprintf(stderr,"(%s): File '%s' is locked by another process\n",prog,cpy_fp);
+				close_file(1,fds[0]);
+				return STATUS_ERROR;
 			}
 		}else {
 			if(open_files(cpy_fp,fds,files,-1) == -1) {
@@ -858,7 +864,9 @@ int main(int argc, char *argv[])
 			}
 
 			if(acquire_lock(fds,-1) == -1){
-
+				fprintf(stderr,"(%s): File '%s' is locked by another process\n",prog,cpy_fp);
+				close_file(3, fds[0], fds[1],fds[2]);
+				return STATUS_ERROR;
 			}
 
 			/* ensure the file is a db file */
@@ -869,6 +877,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		/*FROM HERE THE LOCK IS ALWAYS ACQUIRED */
 		if(swap_index){
 			HashTable *ht = NULL;
 			int index = 0;
@@ -906,17 +915,11 @@ int main(int argc, char *argv[])
 		}
 
 		if (del_field){
-			/* acquire lock */
-			if(acquire_lock(fds,-1) == -1){
-
-			}
-
-			close_file(2,fds[0],fds[1]);
 			if(drop_field(hd.sch_d,cpy_dta) == -1){
 				fprintf(stderr,"field(s) not found in the file. ->(%s)\n",cpy_dta);
 				free_schema(hd.sch_d);
 				release_lock(fds,-1);
-				close_file(1,fds[2]);
+				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 
@@ -924,25 +927,24 @@ int main(int argc, char *argv[])
 			fds[2] = open_file(files[2],1); /* truncate*/
 			if(file_error_handler(1,fds[2]) != 0){
 				release_lock(fds,-1);
-				close_file(1,fds[2]);
+				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 
-			if (!write_header(fd_schema, &hd)) {
-				while((r = lock(fd_schema,UNLOCK)) == WTLK);
-				close_file(1,fd_schema);
+			if (!write_header(fds[2], &hd)) {
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 
 			free_schema(hd.sch_d);
-			while((r = lock(fd_schema,UNLOCK)) == WTLK);
-			close_file(1,fd_schema);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return 0;
 		}
 
 		if (index_add) {
 			free_schema(hd.sch_d);
-			close_file(2, fds[2], fds[1]);
 
 			/*  write the index file
 			 *  if the user does not specify the indexes number
@@ -951,15 +953,6 @@ int main(int argc, char *argv[])
 			 *  */
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
 			int index_num = indexes > 0 ? indexes : 1;
-
-			/* acquire write lock */
-			int lock_f = 0;
-			int r = 0;
-			if(acquire_lock(fds,-1) == -1){
-
-			}
-
-			lock_f = 1;
 			
 			if (add_index(index_num, cpy_fp, bucket) == -1) {
 				fprintf(stderr, "can't add index %s:%d",F, L - 2);
@@ -970,23 +963,17 @@ int main(int argc, char *argv[])
 			fprintf(stderr,"%d %s added.\n", index_num, mes);
 
 			release_lock(fds,-1);
-			close_file(1,fds[0]);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return 0;
 
 			clean_on_error_4:
 			release_lock(fds,-1);
-			close_file(1,fds[0]);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return STATUS_ERROR;
 		}
 
-		if (del_file) { 
-			/*delete file */
-
+		if (del_file) {/*delete file*/
 			free_schema(hd.sch_d);
-			close_file(2, fds[2], fds[1]);
-			if(acquire_lock(fds,-1) == -1){
-			
-			}
 
 			/* we can safely delete the files, here, this process is the only one owning locks
 				for both the index and the data file */
@@ -994,11 +981,11 @@ int main(int argc, char *argv[])
 			if(fstat(fds[0],&st) != 0){
 				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,cpy_fp);
 				release_lock(fds,-1);
-				close_file(1, fds[0]);
+				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 			
-			close_file(1, fds[0]);
+			close_file(3, fds[0], fds[1],fds[2]);
 			delete_file(3, files[0], files[1],files[2]);
 			fprintf(stderr,"file %s, deleted.\n", cpy_fp);
 
@@ -1024,7 +1011,6 @@ int main(int argc, char *argv[])
 				}
 			}else{
 				/* add field to schema */
-				/* locks here are released that is why we do not have to release them if an error occurs*/
 				int mode = check_handle_input_mode(cpy_sd,FCRT) | WR;
 				if(mode == -1){
 					fprintf(stderr,"(%s): check the input, value might be missng.\n",prog);
@@ -1088,23 +1074,16 @@ int main(int argc, char *argv[])
 			}
 
 
-			/*release lock */
-			while((r = lock(fd_schema,UNLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				goto clean_on_error_5;
-			}	
-			lock_f = 0;
-		
+			release_lock(fds,-1);
 			fprintf(stderr,"data added to schema!\n");
-			close_file(3, fd_index, fd_data, fd_schema);
-			
+			close_file(3, fds[0], fds[1],fds[2]);
 			free_schema(&sch);
 			return 0;
 
 			clean_on_error_5:
-			if(lock_f) while((r = lock(fd_schema,UNLOCK)) == WTLK);
-			close_file(3, fd_index, fd_data,fd_schema);
+			fprintf(stderr,"cannot add data to the schema!\n");
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			free_schema(hd.sch_d);
 			return STATUS_ERROR;
 			
@@ -1114,30 +1093,19 @@ int main(int argc, char *argv[])
 			/* del a record in a file or the all content in the file */
 
 			free_schema(hd.sch_d);
-			/* acquire lock*/
-			int lock_f = 0;
-			int r = 0;
-			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
-			while((r = lock(fd_index,WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				goto clean_on_error_6;
-			}
-			lock_f = 1;
-
 			if (options) {
 				if (option) {
 					switch (convert_options(option)) {
 					case ALL:
 					{
 						int ind = 0, *p_i_nr = &ind;
-						if (!indexes_on_file(fd_index, p_i_nr)) {
+						if (!indexes_on_file(fds[0], p_i_nr)) {
 							fprintf(stderr,"er index nr,%s:%d.\n", F, L - 4);
 							goto option_clean_on_error;
 						}
 
 						int buc_t = 0, *pbuck = &buc_t;
-						if (!nr_bucket(fd_index, pbuck)) {
+						if (!nr_bucket(fds[0], pbuck)) {
 							fprintf(stderr,"er index nr,%s:%d.\n", F, L - 4);
 							goto option_clean_on_error;
 						}
@@ -1158,13 +1126,15 @@ int main(int argc, char *argv[])
 							ht[i] = ht_n;
 						}
 
-						close_file(1, fd_index);
+						close_file(1, fds[0]);
 						/*opening with O_TRUNC*/
-						fd_index = open_file(files[0], 1);
+						fds[0] = open_file(files[0], 1);
+						if(file_error_handler(1,fds[0]) != 0)
+							goto option_clean_on_error;
 
 						/*  write the index file */
 
-						if (!write_index_file_head(fd_index, *p_i_nr)) {
+						if (!write_index_file_head(fds[0], *p_i_nr)) {
 							fprintf(stderr,"write to file failed,%s:%d",F, L - 2);
 							free_ht_array(ht,*p_i_nr);
 							goto option_clean_on_error;
@@ -1179,31 +1149,28 @@ int main(int argc, char *argv[])
 						}
 
 						/* release the lock */
-						while((r = lock(fd_index,UNLOCK)) == WTLK);
+						release_lock(fds,-1);
 
-						close_file(3,fd_index,fd_data,fd_schema);
+						close_file(3, fds[0], fds[1],fds[2]);
 						free_ht_array(ht,*p_i_nr);
 						fprintf(stderr,"all record deleted from %s file.\n", cpy_fp);
 						return 0;
 
 						option_clean_on_error:
-						if(lock_f) 
-							while((r = lock(fd_index,UNLOCK)) == WTLK);
-						close_file(3,fd_index,fd_data,fd_schema);
+						release_lock(fds,-1);
+						close_file(3, fds[0], fds[1],fds[2]);
 						return STATUS_ERROR;
 					}
 					case AAR:
 					case FRC:
 						fprintf(stderr,"option '%s' not valid for delete path,\n",option);
-						if(lock_f) 
-							while((r = lock(fd_index,UNLOCK)) == WTLK);
-						close_file(3,fd_index,fd_data,fd_schema);
+						release_lock(fds,-1);
+						close_file(3, fds[0], fds[1],fds[2]);
 						return STATUS_ERROR;
 					default:
 						fprintf(stderr,"options not valid.\n");
-						if(lock_f) 
-							while((r = lock(fd_index,UNLOCK)) == WTLK);
-						close_file(3,fd_index,fd_data,fd_schema);
+						release_lock(fds,-1);
+						close_file(3, fds[0], fds[1],fds[2]);
 						return STATUS_ERROR;
 					}
 				}
@@ -1214,13 +1181,13 @@ int main(int argc, char *argv[])
 			int index = 0;
 			int *p_index = &index;
 			/* load all indexes in memory */
-			if (!read_all_index_file(fd_index, &ht, p_index)) {
+			if (!read_all_index_file(fds[0], &ht, p_index)) {
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
 			}
 
 			int indexes = 0;
-			if (!indexes_on_file(fd_index, &indexes)) {
+			if (!indexes_on_file(fds[0], &indexes)) {
 				fprintf(stderr,"indexes_on_file() failed, %s:%d.\n", F, L - 2);
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
@@ -1256,6 +1223,7 @@ int main(int argc, char *argv[])
 			
 			/*this will save the record that we deleted,
 			 * so we can undo this operations */
+			/*TODO: fix this system!!!*/
 			if(record_del->key.type == STR){
  				if(journal(fd_index, 
 						record_del->value, 
@@ -1279,12 +1247,11 @@ int main(int argc, char *argv[])
 			
 
 			free_ht_node(record_del);
-			close_file(1, fd_index);
-			fd_index = open_file(files[0], 1); /*opening with o_trunc*/
+			close_file(1, fds[0]);
+			fds[0] = open_file(files[0], 1); /*opening with o_trunc*/
 
 			/*  write the index file */
-
-			if (!write_index_file_head(fd_index, index)) {
+			if (!write_index_file_head(fds[0], index)) {
 				fprintf(stderr,"write to file failed, %s:%d", F, L- 2);
 				free_ht_array(ht,index);
 				goto clean_on_error_6;
@@ -1293,25 +1260,23 @@ int main(int argc, char *argv[])
 			int i = 0;
 			for (i = 0; i < index; i++){
 
-				if (!write_index_body(fd_index, i, &ht[i])) {
+				if (!write_index_body(fds[0], i, &ht[i])) {
 					fprintf(stderr,"write to file failed. %s:%d.\n", F, L - 2);
 					free_ht_array(ht,index);
 					goto clean_on_error_6;
 				}
-				destroy_hasht(&ht[i]);
 			}
 
-			while(lock(fd_index,UNLOCK) == WTLK);
-			lock_f = 0;
-			close_file(3, fd_index, fd_data,fd_schema);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			free_ht_array(ht,index);
 			free_schema(hd.sch_d);
 			return 0;
 			
 			clean_on_error_6:
 			free_schema(hd.sch_d);
-			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
-			close_file(3, fd_index, fd_data, fd_schema);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return STATUS_ERROR;
 		} /*end of del path (either del the all content or a record )*/
 
@@ -1320,7 +1285,7 @@ int main(int argc, char *argv[])
 			struct Record_f rec;
 			memset(&rec,0,sizeof(struct Record_f));
 
-			int lock_f = 0;
+			int lock_f = 1;/*we already have a lock*/
 			int check = 0;
 			int r = 0;
 			int option_value= -1;
@@ -1334,16 +1299,6 @@ int main(int argc, char *argv[])
 			if(( check = check_data(cpy_fp,cpy_dta,fds,files,&rec,&hd,&lock_f,option_value,0)) == -1) {
 				fprintf(stderr,"(%s): schema different than file definition or worng syntax\n",prog);
 				goto clean_on_error_7;
-			}
-
-			if(!lock_f){
-				while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
-				while((r = lock(fd_index,WLOCK)) == WTLK);
-				if(r == -1){
-					fprintf(stderr,"can't acquire or release proper lock.\n");
-					goto clean_on_error_7;
-				}
-				lock_f = 1;
 			}
 
 
@@ -1373,21 +1328,22 @@ int main(int argc, char *argv[])
 					goto clean_on_error_7;
 				}
 			}
+
 			free_record(&rec, rec.fields_num);
-			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
-			close_file(3, fd_index, fd_data, fd_schema);
+			free_schema(&sch);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			if(kcpy[0] == '\0')
 				fprintf(stderr,"record %u wrote succesfully.\n", n);
 			else
 				fprintf(stderr,"record %s wrote succesfully.\n", kcpy);
-			free_schema(&sch);
 			return 0;
 
 			clean_on_error_7:
-			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
-			close_file(3,fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
 			free_schema(&sch);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return STATUS_ERROR;
 		}
 
@@ -1396,7 +1352,7 @@ int main(int argc, char *argv[])
 			struct Record_f rec;
 			memset(&rec,0,sizeof(struct Record_f));
 
-			int lock_f = 0;
+			int lock_f = 1;
 			int check = 0;
 			int option_value = -1;
 			if(option){
@@ -1412,17 +1368,17 @@ int main(int argc, char *argv[])
 			if(update_rec(cpy_fp,fds,kcpy,-1,&rec,hd,check,&lock_f,option,index_nr) == -1) goto clean_on_error;
 
 			fprintf(stderr,"record %s updated!\n", kcpy);
-			while(lock(fd_index,UNLOCK) == WTLK);
-			close_file(3,fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
 			free_schema(hd.sch_d);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return 0;
 
 			clean_on_error:
-			if(lock_f) while(lock(fd_index,UNLOCK) == WTLK);
-			close_file(3, fd_schema, fd_index, fd_data);
 			free_record(&rec, rec.fields_num);
 			free_schema(hd.sch_d);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return STATUS_ERROR;
 
 		} /*end of update path*/
@@ -1431,20 +1387,19 @@ int main(int argc, char *argv[])
 
 		if (list_def) { /* show file definitions */
 			print_schema(*hd.sch_d);
-			close_file(1, fd_schema);
 			free_schema(hd.sch_d);
+			release_lock(fds,-1);
+			close_file(1,fds[2]);
 			return 0;
 		}
 
-		/*display the keys in the file*/
-		if (list_keys)
-		{
-			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
+		if (list_keys) { /*display the keys in the file*/
 			
 			HashTable ht = {0};
 			HashTable *p_ht = &ht;
-			if (!read_index_nr(index_nr, fd_index, &p_ht)) {
-				close_file(3,fd_schema, fd_index, fd_data);
+			if (!read_index_nr(index_nr, fds[0], &p_ht)) {
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				free_schema(hd.sch_d);
 				return STATUS_ERROR;
 			}
@@ -1454,14 +1409,16 @@ int main(int argc, char *argv[])
 			int er = 0;
 			if((er = keys(p_ht,&keys_data)) == -1){
 				fprintf(stderr,"(%s): cannot get all keys from index file.\n",prog);
-				close_file(3,fd_schema, fd_index, fd_data);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				free_schema(hd.sch_d);
 				return STATUS_ERROR;
 			}
 
 			if(er == NO_ELEMENT){
 				fprintf(stderr,"(%s): file is empty.\n",prog);
-				close_file(3,fd_schema, fd_index, fd_data);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				free_schema(hd.sch_d);
 				return 0;
 			}
@@ -1496,20 +1453,21 @@ int main(int argc, char *argv[])
 					break;
 			}
 
+			release_lock(fds,-1);
 			destroy_hasht(p_ht);
-			close_file(3,fd_schema, fd_index, fd_data);
+			close_file(3, fds[0], fds[1],fds[2]);
 			free_keys_data(&keys_data);
 			free_schema(hd.sch_d);
 			return 0;
 		}
 
 		if(nr_of_record_display){
-			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
 
 			HashTable ht = {0};
 			HashTable *p_ht = &ht;
 			if (!read_index_nr(index_nr, fd_index, &p_ht)) {
-				close_file(3,fd_schema, fd_index, fd_data);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				free_schema(hd.sch_d);
 				return STATUS_ERROR;
 			}
@@ -1519,14 +1477,16 @@ int main(int argc, char *argv[])
 			int er = 0;
 			if((er = keys(p_ht,&keys_data)) == -1){
 				fprintf(stderr,"(%s): cannot get all keys from index file.\n",prog);
-				close_file(3,fd_schema, fd_index, fd_data);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				free_schema(hd.sch_d);
 				return STATUS_ERROR;
 			}
 
 			if(er == NO_ELEMENT){
 				fprintf(stderr,"(%s): file is empty.\n",prog);
-				close_file(3,fd_schema, fd_index, fd_data);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				free_schema(hd.sch_d);
 				return 0;
 			}
@@ -1534,7 +1494,8 @@ int main(int argc, char *argv[])
 			fprintf(stdout,"(%s): %d records in '%s'.\n",prog,keys_data.length,cpy_fp);
 
 			destroy_hasht(p_ht);
-			close_file(3,fd_schema, fd_index, fd_data);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			free_keys_data(&keys_data);
 			free_schema(hd.sch_d);
 			return 0;
@@ -1543,9 +1504,9 @@ int main(int argc, char *argv[])
 
 
 		}
+
 		if (kcpy[0] != '\0') { 
 			/*display record*/
-			while(is_locked(3,fd_index,fd_data,fd_schema) == LOCKED);
 
 			struct Record_f rec;
 			memset(&rec,0,sizeof(struct Record_f));
@@ -1554,13 +1515,15 @@ int main(int argc, char *argv[])
 			if((err = get_record(-1,cpy_fp,&rec,(void *)kcpy,-1, hd,fds,index_nr >= 0 ? index_nr : -1)) == -1){
 				free_record(&rec,rec.fields_num);
 				free_schema(hd.sch_d);
-				close_file(3, fd_schema,fd_index, fd_data);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 
 			if( err == KEY_NOT_FOUND){
-				close_file(3, fd_schema,fd_index, fd_data);
 				free_schema(hd.sch_d);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 
@@ -1573,11 +1536,17 @@ int main(int argc, char *argv[])
 			}
 
 			if(ram.mem) close_ram_file(&ram);
-			close_file(3, fd_schema,fd_index, fd_data);
+
 			free_schema(hd.sch_d);
+			release_lock(fds,-1);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return 0;
 		}
-		goto clean_on_error_7;
+		/*ALL THE PATHS RETURN EITHER ERROR OR SUCCSES*/
+		/*THIS SHOULD BE UNREACHABLE*/
+		release_lock(fds,-1);
+		close_file(3, fds[0], fds[1],fds[2]);
+		return 0;
 	}
 
 	return 0;

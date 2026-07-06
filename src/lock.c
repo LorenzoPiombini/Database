@@ -25,10 +25,16 @@ int release_lock(int *fds,int mode){
 	return 0;
 }
 
+
 int acquire_lock(int *fds, int mode){
-	int r = 0;
+	int r = 0, slept = 0;
 	if(mode < 0 || mode > 2) mode = STD_LOCK;
-	while((r = lock(fds[mode],WLOCK)) == WTLK);
+	while((r = lock(fds[mode],WLOCK)) == WTLK){
+		if(!slept)
+			sleep(10);
+		return -1;
+	}
+
 	if(r == -1){
 		fprintf(stderr,"can't acquire or release proper lock.\n");
 		while((r = lock(fds[mode],UNLOCK)) == WTLK);
