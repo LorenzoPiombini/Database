@@ -13,7 +13,31 @@
 #include "common.h"
 #include "string_utilities.h"
 
-int lock(int fd, int flag){
+int release_lock(int *fds,int mode){
+	if(mode < 0 || mode > 2) mode = STD_LOCK;
+
+	int r = 0;
+	while((r = lock(fds[mode],UNLOCK)) == WTLK);
+	if(r == -1){
+		fprintf(stderr,"can't acquire or release proper lock.\n");
+		return -1;
+	}	
+	return 0;
+}
+
+int acquire_lock(int *fds, int mode){
+	int r = 0;
+	if(mode < 0 || mode > 2) mode = STD_LOCK;
+	while((r = lock(fds[mode],WLOCK)) == WTLK);
+	if(r == -1){
+		fprintf(stderr,"can't acquire or release proper lock.\n");
+		while((r = lock(fds[mode],UNLOCK)) == WTLK);
+		return -1;
+	}
+	return 0;
+}
+
+static int lock(int fd, int flag){
 
 	struct stat st;
 	errno = 0;
@@ -73,10 +97,9 @@ int lock(int fd, int flag){
 			return 0;
 		}
 
-		fprintf(stderr,"cannot compare pids\n");
+		fprintf(stderr,"this pid does not own the lock\n");
 		fclose(fp);
 		return -1;
-
 	}else if (!fp && flag == WLOCK){
 		fp = fopen(file_name,"w");
 		if(!fp){

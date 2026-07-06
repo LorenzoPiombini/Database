@@ -503,14 +503,40 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	}
 	
 	int err = 0;
-	int fd_index = -1; 
-	int fd_data = -1; 
-	int fd_schema = -1; 
 	switch(option){
+	case CREATE_ONLY_SCHEMA:
+	{
+		fds[2] = create_file(files[2]);
+		if ((err = file_error_handler(1,fds[2])) != 0) {
+			if(err == ENOENT)
+				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+			else if(err == EEXIST)
+				fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
+			else
+				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+
+			return STATUS_ERROR;
+		}	
+	}
+	case CREATE_ONLY_DATA:
+	{
+		fds[1] = create_file(files[1]);
+		fds[2] = create_file(files[2]);
+		if ((err = file_error_handler(2, fds[0],fds[1]) != 0)) {
+			if(err == ENOENT)
+				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+			else if(err == EEXIST)
+				fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
+			else
+				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+
+			return STATUS_ERROR;
+		}	
+	}
 	case ONLY_SCHEMA:
 	{
-		fd_schema = open_file(files[2], 0);
-		if ((err = file_error_handler(1,fd_schema)) != 0) {
+		fds[2] = open_file(files[2], 0);
+		if ((err = file_error_handler(1,fds[2])) != 0) {
 			if(err == ENOENT)
 				fprintf(stderr,"(%s): File '%s' doesn't exist. %s:%d\n",prog,file_name,__FILE__,__LINE__-2);
 			else
@@ -523,8 +549,8 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	}	
 	case ONLY_INDEX:
 	{
-		fd_index = open_file(files[0], 0);
-		if ((err = file_error_handler(1,fd_index)) != 0) {
+		fds[0]= open_file(files[0], 0);
+		if ((err = file_error_handler(1,fds[0])) != 0) {
 			if(err == ENOENT)
 				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 			else
@@ -532,15 +558,27 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 
 			return STATUS_ERROR;
 		}
-		fds[0] = fd_index;
+		return 0;
+	}
+	case ONLY_DATA:
+	{
+		fds[1] = open_file(files[1], 0);
+		if ((err = file_error_handler(1,fds[1])) != 0) {
+			if(err == ENOENT)
+				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+			else
+				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
+
+			return STATUS_ERROR;
+		}
 		return 0;
 	}
 	case CREATE_FILE:
 	{
-		fd_index = create_file(files[0]);
-		fd_data = create_file(files[1]);
-		fd_schema = create_file(files[2]);
-		if ((err = file_error_handler(3, fd_index, fd_data,fd_schema)) != 0) {
+		fds[0] = create_file(files[0]);
+		fds[1] = create_file(files[1]);
+		fds[2] = create_file(files[2]);
+		if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
 			if(err == ENOENT)
 				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 			else if(err == EEXIST)
@@ -552,7 +590,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		}	
 
 		/*  write the index file */
-		if (!write_index_file_head(fd_index, 5)) {
+		if (!write_index_file_head(fds[0], 5)) {
 			return STATUS_ERROR;
 		}
 
@@ -561,7 +599,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 			HashTable ht = {0};
 			ht.size = 7;
 			ht.write = write_ht;
-			if (!write_index_body(fd_index, i, &ht)) {
+			if (!write_index_body(fds[0], i, &ht)) {
 				destroy_hasht(&ht);
 				return STATUS_ERROR;
 			}
@@ -570,12 +608,12 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		break;
 	}
 	default:
-		fd_index = open_file(files[0], 0);
-		fd_data = open_file(files[1], 0);
-		fd_schema = open_file(files[2], 0);
+		fds[0] = open_file(files[0], 0);
+		fds[1] = open_file(files[1], 0);
+		fds[2]] = open_file(files[2], 0);
 
 		/* file_error_handler will close the file descriptors if there are issues */
-		if ((err = file_error_handler(3, fd_index, fd_data,fd_schema)) != 0) {
+		if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
 			if(err == ENOENT)
 				fprintf(stderr,"(%s): File '%s' doesn't exist.%s:%d.\n",prog,file_name,__FILE__,__LINE__-2);
 			else
@@ -586,9 +624,6 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		break;
 	}
 
-	fds[0] = fd_index;
-	fds[1] = fd_data;
-	fds[2] = fd_schema;
 	return 0;
 }
 
@@ -898,27 +933,45 @@ int write_cache_to_disk(struct Cache *c){
 	char file_names[3][MAX_FILE_PATH_LENGTH];
 	memset(file_names,0,3*MAX_FILE_PATH_LENGTH);
 
-	if(open_files(c->file_name,fds,file_names,-1) == -1)
-		return -1;
+	if(open_files(c->file_name,fds,file_names,-1) == -1) return -1;
 
-	if(write_index(fds,c->indexes,c->index_file,file_names[0]) == -1) return -1;
+	int r = 0;
+	while((is_locked(3,fds[0],fds[1],fds[2])) == LOCKED);/* Hang if its locked by another process*/
+	while((r = lock(fds[0],WLOCK)) == WTLK);/*aquire lock*/
+	if(r == -1){
+		fprintf(stderr,"can't acquire or release proper lock.%s:%d\n",__FILE__,__LINE__-2);
+		while((r = lock(fd_schema,UNLOCK)) == WTLK);
+		close_file(3,fds[0],fds[1],fds[2]);
+		return -1;
+	}
+
+	if(write_index(fds,c->indexes,c->index_file,file_names[0]) == -1)goto release_lock_on_failure;
 
 	close_file(1,fds[1]);
 	fds[1] = open_file(file_names[1],1);/*OPEN WITH O_TRUNC*/
-	if(file_error_handler(1,fds[1]) != 0) {
-		close_file(3,fds[0],fds[1],fds[2]);
-		return -1;			
-	}
+	if(file_error_handler(1,fds[1]) != 0) goto release_lock_on_failure;
 
-	if(write(fds[1],c->data_file.mem,c->data_file.size) == -1){
-		close_file(3,fds[0],fds[1],fds[2]);
-		return -1;			
-	}
+	if(write(fds[1],c->data_file.mem,c->data_file.size) == -1) goto release_lock_on_failure;
 
 	/*TODO: write the schema to file*/
 
+	/*release lock*/
+	while((r = lock(fds[0],UNLOCK)) == WTLK);
+	if(r == -1){
+		fprintf(stderr,"can't acquire or release proper lock.\n");
+		return -1;
+	}	
 	close_file(3,fds[0],fds[1],fds[2]);
 	return 0;
+
+release_lock_on_failure:
+	while((r = lock(fds[0],UNLOCK)) == WTLK);
+	if(r == -1){
+		fprintf(stderr,"can't acquire or release proper lock.\n");
+		return -1;
+	}	
+	close_file(3,fds[0],fds[1],fds[2]);
+	return -1;			
 }
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type)
 {

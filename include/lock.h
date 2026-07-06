@@ -2,6 +2,10 @@
 #define LOCK_H
 
 
+#define STD_LOCK 0
+#define LOCK_DATA_FILE 1
+#define LOCK_SCHEMA_FILE 2
+
 #define FCNTL_ERR 2
 #define SH_ILOCK "/lock_info_memory"
 #define SEM_MILOCK "/sem_lock_info_memory"
@@ -27,7 +31,8 @@ typedef enum
     WR_IND
 } mode;
 
+int release_lock(int *fds,int mode);
+int acquire_lock(int *fds,int mode);
 int is_locked(int files, ...);
-int lock(int fd, int flag);
 
 #endif /* lock.h */

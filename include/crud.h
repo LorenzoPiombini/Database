@@ -4,6 +4,9 @@
 #define ONLY_SCHEMA 1
 #define ONLY_INDEX 2
 #define CREATE_FILE 3
+#define ONLY_DATA 4
+#define CREATE_ONLY_DATA 5
+#define CREATE_ONLY_SCHEMA 6
 
 #define IMPORT 0
 #define RAM_FILE 1

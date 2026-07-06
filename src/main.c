@@ -377,43 +377,20 @@ int main(int argc, char *argv[])
 			key.close(&key);
 		}
 
+		int fds[3];
+		memset(fds,-1,sizeof(int)* 3);
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
-		if(three_file_path(cpy_fp, files) == EFLENGTH){
-			fprintf(stderr,"(%s): file name or path '%s' too long",prog,cpy_fp);
-			return STATUS_ERROR;
-		}
-
 		if (only_dat) {
 			fd_data = create_file(files[1]);
 			fd_schema = create_file(files[2]);
-			/*
-			 * file_error_handler will close the file descriptors if there are issues
-			 *  and print error messages to the console
-			 *  */
-			if (file_error_handler(2, fd_data, fd_schema) != 0) {
+			if(open_files(cpy_fp, fds, files,CREATE_ONLY_DATA) == -1)
 				return STATUS_ERROR;
-			}
-		
 		}else if(file_field){
-			fd_schema = create_file(files[2]);
-			/*
-			 * file_error_handler will close the file descriptors if there are issues
-			 *  and print error messages to the console
-			 *  */
-			if (file_error_handler(1, fd_schema) != 0) {
+			if(open_files(cpy_fp, fds, files,CREATE_ONLY_SCHEMA) == -1)
 				return STATUS_ERROR;
-			}
 		}else{
-			fd_index = create_file(files[0]);
-			fd_data = create_file(files[1]);
-			fd_schema = create_file(files[2]);
-			/*
-			 * file_error_handler will close the file descriptors if there are issues
-			 *  and print error messages to the console
-			 *  */
-			if (file_error_handler(3, fd_index, fd_data, fd_schema) != 0) {
+			if(open_files(cpy_fp, fds, files,CREATE_FILE) == -1)
 				return STATUS_ERROR;
-			}
 		}
 
 		if (cpy_sd[0] != '\0') { 
@@ -467,7 +444,7 @@ int main(int argc, char *argv[])
 
 			if (!create_header(&hd)) goto clean_on_error_1;
 
-			if (!write_header(fd_schema, &hd)) {
+			if (!write_header(fds[2], &hd)) {
 				fprintf(stderr,"(%s): write schema failed, %s:%d.\n",prog, F, L - 1);
 				goto clean_on_error_1;
 			}
@@ -476,13 +453,13 @@ int main(int argc, char *argv[])
 			if (only_dat) {
 				fprintf(stderr,"(%s): File created successfully!\n",prog);
 				free_schema(&sch);
-				close_file(2, fd_data, fd_schema);
+				close_file(2, fds[2], fds[1]);
 				return 0;
 			}
 
 			if(file_field){
 				fprintf(stderr,"(%s): File created successfully!\n",prog);
-				close_file(1, fd_schema);
+				close_file(1, fds[2]);
 				free_schema(&sch);
 				return 0;
 			}
@@ -502,7 +479,7 @@ int main(int argc, char *argv[])
 				ht.size = bucket;
 				ht.write = write_ht;
 
-				if (!write_index_body(fd_index, i, &ht)) {
+				if (!write_index_body(fds[0], i, &ht)) {
 					fprintf(stderr,"write to file failed. %s:%d.\n", F, L - 2);
 					destroy_hasht(&ht);
 					goto clean_on_error_1;
@@ -513,7 +490,7 @@ int main(int argc, char *argv[])
 
 			fprintf(stderr,"(%s): File created successfully!\n",prog);
 
-			close_file(3, fd_index, fd_data,fd_schema);
+			close_file(3,fds[0], fds[1],fds[2]);
 			if(free_schema(&sch) == -1){
 				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
 				goto clean_on_error_1;
@@ -521,7 +498,7 @@ int main(int argc, char *argv[])
 			return 0;
 
 			clean_on_error_1:
-			close_file(3, fd_index, fd_data,fd_schema);
+			close_file(3,fds[0], fds[1],fds[2]);
 			delete_file(3, files[0], files[1], files[2]);
 			if(free_schema(&sch) == -1){
 				fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
@@ -632,7 +609,7 @@ int main(int argc, char *argv[])
 				goto clean_on_error_2;
 			}
 
-			if (!write_header(fd_schema, &hd)) {
+			if (!write_header(fds[2], &hd)) {
 				fprintf(stderr,"write to file failed, %s:%d.\n", __FILE__, __LINE__ - 1);
 				goto clean_on_error_2;
 			}
@@ -640,7 +617,7 @@ int main(int argc, char *argv[])
 			if (only_dat) {
 				fprintf(stderr,"File created successfully!\n");
 				free_record(&rec, fields_count);
-				close_file(2, fd_data,fd_schema);
+				close_file(2, fds[1],fds[2]);
 				if(free_schema(&sch) == -1){
 					fprintf(stderr,"could not free the schema, %s:%d\n",__FILE__,__LINE__-1);
 				}
@@ -651,7 +628,7 @@ int main(int argc, char *argv[])
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
 			int index_num = indexes > 0 ? indexes : 5;
 
-			if (!write_index_file_head(fd_index, index_num)) {
+			if (!write_index_file_head(fds[0],index_num)) {
 				fprintf(stderr,"write to file failed, %s:%d", F, L - 2);
 				goto clean_on_error_2;
 			}
@@ -665,7 +642,7 @@ int main(int argc, char *argv[])
 				ht.write = write_ht;
 
 				if (i == 0) {
-					file_offset offset = get_file_offset(fd_data);
+					file_offset offset = get_file_offset(fds[1]);
 					if (offset == -1) {
 						__er_file_pointer(F, L - 3);
 						goto clean_on_error_2;
@@ -674,8 +651,6 @@ int main(int argc, char *argv[])
 					if(kcpy[0] == '\0'){
 						
 						/*create a new key value pair in the hash table*/
-						
-						int fds[] = {fd_index,fd_data,fd_schema};
 						i64 k = generate_numeric_key(fds,INCREM,-1);
 
 						if(k == -1){
@@ -719,14 +694,14 @@ int main(int argc, char *argv[])
 						}
 					}
 
-					if (!write_file(fd_data, &rec, 0, update)) {
+					if (!write_file(fds[1], &rec, 0, update)) {
 						fprintf(stderr,"write to file failed, %s:%d.\n", F, L - 1);
 						destroy_hasht(&ht);
 						goto clean_on_error_2;
 					}
 				}
 
-				if (!write_index_body(fd_index, i, &ht)) {
+				if (!write_index_body(fds[0], i, &ht)) {
 					fprintf(stderr,"write to file failed. %s:%d.\n", F, L - 2);
 					destroy_hasht(&ht);
 					goto clean_on_error_2;
@@ -737,21 +712,21 @@ int main(int argc, char *argv[])
 
 			fprintf(stderr,"(%s): File created successfully.\n",prog);
 			free_record(&rec, fields_count); 
-			close_file(3, fd_index, fd_data,fd_schema);
+			close_file(3,fds[0], fds[1],fds[2]);
 			free_schema(&sch);
 			return 0;
 			
 			clean_on_error_2:
-			close_file(3, fd_index, fd_data,fd_schema);
+			close_file(3,fds[0], fds[1],fds[2]);
 			delete_file(3, files[0], files[1], files[2]);
 			free_record(&rec, fields_count);
 			free_schema(&sch);
 			return STATUS_ERROR;
 
 		}else {
+			print_usage(argv);
 			fprintf(stderr,"(%s): no data to write to file %s.\n",prog,cpy_fp );
 			fprintf(stderr,"(%s): %s has been created, you can add to the file using option -a.\n",prog, cpy_fp);
-			print_usage(argv);
 
 			/* init the Schema structure*/
 			struct Schema sch;
@@ -759,7 +734,7 @@ int main(int argc, char *argv[])
 
 			struct Header_d hd = {HEADER_ID_SYS, VS, &sch};
 
-			if (!write_empty_header(fd_schema, &hd)) {
+			if (!write_empty_header(fds[1], &hd)) {
 				fprintf(stderr,"%s:%d.\n", F, L - 1);
 				goto clean_on_error_3;
 			}
@@ -768,7 +743,7 @@ int main(int argc, char *argv[])
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
 			int index_num = indexes > 0 ? indexes : 5;
 
-			if (!write_index_file_head(fd_index, index_num)) {
+			if (!write_index_file_head(fds[0], index_num)) {
 				fprintf(stderr,"write to file failed, %s:%d", F, L - 2);
 				goto clean_on_error_3;
 			}
@@ -779,7 +754,7 @@ int main(int argc, char *argv[])
 				ht.size = bucket;
 				ht.write = write_ht;
 
-				if (!write_index_body(fd_index, i, &ht)) {
+				if (!write_index_body(fds[0], i, &ht)) {
 					fprintf(stderr,"write to file failed. %s:%d.\n", F, L - 2);
 					goto clean_on_error_3;
 				}
@@ -789,11 +764,11 @@ int main(int argc, char *argv[])
 
 			fprintf(stderr,"File created successfully.\n");
 
-			close_file(3, fd_index, fd_data,fd_schema);
+			close_file(3, fds[0], fds[1],fds[2]);
 			return 0;
 
 			clean_on_error_3:
-			close_file(3, fd_index, fd_data,fd_schema);
+			close_file(3, fds[0], fds[1],fds[2]);
 			delete_file(3, files[0], files[1], files[2]);
 			return STATUS_ERROR;
 
@@ -857,11 +832,15 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			fd_schema = fds[2];
-			while((is_locked(1,fd_schema)) == LOCKED);
+
+			/*this is hanging if another lock has the file lock*/
+			if(acquire_lock(fds,-1) == -1){
+
+			}
 			/* ensure the file is a db file */
 			if (is_db_file(&hd, fds) == -1) {
-				close_file(1,fd_schema);
+				release_lock(fds,-1);
+				close_file(1,fds[2]);
 				return STATUS_ERROR;
 			}
 		} else if (swap_index){
@@ -869,53 +848,44 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			fd_index = fds[0];
-			while((is_locked(1,fd_index)) == LOCKED);
+			while((is_locked(1,fds[0])) == LOCKED);
+			if(acquire_lock(fds,-1) == -1){
+
+			}
 		}else {
-			if(open_files(cpy_fp,fds,files,0) == -1) {
+			if(open_files(cpy_fp,fds,files,-1) == -1) {
 				return STATUS_ERROR;
 			}
-			fd_index = fds[0];
-			fd_data = fds[1];
-			fd_schema = fds[2]; 
-			
 
-			while((is_locked(3,fd_schema,fd_data,fd_index)) == LOCKED);
+			if(acquire_lock(fds,-1) == -1){
+
+			}
+
 			/* ensure the file is a db file */
 			if (is_db_file(&hd, fds) == -1) {
-				close_file(3,fd_schema,fd_data,fd_index);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 		}
 
 		if(swap_index){
-			/* acquire lock */
-			int r = 0;
-			while(is_locked(1, fd_index) == LOCKED);
-			while((r = lock(fd_index,WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				while((r = lock(fd_schema,UNLOCK)) == WTLK);
-				close_file(1,fd_index);
-				return STATUS_ERROR;
-			}
-
 			HashTable *ht = NULL;
 			int index = 0;
 			int *p_index = &index;
 			if(!read_all_index_file(fd_index, &ht, p_index)) {
 				fprintf(stderr,"(%s): cannot read index file, %s:%d\n",prog,__FILE__,__LINE__-1);
 				free_ht_array(ht,index);
-				while((r = lock(fd_index,UNLOCK)) == WTLK);
-				close_file(1,fd_index);
+				release_lock(fds,-1);
+				close_file(1,fds[0]);
 				return -1;
 			}
 
 			if(swap_indexes(bucket_ht,indexes,ht) == -1){
 				fprintf(stderr,"(%s): cannot swap indexes, %s:%d.\n",prog,__FILE__,__LINE__-1);
 				free_ht_array(ht,index);
-				while((r = lock(fd_index,UNLOCK)) == WTLK);
-				close_file(1,fd_index);
+				release_lock(fds,-1);
+				close_file(1,fds[0]);
 				return -1;
 			}
 
@@ -923,44 +893,38 @@ int main(int argc, char *argv[])
 			if(write_index(fds,index,ht,files[0]) == -1){
 				fprintf(stderr,"(%s): cannot swap indexes, %s:%d.\n",prog,__FILE__,__LINE__-1);
 				free_ht_array(ht,index);
-				while((r = lock(fd_index,UNLOCK)) == WTLK);
-				close_file(1,fd_index);
+				release_lock(fds,-1);
+				close_file(1,fds[0]);
 				return -1;
 			}
 
-			free(ht);
-			while((r = lock(fd_index,UNLOCK)) == WTLK);
-			close_file(1,fd_index);
+			free_ht_array(ht,index);
+			release_lock(fds,-1);
+			close_file(1,fds[0]);
 			fprintf(stdout,"(%s): index %d swapped with %d.\n",prog,bucket_ht,indexes);
 			return 0;
 		}
 
 		if (del_field){
 			/* acquire lock */
-			int r = 0;
-			while(is_locked(3, fd_schema,fd_index,fd_schema) == LOCKED);
-			while((r = lock(fd_schema,WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				while((r = lock(fd_schema,UNLOCK)) == WTLK);
-				close_file(3,fd_schema,fd_data,fd_index);
-				return STATUS_ERROR;
+			if(acquire_lock(fds,-1) == -1){
+
 			}
 
-			close_file(2,fd_data,fd_index);
+			close_file(2,fds[0],fds[1]);
 			if(drop_field(hd.sch_d,cpy_dta) == -1){
 				fprintf(stderr,"field(s) not found in the file. ->(%s)\n",cpy_dta);
 				free_schema(hd.sch_d);
-				while((r = lock(fd_schema,UNLOCK)) == WTLK);
-				close_file(1,fd_schema);
+				release_lock(fds,-1);
+				close_file(1,fds[2]);
 				return STATUS_ERROR;
 			}
 
-			close_file(1,fd_schema);
-			fd_schema = open_file(files[2],1); /* truncate*/
-			if(fd_schema == -1){
-				while((r = lock(fd_schema,UNLOCK)) == WTLK);
-				close_file(1,fd_schema);
+			close_file(1,fds[2]);
+			fds[2] = open_file(files[2],1); /* truncate*/
+			if(file_error_handler(1,fds[2]) != 0){
+				release_lock(fds,-1);
+				close_file(1,fds[2]);
 				return STATUS_ERROR;
 			}
 
@@ -978,7 +942,7 @@ int main(int argc, char *argv[])
 
 		if (index_add) {
 			free_schema(hd.sch_d);
-			close_file(2, fd_schema, fd_data);
+			close_file(2, fds[2], fds[1]);
 
 			/*  write the index file
 			 *  if the user does not specify the indexes number
@@ -991,11 +955,8 @@ int main(int argc, char *argv[])
 			/* acquire write lock */
 			int lock_f = 0;
 			int r = 0;
-			while(is_locked(3, fd_schema,fd_index,fd_schema) == LOCKED);
-			while((r = lock(fd_index,WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				goto clean_on_error_4;
+			if(acquire_lock(fds,-1) == -1){
+
 			}
 
 			lock_f = 1;
@@ -1008,18 +969,13 @@ int main(int argc, char *argv[])
 			char *mes = (index_num > 1) ? "indexes" : "index";
 			fprintf(stderr,"%d %s added.\n", index_num, mes);
 
-			/*release the lock*/
-			while((r = lock(fd_index,UNLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				goto clean_on_error_4;
-			}	
-
+			release_lock(fds,-1);
+			close_file(1,fds[0]);
 			return 0;
+
 			clean_on_error_4:
-			if(lock_f) while((r = lock(fd_index,UNLOCK)) == WTLK);
-			close_file(1,fd_index);
-			free_schema(hd.sch_d);
+			release_lock(fds,-1);
+			close_file(1,fds[0]);
 			return STATUS_ERROR;
 		}
 
@@ -1027,27 +983,22 @@ int main(int argc, char *argv[])
 			/*delete file */
 
 			free_schema(hd.sch_d);
-			close_file(2,fd_data,fd_schema);
-			/* acquire lock */
-			int r = 0;
-			while(is_locked(3, fd_schema,fd_index,fd_schema) == LOCKED);
-			while((r = lock(fd_index,WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				return STATUS_ERROR;
+			close_file(2, fds[2], fds[1]);
+			if(acquire_lock(fds,-1) == -1){
+			
 			}
 
 			/* we can safely delete the files, here, this process is the only one owning locks
 				for both the index and the data file */
 			struct stat st;
-			if(fstat(fd_index,&st) != 0){
+			if(fstat(fds[0],&st) != 0){
 				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,cpy_fp);
-				while((r = lock(fd_index,UNLOCK)) == WTLK);
-				close_file(1, fd_index);
+				release_lock(fds,-1);
+				close_file(1, fds[0]);
 				return STATUS_ERROR;
 			}
 			
-			close_file(1, fd_index);
+			close_file(1, fds[0]);
 			delete_file(3, files[0], files[1],files[2]);
 			fprintf(stderr,"file %s, deleted.\n", cpy_fp);
 
