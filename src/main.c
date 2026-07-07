@@ -35,11 +35,6 @@ int main(int argc, char *argv[])
 
 
 	__UTILITY = 1;
-	/* file descriptors */
-	int fd_index = -1; 
-	int fd_data = -1;
-	int fd_schema = -1;
-
 	/*----------- bool values-------------------*/
 
 	unsigned char new_file = 0;
@@ -381,8 +376,6 @@ int main(int argc, char *argv[])
 		memset(fds,-1,sizeof(int)* 3);
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 		if (only_dat) {
-			fd_data = create_file(files[1]);
-			fd_schema = create_file(files[2]);
 			if(open_files(cpy_fp, fds, files,CREATE_ONLY_DATA) == -1)
 				return STATUS_ERROR;
 		}else if(file_field){
@@ -468,7 +461,7 @@ int main(int argc, char *argv[])
 			int bucket = bucket_ht > 0 ? bucket_ht : 7;
 			int index_num = indexes > 0 ? indexes : 5;
 
-			if (!write_index_file_head(fd_index, index_num)) {
+			if (!write_index_file_head(fds[0], index_num)) {
 				fprintf(stderr,"(%s) write index file head failed, %s:%d",prog, F, L - 2);
 				goto clean_on_error_1;
 			}
@@ -882,7 +875,7 @@ int main(int argc, char *argv[])
 			HashTable *ht = NULL;
 			int index = 0;
 			int *p_index = &index;
-			if(!read_all_index_file(fd_index, &ht, p_index)) {
+			if(!read_all_index_file(fds[0], &ht, p_index)) {
 				fprintf(stderr,"(%s): cannot read index file, %s:%d\n",prog,__FILE__,__LINE__-1);
 				free_ht_array(ht,index);
 				release_lock(fds,-1);
@@ -1049,26 +1042,11 @@ int main(int argc, char *argv[])
 			}
 
 
-			/* acquire lock */
-			int lock_f = 0;
-			int r = 0;
-			while(is_locked(3,fd_index,fd_schema,fd_data) == LOCKED);
-			while((r = lock(fd_schema,WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				goto clean_on_error_5;
-			}	
+			close_file(1,fds[2]);
+			fds[2]= open_file(files[2],1);
+			if(file_error_handler(1,fds[2]) != 0) goto clean_on_error_5;
 
-			lock_f = 1;	
-
-			close_file(1,fd_schema);
-			fd_schema = open_file(files[2],1);
-			
-			if(file_error_handler(1,fd_schema) != 0){
-				goto clean_on_error_5;
-			}
-
-			if (!write_header(fd_schema, &hd)) {
+			if (!write_header(fds[2], &hd)) {
 				fprintf(stderr,"write to file failed, %s:%d.\n", F, L - 2);
 				goto clean_on_error_5;
 			}
@@ -1141,7 +1119,7 @@ int main(int argc, char *argv[])
 						}
 
 						for (i = 0; i < *p_i_nr; i++) {
-							if (!write_index_body(fd_index, i, &ht[i])) {
+							if (!write_index_body(fds[0], i, &ht[i])) {
 								fprintf(stderr,"write to file failed. %s:%d.\n", F, L - 2);
 								free_ht_array(ht,*p_i_nr);
 								goto option_clean_on_error;
@@ -1225,7 +1203,7 @@ int main(int argc, char *argv[])
 			 * so we can undo this operations */
 			/*TODO: fix this system!!!*/
 			if(record_del->key.type == STR){
- 				if(journal(fd_index, 
+ 				if(journal(fds[0], 
 						record_del->value, 
 						(void*)record_del->key.k.s, 
 						record_del->key.type, 
@@ -1234,7 +1212,7 @@ int main(int argc, char *argv[])
 				}
 			}else{
 				ui32 kn = record_del->key.k.n;
-				if(journal(fd_index, 
+				if(journal(fds[0], 
 						record_del->value, 
 						(void*)&kn, 
 						record_del->key.type, 
@@ -1287,7 +1265,6 @@ int main(int argc, char *argv[])
 
 			int lock_f = 1;/*we already have a lock*/
 			int check = 0;
-			int r = 0;
 			int option_value= -1;
 			if(option){
 				option_value= convert_options(option);
@@ -1465,7 +1442,7 @@ int main(int argc, char *argv[])
 
 			HashTable ht = {0};
 			HashTable *p_ht = &ht;
-			if (!read_index_nr(index_nr, fd_index, &p_ht)) {
+			if (!read_index_nr(index_nr, fds[0], &p_ht)) {
 				release_lock(fds,-1);
 				close_file(3, fds[0], fds[1],fds[2]);
 				free_schema(hd.sch_d);

@@ -13,6 +13,8 @@
 #include "common.h"
 #include "string_utilities.h"
 
+static int lock(int fd, int flag);
+
 int release_lock(int *fds,int mode){
 	if(mode < 0 || mode > 2) mode = STD_LOCK;
 

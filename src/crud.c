@@ -218,9 +218,7 @@ int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Head
 
 int is_db_file(struct Header_d *hd, int *fds)
 {
-	while((is_locked(3,fds[0],fds[1],fds[2])) == LOCKED);
 	if (!read_header(fds[2], hd)) return STATUS_ERROR;
-
 	return 0;
 }
 
@@ -280,7 +278,6 @@ int check_data(char *file_path,char *data_to_add,
 	 * SCHEMA_NW_NT 
 	 * SCHEMA_CT_NT
 	 * */	
-	int r = 0;
 	if (check == SCHEMA_NW ||
 			check == SCHEMA_NW_NT ||
 			check == SCHEMA_CT_NT ||
@@ -294,28 +291,38 @@ int check_data(char *file_path,char *data_to_add,
 		 * we update the header
 		 * */
 		/* aquire lock */
-		if(!(*lock_f)){
-			while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
-			while((r = lock(fds[0],WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
+		if((*lock_f) == 0){	
+			/*TODO:THINK ABOUT THIS*/
+			if(acquire_lock(fds,-1) == -1){
+				fprintf(stderr,"can't acquire lock on file.\n");
 				return STATUS_ERROR;
 			}
-
 			*lock_f = 1;
 		}
+
 		close_file(1,fds[2]);
 		fds[2] = open_file(files[2],1); /*open with O_TRUNCATE*/
 
-		if(file_error_handler(1,fds[2]) != 0) return STATUS_ERROR;
+		if(file_error_handler(1,fds[2]) != 0) {
+			release_lock(fds,-1);
+			*lock_f = 0;
+			return STATUS_ERROR;
+		}
 
 		if(!write_header(fds[2], hd)) {
 			__er_write_to_file(F, L - 1);
+			release_lock(fds,-1);
+			*lock_f = 0;
 			return STATUS_ERROR;
 		}
 
 		close_file(1,fds[2]);
 		fds[2] = open_file(files[2],0); /*open in regular mode*/
+		if(file_error_handler(1,fds[2]) != 0){
+			release_lock(fds,-1);
+			*lock_f = 0;
+			return STATUS_ERROR;
+		}
 	} 
 
 	return check;
@@ -354,12 +361,9 @@ int write_record(int *fds,
 		return 0;
 	}
 
-	if(!(*lock_f)){
-		int r = 0;
+	if((*lock_f) == 0){
 		/* aquire lock */
-		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
-		while((r = lock(fds[0],WLOCK)) == WTLK);
-		if(r == -1){
+		if(acquire_lock(fds,-1) == -1){
 			fprintf(stderr,"can't acquire or release proper lock.\n");
 			return STATUS_ERROR;
 		}
@@ -368,6 +372,10 @@ int write_record(int *fds,
 
 	file_offset eof = go_to_EOF(fds[1]);
 	if (eof == -1) {
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = -1;
+		}
 		__er_file_pointer(F, L - 1);
 		return -1;
 	}
@@ -377,6 +385,10 @@ int write_record(int *fds,
 	int *p_index = &index;
 	/* load al indexes in memory */
 	if (!read_all_index_file(fds[0], &ht, p_index)) {
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = -1;
+		}
 		fprintf(stderr,"read index file failed. %s:%d.\n", F, L - 1);
 		return STATUS_ERROR;
 	}
@@ -389,6 +401,10 @@ int write_record(int *fds,
 			if(set_tbl(ht,(void*)&rec->fields[inx].data.i,eof,UINT,1) == -1){
 				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
 				free_ht_array(ht, index);
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				return STATUS_ERROR;
 			}
 			break;
@@ -396,10 +412,18 @@ int write_record(int *fds,
 		{
 			if(rec->fields[inx].data.l > (long)UINT_MAX){
 				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				return STATUS_ERROR;
 			}
 			if(set_tbl(ht,(void*)&rec->fields[inx].data.l,eof,UINT,1) == -1){
 				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				free_ht_array(ht, index);
 				return STATUS_ERROR;
 			}
@@ -409,12 +433,20 @@ int write_record(int *fds,
 		{
 			ui32 f = htonf(rec->fields[inx].data.f);
 			if( f > (ui32)UINT_MAX){
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
 				return STATUS_ERROR;
 			}
 
 			if(set_tbl(ht,(void*)&f,eof,UINT,1) == -1){
 				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				free_ht_array(ht, index);
 				return STATUS_ERROR;
 			}
@@ -425,11 +457,19 @@ int write_record(int *fds,
 			ui64 d = htonf(rec->fields[inx].data.d);
 			if( d > (ui64)UINT_MAX){
 				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				return STATUS_ERROR;
 			}
 
 			if(set_tbl(ht,(void*)d,eof,UINT,1) == -1){
 				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				free_ht_array(ht, index);
 				return STATUS_ERROR;
 			}
@@ -439,6 +479,10 @@ int write_record(int *fds,
 		{
 			if(set_tbl(ht,rec->fields[inx].data.s,eof,STR,1) == -1){
 				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				if(*lock_f){
+					release_lock(fds,-1);
+					*lock_f = -1;
+				}
 				free_ht_array(ht, index);
 				return STATUS_ERROR;
 			}
@@ -451,6 +495,10 @@ int write_record(int *fds,
 	
 	if(set_tbl(ht,key,eof,key_type,0) == -1){
 		free_ht_array(ht, index);
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = -1;
+		}
 		return STATUS_ERROR;
 	}
 
@@ -458,10 +506,20 @@ int write_record(int *fds,
 /*int buffered_write(int fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)*/
 	if(buffered_write(&fds[1],rec,update,eof,0) == -1){
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = -1;
+		}
 		return STATUS_ERROR;
 	}
 
-	if(write_index(fds,index,ht,files[0]) == -1) return -1;
+	if(write_index(fds,index,ht,files[0]) == -1){ 
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = -1;
+		}
+		return -1;
+	}
 
 	free_ht_array(ht, index);
 	return 0;
@@ -517,12 +575,13 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 
 			return STATUS_ERROR;
 		}	
+		break;
 	}
 	case CREATE_ONLY_DATA:
 	{
 		fds[1] = create_file(files[1]);
 		fds[2] = create_file(files[2]);
-		if ((err = file_error_handler(2, fds[0],fds[1]) != 0)) {
+		if ((err = file_error_handler(2, fds[0],fds[1])) != 0){
 			if(err == ENOENT)
 				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 			else if(err == EEXIST)
@@ -532,6 +591,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 
 			return STATUS_ERROR;
 		}	
+		break;
 	}
 	case ONLY_SCHEMA:
 	{
@@ -610,7 +670,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 	default:
 		fds[0] = open_file(files[0], 0);
 		fds[1] = open_file(files[1], 0);
-		fds[2]] = open_file(files[2], 0);
+		fds[2] = open_file(files[2], 0);
 
 		/* file_error_handler will close the file descriptors if there are issues */
 		if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
@@ -640,24 +700,28 @@ int update_rec(char *file_path,
 {
 	struct Record_f rec_old;
 	memset(&rec_old,0,sizeof(struct Record_f));
-	int r = 0;
 	if(!(*lock_f)){
-		while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
-		while((r = lock(fds[0],WLOCK)) == WTLK);
-		if(r == -1){
+		if(acquire_lock(fds,-1) == -1){
 			fprintf(stderr,"can't acquire or release proper lock.\n");
 			return -1;
 		}
-		*lock_f = 1;
 	}
 
 	i8 err = 0;
 	if((err = get_record(-1,file_path,&rec_old,key,key_type,hd,fds,index)) == -1){
 		free_record(&rec_old, rec_old.fields_num);
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = -1;
+		}
 		return -1;
 	}
 
 	if(err == KEY_NOT_FOUND){
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = -1;
+		}
 		return KEY_NOT_FOUND;
 	}
 
@@ -877,6 +941,10 @@ clean_on_error:
 		}
 	}
 	free_record(&rec_old, rec_old.fields_num);
+	if(*lock_f){
+		release_lock(fds,-1);
+		*lock_f = -1;
+	}
 	if(no_updates)
 		return 0;
 	else
@@ -935,12 +1003,8 @@ int write_cache_to_disk(struct Cache *c){
 
 	if(open_files(c->file_name,fds,file_names,-1) == -1) return -1;
 
-	int r = 0;
-	while((is_locked(3,fds[0],fds[1],fds[2])) == LOCKED);/* Hang if its locked by another process*/
-	while((r = lock(fds[0],WLOCK)) == WTLK);/*aquire lock*/
-	if(r == -1){
+	if(acquire_lock(fds,-1) == -1){
 		fprintf(stderr,"can't acquire or release proper lock.%s:%d\n",__FILE__,__LINE__-2);
-		while((r = lock(fd_schema,UNLOCK)) == WTLK);
 		close_file(3,fds[0],fds[1],fds[2]);
 		return -1;
 	}
@@ -955,21 +1019,12 @@ int write_cache_to_disk(struct Cache *c){
 
 	/*TODO: write the schema to file*/
 
-	/*release lock*/
-	while((r = lock(fds[0],UNLOCK)) == WTLK);
-	if(r == -1){
-		fprintf(stderr,"can't acquire or release proper lock.\n");
-		return -1;
-	}	
+	release_lock(fds,-1);
 	close_file(3,fds[0],fds[1],fds[2]);
 	return 0;
 
 release_lock_on_failure:
-	while((r = lock(fds[0],UNLOCK)) == WTLK);
-	if(r == -1){
-		fprintf(stderr,"can't acquire or release proper lock.\n");
-		return -1;
-	}	
+	release_lock(fds,-1);
 	close_file(3,fds[0],fds[1],fds[2]);
 	return -1;			
 }

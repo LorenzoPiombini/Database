@@ -10588,7 +10588,9 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 						struct Schema sch;
 						memset(&sch,0,sizeof(struct Schema));
 						struct Header_d hd = {0,0,&sch};
-						while((is_locked(1,fd_schema)) == LOCKED);
+						/*I AM NOT USING THIS FEATURE FOR NOW*/
+						/*if this will be needed i have to implement the lock properly*/
+						/*while((is_locked(1,fd_schema)) == LOCKED);*/
 						if(!read_header(fd_schema,&hd)){
 							fprintf(stderr,"cannot read schema from file %s:%d",__FILE__,__LINE__-1);
 							return -1;

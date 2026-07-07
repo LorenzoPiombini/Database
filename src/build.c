@@ -265,7 +265,7 @@ int import_data_to_system(char *data_file)
 	char *delim = NULL;
 	file_offset start = 0;
 	char file_name[MAX_FILE_PATH_LENGTH] = {0};
-	int lock_f = 0;
+	int lock_f = 1;/*avoid to lock files in inner funcions*/
 	while((delim = strstr(&content[start],"\n"))){
 		size_t l = 0;
 		file_offset end = delim - content;		
@@ -298,19 +298,6 @@ int import_data_to_system(char *data_file)
 		}
 
 		if(buf[0] == '='){
-			int r = 0;
-			while(is_locked(3,fds[0],fds[1],fds[2]) == LOCKED);
-			while((r = lock(fds[0],WLOCK)) == WTLK);
-			if(r == -1){
-				fprintf(stderr,"can't acquire or release proper lock.\n");
-				close_file(3,fds[0],fds[1],fds[2]);
-				if(g_ht) free_ht_array(g_ht,g_index);
-				close_ram_file(&ram);
-				free(content);
-				return STATUS_ERROR;
-			}
-
-			lock_f = 1;
 
 			if(write(fds[1],ram.mem,ram.size) == -1){
 				close_file(3,fds[0],fds[1],fds[2]);
@@ -331,10 +318,6 @@ int import_data_to_system(char *data_file)
 			g_ht = NULL;
 			memset(&sch,0,sizeof(struct Schema));
 			clear_ram_file(&ram);
-			if(lock_f) {
-				while(lock(fds[0],UNLOCK) == WTLK);
-				lock_f = 0;
-			}
 			close_file(3,fds[0],fds[1],fds[2]);
 			continue;
 		}
@@ -373,7 +356,6 @@ int import_data_to_system(char *data_file)
 			free_record(&rec,rec.fields_num);
 			free(content);
 			close_ram_file(&ram);
-			if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 			close_file(3,fds[0],fds[1],fds[2]);
 			return STATUS_ERROR;
 		}
@@ -393,6 +375,5 @@ int import_data_to_system(char *data_file)
 	free(content);
 	close_ram_file(&ram);
 	__IMPORT_EZ = 0;
-	if(lock_f) while(lock(fds[0],UNLOCK) == WTLK);
 	return 0;
 }

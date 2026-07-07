@@ -33,6 +33,5 @@ typedef enum
 
 int release_lock(int *fds,int mode);
 int acquire_lock(int *fds,int mode);
-int is_locked(int files, ...);
 
 #endif /* lock.h */

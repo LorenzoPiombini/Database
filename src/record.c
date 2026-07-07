@@ -1507,7 +1507,6 @@ unsigned char set_field(
 								return 0;
 							}
 
-							int r = 0;
 							if (check == SCHEMA_NW ||
 									check == SCHEMA_NW_NT ||
 									check == SCHEMA_CT_NT ||
@@ -1521,16 +1520,15 @@ unsigned char set_field(
 								 * we update the header
 								 * */
 
-								/* aquire lock */
-								while(is_locked(1,fd_schema) == LOCKED);
-								while((r = lock(fd_schema,WLOCK)) == WTLK);
-								if(r == -1){
+								/* aquire lock 
+								 * TODO: I am not using this feature of the system as for now 07-06-26
+								if(acquire_lock(fds,LOCK_SCHEMA_FILE) == -1){
 									fprintf(stderr,"can't acquire or release proper lock.\n");
-									close_file(1,fd_schema);
 									free_schema(hd.sch_d);
+									close_file(1,fd_schema);
 									return 0;
 								}
-
+								*/
 								close_file(1,fd_schema);
 								fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
 
@@ -1546,7 +1544,7 @@ unsigned char set_field(
 									return 0;
 								}
 
-								while(lock(fd_schema,UNLOCK) == WTLK);
+								/*release_lock(fds,LOCK_SCHEMA_FILE);*/
 								free_schema(hd.sch_d);
 							}
 						}
@@ -1609,7 +1607,6 @@ unsigned char set_field(
 							return 0;
 						}
 
-						int r = 0;
 						if (check == SCHEMA_NW ||
 								check == SCHEMA_NW_NT ||
 								check == SCHEMA_CT_NT ||
@@ -1623,15 +1620,17 @@ unsigned char set_field(
 							 * we update the header
 							 * */
 
+							/*AS FORE july 26 we are not using this part of the software*/
 							/* aquire lock */
-							while(is_locked(1,fd_schema) == LOCKED);
-							while((r = lock(fd_schema,WLOCK)) == WTLK);
-							if(r == -1){
+
+							/*
+							if(acquire_lock(fds,LOCK_SCHEMA_FILE) == -1){
 								fprintf(stderr,"can't acquire or release proper lock.\n");
 								close_file(1,fd_schema);
 								free_schema(hd.sch_d);
 								return 0;
 							}
+							*/
 
 							close_file(1,fd_schema);
 							fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
@@ -1648,7 +1647,7 @@ unsigned char set_field(
 								return 0;
 							}
 
-							while(lock(fd_schema,UNLOCK) == WTLK);
+							/*release_lock(fds,LOCK_SCHEMA_FILE);*/
 							free_schema(hd.sch_d);
 							close_file(1,fd_schema);
 							break;
