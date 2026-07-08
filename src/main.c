@@ -866,6 +866,7 @@ int main(int argc, char *argv[])
 			if (is_db_file(&hd, fds) == -1) {
 				release_lock(fds,-1);
 				close_file(3, fds[0], fds[1],fds[2]);
+				fprintf(stderr,"(%s): file '%s', is not a database file.\n",prog,cpy_fp);
 				return STATUS_ERROR;
 			}
 		}
