@@ -69,7 +69,8 @@ LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBl = lib$(LIBNAMEl).so
 
-
+# Detect if the OS is Fedora
+IS_FEDORA := $(shell grep -E '^ID="?fedora"?' /etc/os-release > /dev/null 2>&1 && echo yes || echo no)
 
 default: $(TARGET)
 
@@ -118,22 +119,33 @@ clean:
 	sudo rm -f *.so
 	sudo rm -f $(TARGET)
 	rm -f *.lock
-	#rm *.dat *.inx *.sch
 	rm *core*
+	#rm *.dat *.inx *.sch
 	 
 
+test:
+	gcc -o test/test_suite test/src/main.c test/src/test.c -lcrud -fsanitize=address -Itest/include
+	test/test_suite
 	
 $(TARGET): $(OBJ)
 	sudo gcc -o $@ $?  -ldl  -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 	make lua
 
 obj/%.o : src/%.c 
-	sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address
-	#	sudo gcc -Wall -g3 -c $< -o $@ -Iinclude
+	@if [ "$(IS_FEDORA)" = "no" ]; then \
+		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
+	else\
+		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -fPIC -pie -fsanitize=address;\
+	fi
 
 lua: lua_obj
 	gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address 
-	mv db.so /usr/local/lib/lua/5.4/
+	@if [ "$(IS_FEDORA)" = "no" ]; then \
+		mv db.so /usr/local/lib/lua/5.4/; \
+	else \
+		 cp db.so /usr/share/lua/5.4/;\
+		 cp db.so /usr/lib64/lua/5.4/;\
+	fi
 
 lua_obj: 
 	sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -Iinclude -Ilua/include -I/usr/include/lua5.4  -o obj/export_db_lua.o
@@ -322,6 +334,7 @@ install: $(TARGET) $(BINDIR)/SWAP_INDEXES $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR
 	install -m 755 $(SHAREDLIBexpl) $(LIBDIR)
 	install -m 755 $(SHAREDLIBdate) $(LIBDIR)
 	ldconfig
+	make test
 	
 
 install_prod: $(TARGET)_prod $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa check-linker-path
