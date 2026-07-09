@@ -34,6 +34,7 @@ int check_data(char *file_path,char *data_to_add,
 		int option,
 		int update);
 
+int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht, file_offset eof);
 int write_record(int *fds,
 		void *key,
 		int key_type,

@@ -54,8 +54,8 @@ int luaopen_db(lua_State *L){
 
 /* 
  * from lua:
- * 	 index is optional, index 0 will be used if not specified
- * .get_record(file_name,key,index) 
+ * 		.get_record(file_name,key,index) 
+ * 	 		index is optional, index 0 will be used if not specified
  * */
 static int l_get_record(lua_State *L)
 {
@@ -107,6 +107,8 @@ static int l_get_record(lua_State *L)
 	if(is_db_file(&hd,fds) == -1) 
 		goto err_not_db_file;
 
+	
+
 	/*cache the file*/
 	int first_free_cache = 0;
 	if((first_free_cache = get_free_slot_cache(cache)) == -1){
@@ -150,7 +152,7 @@ get_rec_test:
 	if(is_db_file(&hd,fds) == -1) 
 		goto err_not_db_file;
 	int result = -1;
-	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds,index >=0 ? index : 0)) == -1) goto err_get_record_failed;
+	if((result = get_record(-1,file_name,&rec,k,key_type,hd,fds, index >= 0 ? index : 0)) == -1) goto err_get_record_failed;
 	if(result == KEY_NOT_FOUND) goto err_rec_not_found;
 	if(port_record(L,&rec)) goto err_exp_data_to_lua;
 
@@ -365,6 +367,7 @@ static int l_write_record(lua_State *L)
 	}
 
 
+	int lock = 0;
 
 	/*check if the file is cached in memory*/
 	off_t file_pos_in_the_cache = -1;
@@ -372,7 +375,6 @@ static int l_write_record(lua_State *L)
 		goto use_cache;
 	}
 
-	int lock = 1;
 	if(open_files(file_name,fds,file_names,-1) == -1) 
 		goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) 
@@ -393,32 +395,40 @@ static int l_write_record(lua_State *L)
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 use_cache:
-
-	/*
-	 * TODO: 
-	 * a) THINK ABOUT THIS STEP.
-	 * 		in the applications, the user sends proper data only, cause the
-	 * 		webUI will generate the payload for enduser, this step might be 
-	 * 		irrelevant
-	 * 	b) is check_data suitable for a cached file?
-	 * */
-
+	lock = 1;
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
-		goto err_invalid_data;
+		goto err_cache_invalid_data;
 
-	off_t pos = 0;
 	if(file_pos_in_the_cache != -1){
 		struct Cache *p = &cache[file_pos_in_the_cache];
-		/*TODO: WRITE TO CACHE */
-		
+
+		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
+		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
+		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 		p->used = now_seconds();
 	}else{
 		struct Cache *p = &cache[first_free_cache];
-		/*TODO: WRITE TO CACHE */
+
+		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
+		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
+		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
+
 		p->used = now_seconds();
 	}
 	
+	port_record(L,&rec);
+	free_record(&rec,rec.fields_num);
+	return 2;/*return the key and the record*/
+
 err_cache:
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,-1) == -1) 
+			goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) 
+			goto err_not_db_file;
+	}
+
+	lock = 0;/*this will lock the file on disk*/
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
 		goto err_invalid_data;
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
@@ -426,12 +436,36 @@ err_cache:
 
 	port_record(L,&rec);
 
+	if(lock) {
+		release_lock(fds,-1);
+		lock = 0;
+	}
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);
 
 	return 2;
 
+err_cache_write:
+	lua_pushnil(L);
+	lua_pushstring(L,"cache write record failed");
+	free_record(&rec,rec.fields_num);
+	return 2;
+err_cache_write_index:
+	lua_pushnil(L);
+	lua_pushstring(L,"cache write index failed");
+	free_record(&rec,rec.fields_num);
+	return 2;
+err_cache_write_const_unique:
+	lua_pushnil(L);
+	lua_pushstring(L,"cache check const_unique failed");
+	free_record(&rec,rec.fields_num);
+	return 2;
+err_cache_invalid_data:
+	lua_pushnil(L);
+	lua_pushstring(L,"data not valid.");
+	free_record(&rec,rec.fields_num);
+	return 2;
 err_open_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not open the file.");
@@ -456,6 +490,10 @@ err_key_gen:
 err_write_rec:
 	lua_pushnil(L);
 	lua_pushstring(L,"write record failed");
+	if(lock){
+		release_lock(fds,-1);
+		lock = 0;
+	}
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);
@@ -463,6 +501,10 @@ err_write_rec:
 err_invalid_data:
 	lua_pushnil(L);
 	lua_pushstring(L,"data not valid.");
+	if(lock){
+		release_lock(fds,-1);
+		lock = 0;
+	}
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);

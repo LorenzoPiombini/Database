@@ -393,111 +393,20 @@ int write_record(int *fds,
 		return STATUS_ERROR;
 	}
 
-	/*check if a field has CONTS_UNIQUE*/
-	int inx = sch->fields_num;
-	if(sch->has_unique(sch->constraints,&inx) && rec->field_set[inx]){
-		switch(rec->fields[inx].type){
-		case TYPE_INT:
-			if(set_tbl(ht,(void*)&rec->fields[inx].data.i,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				free_ht_array(ht, index);
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				return STATUS_ERROR;
-			}
-			break;
-		case TYPE_LONG:
-		{
-			if(rec->fields[inx].data.l > (long)UINT_MAX){
-				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				return STATUS_ERROR;
-			}
-			if(set_tbl(ht,(void*)&rec->fields[inx].data.l,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				free_ht_array(ht, index);
-				return STATUS_ERROR;
-			}
-			break;
+	if(check_const_unique(sch,rec, &ht,eof) == -1){
+		if(*lock_f){
+			release_lock(fds,-1);
+			*lock_f = 0;
 		}
-		case TYPE_FLOAT:
-		{
-			ui32 f = htonf(rec->fields[inx].data.f);
-			if( f > (ui32)UINT_MAX){
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-				return STATUS_ERROR;
-			}
-
-			if(set_tbl(ht,(void*)&f,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				free_ht_array(ht, index);
-				return STATUS_ERROR;
-			}
-			break;
-		}
-		case TYPE_DOUBLE:
-		{
-			ui64 d = htonf(rec->fields[inx].data.d);
-			if( d > (ui64)UINT_MAX){
-				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				return STATUS_ERROR;
-			}
-
-			if(set_tbl(ht,(void*)d,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				free_ht_array(ht, index);
-				return STATUS_ERROR;
-			}
-			break;
-		}
-		case TYPE_STRING:
-		{
-			if(set_tbl(ht,rec->fields[inx].data.s,eof,STR,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				if(*lock_f){
-					release_lock(fds,-1);
-					*lock_f = -1;
-				}
-				free_ht_array(ht, index);
-				return STATUS_ERROR;
-			}
-			break;
-		}
-		default:
-			break;
-		}
+		free_ht_array(ht, index);
+		return STATUS_ERROR;
 	}
 	
 	if(set_tbl(ht,key,eof,key_type,0) == -1){
 		free_ht_array(ht, index);
 		if(*lock_f){
 			release_lock(fds,-1);
-			*lock_f = -1;
+			*lock_f = 0;
 		}
 		return STATUS_ERROR;
 	}
@@ -508,7 +417,7 @@ int write_record(int *fds,
 		fprintf(stderr,"write to file failed, %s:%d.\n", F,L - 1);
 		if(*lock_f){
 			release_lock(fds,-1);
-			*lock_f = -1;
+			*lock_f = 0;
 		}
 		return STATUS_ERROR;
 	}
@@ -516,15 +425,85 @@ int write_record(int *fds,
 	if(write_index(fds,index,ht,files[0]) == -1){ 
 		if(*lock_f){
 			release_lock(fds,-1);
-			*lock_f = -1;
+			*lock_f = 0;
 		}
 		return -1;
 	}
 
 	free_ht_array(ht, index);
+	if(*lock_f){
+		release_lock(fds,-1);
+		*lock_f = 0;
+	}
 	return 0;
 }
 
+int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht, file_offset eof)
+{
+	int inx = sch->fields_num;
+	if(sch->has_unique(sch->constraints,&inx) && rec->field_set[inx]){
+		switch(rec->fields[inx].type){
+		case TYPE_INT:
+			if(set_tbl(*ht,(void*)&rec->fields[inx].data.i,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				return STATUS_ERROR;
+			}
+			break;
+		case TYPE_LONG:
+		{
+			if(rec->fields[inx].data.l > (long)UINT_MAX){
+				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				return STATUS_ERROR;
+			}
+
+			if(set_tbl(*ht,(void*)&rec->fields[inx].data.l,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		case TYPE_FLOAT:
+		{
+			ui32 f = htonf(rec->fields[inx].data.f);
+			if( f > (ui32)UINT_MAX){
+				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				return STATUS_ERROR;
+			}
+
+			if(set_tbl(*ht,(void*)&f,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		case TYPE_DOUBLE:
+		{
+			ui64 d = htonf(rec->fields[inx].data.d);
+			if( d > (ui64)UINT_MAX){
+				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+				return STATUS_ERROR;
+			}
+
+			if(set_tbl(*ht,(void*)d,eof,UINT,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		case TYPE_STRING:
+		{
+			if(set_tbl(*ht,rec->fields[inx].data.s,eof,STR,1) == -1){
+				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
+				return STATUS_ERROR;
+			}
+			break;
+		}
+		default:
+			break;
+		}
+	}
+	return 0;
+}
 int write_index(int *fds, int index, HashTable *ht, char *file_name)
 {
 	close_file(1, fds[0]);
@@ -650,7 +629,9 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		}	
 
 		
-		struct Header_d hd = {HEADER_ID_SYS, VS, NULL};
+		struct Schema sch;
+		memset(&sch,0,sizeof(struct Schema));
+		struct Header_d hd = {HEADER_ID_SYS, VS, &sch};
 		if (!write_empty_header(fds[2], &hd)) {
 			fprintf(stderr,"%s:%d.\n", F, L - 1);
 			close_file(3,fds[0],fds[1],fds[2]);
