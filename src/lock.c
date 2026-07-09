@@ -18,12 +18,49 @@ static int lock(int fd, int flag);
 int release_lock(int *fds,int mode){
 	if(mode < 0 || mode > 2) mode = STD_LOCK;
 
-	int r = 0;
+	int r = 0, slept = 0;
 	while((r = lock(fds[mode],UNLOCK)) == WTLK);
 	if(r == -1){
 		fprintf(stderr,"can't acquire or release proper lock.\n");
 		return -1;
 	}	
+	if(mode == STD_LOCK) return 0;
+	if(mode == LOCK_SCHEMA_FILE){
+		if(fds[0] != -1){
+			while((r = lock(fds[0],UNLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+
+		if(fds[1] != -1){
+			while((r = lock(fds[1],UNLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+	}
+
+	if(mode == LOCK_DATA_FILE){
+		if(fds[0] != -1){
+			while((r = lock(fds[0],UNLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+
+		if(fds[2] != -1){
+			while((r = lock(fds[1],UNLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -42,6 +79,48 @@ int acquire_lock(int *fds, int mode){
 		while((r = lock(fds[mode],UNLOCK)) == WTLK);
 		return -1;
 	}
+
+	if(mode == STD_LOCK) return 0;
+
+	/*IF THE LOCK is DIFFERENT than standard we need to check if the other to file are locked!*/
+	if(mode == LOCK_SCHEMA_FILE){
+		if(fds[0] != -1){
+			while((r = lock(fds[0],WLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+
+		if(fds[1] != -1){
+			while((r = lock(fds[1],WLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+	}
+
+	if(mode == LOCK_DATA_FILE){
+		if(fds[0] != -1){
+			while((r = lock(fds[0],WLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+
+		if(fds[2] != -1){
+			while((r = lock(fds[1],WLOCK)) == WTLK){
+				if(!slept)
+					sleep(10);
+				return -1;
+			}
+		}
+
+	}
+
+
 	return 0;
 }
 

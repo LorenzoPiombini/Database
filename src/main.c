@@ -724,7 +724,6 @@ int main(int argc, char *argv[])
 			/* init the Schema structure*/
 			struct Schema sch;
 			memset(&sch,0,sizeof(struct Schema));
-
 			struct Header_d hd = {HEADER_ID_SYS, VS, &sch};
 
 			if (!write_empty_header(fds[1], &hd)) {
@@ -829,7 +828,7 @@ int main(int argc, char *argv[])
 				return STATUS_ERROR;
 			}
 
-			if(acquire_lock(fds,-1) == -1){
+			if(acquire_lock(fds,LOCK_SCHEMA_FILE) == -1){
 				fprintf(stderr,"(%s): File '%s' is locked by another process\n",prog,cpy_fp);
 				close_file(1,fds[2]);
 				return STATUS_ERROR;
@@ -837,7 +836,7 @@ int main(int argc, char *argv[])
 
 			/* ensure the file is a db file */
 			if (is_db_file(&hd, fds) == -1) {
-				release_lock(fds,-1);
+				release_lock(fds,LOCK_SCHEMA_FILE);
 				close_file(1,fds[2]);
 				return STATUS_ERROR;
 			}
@@ -1366,7 +1365,7 @@ int main(int argc, char *argv[])
 		if (list_def) { /* show file definitions */
 			print_schema(*hd.sch_d);
 			free_schema(hd.sch_d);
-			release_lock(fds,-1);
+			release_lock(fds,LOCK_SCHEMA_FILE);
 			close_file(1,fds[2]);
 			return 0;
 		}
