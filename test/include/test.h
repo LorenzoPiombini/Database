@@ -5,6 +5,7 @@
 
 int create_file_test();
 int delete_file_test(char files_name[3][MAX_FILE_PATH_LENGTH]);
+int lock_file_test();
 
 #endif
 

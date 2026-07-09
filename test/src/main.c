@@ -15,7 +15,7 @@ int main(){
 	if(create_file_test() == -1){
 		failed++;
 		fprintf(stderr,"(%s): create_file_test() failed\n",prog);
-		fprintf(stdout,"(%s): %d, tests executed, %d tests passed, %d tests failed",prog,count,passed,failed);
+		fprintf(stdout,"(%s): %d tests executed, %d tests passed, %d tests failed",prog,count,passed,failed);
 	} else{
 		passed++;
 	}
@@ -38,13 +38,19 @@ int main(){
 		passed++;
 	}
 
+	count++;
+	if(lock_file_test() == -1){
+		failed++;
+	}else{
+		passed++;
+	}
 	/*PASTE NEW TEST FUNCTIONS BETWEEN THESE LINES*/
 
 
 	/*===========================================*/
 
 	fprintf(stdout,"======== END test for database ===========\n");
-	fprintf(stdout,"(%s): %d, tests executed, %d tests passed, %d tests failed\n",prog,count,passed,failed);
+	fprintf(stdout,"(%s): %d tests executed, %d tests passed, %d tests failed\n",prog,count,passed,failed);
 	if(failed != 0){
 		fprintf(stderr,"(%s): FAILED!\n",prog);
 		return 0;
