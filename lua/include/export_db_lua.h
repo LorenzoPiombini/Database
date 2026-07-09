@@ -1,8 +1,15 @@
 #ifndef _EXPORT_DB_LUA_
 #define _EXPORT_DB_LUA 1
 
-#include "lua5.4/lua.h"
-#include "lua5.4/lauxlib.h"
+#if defined(__linux__)
+	#if defined(__fedora__) || defined(__fedora)
+		#include "lua.h"
+		#include "lauxlib.h"
+	#else
+		#include "lua5.4/lua.h"
+		#include "lua5.4/lauxlib.h"
+	#endif
+#endif
 #include "crud.h"
 #include "file.h"
 #include "record.h"

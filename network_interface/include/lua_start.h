@@ -2,9 +2,18 @@
 #define LUA_START 1
 
 #include <stdarg.h>
-#include "lua5.4/lua.h"
-#include "lua5.4/lauxlib.h"
-#include "lua5.4/lualib.h"
+#if defined(__linux__)
+	#if defined(__fedora__) || defined(__fedora)
+		#include "lua.h"
+		#include "lauxlib.h"
+		#include "lualib.h"
+
+	#else
+		#include "lua5.4/lua.h"
+		#include "lua5.4/lauxlib.h"
+		#include "lua5.4/lualib.h"
+	#endif
+#endif
 
 extern lua_State *L;
 
