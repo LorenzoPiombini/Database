@@ -135,16 +135,17 @@ obj/%.o : src/%.c
 	@if [ "$(IS_FEDORA)" = "no" ]; then \
 		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
 	else\
-		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -fPIC -pie -fsanitize=address;\
+		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -DFEDORA -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -fPIC -pie -fsanitize=address;\
 	fi
 
 lua: lua_obj
-	gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address 
 	@if [ "$(IS_FEDORA)" = "no" ]; then \
+		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address 
 		mv db.so /usr/local/lib/lua/5.4/; \
 	else \
-		 cp db.so /usr/share/lua/5.4/;\
-		 cp db.so /usr/lib64/lua/5.4/;\
+		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua  -ldl -fsanitize=address 
+		cp db.so /usr/share/lua/5.4/;\
+		cp db.so /usr/lib64/lua/5.4/;\
 	fi
 
 lua_obj: 
