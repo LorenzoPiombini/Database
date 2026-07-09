@@ -649,8 +649,16 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 			return STATUS_ERROR;
 		}	
 
+		
+		struct Header_d hd = {HEADER_ID_SYS, VS, NULL};
+		if (!write_empty_header(fds[2], &hd)) {
+			fprintf(stderr,"%s:%d.\n", F, L - 1);
+			close_file(3,fds[0],fds[1],fds[2]);
+			return STATUS_ERROR;
+		}
 		/*  write the index file */
 		if (!write_index_file_head(fds[0], 5)) {
+			close_file(3,fds[0],fds[1],fds[2]);
 			return STATUS_ERROR;
 		}
 
@@ -661,6 +669,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 			ht.write = write_ht;
 			if (!write_index_body(fds[0], i, &ht)) {
 				destroy_hasht(&ht);
+				close_file(3,fds[0],fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
 			destroy_hasht(&ht);
