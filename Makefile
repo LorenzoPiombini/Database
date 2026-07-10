@@ -98,7 +98,7 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
-	@if [ "$(IS_FEDORA)" = "no" ]; then \
+	if [ "$(IS_FEDORA)" = "no" ]; then \
 		sudo gcc -Wall -fPIC -shared -llua5.4 -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl);\
 	else\
 		sudo gcc -Wall -fPIC -shared -llua -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl);\
@@ -137,14 +137,14 @@ $(TARGET): $(OBJ)
 	make lua
 
 obj/%.o : src/%.c 
-	@if [ "$(IS_FEDORA)" = "no" ]; then \
+	if [ "$(IS_FEDORA)" = "no" ]; then \
 		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
 	else\
 		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -DFEDORA -fstack-protector-strong -fPIC -pie;\
 	fi
 
 lua: lua_obj
-	@if [ "$(IS_FEDORA)" = "no" ]; then \
+	if [ "$(IS_FEDORA)" = "no" ]; then \
 		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address;\
 		mv db.so /usr/local/lib/lua/5.4/; \
 	else \
@@ -154,7 +154,7 @@ lua: lua_obj
 	fi
 
 lua_obj: 
-	@if [ "$(IS_FEDORA)" = "no" ]; then \
+	if [ "$(IS_FEDORA)" = "no" ]; then \
 		sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -Iinclude -Ilua/include -I/usr/include/lua5.4  -o obj/export_db_lua.o;\
 	else \
 		sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -DFEDORA -Iinclude -Ilua/include -I/usr/include/lua -o obj/export_db_lua.o;\
