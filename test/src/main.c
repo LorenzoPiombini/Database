@@ -4,6 +4,7 @@
 
 
 #define GREEN_TEXT "\033[32m"
+#define RED_TEXT "\033[31m"
 #define REGULAR_TEXT "\033[0m"
 
 static char prog[] = "test_suite";
@@ -15,7 +16,6 @@ int main(){
 	if(create_file_test() == -1){
 		failed++;
 		fprintf(stderr,"(%s): create_file_test() failed\n",prog);
-		fprintf(stdout,"(%s): %d tests executed, %d tests passed, %d tests failed",prog,count,passed,failed);
 	} else{
 		passed++;
 	}
@@ -50,7 +50,13 @@ int main(){
 	/*===========================================*/
 
 	fprintf(stdout,"======== END test for database ===========\n");
-	fprintf(stdout,"(%s): %d tests executed, %d tests passed, %d tests failed\n",prog,count,passed,failed);
+	fprintf(stdout,"(%s): %d tests executed, %s%d tests passed%s, %s%d tests failed%s.\n",
+														prog,
+														count,
+														GREEN_TEXT,
+														passed,
+														REGULAR_TEXT,
+														RED_TEXT,failed,REGULAR_TEXT);
 	if(failed != 0){
 		fprintf(stderr,"(%s): FAILED!\n",prog);
 		return 0;
