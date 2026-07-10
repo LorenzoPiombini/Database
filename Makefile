@@ -98,7 +98,12 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
-	sudo gcc -Wall -fPIC -shared -llua5.4 -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl)
+	@if [ "$(IS_FEDORA)" = "no" ]; then \
+		sudo gcc -Wall -fPIC -shared -llua5.4 -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl);\
+	else\
+		sudo gcc -Wall -fPIC -shared -llua -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl);\
+	fi
+
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBdate) $(OBJlibdate)
 
 libraryPR:
@@ -135,21 +140,25 @@ obj/%.o : src/%.c
 	@if [ "$(IS_FEDORA)" = "no" ]; then \
 		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
 	else\
-		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -DFEDORA -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -fPIC -pie -fsanitize=address;\
+		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -DFEDORA -fstack-protector-strong -fPIC -pie;\
 	fi
 
 lua: lua_obj
 	@if [ "$(IS_FEDORA)" = "no" ]; then \
-		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address 
+		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address;\
 		mv db.so /usr/local/lib/lua/5.4/; \
 	else \
-		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua  -ldl -fsanitize=address 
+		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua -DFEDORA -ldl;\
 		cp db.so /usr/share/lua/5.4/;\
 		cp db.so /usr/lib64/lua/5.4/;\
 	fi
 
 lua_obj: 
-	sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -Iinclude -Ilua/include -I/usr/include/lua5.4  -o obj/export_db_lua.o
+	@if [ "$(IS_FEDORA)" = "no" ]; then \
+		sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -Iinclude -Ilua/include -I/usr/include/lua5.4  -o obj/export_db_lua.o;\
+	else \
+		sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -DFEDORA -Iinclude -Ilua/include -I/usr/include/lua -o obj/export_db_lua.o;\
+	fi
 
 $(TARGET)_prod: $(OBJ_PROD)
 	sudo gcc -o $@ $? -fpie -pie -z relro -z now -z noexecstack

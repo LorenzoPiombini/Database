@@ -1,12 +1,12 @@
 #ifndef _EXPORT_DB_LUA_
 #define _EXPORT_DB_LUA 1
 
-#if FEDORA
-		#include "lua.h"
-		#include "lauxlib.h"
+#ifdef FEDORA
+	#include "lua.h"
+	#include "lauxlib.h"
 #else
-		#include "lua5.4/lua.h"
-		#include "lua5.4/lauxlib.h"
+	#include "lua5.4/lua.h"
+	#include "lua5.4/lauxlib.h"
 #endif
 
 #include "crud.h"

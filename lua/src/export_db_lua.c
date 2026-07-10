@@ -6,6 +6,7 @@
 #include "date.h"
 #include "common.h"
 #include "file.h"
+#include "lock.h"
 #include "date.h"
 #include "hash_tbl.h"
 #include "key.h"
