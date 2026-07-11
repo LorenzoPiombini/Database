@@ -14,7 +14,7 @@
 #define LOWER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 65 || (int)*p <= 90) ;*p = ((int)*p) + 22,p++)
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
-
+struct Cache dbCache[CACHE_SIZE] = {0};
 HashTable cache_register = {7,0,0};
 static int get_free_slot_cache(struct Cache *c);
 static int check_and_free_one_cache(struct Cache *c);
@@ -112,13 +112,13 @@ static int l_get_record(lua_State *L)
 
 	/*cache the file*/
 	int first_free_cache = 0;
-	if((first_free_cache = get_free_slot_cache(cache)) == -1){
+	if((first_free_cache = get_free_slot_cache(dbCache)) == -1){
 		/*cache is full free one spot in the cache */
-		if((first_free_cache = check_and_free_one_cache(cache)) == -1)
+		if((first_free_cache = check_and_free_one_cache(dbCache)) == -1)
 			goto err_cache;/*we cannot free a cache slot, we use the disk*/
 	}
 
-	if(cache_file(fds,file_name,hd.sch_d,cache,&cache_register,first_free_cache) == -1)
+	if(cache_file(fds,file_name,hd.sch_d,dbCache,&cache_register,first_free_cache) == -1)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
@@ -127,14 +127,14 @@ use_cache:
 	
 	off_t pos = 0;
 	if(file_pos_in_the_cache != -1){
-		struct Cache *p = &cache[file_pos_in_the_cache];
+		struct Cache *p = &dbCache[file_pos_in_the_cache];
 		if((pos = get(k, &p->index_file[index],key_type)) == -1) goto err_cache_rec_not_found;
 		p->data_file.offset = pos;
 		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
 		if(port_record(L,&rec)) goto err_exp_data_to_lua;
 		p->used = now_seconds();
 	}else{
-		struct Cache *p = &cache[first_free_cache];
+		struct Cache *p = &dbCache[first_free_cache];
 		if((pos = get(k, &p->index_file[index],key_type)) == -1) goto err_cache_rec_not_found;
 		p->data_file.offset = pos;
 		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
@@ -349,10 +349,12 @@ static int l_write_record(lua_State *L)
 		k = (void*)&n;
 		lua_pushinteger(L,n);
 	}else if(type == LUA_TSTRING){
+		/*TODO: implement other modes*/
 		char *param = (char*)luaL_checkstring(L,3);
 		if(strlen(param) == strlen("base") &&
 			strncmp("base",param,strlen("base")) == 0){
 
+			
 			int base = luaL_checkinteger(L,4); 
 			if ((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
 			k = (void*)&n;
@@ -370,6 +372,8 @@ static int l_write_record(lua_State *L)
 
 	int lock = 0;
 
+	
+	if(is_test(L)) goto write_rec_test;
 	/*check if the file is cached in memory*/
 	off_t file_pos_in_the_cache = -1;
 	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
@@ -384,13 +388,13 @@ static int l_write_record(lua_State *L)
 
 	/*cache the file*/
 	int first_free_cache = 0;
-	if((first_free_cache = get_free_slot_cache(cache)) == -1){
+	if((first_free_cache = get_free_slot_cache(dbCache)) == -1){
 		/*cache is full free one spot in the cache */
-		if((first_free_cache = check_and_free_one_cache(cache)) == -1)
+		if((first_free_cache = check_and_free_one_cache(dbCache)) == -1)
 			goto err_cache;/*we cannot free a cache slot, we use the disk*/
 	}
 
-	if(cache_file(fds,file_name,hd.sch_d,cache,&cache_register,first_free_cache) == -1)
+	if(cache_file(fds,file_name,hd.sch_d,dbCache,&cache_register,first_free_cache) == -1)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
@@ -401,14 +405,14 @@ use_cache:
 		goto err_cache_invalid_data;
 
 	if(file_pos_in_the_cache != -1){
-		struct Cache *p = &cache[file_pos_in_the_cache];
+		struct Cache *p = &dbCache[file_pos_in_the_cache];
 
 		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
 		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 		p->used = now_seconds();
 	}else{
-		struct Cache *p = &cache[first_free_cache];
+		struct Cache *p = &dbCache[first_free_cache];
 
 		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
@@ -428,6 +432,31 @@ err_cache:
 		if(is_db_file(&hd,fds) == -1) 
 			goto err_not_db_file;
 	}
+
+	lock = 0;/*this will lock the file on disk*/
+	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
+		goto err_invalid_data;
+	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
+		goto err_write_rec;
+
+	port_record(L,&rec);
+
+	if(lock) {
+		release_lock(fds,-1);
+		lock = 0;
+	}
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
+	free_record(&rec,rec.fields_num);
+
+	return 2;
+
+write_rec_test:
+
+	if(open_files(file_name,fds,file_names,-1) == -1) 
+		goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) 
+		goto err_not_db_file;
 
 	lock = 0;/*this will lock the file on disk*/
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 

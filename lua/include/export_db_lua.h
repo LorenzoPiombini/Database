@@ -14,7 +14,7 @@
 #include "record.h"
 
 #define CACHE_SIZE 30
-struct Cache cache[CACHE_SIZE] = {0};
+extern struct Cache dbCache[CACHE_SIZE];
 
 int port_record(lua_State *L, struct Record_f *rec);
 int port_table_to_record(lua_State *L, struct Record_f *rec);
