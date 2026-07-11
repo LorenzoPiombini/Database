@@ -129,7 +129,11 @@ clean:
 	 
 
 test:
-	gcc -o test/test_suite test/src/main.c test/src/test.c -lcrud -fsanitize=address -Itest/include
+	if [ "$(IS_FEDORA)" = "no" ]; then \
+		gcc -g3 -o test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c lua/src/export_db_lua.c -lcrud -llua5.4 -fsanitize=address -Itest/include;\
+	else\
+		gcc -o -g3 test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c lua/src/export_db_lua.c -lcrud -llua -fsanitize=address -Itest/include;\
+	fi
 	test/test_suite
 	
 $(TARGET): $(OBJ)

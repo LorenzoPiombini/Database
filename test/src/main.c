@@ -8,8 +8,8 @@
 #define REGULAR_TEXT "\033[0m"
 
 static char prog[] = "test_suite";
-int main(){
-
+int main()
+{
 	int count = 0, passed = 0, failed = 0;
 	fprintf(stdout,"======== Running test for database ===========\n");
 	count++;
@@ -44,6 +44,16 @@ int main(){
 	}else{
 		passed++;
 	}
+
+	if(init_lua() == -1) return -1;
+
+	count++;
+	if(LUA_test_w_rec() == -1){
+		failed++;
+	}else{
+		passed++;
+	}
+		
 	/*PASTE NEW TEST FUNCTIONS BETWEEN THESE LINES*/
 
 
@@ -58,9 +68,11 @@ int main(){
 														REGULAR_TEXT,
 														RED_TEXT,failed,REGULAR_TEXT);
 	if(failed != 0){
-		fprintf(stderr,"(%s): FAILED!\n",prog);
+		fprintf(stderr,"(%s): %sFAILED%s!\n",prog,RED_TEXT,REGULAR_TEXT);
+		close_lua();
 		return 0;
 	}
 	fprintf(stderr,"(%s): %sPASSED%s!\n",prog,GREEN_TEXT,REGULAR_TEXT);
+	close_lua();
 	return 0;
 }
