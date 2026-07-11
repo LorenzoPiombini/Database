@@ -42,7 +42,7 @@ void check_config_file()
 
 	if(sec == 0){
 		sec = file_data.st_mtim.tv_sec;
-		free_inactive_caches(cache);
+		free_inactive_caches(dbCache);
 		return;
 	}
 
@@ -52,7 +52,7 @@ void check_config_file()
 		sec = file_data.st_mtim.tv_sec;
 	}
 
-	free_inactive_caches(cache);
+	free_inactive_caches(dbCache);
 }
 void clear_lua_stack()
 {
