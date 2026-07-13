@@ -26,7 +26,7 @@ static int l_write_record(lua_State *L);
 static int l_update_record(lua_State *L);
 static int l_create_record(lua_State *L);
 static int l_string_data_to_add_template(lua_State *L);
-static int l_get_numeric_key(lua_State *L);
+/*static int l_get_numeric_key(lua_State *L);*/
 static int l_save_key_at_index(lua_State *L);
 static int l_delete_record(lua_State *L);
 static int l_get_all_key(lua_State *L);
@@ -39,7 +39,7 @@ static const luaL_Reg db_funcs[] = {
 	{"create_record",l_create_record},		/* create_record(file_name,data) */
 	{"string_data_to_add_template",
 		l_string_data_to_add_template},		/* string_data_to_add_template(file_name) */
-	{"get_numeric_key",l_get_numeric_key},	/* get_numeric_key(file_name,mode) -- some optional args --  */
+	/*{"get_numeric_key",l_get_numeric_key},*/	/* get_numeric_key(file_name,mode) -- some optional args --  */
 	{"save_key_at_index",
 		l_save_key_at_index},               /* save_key_at_index(file_name,key,index,offset)*/
 	{"update_record",l_update_record},		/* update_record(file_name,data,key) */
@@ -331,10 +331,21 @@ static int l_write_record(lua_State *L)
 	int key_type = -1;
 	long long n = 0;
 
+	off_t file_pos_in_the_cache = get((void*)file_name,&cache_register,STR);
 	if(type == LUA_TNIL || type == -1) {	/*we have to generate a key*/
 		if(type == -1){
 			key_type = UINT;
-			if ((n = generate_numeric_key(fds,REG,-1)) == -1) goto err_key_gen;
+			int key_mode = file_pos_in_the_cache == -1 ? KEY_GEN_DISK_MODE : KEY_GEN_CACHE_MODE;
+			if(key_mode == KEY_GEN_DISK_MODE){
+				if(open_files(file_name,fds,file_names,-1) == -1) 
+					goto err_open_file;
+				if(is_db_file(&hd,fds) == -1) 
+					goto err_not_db_file;
+				if((n = generate_numeric_key(fds,REG | key_mode,-1,NULL)) == -1) goto err_key_gen;
+			}else{
+				if((n = generate_numeric_key(fds,REG | key_mode,-1,&dbCache[file_pos_in_the_cache])) == -1) goto err_key_gen;
+			}	
+
 			if((unsigned short)n < USHRT_MAX){
 				k = (void*)(uint16_t*)&n;
 			} else{
@@ -351,12 +362,20 @@ static int l_write_record(lua_State *L)
 	}else if(type == LUA_TSTRING){
 		/*TODO: implement other modes*/
 		char *param = (char*)luaL_checkstring(L,3);
-		if(strlen(param) == strlen("base") &&
-			strncmp("base",param,strlen("base")) == 0){
+		if(param && (strlen(param) == strlen("base")) &&
+			(strncmp("base",param,strlen("base")) == 0)){
 
-			
 			int base = luaL_checkinteger(L,4); 
-			if ((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
+			int key_mode = file_pos_in_the_cache == -1 ? KEY_GEN_DISK_MODE : KEY_GEN_CACHE_MODE;
+			if(key_mode == KEY_GEN_DISK_MODE){
+				if(open_files(file_name,fds,file_names,-1) == -1) 
+					goto err_open_file;
+				if(is_db_file(&hd,fds) == -1) 
+					goto err_not_db_file;
+				if((n = generate_numeric_key(fds,BASE | key_mode,base,NULL)) == -1) goto err_key_gen;
+			}else{
+				if((n = generate_numeric_key(fds,BASE | key_mode,base,&dbCache[file_pos_in_the_cache])) == -1) goto err_key_gen;
+			}	
 			k = (void*)&n;
 			lua_pushinteger(L,n);
 			key_type = UINT;
@@ -375,15 +394,12 @@ static int l_write_record(lua_State *L)
 	
 	if(is_test(L)) goto write_rec_test;
 	/*check if the file is cached in memory*/
-	off_t file_pos_in_the_cache = -1;
-	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
-		goto use_cache;
-	}
+	if(file_pos_in_the_cache != -1) goto use_cache;
 
-	if(open_files(file_name,fds,file_names,-1) == -1) 
-		goto err_open_file;
-	if(is_db_file(&hd,fds) == -1) 
-		goto err_not_db_file;
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	}
 
 
 	/*cache the file*/
@@ -453,10 +469,12 @@ err_cache:
 
 write_rec_test:
 
+	if(fds[0] == -1){
 	if(open_files(file_name,fds,file_names,-1) == -1) 
 		goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) 
 		goto err_not_db_file;
+	}
 
 	lock = 0;/*this will lock the file on disk*/
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
@@ -942,7 +960,7 @@ err_ask_mem:
 }
 
 
-
+#if 0
 static int l_get_numeric_key(lua_State *L)
 {		
 	char *file_name = (char*)luaL_checkstring(L,1);
@@ -1014,6 +1032,8 @@ err_key_gen:
 	return 2;
 }
 
+
+#endif /*comment out for now 07-12-26*/
 
 static int l_get_all_key(lua_State *L)
 {
@@ -1328,9 +1348,20 @@ int port_record(lua_State *L, struct Record_f* r){
 }
 
 /*assume the record is on top of the stack*/
-int port_table_to_record(lua_State *L, struct Record_f *rec)
+int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch)
 {
+	
+	int table_pos = lua_gettop(L);
+	if(lua_getfield(L,-1,"file_name") != LUA_TSTRING) return -1;
+	char *file_name = (char*) lua_tostring(L,-1);
+	if(!file_name) return -1;
+
+	lua_pop(L,1);
+
+	if(create_record(file_name,*sch,rec) == -1) return -1;
+
 	if(lua_getfield(L,-1,"offset") != LUA_TNUMBER) return -1;
+
 	int is_num;
 	rec->offset = (file_offset) lua_tonumberx(L,-1,&is_num);
 	if(!is_num){
@@ -1344,75 +1375,78 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 		return -1;
 	}
 		
+
 	int i;
-	for(i = 0; i < rec->fields_num; i++){
-		if(!rec->field_set[i]) continue;
+	for(i = 0; i < sch->fields_num; i++){
+		lua_getfield(L,-1,sch->fields_name[i]);
+		if(lua_isnil(L,-1)) {
+			lua_pop(L,1);
+			continue;
+		}
 	
-		switch(rec->fields[i].type){
+		switch(sch->types[i]){
 		case TYPE_INT:
 		{
 			is_num = 0;
-			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.i = (int) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
 				lua_settop(L,0);
 				return -1;
 			}
+			rec->field_set[i] = 1;
 			lua_pop(L,1);
 			break;
 		}
 		case TYPE_LONG:
 		{
 			is_num = 0;
-			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.l = (long) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
 				lua_settop(L,0);
 				return -1;
 			}
+			rec->field_set[i] = 1;
 			lua_pop(L,1);
 			break;
 		}
 		case TYPE_BYTE:
 		{
 			is_num = 0;
-			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.b = (unsigned char) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
 				lua_settop(L,0);
 				return -1;
 			}
+			rec->field_set[i] = 1;
 			lua_pop(L,1);
 			break;
 		}
 		case TYPE_FLOAT:
 		{
 			is_num = 0;
-			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.f = (float) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
 				lua_settop(L,0);
 				return -1;
 			}
+			rec->field_set[i] = 1;
 			lua_pop(L,1);
 			break;
 		}
 		case TYPE_DOUBLE:
 		{
 			is_num = 0;
-			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TNUMBER) return -1;
 			rec->fields[i].data.b = (double) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
 				lua_settop(L,0);
 				return -1;
 			}
+			rec->field_set[i] = 1;
 			lua_pop(L,1);
 			break;
 		}
 		case TYPE_STRING:
 		{
-			
-			if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
 			char *s = (char*)lua_tostring(L,-1);
 			if(!s){
 				lua_settop(L,0);
@@ -1421,17 +1455,19 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 
 			size_t sz = strlen(s);
 			rec->fields[i].data.s = (char *)malloc(sz+1);
-			if(rec->fields[i].data.s){
+			if(!rec->fields[i].data.s){
 				lua_settop(L,0);
 				return -1;
 			}
 
 			memset(rec->fields[i].data.s,0,sz+1);
 			memcpy(rec->fields[i].data.s,s,sz);
+			rec->field_set[i] = 1;
 			lua_pop(L,1);
+			break;
 		}
 		case TYPE_DATE:
-		{ if(lua_getfield(L,-1,rec->fields[i].field_name) != LUA_TSTRING) return -1;
+		{ 
 			char *s = (char*)lua_tostring(L,-1);
 			if(!s){
 				lua_settop(L,0);
@@ -1441,14 +1477,13 @@ int port_table_to_record(lua_State *L, struct Record_f *rec)
 				lua_settop(L,0);
 				return -1;
 			}
+			rec->field_set[i] = 1;
 			lua_pop(L,1);
+			break;
 		}
 		case TYPE_FILE:
 		{
-			if(port_table_to_record(L,rec->fields[i].data.file.recs) == -1){
-				lua_settop(L,0);
-				return -1;
-			}
+			break;
 		}
 		/*TYPE ARRAYS*/
 		default:

@@ -13,9 +13,12 @@
 #include "file.h"
 #include "record.h"
 
+#define KEY_GEN_CACHE_MODE 0
+#define KEY_GEN_DISK_MODE 1
+
 #define CACHE_SIZE 30
 extern struct Cache dbCache[CACHE_SIZE];
 
 int port_record(lua_State *L, struct Record_f *rec);
-int port_table_to_record(lua_State *L, struct Record_f *rec);
+int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch);
 #endif
