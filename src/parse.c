@@ -568,6 +568,10 @@ int write_header(int fd, struct Header_d *hd)
 		return 0;
 	}
 
+	if(begin_in_file(fd) == -1){
+		fprintf(stderr,"error with file_pointer %s:%d.\n",__FILE__,__LINE__);
+		return 0;
+	}
 	const unsigned long EIGTH_Kib = 1024 * 8;
 	unsigned long msize = EIGTH_Kib;
 	long bwritten = 0;
