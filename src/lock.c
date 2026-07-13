@@ -16,9 +16,13 @@
 static int lock(int fd, int flag);
 
 int release_lock(int *fds,int mode){
+	int r = 0, slept = 0, second_to_sleep = 0;
+	if(IS_LOCK_FROM_LUA(mode))
+		second_to_sleep = 1;
+
+	mode = GET_TYPE_LOCK(mode);
 	if(mode < 0 || mode > 2) mode = STD_LOCK;
 
-	int r = 0, slept = 0;
 	while((r = lock(fds[mode],UNLOCK)) == WTLK);
 	if(r == -1){
 		fprintf(stderr,"can't acquire or release proper lock.\n");
@@ -28,17 +32,23 @@ int release_lock(int *fds,int mode){
 	if(mode == LOCK_SCHEMA_FILE){
 		if(fds[0] != -1){
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					return -1;
+				}
 			}
 		}
 
 		if(fds[1] != -1){
 			while((r = lock(fds[1],UNLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					return -1;
+				}
 			}
 		}
 	}
@@ -46,17 +56,23 @@ int release_lock(int *fds,int mode){
 	if(mode == LOCK_DATA_FILE){
 		if(fds[0] != -1){
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					return -1;
+				}
 			}
 		}
 
 		if(fds[2] != -1){
 			while((r = lock(fds[1],UNLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					return -1;
+				}
 			}
 		}
 	}
@@ -66,12 +82,21 @@ int release_lock(int *fds,int mode){
 
 
 int acquire_lock(int *fds, int mode){
-	int r = 0, slept = 0;
+	int r = 0, slept = 0, second_to_sleep = 0;
+	if(IS_LOCK_FROM_LUA(mode))
+		second_to_sleep = 1;
+
+	mode = GET_TYPE_LOCK(mode);
 	if(mode < 0 || mode > 2) mode = STD_LOCK;
+
 	while((r = lock(fds[mode],WLOCK)) == WTLK){
-		if(!slept)
-			sleep(10);
-		return -1;
+		if(!slept){
+			sleep(second_to_sleep ? second_to_sleep : 10);
+			slept = 1;
+		}else{
+			slept = 0;
+			return -1;
+		}
 	}
 
 	if(r == -1){
@@ -86,17 +111,25 @@ int acquire_lock(int *fds, int mode){
 	if(mode == LOCK_SCHEMA_FILE){
 		if(fds[0] != -1){
 			while((r = lock(fds[0],WLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					slept = 0;
+					return -1;
+				}
 			}
 		}
 
 		if(fds[1] != -1){
 			while((r = lock(fds[1],WLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					slept = 0;
+					return -1;
+				}
 			}
 		}
 	}
@@ -104,22 +137,28 @@ int acquire_lock(int *fds, int mode){
 	if(mode == LOCK_DATA_FILE){
 		if(fds[0] != -1){
 			while((r = lock(fds[0],WLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					slept = 0;
+					return -1;
+				}
 			}
 		}
 
 		if(fds[2] != -1){
 			while((r = lock(fds[1],WLOCK)) == WTLK){
-				if(!slept)
-					sleep(10);
-				return -1;
+				if(!slept){
+					sleep(second_to_sleep ? second_to_sleep : 10);
+					slept = 1;
+				}else{
+					slept = 0;
+					return -1;
+				}
 			}
 		}
-
 	}
-
 
 	return 0;
 }

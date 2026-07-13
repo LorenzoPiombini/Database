@@ -2,9 +2,14 @@
 #define LOCK_H
 
 
-#define STD_LOCK 0
-#define LOCK_DATA_FILE 1
-#define LOCK_SCHEMA_FILE 2
+#define LOCK_FROM_LUA 0x00000100 
+#define GET_TYPE_LOCK(n) ((n) & 0x000000ff)
+#define IS_LOCK_FROM_LUA(n) (((n) & 0x00000100) != 0)
+enum lock_type{
+	STD_LOCK,
+	LOCK_DATA_FILE,
+	LOCK_SCHEMA_FILE,
+};
 
 #define FCNTL_ERR 2
 #define SH_ILOCK "/lock_info_memory"
