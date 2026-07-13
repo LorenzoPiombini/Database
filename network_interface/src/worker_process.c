@@ -29,7 +29,7 @@ int work_process(int sock)
 	char *d_buff = NULL;
 
 	/*start the Lua interpreter*/
-	if(init_lua() == -1){
+	if(init_lua(LUA_CONFIG_FILE) == -1){
 		/**/
 		return -1;
 	}

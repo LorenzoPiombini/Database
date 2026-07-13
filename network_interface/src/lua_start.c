@@ -13,17 +13,18 @@
 #include "date.h"
 #include "lua_start.h"
 
+#define LUA_CONFIG_FILE "/root/db/lua/db_config.lua"
 lua_State *L = NULL;
 static time_t sec = 0; 
 
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
 
-int init_lua()
+int init_lua(char *config_file)
 {
 	L = luaL_newstate();
 	luaL_openlibs(L);
-	if(load(L,"/root/db/lua/db_config.lua") == -1) return -1;
+	if(load(L,config_file) == -1) return -1;
 	check_config_file();
 	return 0;
 }
@@ -119,10 +120,13 @@ fcall:
 				case 'r':
 					{
 						/*record*/
+/*
+TODO:
 						if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
 							clear_lua_stack();
 							return -1;
 						}
+*/
 						break;
 					}
 				case 'd':
