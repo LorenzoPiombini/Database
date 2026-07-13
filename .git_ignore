@@ -1,7 +1,0 @@
-*.sch
-*.dat
-*.inx
-*.so
-obj/
-rls
-log_info
