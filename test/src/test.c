@@ -136,6 +136,8 @@ int lock_file_test()
    return 0;
 }
 
+/*w_rec has 4 different behaviour
+	we test all of them here*/
 int LUA_test_w_rec()
 {
 	int fds[3];
@@ -155,25 +157,21 @@ int LUA_test_w_rec()
 
 	if (!write_header(fds[2], &hd)) goto clean_on_failure;
 
-	
-
 	close_file(3,fds[0],fds[1],fds[2]);
 	memset(fds,-1,sizeof(int)*3);
 
 	/*the lua function w_rec will open and close the file*/
 	char *func = "w_rec";
+
+	/*BEHAVIOUR 1*/
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
 	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
 
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
-	
 
 	struct Record_f rec = {0};
 	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
-
-	free_schema(&sch);
-	sch.types = NULL;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -190,7 +188,47 @@ int LUA_test_w_rec()
 	
 	free_record(&rec,rec.fields_num);
 	rec.fields = NULL;
+	memset(&rec,0,sizeof(struct Record_f));
 
+	/*BEHAVIOUR 2*/
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+	lua_pushstring(L,"key_1"); /*Arg 2*/
+	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
+
+	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+
+	char *k_s = (char*)lua_tostring(L, -3); 
+	if(!k_s) goto clean_on_failure;
+	
+	if((strncmp(k_s,"key_1",strlen(k_s)) != 0) || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) 
+		goto clean_on_failure;
+
+	clear_lua_stack();
+
+	free_record(&rec,rec.fields_num);
+	rec.fields = NULL;
+	memset(&rec,0,sizeof(struct Record_f));
+
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+	lua_pushinteger(L,32); /*Arg 3*/
+	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
+
+	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+
+	is_num = 0;
+	k = lua_tonumberx(L, -3, &is_num); 
+	if(!is_num) goto clean_on_failure;
+	
+	clear_lua_stack();
+	if(k != 32 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
+
+	
+	free_record(&rec,rec.fields_num);
+	free_schema(&sch);
 	delete_file(3,files[0],files[1],files[2]);
 	return 0;
 
