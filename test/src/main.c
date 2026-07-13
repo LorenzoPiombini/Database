@@ -45,7 +45,7 @@ int main()
 		passed++;
 	}
 
-	if(init_lua() == -1) return -1;
+	if(init_lua("test/lua/lua_test.lua") == -1) return -1;
 
 	count++;
 	if(LUA_test_w_rec() == -1){
