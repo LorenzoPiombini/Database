@@ -13,7 +13,6 @@
 #include "date.h"
 #include "lua_start.h"
 
-#define LUA_CONFIG_FILE "/root/db/lua/db_config.lua"
 lua_State *L = NULL;
 static time_t sec = 0; 
 

@@ -15,6 +15,8 @@
 
 extern lua_State *L;
 
+#define LUA_CONFIG_FILE "/root/db/lua/db_config.lua"
+
 int init_lua();
 void clear_lua_stack();
 int execute_lua_script(char *buf);
