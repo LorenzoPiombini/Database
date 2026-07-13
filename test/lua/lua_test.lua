@@ -29,7 +29,7 @@ g_all_key = db.get_all_key
 
 --- look for documentation in lua/src/export_db_lua.c
 --- return two results, the record created and its key, if the key is not passed
---- as an argument
+--- as an argument the key will be computed automatically
 function w_rec(file_name, data, key, number)
 	if key == nil then
 		return write_record(file_name, data)

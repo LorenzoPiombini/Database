@@ -226,7 +226,64 @@ int LUA_test_w_rec()
 	clear_lua_stack();
 	if(k != 32 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
 
+	free_record(&rec,rec.fields_num);
+	rec.fields = NULL;
+	memset(&rec,0,sizeof(struct Record_f));
 	
+	/*BEHAVIOUR 3*/
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+	lua_pushstring(L,"base"); /*Arg 3*/
+	lua_pushinteger(L,100); /*Arg 4*/
+	if(lua_pcall(L,4,2,0) != LUA_OK) goto clean_on_failure;
+
+	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+
+	is_num = 0;
+	k = lua_tonumberx(L, -3, &is_num); 
+	if(!is_num) goto clean_on_failure;
+	
+	clear_lua_stack();
+	if(k != 103 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
+
+	free_record(&rec,rec.fields_num);
+	memset(&rec,0,sizeof(struct Record_f));
+
+
+	
+	/*this has to fail*/
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	if(lua_pcall(L,1,2,0) == LUA_OK) goto clean_on_failure;
+
+	clear_lua_stack();
+
+	/*
+		we test this again to make sure the behaviour is
+		the one expected
+	*/
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+
+	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
+
+	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+
+	/*
+		w_rec() function return two results the key and the table(record)
+		the key is at position -3 from the top of the lua stack
+	*/
+
+	is_num;
+	k = lua_tonumberx(L, -3, &is_num); 
+	if(!is_num) goto clean_on_failure;
+	
+	clear_lua_stack();
+
+	if(k != 4 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
+
 	free_record(&rec,rec.fields_num);
 	free_schema(&sch);
 	delete_file(3,files[0],files[1],files[2]);
