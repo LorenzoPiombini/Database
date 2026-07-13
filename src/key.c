@@ -17,12 +17,17 @@
 /*mode select the type of numbering of the key
  *
  * this function assume that the file has content already*/
-i64 generate_numeric_key(int *fds, int mode, int base)
+i64 generate_numeric_key(int *fds, int mode, int base, struct Cache *c)
 {
 	i64 key = 0;
-	switch(mode){
+	int key_gen_mode = mode & 0x000000ff;
+	switch(key_gen_mode){
 	case REG:
 	{
+		if(IS_KEY_CACHE_MODE(mode)){
+			key = len(c->index_file[0]);
+			break;
+		}
 		HashTable ht;
 		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
@@ -37,6 +42,10 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 	}
 	case BASE: 
 	{
+		if(IS_KEY_CACHE_MODE(mode)){
+			key = len(c->index_file[0]) + base;
+			break;
+		}
 		HashTable ht;
 		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;
@@ -52,6 +61,11 @@ i64 generate_numeric_key(int *fds, int mode, int base)
 	}
 	case INCREM:
 	{
+		if(IS_KEY_CACHE_MODE(mode)){
+			int elements = len(c->index_file[0]);
+			key = ++elements; 
+			break;
+		}
 		HashTable ht;
 		memset(&ht,0,sizeof(HashTable));
 		HashTable *p_ht = &ht;

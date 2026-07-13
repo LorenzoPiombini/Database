@@ -644,7 +644,7 @@ int main(int argc, char *argv[])
 					if(kcpy[0] == '\0'){
 						
 						/*create a new key value pair in the hash table*/
-						i64 k = generate_numeric_key(fds,INCREM,-1);
+						i64 k = generate_numeric_key(fds,INCREM,-1,NULL);
 
 						if(k == -1){
 							fprintf(stderr,"increment key failed. %s:%d\n",__FILE__,__LINE__-2);
@@ -1281,7 +1281,7 @@ int main(int argc, char *argv[])
 
 			ui32 n = 0;
 			if(kcpy[0] == '\0'){
-				i64 k = generate_numeric_key(fds,INCREM,-1);
+				i64 k = generate_numeric_key(fds,INCREM,-1,NULL);
 				if(k == -1){
 					fprintf(stderr,"increment key failed. %s:%d\n",__FILE__,__LINE__-2);
 					goto clean_on_error_7;
