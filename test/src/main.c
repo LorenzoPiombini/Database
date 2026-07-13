@@ -48,6 +48,13 @@ int main()
 	if(init_lua("test/lua/lua_test.lua") == -1) return -1;
 
 	count++;
+	if(LUA_port_table_to_record_test() == -1){
+		failed++;
+	}else{
+		passed++;
+	}
+
+	count++;
 	if(LUA_test_w_rec() == -1){
 		failed++;
 	}else{
