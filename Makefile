@@ -132,14 +132,13 @@ test:
 	if [ "$(IS_FEDORA)" = "no" ]; then \
 		gcc -g3 -o test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c lua/src/export_db_lua.c -lcrud -llua5.4 -fsanitize=address -Itest/include;\
 	else\
-		gcc -o -g3 test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c lua/src/export_db_lua.c -lcrud -llua -fsanitize=address -Itest/include;\
+		gcc -g3 -DFEDORA -o  test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c lua/src/export_db_lua.c -lcrud -llua -fsanitize=address -Itest/include;\
 	fi
 	test/test_suite
 	
 $(TARGET): $(OBJ)
 	sudo gcc -o $@ $?  -ldl  -fpie -pie -z relro -z now -z noexecstack -fsanitize=address 
 	make lua
-	make net_int
 
 obj/%.o : src/%.c 
 	if [ "$(IS_FEDORA)" = "no" ]; then \
@@ -178,7 +177,7 @@ net_int:
 		sudo gcc -DFEDORA -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/lua_start.c -o network_interface/obj/lua_start.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie;\
 		sudo gcc -Wall -DFEDORA -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/end_points.c -o network_interface/obj/end_points.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong  -fPIC -pie;\
 		sudo gcc -Wall -DFEDORA -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/worker_process.c -o network_interface/obj/worker_process.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie;\
-		gcc -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua -lcrud -ldblua;\
+		gcc -DFEDORA -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua -lcrud -ldblua;\
 		cp libworker.so /usr/local/lib/;\
 	fi
 
@@ -355,7 +354,7 @@ $(BINDIR)/CHANGE_NAMES:
 
 install: $(TARGET) $(BINDIR)/SWAP_INDEXES $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa $(BINDIR)/CHANGE_NAMES check-linker-path
 	install -d $(INCLUDEDIR)
-	install -m 644 include/date.h lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h include/string_utilities.h $(INCLUDEDIR)/
+	install -m 644 include/date.h lua/include/export_db_lua.h include/globals.h include/hash_tbl.h include/file.h include/key.h include/str_op.h include/record.h include/common.h include/types.h include/parse.h include/lock.h include/crud.h include/string_utilities.h network_interface/include/lua_start.h network_interface/include/worker_process.h network_interface/include/end_points.h $(INCLUDEDIR)/
 	install -m 755 $(SHAREDLIBht) $(LIBDIR)
 	install -m 755 $(SHAREDLIBcrud) $(LIBDIR)
 	install -m 755 $(SHAREDLIBf) $(LIBDIR)
@@ -366,6 +365,7 @@ install: $(TARGET) $(BINDIR)/SWAP_INDEXES $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR
 	install -m 755 $(SHAREDLIBexpl) $(LIBDIR)
 	install -m 755 $(SHAREDLIBdate) $(LIBDIR)
 	ldconfig
+	make net_int
 	make test
 	
 
