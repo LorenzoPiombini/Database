@@ -13,9 +13,6 @@
 #include "file.h"
 #include "record.h"
 
-#define KEY_GEN_CACHE_MODE 0
-#define KEY_GEN_DISK_MODE 1
-
 #define CACHE_SIZE 30
 extern struct Cache dbCache[CACHE_SIZE];
 
