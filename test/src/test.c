@@ -4,7 +4,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include "test.h"
+#include "export_db_lua.h"
 #include "file.h"
+#include "crud.h"
 #include "lock.h"
 #include "lua_start.h"
 
@@ -205,6 +207,121 @@ clean_on_failure:
 	clear_lua_stack();
 	return -1;
 }
+
+int LUA_test_w_rec_cache()
+{
+
+	/*this creates a file named test, and give a definitions*/
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Schema sch = {0};
+
+	if(open_files("./test",fds,files,CREATE_FILE) == -1){
+		return -1;
+	}
+
+	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
+
+	struct Header_d hd = {0, 0, &sch};
+	if (!create_header(&hd)) goto clean_on_failure;
+
+	if (!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,sizeof(int)*3);
+	/*=======================================================*/
+
+	/*desable the test mode and use the cache system*/
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
+
+	/*using w_rec now, will use the cache */
+	char *func = "w_rec";
+
+	/*BEHAVIOUR 1*/
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+
+	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
+
+	struct Record_f rec = {0};
+	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+
+	/*
+		w_rec() function return two results the key and the table(record)
+		the key is at position -3 from the top of the lua stack
+	*/
+
+	int is_num;
+	uint32_t k = lua_tonumberx(L, -3, &is_num); 
+	if(!is_num) goto clean_on_failure;
+	
+	clear_lua_stack();
+
+	if(k != 0 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
+	
+	free_record(&rec,rec.fields_num);
+	rec.fields = NULL;
+	memset(&rec,0,sizeof(struct Record_f));
+	
+	
+	/*expand the test here if needed*/
+
+	/*NOTE: here the operation should have succeed, so we need to clean up the cache*/
+
+	
+	int i;
+	for(i = 0;i < CACHE_SIZE; i++){
+		if(!dbCache[i].index_file) continue;
+
+		if(write_cache_to_disk(&dbCache[i]) == -1) goto clean_on_failure;
+
+		free_cache(&dbCache[i]);
+	}
+	
+	free_schema(&sch);
+	/*VERIFY THE ACTUAL FILE HAS THE DATA!*/
+
+	FILE *fp = popen("SHOW test 0","r");
+	if(!fp){
+		delete_file(3,files[0],files[1],files[2]);
+		return -1;
+	}
+
+	char buffer[1024*4];
+	int found = 0;
+	while(fgets(buffer,1024*4,fp) != NULL){
+		if(strstr(buffer, "field") 
+			|| strstr(buffer,"this is a field"))
+			found++;
+	}
+
+	if(found < 1){
+		delete_file(3,files[0],files[1],files[2]);
+		pclose(fp);
+		return -1;
+	}
+
+	pclose(fp);
+	delete_file(3,files[0],files[1],files[2]);
+	return 0;
+
+clean_on_failure:
+	if(sch.types != NULL)
+		free_schema(&sch);
+	if(rec.fields != NULL)
+		free_record(&rec,rec.fields_num);
+
+	if(fds[0] != -1)
+		close_file(3,fds[0],fds[1],fds[2]);
+
+	delete_file(3,files[0],files[1],files[2]);
+	clear_lua_stack();
+	return -1;
+
+}
 /* w_rec has 4 different behaviour
 	we test all of them here */
 int LUA_test_w_rec()
@@ -253,7 +370,7 @@ int LUA_test_w_rec()
 	
 	clear_lua_stack();
 
-	if(k == 0 && (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
+	if(k != 0 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
 	
 	free_record(&rec,rec.fields_num);
 	rec.fields = NULL;

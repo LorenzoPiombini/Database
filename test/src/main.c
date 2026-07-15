@@ -45,7 +45,7 @@ int main()
 		passed++;
 	}
 
-	if(init_lua("test/lua/lua_test.lua") == -1) return -1;
+	if(init_lua("test/lua/old_test.lua") == -1) return -1;
 
 	count++;
 	if(LUA_port_table_to_record_test() == -1){
@@ -61,6 +61,13 @@ int main()
 		passed++;
 	}
 		
+	count++;
+	if(LUA_test_w_rec_cache() == -1){
+		failed++;
+	}else{
+		passed++;
+	}
+
 	/*PASTE NEW TEST FUNCTIONS BETWEEN THESE LINES*/
 
 
