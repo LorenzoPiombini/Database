@@ -130,9 +130,9 @@ clean:
 
 test:
 	if [ "$(IS_FEDORA)" = "no" ]; then \
-		gcc -g3 -o test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c lua/src/export_db_lua.c -lcrud -llua5.4 -fsanitize=address -Itest/include;\
+		gcc -g3 -o test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -ldblua -lcrud -llua5.4 -fsanitize=address -Itest/include;\
 	else\
-		gcc -g3 -DFEDORA -o  test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c lua/src/export_db_lua.c -lcrud -llua -fsanitize=address -Itest/include;\
+		gcc -g3 -DFEDORA -o  test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -ldblua -lcrud -llua -fsanitize=address -Itest/include;\
 	fi
 	test/test_suite
 	
