@@ -68,6 +68,12 @@ int main()
 		passed++;
 	}
 
+	count++;
+	if(LUA_test_create_record() == -1){
+		failed++;
+	}else{
+		passed++;
+	}
 	/*PASTE NEW TEST FUNCTIONS BETWEEN THESE LINES*/
 
 

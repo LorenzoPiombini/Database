@@ -138,6 +138,63 @@ int lock_file_test()
    return 0;
 }
 
+int LUA_test_create_record()
+{
+
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Schema sch = {0};
+
+	/*this creates a file named test, and give a definitions*/
+	if(open_files("./test",fds,files,CREATE_FILE) == -1){
+		return -1;
+	}
+
+	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
+
+	struct Header_d hd = {0, 0, &sch};
+	if (!create_header(&hd)) goto clean_on_failure;
+
+	if (!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,sizeof(int)*3);
+
+	char *func = "create_rec";
+
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test");
+	lua_pushstring(L,"field:This is another field! with a lot of spaces and weird stuf@");
+
+	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
+
+	struct Record_f rec = {0};
+	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+
+	clear_lua_stack();
+	
+	if(strncmp(rec.fields[0].data.s,"This is another field! with a lot of spaces and weird stuf@",
+				strlen("This is another field! with a lot of spaces and weird stuf@")) != 0) goto clean_on_failure;
+
+	free_record(&rec,rec.fields_num);
+	free_schema(&sch);
+	delete_file(3,files[0],files[1],files[2]);
+	return 0;
+
+clean_on_failure:
+	if(sch.types != NULL)
+		free_schema(&sch);
+	if(rec.fields != NULL)
+		free_record(&rec,rec.fields_num);
+
+	if(fds[0] != -1)
+		close_file(3,fds[0],fds[1],fds[2]);
+
+	delete_file(3,files[0],files[1],files[2]);
+	clear_lua_stack();
+	return -1;
+}
 int LUA_port_table_to_record_test()
 {
 	int fds[3];
@@ -233,7 +290,7 @@ int LUA_test_w_rec_cache()
 	/*=======================================================*/
 
 	/*desable the test mode and use the cache system*/
-	lua_pushboolean(L,1);
+	lua_pushboolean(L,0);
 	lua_setglobal(L,"TEST");
 
 	/*using w_rec now, will use the cache */

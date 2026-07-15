@@ -414,7 +414,6 @@ static int l_write_record(lua_State *L)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
-	free_schema(hd.sch_d);
 use_cache:
 	lock = 1;
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
@@ -439,6 +438,7 @@ use_cache:
 	
 	port_record(L,&rec);
 	free_record(&rec,rec.fields_num);
+	free_schema(hd.sch_d);
 	return 2;/*return the key and the record*/
 
 err_cache:
