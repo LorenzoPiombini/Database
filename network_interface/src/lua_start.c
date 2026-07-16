@@ -18,7 +18,6 @@ static time_t sec = 0;
 
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
-static void flush_caches_to_disk(struct Cache *c);
 
 int init_lua(char *config_file)
 {

@@ -1156,7 +1156,8 @@ use_cache:
 	if(set_tbl(p->index_file,key,record_offset,key_type,index) == -1) goto err_set_index_cache;
 	p->used = now_seconds();
 	lua_pushinteger(L,index);
-	return 1;
+	lua_pushstring(L,"index write succeed cache");
+	return 2;
 
 indexing_test:
 

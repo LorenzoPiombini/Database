@@ -138,6 +138,104 @@ int lock_file_test()
    return 0;
 }
 
+int LUA_test_save_key_at_index_chache()
+{
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Schema sch = {0};
+
+	/*this creates a file named test, and give a definitions*/
+	if(open_files("./test",fds,files,CREATE_FILE) == -1){
+		return -1;
+	}
+
+	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
+
+	struct Header_d hd = {0, 0, &sch};
+	if (!create_header(&hd)) goto clean_on_failure;
+
+	if (!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,sizeof(int)*3);
+
+	lua_pushboolean(L,0);
+	lua_setglobal(L,"TEST");
+
+	char *func = "create_rec";
+
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test");
+	lua_pushstring(L,"field:testKEY");
+
+	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
+
+	struct Record_f rec = {0};
+	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+
+	func = "indexing";
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test");
+	lua_pushstring(L,"keySTR");
+	lua_pushinteger(L,2);
+	lua_pushinteger(L,rec.offset);
+
+	if(lua_pcall(L,4,2,0) != LUA_OK) goto clean_on_failure;
+
+
+	int is_num;
+	uint32_t ix = lua_tonumberx(L, -2, &is_num); 
+	if(!is_num) goto clean_on_failure;
+
+	if(ix != 2) goto clean_on_failure;
+	char *m = (char*)lua_tostring(L,-1);
+	if(!m) goto clean_on_failure;
+	if(strncmp(m,"index write succeed cache",strlen(m)) != 0) goto clean_on_failure;
+
+
+	/*WE NEED TO CLEAN THE CACHE*/
+	int i;
+	for(i = 0;i < CACHE_SIZE; i++){
+		if(!dbCache[i].index_file) continue;
+
+		char* k= "keySTR";
+		if(get(k,&dbCache[i].index_file[2],STR) == -1){
+			free_cache(&dbCache[i]);
+			goto clean_on_failure;
+		}
+
+		Node *r = ht_delete((void*)dbCache[i].file_name,&cache_register,STR);
+		if(!r){
+			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
+			goto clean_on_failure;
+		}
+		free_ht_node(r);
+		free_cache(&dbCache[i]);
+	}
+
+	free_record(&rec,rec.fields_num);
+	free_schema(&sch);
+	delete_file(3,files[0],files[1],files[2]);
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
+	clear_lua_stack();
+	return 0;
+
+clean_on_failure:
+	if(sch.types != NULL)
+		free_schema(&sch);
+	if(rec.fields != NULL)
+		free_record(&rec,rec.fields_num);
+
+	if(fds[0] != -1)
+		close_file(3,fds[0],fds[1],fds[2]);
+
+	delete_file(3,files[0],files[1],files[2]);
+	clear_lua_stack();
+	return -1;
+
+}
 int LUA_test_save_key_at_index()
 {
 	int fds[3];
@@ -180,7 +278,6 @@ int LUA_test_save_key_at_index()
 
 	if(lua_pcall(L,4,2,0) != LUA_OK) goto clean_on_failure;
 
-
 	int is_num;
 	uint32_t ix = lua_tonumberx(L, -2, &is_num); 
 	if(!is_num) goto clean_on_failure;
@@ -189,7 +286,6 @@ int LUA_test_save_key_at_index()
 	char *m = (char*)lua_tostring(L,-1);
 	if(!m) goto clean_on_failure;
 	if(strncmp(m,"index write succeed",strlen(m)) != 0) goto clean_on_failure;
-
 
 	free_record(&rec,rec.fields_num);
 	free_schema(&sch);
@@ -408,6 +504,12 @@ int LUA_test_w_rec_cache()
 
 		if(write_cache_to_disk(&dbCache[i]) == -1) goto clean_on_failure;
 
+		Node *r = ht_delete((void*)dbCache[i].file_name,&cache_register,STR);
+		if(!r){
+			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
+			goto clean_on_failure;
+		}
+		free_ht_node(r);
 		free_cache(&dbCache[i]);
 	}
 	
