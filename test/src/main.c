@@ -74,6 +74,13 @@ int main()
 	}else{
 		passed++;
 	}
+
+	count++;
+	if(LUA_test_save_key_at_index() == -1){
+		failed++;
+	}else{
+		passed++;
+	}
 	/*PASTE NEW TEST FUNCTIONS BETWEEN THESE LINES*/
 
 
