@@ -18,6 +18,7 @@ static time_t sec = 0;
 
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
+static void flush_caches_to_disk(struct Cache *c);
 
 int init_lua(char *config_file)
 {
@@ -235,7 +236,12 @@ static void free_inactive_caches(struct Cache *c)
 			}
 			free_ht_node(r);
 			free_cache(&c[i]);
-			return;
+		}else if((long)(c[i].used - c[i].ts) > (long) TWENTY_MINUTES){
+			/*Just flush the content to disk*/
+			if(write_cache_to_disk(&c[i]) == -1){
+				fprintf(stderr,"!!! CANNOT WRITE THE CACHE TO FILE !!!!!!%s:%d\n",__FILE__,__LINE__);
+				return;
+			}
 		}
 	}
 }
