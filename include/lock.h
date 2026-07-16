@@ -6,9 +6,9 @@
 #define GET_TYPE_LOCK(n) ((n) & 0x000000ff)
 #define IS_LOCK_FROM_LUA(n) (((n) & 0x00000100) != 0)
 enum lock_type{
-	STD_LOCK,
-	LOCK_DATA_FILE,
-	LOCK_SCHEMA_FILE,
+	STD_LOCK = 1,
+	LOCK_DATA_FILE = 2,
+	LOCK_SCHEMA_FILE = 3,
 };
 
 #define FCNTL_ERR 2

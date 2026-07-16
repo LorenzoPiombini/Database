@@ -21,7 +21,7 @@ int release_lock(int *fds,int mode){
 		second_to_sleep = 1;
 
 	mode = GET_TYPE_LOCK(mode);
-	if(mode < 0 || mode > 2) mode = STD_LOCK;
+	if(mode < 1 || mode > 3) mode = STD_LOCK;
 
 	while((r = lock(fds[mode],UNLOCK)) == WTLK);
 	if(r == -1){
@@ -87,7 +87,7 @@ int acquire_lock(int *fds, int mode){
 		second_to_sleep = 1;
 
 	mode = GET_TYPE_LOCK(mode);
-	if(mode < 0 || mode > 2) mode = STD_LOCK;
+	if(mode < 1 || mode > 3) mode = STD_LOCK;
 
 	while((r = lock(fds[mode],WLOCK)) == WTLK){
 		if(!slept){

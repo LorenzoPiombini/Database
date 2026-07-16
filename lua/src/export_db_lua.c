@@ -391,8 +391,8 @@ static int l_write_record(lua_State *L)
 
 	int lock = 0;
 
-	
 	if(is_test(L)) goto write_rec_test;
+
 	/*check if the file is cached in memory*/
 	if(file_pos_in_the_cache != -1) goto use_cache;
 
@@ -415,7 +415,6 @@ static int l_write_record(lua_State *L)
 
 	close_file(3,fds[0],fds[1],fds[2]);
 use_cache:
-	lock = 1;
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
 		goto err_cache_invalid_data;
 
@@ -449,7 +448,7 @@ err_cache:
 			goto err_not_db_file;
 	}
 
-	lock = 0;/*this will lock the file on disk*/
+	lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
 		goto err_invalid_data;
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
@@ -476,7 +475,7 @@ write_rec_test:
 		goto err_not_db_file;
 	}
 
-	lock = 0;/*this will lock the file on disk*/
+	lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
 	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
 		goto err_invalid_data;
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
@@ -605,7 +604,7 @@ static int l_update_record(lua_State *L)
 
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-	int lock = 1;
+	int lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
 	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	int check = -1;
@@ -780,7 +779,7 @@ static int l_create_record(lua_State *L)
 
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-	int lock = 1;
+	int lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
 	if(open_files(file_name,fds,file_names,-1) == -1)
 		goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) 

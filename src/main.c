@@ -1263,7 +1263,7 @@ int main(int argc, char *argv[])
 			struct Record_f rec;
 			memset(&rec,0,sizeof(struct Record_f));
 
-			int lock_f = 1;/*we already have a lock*/
+			int lock_f = 0;/*we already have a lock*/
 			int check = 0;
 			int option_value= -1;
 			if(option){
@@ -1329,7 +1329,7 @@ int main(int argc, char *argv[])
 			struct Record_f rec;
 			memset(&rec,0,sizeof(struct Record_f));
 
-			int lock_f = 1;
+			int lock_f = 0; /*we already have a lock*/
 			int check = 0;
 			int option_value = -1;
 			if(option){
