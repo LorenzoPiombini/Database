@@ -727,16 +727,11 @@ static int l_delete_record(lua_State *L)
 
 	/*delete was succesfull*/
 
-	free_ht_node(record_del);
-	/*
-	 * NOTE: this function frees the ht array elements on succseed
-	 *		if it fails free completely the array,	 
-	 * */
 	if(write_index(fds,index,ht,file_names[0]) == -1) 
 		goto err_write_index;
 
 	close_file(1,fds[0]);
-	free(ht);
+	free_ht_array(ht,index);
 	lua_pushinteger(L,(lua_Integer)0);
 	return 1;
 	
@@ -1124,50 +1119,132 @@ static int l_save_key_at_index(lua_State *L)
 	int fds[3];
 	memset(fds,-1,sizeof(int)*3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Schema sch = {0};
+	struct Header_d hd = {0,0, &sch};
 
-	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1)
-		goto err_open_file;
+	off_t file_pos_in_the_cache = get((void*)file_name,&cache_register,STR);
+	
+	if(is_test(L)) goto indexing_test;
 
+	if(file_pos_in_the_cache != -1) goto use_cache;
+
+	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+
+	/*cache the file*/
+	int first_free_cache = 0;
+	if((first_free_cache = get_free_slot_cache(dbCache)) == -1){
+		/*cache is full free one spot in the cache */
+		if((first_free_cache = check_and_free_one_cache(dbCache)) == -1)
+			goto err_cache;/*we cannot free a cache slot, we use the disk*/
+	}
+
+	if(cache_file(fds,file_name,hd.sch_d,dbCache,&cache_register,first_free_cache) == -1)
+		goto err_cache;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	fds[0] = -1;
+
+use_cache:
+	free_schema(hd.sch_d);
+	struct Cache *p = NULL;
+	if(file_pos_in_the_cache != -1){
+		p = &dbCache[file_pos_in_the_cache];
+	}else{
+		p = &dbCache[first_free_cache];
+	}
+	
+	if(set_tbl(p->index_file,key,record_offset,key_type,index) == -1) goto err_set_index_cache;
+	p->used = now_seconds();
+	lua_pushinteger(L,index);
+	return 1;
+
+indexing_test:
+
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	}
+
+	/* load all indexes in memory */
 	HashTable *ht = NULL;
 	int tbl_ix = 0;
-	/* load all indexes in memory */
 	if (!read_all_index_file(fds[0], &ht, &tbl_ix))
 		goto err_load_index;
 
 	if(set_tbl(ht,key,record_offset,key_type,index) == -1) 
 		goto err_set_index;
 
-	/*this function frees the ht array*/
 	if(write_index(fds,tbl_ix,ht,file_names[0]) == -1) 
 		goto err_write_index;
 
 
-	
-	/*if indexing succseed return the index number*/
+	/*if indexing succeed return the index number*/
 	lua_pushinteger(L,index);
-	close_file(1,fds[0]);
-	free(ht);
-	return 1;
+	lua_pushstring(L,"index write succeed");
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
+	free_ht_array(ht,tbl_ix);
+	return 2;
 
+err_cache:
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	}
+
+	/* load all indexes in memory */
+	ht = NULL;
+	tbl_ix = 0;
+	if (!read_all_index_file(fds[0], &ht, &tbl_ix))
+		goto err_load_index;
+
+	if(set_tbl(ht,key,record_offset,key_type,index) == -1) 
+		goto err_set_index;
+
+	if(write_index(fds,tbl_ix,ht,file_names[0]) == -1) 
+		goto err_write_index;
+
+	free_schema(hd.sch_d);
+	free_ht_array(ht,tbl_ix);
+	close_file(3,fds[0],fds[1],fds[2]);
+	lua_pushinteger(L,index);
+	lua_pushinteger(L,(lua_Integer)CACHE_FAILED);
+	return 2;
+	
 err_open_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not open the file.");
 	return 2;
+err_not_db_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
+	return 2;
 err_load_index:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not load index file.");
-	close_file(1,fds[0]);
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
+	return 2;
+err_set_index_cache:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot set index in the cached file.");
 	return 2;
 err_set_index:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not set index.");
-	close_file(1,fds[0]);
+	close_file(3,fds[0],fds[1],fds[2]);
 	free_ht_array(ht, tbl_ix);
+	free_schema(hd.sch_d);
 	return 2;
 err_write_index:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not write index file.");
-	close_file(1,fds[0]);
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_ht_array(ht, tbl_ix);
+	free_schema(hd.sch_d);
 	return 2;
 }
 
@@ -1351,7 +1428,6 @@ int port_record(lua_State *L, struct Record_f* r){
 int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch)
 {
 	
-	int table_pos = lua_gettop(L);
 	if(lua_getfield(L,-1,"file_name") != LUA_TSTRING) return -1;
 	char *file_name = (char*) lua_tostring(L,-1);
 	if(!file_name) return -1;
