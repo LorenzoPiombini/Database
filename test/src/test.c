@@ -3,8 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "common.h"
 #include "test.h"
+#include "common.h"
+#include "key.h"
 #include "export_db_lua.h"
 #include "file.h"
 #include "crud.h"
@@ -816,6 +817,20 @@ int LUA_test_write_customer_cache()
 	if(!is_num) goto clean_on_failure;
 
 	if(k != 0) goto clean_on_failure;
+
+	func = "g_all_key";
+	lua_getglobal(L,func);
+	lua_pushstring(L,"./customer");
+	lua_pushinteger(L,2);
+	lua_pushinteger(L,MAKE_KEY_JS_STRING);
+
+	if(lua_pcall(L,3,1,0) != LUA_OK) goto clean_on_failure;
+
+	char *result = (char *)lua_tostring(L,-1);
+	if(!result) goto clean_on_failure;
+
+	if(!strstr(result,"Test LLC")) goto clean_on_failure;
+
 
 	/*WE NEED TO CLEAN THE CACHE*/
 	int i;

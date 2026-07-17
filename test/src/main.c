@@ -134,7 +134,7 @@ int main()
 			if((failed - i) > 1)
 				fprintf(stderr,"%s%s%s, ",RED_TEXT,failed_test[i],REGULAR_TEXT);
 			else
-				fprintf(stderr,"%s%s%s.",RED_TEXT,failed_test[i],REGULAR_TEXT);
+				fprintf(stderr,"%s%s%s.\n",RED_TEXT,failed_test[i],REGULAR_TEXT);
 		}
 		close_lua();
 		return 0;
