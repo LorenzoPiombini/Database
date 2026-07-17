@@ -414,6 +414,7 @@ static int l_write_record(lua_State *L)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,3*sizeof(int));
 use_cache:
 
 	if(file_pos_in_the_cache != -1){
@@ -438,8 +439,6 @@ use_cache:
 
 		p->used = now_seconds();
 		free_schema(hd.sch_d);
-		if(fds[0] != -1)
-			close_file(3,fds[0],fds[1],fds[2]);
 	}
 	
 	port_record(L,&rec);
@@ -1063,25 +1062,90 @@ static int l_get_all_key(lua_State *L)
 	int fds[3];
 	memset(fds,-1,sizeof(int)*3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Schema sch = {0};
+	struct Header_d hd = {0,0,&sch};
 
-	if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1)
-		goto err_open_file;
+	if(is_test(L)) goto get_all_keys_test;
 
-	char *r = get_all_keys_for_file(fds,index,mode == MAKE_KEY_JS_STRING ? MAKE_KEY_JS_STRING : 0);
+	off_t file_pos_in_the_cache = get((void*)file_name,&cache_register,STR);
+	if(file_pos_in_the_cache != -1) goto use_cache;
+
+	/*cache the file*/
+	int first_free_cache = 0;
+	if((first_free_cache = get_free_slot_cache(dbCache)) == -1){
+		/*cache is full free one spot in the cache */
+		if((first_free_cache = check_and_free_one_cache(dbCache)) == -1)
+			goto err_cache;/*we cannot free a cache slot, we use the disk*/
+	}
+
+	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+
+	if(cache_file(fds,file_name,hd.sch_d,dbCache,&cache_register,first_free_cache) == -1)
+		goto err_cache;
+
+	free_schema(hd.sch_d);
+	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,3*sizeof(int));
+
+use_cache:
+
+	struct Cache *p = NULL;
+	if(file_pos_in_the_cache != -1){
+		p = &dbCache[file_pos_in_the_cache];	
+	}else{
+		p = &dbCache[first_free_cache];	
+	}
+	mode =  mode == MAKE_KEY_JS_STRING ? MAKE_KEY_JS_STRING | KEY_GET_ALL_CACHE : 0 | KEY_GET_ALL_CACHE;
+	char *r = get_all_keys_for_file(fds,index,mode,p->index_file);
 	if(!r)
-		goto error;
+		goto error_key_null_from_cache;
 
 	lua_pushstring(L,r);
-	close_file(1,fds[0]);
 	free(r);
 	return 1;
+get_all_keys_test:
 
-err_open_file:
-	lua_pushinteger(L,(lua_Integer) -1);
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,ONLY_INDEX) == -1)
+			goto err_open_file;
+	}
+
+	char *res = get_all_keys_for_file(fds,index,mode == MAKE_KEY_JS_STRING ? MAKE_KEY_JS_STRING : 0,NULL);
+	if(!res)
+		goto error;
+
+	lua_pushstring(L,res);
+	close_file(1,fds[0]);
+	free(res);
 	return 1;
+
+err_cache:
+	res = get_all_keys_for_file(fds,index,mode == MAKE_KEY_JS_STRING ? MAKE_KEY_JS_STRING : 0,NULL);
+	if(!res)
+		goto error;
+
+	lua_pushstring(L,res);
+	lua_pushinteger(L,(lua_Integer)CACHE_FAILED);
+	close_file(3,fds[0],fds[1],fds[2]);
+	free(res);
+	return 2;
+err_open_file:
+	lua_pushstring(L,"cannot open the file.");
+	lua_pushinteger(L,(lua_Integer) -1);
+	return 2;
+err_not_db_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
+	return 2;
 error:
 	lua_pushstring(L,"key results is NULL");
 	close_file(1,fds[0]);
+	return 1;
+error_key_null_from_cache:
+	lua_pushstring(L,"key results is NULL");
 	return 1;
 }
 

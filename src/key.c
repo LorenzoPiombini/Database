@@ -87,8 +87,10 @@ i64 generate_numeric_key(int *fds, int mode, int base, struct Cache *c)
 	return key;
 }
 
-char *get_all_keys_for_file(int *fds,int index,int mode)
+char *get_all_keys_for_file(int *fds,int index,int mode,HashTable *index_file)
 {
+	int cache_mode = IS_KEY_GET_ALL_CACHE(mode);
+	mode = GET_MAKE_KEY_JS_STRING(mode);
 	HashTable ht;
 	memset(&ht,0,sizeof(HashTable));
 	HashTable *p_ht = &ht;
@@ -96,25 +98,35 @@ char *get_all_keys_for_file(int *fds,int index,int mode)
 	struct Keys_ht all_keys;
 	memset(&all_keys,0,sizeof(struct Keys_ht));
 
-	if (index <= 0){
-		if(!read_index_nr(0,fds[0],&p_ht)){
-			/*log failure*/
-			return NULL;
-		}
-	} else{
-		if(!read_index_nr(index,fds[0],&p_ht)){
-			/*log failure*/
-			return NULL;
+	if(cache_mode){
+		if(index <= 0)
+			ht = index_file[0];
+		else
+			ht = index_file[index];
+	}else{
+		if(index <= 0){
+			if(!read_index_nr(0,fds[0],&p_ht)){
+				/*log failure*/
+				return NULL;
+			}
+		} else{
+			if(!read_index_nr(index,fds[0],&p_ht)){
+				/*log failure*/
+				return NULL;
+			}
 		}
 	}
+
+
 
 	if(keys(&ht,&all_keys)){
 		/*log failure*/
-		destroy_hasht(&ht);
+		if(!cache_mode) destroy_hasht(&ht);
 		return NULL;
 	}
 
-	destroy_hasht(&ht);
+	if(!cache_mode) destroy_hasht(&ht);
+
 	assert(all_keys.keys != NULL);
 
 	/*stringfy the data */

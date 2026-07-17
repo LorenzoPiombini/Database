@@ -308,26 +308,31 @@ new_up_ords_err:
 		{
 			/*TODO this can be moved to lua side completely*/
 			/*get the all keys for the sales order file or the CUSTOMER*/
-			int fds[3];
-			memset(fds,-1,sizeof(int)*3);
-			char files[3][256] = {0};
-
 			char *keys = 0x0;
+			int index = 0,mode = 0;
 			switch(operation_to_perform){
 			case S_ORD:
-				if(open_files(SALES_ORDERS_H,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
-				keys = get_all_keys_for_file(fds,0,0);
+				if(execute_lua_function("g_all_key","sii>s",SALES_ORDERS_H,&index,&mode,&keys) == -1){
+					clear_lua_stack();
+					goto error_s_ord;
+				}
 				break;
 			case CUSTOMER_GET_ALL:
-				if(open_files(CUSTOMER_FILE,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
-				keys = get_all_keys_for_file(fds,2,MAKE_KEY_JS_STRING);
+				index = 2, mode = MAKE_KEY_JS_STRING;
+				if(execute_lua_function("g_all_key","sii>s",CUSTOMER_FILE,&index,&mode,&keys) == -1){
+					clear_lua_stack();
+					goto error_s_ord;
+				}
 				break;
 			case ITEM_GET_ALL:
-				if(open_files(ITEM_FILE,fds, files, ONLY_INDEX) == -1) goto error_s_ord;
-				keys = get_all_keys_for_file(fds,1,MAKE_KEY_JS_STRING);
+				index = 1, mode = MAKE_KEY_JS_STRING;
+				if(execute_lua_function("g_all_key","sii>s",ITEM_FILE,&index,&mode,&keys) == -1){
+					clear_lua_stack();
+					goto error_s_ord;
+				}	
 				break;
 			default:
-				break;
+				goto error_s_ord;
 			}
 
 
@@ -356,7 +361,6 @@ new_up_ords_err:
 				memset(err,0,1024);
 				strncpy(err,erro_message,strlen(erro_message));
 				write(data_sock,err,sizeof(err));
-				close(fds[0]);
 				close(data_sock);
 				continue;
 			}
@@ -385,7 +389,6 @@ new_up_ords_err:
 				}
 
 				close(data_sock);
-				close(fds[0]);
 				free(d_buff);
 				continue;
 			}else{
@@ -398,14 +401,12 @@ new_up_ords_err:
 				free(keys);
 				keys = NULL;
 				close(data_sock);
-				close(fds[0]);
 				continue;
 			}
 error_s_ord:
 			if(keys)
 				free(keys);
 
-			close(fds[0]);
 			memset(err,0,1024);
 			write(data_sock,err,sizeof(err));
 			continue;
