@@ -312,21 +312,21 @@ new_up_ords_err:
 			int index = 0,mode = 0;
 			switch(operation_to_perform){
 			case S_ORD:
-				if(execute_lua_function("g_all_key","sii>s",SALES_ORDERS_H,&index,&mode,&keys) == -1){
+				if(execute_lua_function("g_all_key","sii>s",SALES_ORDERS_H,index,mode,&keys) == -1){
 					clear_lua_stack();
 					goto error_s_ord;
 				}
 				break;
 			case CUSTOMER_GET_ALL:
 				index = 2, mode = MAKE_KEY_JS_STRING;
-				if(execute_lua_function("g_all_key","sii>s",CUSTOMER_FILE,&index,&mode,&keys) == -1){
+				if(execute_lua_function("g_all_key","sii>s",CUSTOMER_FILE,index,mode,&keys) == -1){
 					clear_lua_stack();
 					goto error_s_ord;
 				}
 				break;
 			case ITEM_GET_ALL:
 				index = 1, mode = MAKE_KEY_JS_STRING;
-				if(execute_lua_function("g_all_key","sii>s",ITEM_FILE,&index,&mode,&keys) == -1){
+				if(execute_lua_function("g_all_key","sii>s",ITEM_FILE,index,mode,&keys) == -1){
 					clear_lua_stack();
 					goto error_s_ord;
 				}	
