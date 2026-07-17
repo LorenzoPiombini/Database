@@ -415,29 +415,35 @@ static int l_write_record(lua_State *L)
 
 	close_file(3,fds[0],fds[1],fds[2]);
 use_cache:
-	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
-		goto err_cache_invalid_data;
 
 	if(file_pos_in_the_cache != -1){
 		struct Cache *p = &dbCache[file_pos_in_the_cache];
+
+		struct Header_d hd_c = {0,0,&p->sch};
+		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0) == -1) goto err_cache_invalid_data;
 
 		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
 		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 		p->used = now_seconds();
 	}else{
+		/*THIS IS THE FIRST TIME WE CACHE THE FILE!!!!!*/
 		struct Cache *p = &dbCache[first_free_cache];
+
+		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) goto err_cache_invalid_data;
 
 		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
 		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 
 		p->used = now_seconds();
+		free_schema(hd.sch_d);
+		if(fds[0] != -1)
+			close_file(3,fds[0],fds[1],fds[2]);
 	}
 	
 	port_record(L,&rec);
 	free_record(&rec,rec.fields_num);
-	free_schema(hd.sch_d);
 	return 2;/*return the key and the record*/
 
 err_cache:

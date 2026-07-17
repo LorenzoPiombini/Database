@@ -3,12 +3,60 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "common.h"
 #include "test.h"
 #include "export_db_lua.h"
 #include "file.h"
 #include "crud.h"
 #include "lock.h"
 #include "lua_start.h"
+
+int CRUD_test_check_data()
+{
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Record_f rec = {0};
+	struct Schema sch = {0};
+	char *file_name = "customer";
+    char *data_to_add = "name:Test LLC:addr:1B W 8th St:csz:New York NY 10011 :price_level_id:STND";
+
+	/*this creates a file named test, and give a definitions*/
+	if(open_files(file_name,fds,files,CREATE_FILE) == -1){
+		return -1;
+	}
+
+	if(!create_file_definition_with_no_value(TYPE_DF,7,
+				"name:t_s:addr:t_s:csz:t_s:phone:t_s:fax:t_s:email:t_s:price_level_id:t_s", 
+				&sch)) goto clean_on_failure;
+
+
+	struct Header_d hd = {0, 0, &sch};
+	if (!create_header(&hd)) goto clean_on_failure;
+
+	if (!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	int lock_f = STD_LOCK, check = 0;
+	if((check = check_data(file_name,data_to_add,fds,files, &rec,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
+
+	if(check != SCHEMA_CT) goto clean_on_failure;
+
+	free_record(&rec,rec.fields_num);
+	free_schema(&sch);
+	close_file(3,fds[0],fds[1],fds[2]);
+	delete_file(3,files[0],files[1],files[2]);
+	return 0;
+	
+clean_on_failure:
+	if(rec.fields)
+		free_record(&rec,rec.fields_num);
+	if(sch.fields_name)
+		free_schema(&sch);
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	delete_file(3,files[0],files[1],files[2]);
+	return -1;
+}
 
 int create_file_test(){
 	int fds[3];
@@ -723,3 +771,90 @@ clean_on_failure:
 	return -1;
 }
 
+int LUA_test_write_customer_cache()
+{
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Record_f rec = {0};
+	struct Schema sch = {0};
+	char *file_name = "customer";
+    char *data_to_add = "name:Test LLC:addr:1B W 8th St:csz:New York NY 10011 :price_level_id:STND";
+
+	/*this creates a file named test, and give a definitions*/
+	if(open_files(file_name,fds,files,CREATE_FILE) == -1){
+		return -1;
+	}
+
+	if(!create_file_definition_with_no_value(TYPE_DF,7,
+				"name:t_s:addr:t_s:csz:t_s:phone:t_s:fax:t_s:email:t_s:price_level_id:t_s", 
+				&sch)) goto clean_on_failure;
+
+
+	struct Header_d hd = {0, 0, &sch};
+	if (!create_header(&hd)) goto clean_on_failure;
+
+	if (!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,sizeof(int)*3);
+
+	lua_pushstring(L,"./customer");
+	lua_setglobal(L,"customers");
+
+	lua_pushboolean(L,0);
+	lua_setglobal(L,"TEST");
+
+	char *func = "write_customers";
+	lua_getglobal(L,func);
+	lua_pushstring(L,"name:Test LLC:addr:1B W 8th St:csz:New York NY 10011 :price_level_id:STND");
+
+	if(lua_pcall(L,1,2,0) != LUA_OK) goto clean_on_failure;
+
+	int is_num;
+	uint32_t k = lua_tonumberx(L, -2, &is_num); 
+	if(!is_num) goto clean_on_failure;
+
+	if(k != 0) goto clean_on_failure;
+
+	/*WE NEED TO CLEAN THE CACHE*/
+	int i;
+	for(i = 0;i < CACHE_SIZE; i++){
+		if(!dbCache[i].index_file) continue;
+
+		Node *r = ht_delete((void*)dbCache[i].file_name,&cache_register,STR);
+		if(!r){
+			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
+			goto clean_on_failure;
+		}
+		free_ht_node(r);
+		free_cache(&dbCache[i]);
+	}
+
+	free_schema(&sch);
+
+	lua_pushstring(L,"/root/db/customer");
+	lua_setglobal(L,"customers");
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
+	clear_lua_stack();
+
+	delete_file(3,files[0],files[1],files[2]);
+	return 0;
+
+clean_on_failure:
+	lua_pushstring(L,"/root/db/customer");
+	lua_setglobal(L,"customers");
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
+	clear_lua_stack();
+
+	if(sch.types != NULL)
+		free_schema(&sch);
+
+	if(fds[0] != -1)
+		close_file(3,fds[0],fds[1],fds[2]);
+
+	delete_file(3,files[0],files[1],files[2]);
+	return -1;
+}

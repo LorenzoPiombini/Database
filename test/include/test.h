@@ -20,12 +20,14 @@
 int create_file_test();
 int delete_file_test(char files_name[3][MAX_FILE_PATH_LENGTH]);
 int lock_file_test();
+int CRUD_test_check_data();
 int LUA_test_save_key_at_index();
 int LUA_test_save_key_at_index_chache();
 int LUA_test_create_record();
 int LUA_port_table_to_record_test();
 int LUA_test_w_rec();
 int LUA_test_w_rec_cache();
+int LUA_test_write_customer_cache();
 
 #endif
 
