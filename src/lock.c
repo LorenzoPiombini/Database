@@ -23,7 +23,7 @@ int release_lock(int *fds,int mode){
 	mode = GET_TYPE_LOCK(mode);
 	if(mode < 1 || mode > 3) mode = STD_LOCK;
 
-	while((r = lock(fds[mode],UNLOCK)) == WTLK);
+	while((r = lock(fds[mode-1],UNLOCK)) == WTLK);
 	if(r == -1){
 		fprintf(stderr,"can't acquire or release proper lock.\n");
 		return -1;
@@ -89,7 +89,7 @@ int acquire_lock(int *fds, int mode){
 	mode = GET_TYPE_LOCK(mode);
 	if(mode < 1 || mode > 3) mode = STD_LOCK;
 
-	while((r = lock(fds[mode],WLOCK)) == WTLK){
+	while((r = lock(fds[mode-1],WLOCK)) == WTLK){
 		if(!slept){
 			sleep(second_to_sleep ? second_to_sleep : 10);
 			slept = 1;
@@ -101,7 +101,7 @@ int acquire_lock(int *fds, int mode){
 
 	if(r == -1){
 		fprintf(stderr,"can't acquire or release proper lock.\n");
-		while((r = lock(fds[mode],UNLOCK)) == WTLK);
+		while((r = lock(fds[mode-1],UNLOCK)) == WTLK);
 		return -1;
 	}
 
