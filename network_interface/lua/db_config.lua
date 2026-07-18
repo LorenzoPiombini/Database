@@ -239,7 +239,7 @@ function get_customer(key)
 		local sanitized_key = string.gsub(key,"%%%d+"," ") -- decode URL encoding
 		cust,err = g_rec(customers,sanitized_key,2); -- 2 is the index number in the file	
 	else
-		cust,err = g_rec(customers,key)
+		cust,err = g_rec(customers,key,2) -- 2 is the index number in the file	
 	end
 
 	if cust == nil  then
@@ -536,6 +536,7 @@ function sales_orders_week()
 end
 
 local function is_date_in_the_past(date)
+	if type(date) == 'table' then return false end
 	one_day_seconds = 60*60*24
 	now = os.time()
 	if now - date < one_day_seconds then
