@@ -381,8 +381,6 @@ new_up_ords_err:
 					goto error_s_ord;
 				}
 
-				free(keys);
-				keys = NULL;
 				if(write(data_sock,d_buff,strlen(d_buff)) == -1) {
 					free(d_buff);
 					goto error_s_ord;
@@ -398,15 +396,10 @@ new_up_ords_err:
 
 				if(write(data_sock,succ,strlen(succ)) == -1) goto error_s_ord;
 
-				free(keys);
-				keys = NULL;
 				close(data_sock);
 				continue;
 			}
 error_s_ord:
-			if(keys)
-				free(keys);
-
 			memset(err,0,1024);
 			write(data_sock,err,sizeof(err));
 			continue;
