@@ -30,16 +30,7 @@ int main()
 	}
 	
 	pclose(fp);
-	char files[3][256] = {0};
-	strncpy(files[0],"test_one.inx",strlen("test_one.inx"));
-	strncpy(files[1],"test_one.dat",strlen("test_one.inx"));
-	strncpy(files[2],"test_one.sch",strlen("test_one.inx"));
-	if(delete_file_test(files) == -1){
-		strncpy(failed_test[failed],"delete_file_test()",strlen("delete_file_test()"));
-		failed++;
-	}else{
-		passed++;
-	}
+
 
 	count++;
 	if(lock_file_test() == -1){
@@ -59,6 +50,14 @@ int main()
 
 	if(init_lua("test/lua/old_test.lua") == -1) return -1;
 
+	/*create a file once for the tests!*/
+	struct Schema sch = {0};
+	char files[3][256] = {0};
+	if(create_file_for_test("./test","field:t_s", &sch,files) == -1){
+		fprintf(stderr,"(%s): cannot create file for testing...aborting\n",prog);
+		return -1;
+	}
+
 	count++;
 	if(LUA_port_table_to_record_test() == -1){
 		strncpy(failed_test[failed],"LUA_port_table_to_record_test()",strlen("LUA_port_table_to_record_test()"));
@@ -68,7 +67,7 @@ int main()
 	}
 
 	count++;
-	if(LUA_test_w_rec() == -1){
+	if(LUA_test_w_rec(&sch) == -1){
 		strncpy(failed_test[failed],"LUA_test_w_rec()",strlen("LUA_test_w_rec()"));
 		failed++;
 	}else{
@@ -76,7 +75,7 @@ int main()
 	}
 		
 	count++;
-	if(LUA_test_w_rec_cache() == -1){
+	if(LUA_test_w_rec_cache(&sch) == -1){
 		strncpy(failed_test[failed],"LUA_test_w_rec_cache()",strlen("LUA_test_w_rec_cache()"));
 		failed++;
 	}else{
@@ -84,7 +83,7 @@ int main()
 	}
 
 	count++;
-	if(LUA_test_create_record() == -1){
+	if(LUA_test_create_record(&sch) == -1){
 		strncpy(failed_test[failed],"LUA_test_create_record()",strlen("LUA_test_create_record()"));
 		failed++;
 	}else{
@@ -92,7 +91,7 @@ int main()
 	}
 
 	count++;
-	if(LUA_test_save_key_at_index() == -1){
+	if(LUA_test_save_key_at_index(&sch) == -1){
 		strncpy(failed_test[failed],"LUA_test_save_key_at_index()",strlen("LUA_test_save_key_at_index()"));
 		failed++;
 	}else{
@@ -100,7 +99,7 @@ int main()
 	}
 
 	count++;
-	if(LUA_test_save_key_at_index_chache() == -1){
+	if(LUA_test_save_key_at_index_chache(&sch) == -1){
 		strncpy(failed_test[failed],"LUA_test_save_key_at_index_chache()",strlen("LUA_test_save_key_at_index_chache()"));
 		failed++;
 	}else{
@@ -119,6 +118,13 @@ int main()
 
 	/*===========================================*/
 
+	if(delete_file_test(files) == -1){
+		strncpy(failed_test[failed],"delete_file_test()",strlen("delete_file_test()"));
+		failed++;
+	}else{
+		passed++;
+	}
+	free_schema(&sch);
 	fprintf(stdout,"======== END test for database ===========\n");
 	fprintf(stdout,"(%s): %d tests executed, %s%d tests passed%s, %s%d tests failed%s.\n",
 														prog,

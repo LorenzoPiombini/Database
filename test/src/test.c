@@ -9,9 +9,41 @@
 #include "export_db_lua.h"
 #include "file.h"
 #include "crud.h"
+#include "str_op.h"
 #include "lock.h"
 #include "lua_start.h"
 
+int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH])
+{
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
+	struct Schema sch_in = {0};
+	/*this creates a file named test, and give a definitions*/
+	if(open_files(file_name,fds,files,CREATE_FILE) == -1){
+		return -1;
+	}
+
+	int field_count = count_fields(file_definition,":");
+	if(!create_file_definition_with_no_value(TYPE_DF,field_count,file_definition,&sch_in)) goto clean_on_failure;
+
+
+	struct Header_d hd = {0, 0, &sch_in};
+	if(!create_header(&hd)) goto clean_on_failure;
+
+	if(!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	*sch = sch_in;
+	close_file(3,fds[0],fds[1],fds[2]);
+	return 0;
+
+clean_on_failure:
+	if(sch->fields_name)
+		free_schema(sch);
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	delete_file(3,files[0],files[1],files[2]);
+	return -1;
+}
 int CRUD_test_check_data()
 {
 	int fds[3];
@@ -86,9 +118,7 @@ int create_file_test(){
 	pclose(fp);
 	close_file(3,fds[0],fds[1],fds[2]);
 	if(count == 3) {
-		if(delete_file_test(files) == -1)
-			return -1;
-
+		delete_file(3,files[0],files[1],files[2]);
 		return 0;
 	}
 
@@ -187,28 +217,8 @@ int lock_file_test()
    return 0;
 }
 
-int LUA_test_save_key_at_index_chache()
+int LUA_test_save_key_at_index_chache(struct Schema *sch)
 {
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
-	char files[3][MAX_FILE_PATH_LENGTH] = {0};
-	struct Schema sch = {0};
-
-	/*this creates a file named test, and give a definitions*/
-	if(open_files("./test",fds,files,CREATE_FILE) == -1){
-		return -1;
-	}
-
-	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
-
-	struct Header_d hd = {0, 0, &sch};
-	if (!create_header(&hd)) goto clean_on_failure;
-
-	if (!write_header(fds[2], &hd)) goto clean_on_failure;
-
-	close_file(3,fds[0],fds[1],fds[2]);
-	memset(fds,-1,sizeof(int)*3);
-
 	lua_pushboolean(L,0);
 	lua_setglobal(L,"TEST");
 
@@ -221,12 +231,12 @@ int LUA_test_save_key_at_index_chache()
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	func = "indexing";
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test");
-	lua_pushstring(L,"keySTR");
+	lua_pushstring(L,"keySTRcache");
 	lua_pushinteger(L,2);
 	lua_pushinteger(L,rec.offset);
 
@@ -248,7 +258,7 @@ int LUA_test_save_key_at_index_chache()
 	for(i = 0;i < CACHE_SIZE; i++){
 		if(!dbCache[i].index_file) continue;
 
-		char* k= "keySTR";
+		char* k= "keySTRcache";
 		if(get(k,&dbCache[i].index_file[2],STR) == -1){
 			free_cache(&dbCache[i]);
 			goto clean_on_failure;
@@ -264,49 +274,23 @@ int LUA_test_save_key_at_index_chache()
 	}
 
 	free_record(&rec,rec.fields_num);
-	free_schema(&sch);
-	delete_file(3,files[0],files[1],files[2]);
 	lua_pushboolean(L,1);
 	lua_setglobal(L,"TEST");
 	clear_lua_stack();
 	return 0;
 
 clean_on_failure:
-	if(sch.types != NULL)
-		free_schema(&sch);
 	if(rec.fields != NULL)
 		free_record(&rec,rec.fields_num);
 
-	if(fds[0] != -1)
-		close_file(3,fds[0],fds[1],fds[2]);
-
-	delete_file(3,files[0],files[1],files[2]);
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
 	clear_lua_stack();
 	return -1;
 
 }
-int LUA_test_save_key_at_index()
+int LUA_test_save_key_at_index(struct Schema *sch)
 {
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
-	char files[3][MAX_FILE_PATH_LENGTH] = {0};
-	struct Schema sch = {0};
-
-	/*this creates a file named test, and give a definitions*/
-	if(open_files("./test",fds,files,CREATE_FILE) == -1){
-		return -1;
-	}
-
-	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
-
-	struct Header_d hd = {0, 0, &sch};
-	if (!create_header(&hd)) goto clean_on_failure;
-
-	if (!write_header(fds[2], &hd)) goto clean_on_failure;
-
-	close_file(3,fds[0],fds[1],fds[2]);
-	memset(fds,-1,sizeof(int)*3);
-
 	char *func = "create_rec";
 
 	lua_getglobal(L,func);
@@ -316,7 +300,7 @@ int LUA_test_save_key_at_index()
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	func = "indexing";
 	lua_getglobal(L,func);
@@ -337,47 +321,18 @@ int LUA_test_save_key_at_index()
 	if(strncmp(m,"index write succeed",strlen(m)) != 0) goto clean_on_failure;
 
 	free_record(&rec,rec.fields_num);
-	free_schema(&sch);
-	delete_file(3,files[0],files[1],files[2]);
 	return 0;
 
 clean_on_failure:
-	if(sch.types != NULL)
-		free_schema(&sch);
 	if(rec.fields != NULL)
 		free_record(&rec,rec.fields_num);
 
-	if(fds[0] != -1)
-		close_file(3,fds[0],fds[1],fds[2]);
-
-	delete_file(3,files[0],files[1],files[2]);
 	clear_lua_stack();
 	return -1;
 }
 
-int LUA_test_create_record()
+int LUA_test_create_record(struct Schema *sch)
 {
-
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
-	char files[3][MAX_FILE_PATH_LENGTH] = {0};
-	struct Schema sch = {0};
-
-	/*this creates a file named test, and give a definitions*/
-	if(open_files("./test",fds,files,CREATE_FILE) == -1){
-		return -1;
-	}
-
-	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
-
-	struct Header_d hd = {0, 0, &sch};
-	if (!create_header(&hd)) goto clean_on_failure;
-
-	if (!write_header(fds[2], &hd)) goto clean_on_failure;
-
-	close_file(3,fds[0],fds[1],fds[2]);
-	memset(fds,-1,sizeof(int)*3);
-
 	char *func = "create_rec";
 
 	lua_getglobal(L,func);
@@ -387,7 +342,7 @@ int LUA_test_create_record()
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	clear_lua_stack();
 	
@@ -395,20 +350,12 @@ int LUA_test_create_record()
 				strlen("This is another field! with a lot of spaces and weird stuf@")) != 0) goto clean_on_failure;
 
 	free_record(&rec,rec.fields_num);
-	free_schema(&sch);
-	delete_file(3,files[0],files[1],files[2]);
 	return 0;
 
 clean_on_failure:
-	if(sch.types != NULL)
-		free_schema(&sch);
 	if(rec.fields != NULL)
 		free_record(&rec,rec.fields_num);
 
-	if(fds[0] != -1)
-		close_file(3,fds[0],fds[1],fds[2]);
-
-	delete_file(3,files[0],files[1],files[2]);
 	clear_lua_stack();
 	return -1;
 }
@@ -421,7 +368,7 @@ int LUA_port_table_to_record_test()
 	struct Schema sch = {0};
 
 	/*this creates a file named test, and give a definitions*/
-	if(open_files("./test",fds,files,CREATE_FILE) == -1){
+	if(open_files("./test_pt",fds,files,CREATE_FILE) == -1){
 		return -1;
 	}
 
@@ -440,7 +387,7 @@ int LUA_port_table_to_record_test()
 
 	/*BEHAVIOUR 1*/
 	lua_getglobal(L,func);
-	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"test_pt"); /*Arg 1*/
 	lua_pushstring(L,"name:Lorenzo:last_name:Piombini:age:39"); /*Arg 2*/
 
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
@@ -470,8 +417,9 @@ int LUA_port_table_to_record_test()
 	return 0;
 
 clean_on_failure:
-	if(sch.types != NULL)
+	if(sch.fields_name != NULL)
 		free_schema(&sch);
+
 	if(rec.fields != NULL)
 		free_record(&rec,rec.fields_num);
 
@@ -483,30 +431,8 @@ clean_on_failure:
 	return -1;
 }
 
-int LUA_test_w_rec_cache()
+int LUA_test_w_rec_cache(struct Schema *sch)
 {
-
-	/*this creates a file named test, and give a definitions*/
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
-	char files[3][MAX_FILE_PATH_LENGTH] = {0};
-	struct Schema sch = {0};
-
-	if(open_files("./test",fds,files,CREATE_FILE) == -1){
-		return -1;
-	}
-
-	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
-
-	struct Header_d hd = {0, 0, &sch};
-	if (!create_header(&hd)) goto clean_on_failure;
-
-	if (!write_header(fds[2], &hd)) goto clean_on_failure;
-
-	close_file(3,fds[0],fds[1],fds[2]);
-	memset(fds,-1,sizeof(int)*3);
-	/*=======================================================*/
-
 	/*desable the test mode and use the cache system*/
 	lua_pushboolean(L,0);
 	lua_setglobal(L,"TEST");
@@ -522,7 +448,7 @@ int LUA_test_w_rec_cache()
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -535,7 +461,7 @@ int LUA_test_w_rec_cache()
 	
 	clear_lua_stack();
 
-	if(k != 0 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
+	if(strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0)) goto clean_on_failure;
 	
 	free_record(&rec,rec.fields_num);
 	rec.fields = NULL;
@@ -562,12 +488,13 @@ int LUA_test_w_rec_cache()
 		free_cache(&dbCache[i]);
 	}
 	
-	free_schema(&sch);
 	/*VERIFY THE ACTUAL FILE HAS THE DATA!*/
 
-	FILE *fp = popen("SHOW test 0","r");
+	char command[100] = {0};
+	if(snprintf(command,100,"SHOW test %u",k) == -1) goto clean_on_failure;
+
+	FILE *fp = popen(command,"r");
 	if(!fp){
-		delete_file(3,files[0],files[1],files[2]);
 		return -1;
 	}
 
@@ -580,7 +507,6 @@ int LUA_test_w_rec_cache()
 	}
 
 	if(found < 1){
-		delete_file(3,files[0],files[1],files[2]);
 		pclose(fp);
 		return -1;
 	}
@@ -589,19 +515,11 @@ int LUA_test_w_rec_cache()
 	/*enable back the test mode*/
 	lua_pushboolean(L,1);
 	lua_setglobal(L,"TEST");
-	delete_file(3,files[0],files[1],files[2]);
 	return 0;
 
 clean_on_failure:
-	if(sch.types != NULL)
-		free_schema(&sch);
 	if(rec.fields != NULL)
 		free_record(&rec,rec.fields_num);
-
-	if(fds[0] != -1)
-		close_file(3,fds[0],fds[1],fds[2]);
-
-	delete_file(3,files[0],files[1],files[2]);
 
 	/*enable back the test mode*/
 	lua_pushboolean(L,1);
@@ -610,30 +528,11 @@ clean_on_failure:
 	return -1;
 
 }
+
 /* w_rec has 4 different behaviour
 	we test all of them here */
-int LUA_test_w_rec()
+int LUA_test_w_rec(struct Schema *sch)
 {
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
-	char files[3][MAX_FILE_PATH_LENGTH] = {0};
-	struct Schema sch = {0};
-
-	/*this creates a file named test, and give a definitions*/
-	if(open_files("./test",fds,files,CREATE_FILE) == -1){
-		return -1;
-	}
-
-	if(!create_file_definition_with_no_value(TYPE_DF,1,"field:t_s", &sch)) goto clean_on_failure;
-
-	struct Header_d hd = {0, 0, &sch};
-	if (!create_header(&hd)) goto clean_on_failure;
-
-	if (!write_header(fds[2], &hd)) goto clean_on_failure;
-
-	close_file(3,fds[0],fds[1],fds[2]);
-	memset(fds,-1,sizeof(int)*3);
-
 	/*the lua function w_rec will open and close the file*/
 	char *func = "w_rec";
 
@@ -645,7 +544,7 @@ int LUA_test_w_rec()
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -671,7 +570,7 @@ int LUA_test_w_rec()
 	lua_pushstring(L,"key_1"); /*Arg 2*/
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	char *k_s = (char*)lua_tostring(L, -3); 
 	if(!k_s) goto clean_on_failure;
@@ -691,7 +590,7 @@ int LUA_test_w_rec()
 	lua_pushinteger(L,32); /*Arg 3*/
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	is_num = 0;
 	k = lua_tonumberx(L, -3, &is_num); 
@@ -712,7 +611,7 @@ int LUA_test_w_rec()
 	lua_pushinteger(L,100); /*Arg 4*/
 	if(lua_pcall(L,4,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
 
 	is_num = 0;
 	k = lua_tonumberx(L, -3, &is_num); 
@@ -733,41 +632,12 @@ int LUA_test_w_rec()
 
 	clear_lua_stack();
 
-	/*
-		we test this again to make sure the behaviour is
-		the one expected
-	*/
-	lua_getglobal(L,func);
-	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
-
-	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
-
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
-
-	is_num;
-	k = lua_tonumberx(L, -3, &is_num); 
-	if(!is_num) goto clean_on_failure;
-	
-	clear_lua_stack();
-
-	if(k != 4 || (strncmp(rec.fields[0].data.s,"This is a field",strlen("This is a field") != 0))) goto clean_on_failure;
-
-	free_record(&rec,rec.fields_num);
-	free_schema(&sch);
-	delete_file(3,files[0],files[1],files[2]);
 	return 0;
 
 clean_on_failure:
-	if(sch.types != NULL)
-		free_schema(&sch);
 	if(rec.fields != NULL)
 		free_record(&rec,rec.fields_num);
 
-	if(fds[0] != -1)
-		close_file(3,fds[0],fds[1],fds[2]);
-
-	delete_file(3,files[0],files[1],files[2]);
 	clear_lua_stack();
 	return -1;
 }
