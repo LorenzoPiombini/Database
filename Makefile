@@ -172,6 +172,7 @@ net_int:
 		sudo gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/worker_process.c -o network_interface/obj/worker_process.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
 		gcc -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua5.4 -lcrud -ldblua;\
 		cp libworker.so /usr/local/lib/;\
+		cp network_interface/lua/db_config.lua /root/db/lua/;\
 	else \
 		sudo cp network_interface/include/lua_start.h network_interface/include/end_points.h network_interface/worker_process.h ;\
 		sudo gcc -DFEDORA -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/lua_start.c -o network_interface/obj/lua_start.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie;\
@@ -179,7 +180,7 @@ net_int:
 		sudo gcc -Wall -DFEDORA -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/worker_process.c -o network_interface/obj/worker_process.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie;\
 		gcc -DFEDORA -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua -lcrud -ldblua;\
 		cp libworker.so /usr/local/lib/;\
-		cp network_interface/lua/db_config.lua /root/db/lua/
+		cp network_interface/lua/db_config.lua /root/db/lua/;\
 	fi
 
 $(TARGET)_prod: $(OBJ_PROD)
