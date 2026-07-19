@@ -129,14 +129,14 @@ use_cache:
 	if(file_pos_in_the_cache != -1){
 		struct Cache *p = &dbCache[file_pos_in_the_cache];
 		if((pos = get(k, &p->index_file[index],key_type)) == -1) goto err_cache_rec_not_found;
-		p->data_file.offset = pos;
+		p->data_file.offset = (uint64_t)pos;
 		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
 		if(port_record(L,&rec)) goto err_exp_data_to_lua;
 		p->used = now_seconds();
 	}else{
 		struct Cache *p = &dbCache[first_free_cache];
 		if((pos = get(k, &p->index_file[index],key_type)) == -1) goto err_cache_rec_not_found;
-		p->data_file.offset = pos;
+		p->data_file.offset = (uint64_t)pos;
 		if(read_ram_file(file_name, &p->data_file, &rec, p->sch) == -1) goto err_read_ram_file;
 		if(port_record(L,&rec)) goto err_exp_data_to_lua;
 		p->used = now_seconds();
