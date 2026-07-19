@@ -501,12 +501,11 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	char buffer[1024*4];
 	int found = 0;
 	while(fgets(buffer,1024*4,fp) != NULL){
-		if(strstr(buffer, "field") 
-			|| strstr(buffer,"this is a field"))
-			found++;
+		if(strstr(buffer, "field")) found++;
+		if(strstr(buffer,"This is a field")) found++;
 	}
 
-	if(found < 1){
+	if(found != 2){
 		pclose(fp);
 		return -1;
 	}

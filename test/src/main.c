@@ -21,17 +21,8 @@ int main()
 	} else{
 		passed++;
 	}
-
-	count++;
-	FILE *fp = popen("touch test_one.inx test_one.dat test_one.sch","r");
-	if(!fp){
-		failed++;
-		fprintf(stderr,"(%s): fopen() failed\n",prog);
-	}
 	
-	pclose(fp);
-
-
+	
 	count++;
 	if(lock_file_test() == -1){
 		strncpy(failed_test[failed],"lock_file_test()",strlen("lock_file_test()"));
@@ -118,6 +109,7 @@ int main()
 
 	/*===========================================*/
 
+	count++;
 	if(delete_file_test(files) == -1){
 		strncpy(failed_test[failed],"delete_file_test()",strlen("delete_file_test()"));
 		failed++;
