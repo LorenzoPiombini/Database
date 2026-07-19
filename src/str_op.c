@@ -2583,8 +2583,8 @@ int is_file_name_valid(char *str)
 void strip(const char c, char *str)
 {
 	size_t l = strlen(str);
-	char cpy[l+1];
-	memset(cpy,0,l+1);
+	char cpy[l];
+	memset(cpy,0,l);
 
 	size_t i,j;
 	for (i = 0, j = 0; i < l; i++){
