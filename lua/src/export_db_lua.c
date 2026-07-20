@@ -15,7 +15,7 @@
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
 
 struct Cache dbCache[CACHE_SIZE] = {0};
-HashTable cache_register = {7,0,0};
+HashTable cache_register = {7,NULL,NULL};
 static int get_free_slot_cache(struct Cache *c);
 static int check_and_free_one_cache(struct Cache *c);
 

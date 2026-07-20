@@ -16,6 +16,11 @@
 #define CACHE_SIZE 30
 extern struct Cache dbCache[CACHE_SIZE];
 
+/* Key,value pair the key will be the file name in the cache, 
+ *  value is the position of the file in the cash
+ * */
+extern HashTable cache_register;
+
 int port_record(lua_State *L, struct Record_f *rec);
 int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch);
 #endif
