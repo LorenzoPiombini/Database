@@ -32,10 +32,6 @@ struct Cache{
 };
 
 
-/* Key,value pair the key will be the file name in the cache, 
- *  value is the position of the file in the cash
- * */
-extern HashTable cache_register;
 
 #if defined(__linux__) || defined(__APPLE__)
 
