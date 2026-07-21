@@ -98,13 +98,13 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibf)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
-	if [ "$(IS_FEDORA)" = "no" ]; then \
-		sudo gcc -Wall -fPIC -shared -llua5.4 -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl);\
-	else\
-		sudo gcc -Wall -fPIC -shared -llua -lcrud -o $(SHAREDLIBexpl) $(OBJlibexpl);\
-	fi
-
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBdate) $(OBJlibdate)
+#	if [ "$(IS_FEDORA)" = "no" ]; then \
+#		sudo gcc -Wall -fPIC -shared -llua5.4  -o $(SHAREDLIBexpl) $(OBJlibexpl);\
+#	else\
+#		sudo gcc -Wall -fPIC -shared -llua -o $(SHAREDLIBexpl) $(OBJlibexpl);\
+#	fi
+
 
 libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBht) $(OBJlibhtPR)
@@ -132,7 +132,7 @@ test:
 	if [ "$(IS_FEDORA)" = "no" ]; then \
 		gcc -g3 -o test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -ldblua -lcrud -llua5.4 -fsanitize=address -Itest/include;\
 	else\
-		gcc -g3 -DFEDORA -o  test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -ldblua -lcrud -llua -fsanitize=address -Itest/include;\
+		gcc -g3 -DFEDORA -o  test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -lcrud -llua -fsanitize=address -Itest/include;\
 	fi
 	test/test_suite
 	
@@ -144,7 +144,7 @@ obj/%.o : src/%.c
 	if [ "$(IS_FEDORA)" = "no" ]; then \
 		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
 	else\
-		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -DFEDORA -fstack-protector-strong -fPIC -pie;\
+		sudo gcc  -std=c89 -Werror -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c $< -o $@ -Iinclude -DFEDORA -fstack-protector-strong -fPIC -pie -fsanitize=address;\
 	fi
 
 lua: lua_obj
@@ -152,16 +152,17 @@ lua: lua_obj
 		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua5.4  -ldl -fsanitize=address;\
 		mv db.so /usr/local/lib/lua/5.4/; \
 	else \
-		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua -DFEDORA -ldl;\
+		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua -DFEDORA -ldl -fsanitize=address;\
 		cp db.so /usr/share/lua/5.4/;\
 		cp db.so /usr/lib64/lua/5.4/;\
+		mv db.so /usr/local/lib/libdb.so;\
 	fi
 
 lua_obj: 
 	if [ "$(IS_FEDORA)" = "no" ]; then \
 		sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -Iinclude -Ilua/include -I/usr/include/lua5.4  -o obj/export_db_lua.o;\
 	else \
-		sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -DFEDORA -Iinclude -Ilua/include -I/usr/include/lua -o obj/export_db_lua.o;\
+		sudo gcc -g3 -fPIC -Wall -c lua/src/export_db_lua.c  -lcrud  -DFEDORA -Iinclude -Ilua/include -I/usr/include/lua -o obj/export_db_lua.o -fsanitize=address;\
 	fi
 
 net_int:
@@ -170,15 +171,16 @@ net_int:
 		sudo gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/lua_start.c -o network_interface/obj/lua_start.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
 		sudo gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/end_points.c -o network_interface/obj/end_points.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
 		sudo gcc -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/worker_process.c -o network_interface/obj/worker_process.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIC -pie -fsanitize=address;\
-		gcc -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua5.4 -lcrud -ldblua;\
+		gcc -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua5.4 -lcrud ;\
 		cp libworker.so /usr/local/lib/;\
 		cp network_interface/lua/db_config.lua /root/db/lua/;\
 	else \
-		sudo cp network_interface/include/lua_start.h network_interface/include/end_points.h network_interface/worker_process.h ;\
-		sudo gcc -DFEDORA -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/lua_start.c -o network_interface/obj/lua_start.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie;\
-		sudo gcc -Wall -DFEDORA -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/end_points.c -o network_interface/obj/end_points.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong  -fPIC -pie;\
-		sudo gcc -Wall -DFEDORA -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/worker_process.c -o network_interface/obj/worker_process.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie;\
-		gcc -DFEDORA -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua -lcrud -ldblua;\
+		sudo cp network_interface/include/lua_start.h network_interface/include/end_points.h network_interface/include/worker_process.h ;\
+		sudo gcc -DFEDORA -Wall -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/lua_start.c -o network_interface/obj/lua_start.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie -fsanitize=address;\
+		sudo gcc -Wall -DFEDORA -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/end_points.c -o network_interface/obj/end_points.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong  -fPIC -pie -fsanitize=address;\
+		sudo gcc -Wall -DFEDORA -Wextra -Walloca -Warray-bounds -Wnull-dereference -g3 -c network_interface/src/worker_process.c -o network_interface/obj/worker_process.o -Iinclude -I/usr/local/include/ -Inetwork_interface/include -fstack-protector-strong -fPIC -pie -fsanitize=address;\
+		gcc -DFEDORA -shared  network_interface/obj/lua_start.o network_interface/obj/worker_process.o network_interface/obj/end_points.o -o libworker.so -fPIC -llua -lcrud -fsanitize=address;\
+		cp libworker.so /usr/lib64/;\
 		cp libworker.so /usr/local/lib/;\
 		cp network_interface/lua/db_config.lua /root/db/lua/;\
 	fi
@@ -267,7 +269,7 @@ $(BINDIR)/WRITE:
 		echo "\t$(TARGET) -f \"\$$1\" -a \"\$$2\" -k \"\$$3\" " >> $@; \
 		echo "exit 0" >> $@; \
 		echo "fi" >> $@; \
-		echo "\t$(TARGET) -f \"\$$1\" -a \"\$$2\"" >> $@; \
+		echo "$(TARGET) -f \"\$$1\" -a \"\$$2\"" >> $@; \
 		chmod +x $@; \
 	fi
 
@@ -364,7 +366,6 @@ install: $(TARGET) $(BINDIR)/SWAP_INDEXES $(BINDIR)/SHOW $(BINDIR)/LIST $(BINDIR
 	install -m 755 $(SHAREDLIBr) $(LIBDIR)
 	install -m 755 $(SHAREDLIBp) $(LIBDIR) 
 	install -m 755 $(SHAREDLIBl) $(LIBDIR)
-	install -m 755 $(SHAREDLIBexpl) $(LIBDIR)
 	install -m 755 $(SHAREDLIBdate) $(LIBDIR)
 	ldconfig
 	make net_int

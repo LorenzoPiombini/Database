@@ -13,9 +13,15 @@
 		#include "lua5.4/lualib.h"
 #endif
 
+#include "hash_tbl.h"
+typedef int (*table_to_record_fn)(lua_State*,struct Record_f*,struct Schema*);
+extern table_to_record_fn tbl_to_rec;
 extern lua_State *L;
+extern struct Cache *dbcache_ptr; 
+extern HashTable *cache_r_ptr;
 
 #define LUA_CONFIG_FILE "/root/db/lua/db_config.lua"
+
 
 int init_lua(char *config_file);
 void clear_lua_stack();

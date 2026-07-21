@@ -6,8 +6,6 @@
 #include <time.h>
 
 #include "record.h"
-#include "export_db_lua.h"
-#include "hash_tbl.h"
 #include "file.h"
 #include "crud.h"
 #include "date.h"
@@ -16,6 +14,10 @@
 lua_State *L = NULL;
 static time_t sec = 0; 
 
+static const int CACHE_SIZE = 30;
+table_to_record_fn tbl_to_rec = NULL;
+struct Cache *dbcache_ptr = NULL;
+HashTable *cache_r_ptr =NULL;
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
 
@@ -23,7 +25,24 @@ int init_lua(char *config_file)
 {
 	L = luaL_newstate();
 	luaL_openlibs(L);
+
 	if(load(L,config_file) == -1) return -1;
+		
+	lua_getglobal(L,"dbCache_ptr");
+	if(!lua_islightuserdata(L,-1)) return -1;
+	dbcache_ptr = (struct Cache *) lua_touserdata(L,-1);
+	lua_pop(L,1);
+
+	lua_getglobal(L,"cache_register_ptr");
+	if(!lua_islightuserdata(L,-1)) return -1;
+	cache_r_ptr = (HashTable *) lua_touserdata(L,-1);
+	lua_pop(L,1);
+
+	lua_getglobal(L,"port_table_function");
+	if(!lua_islightuserdata(L,-1)) return -1;
+	tbl_to_rec = (table_to_record_fn)lua_touserdata(L,-1);
+	lua_pop(L,1);
+
 	check_config_file();
 	return 0;
 }
@@ -42,7 +61,7 @@ void check_config_file()
 
 	if(sec == 0){
 		sec = file_data.st_mtim.tv_sec;
-		free_inactive_caches(dbCache);
+		if(dbcache_ptr) free_inactive_caches(dbcache_ptr);
 		return;
 	}
 
@@ -52,7 +71,7 @@ void check_config_file()
 		sec = file_data.st_mtim.tv_sec;
 	}
 
-	free_inactive_caches(dbCache);
+	if(dbcache_ptr) free_inactive_caches(dbcache_ptr);
 }
 void clear_lua_stack()
 {
@@ -72,10 +91,13 @@ int execute_lua_function(char *func_name, char *func_sig, ...)
 		luaL_checkstack(L,1,"too many arguments");
 
 		switch(*func_sig){
-			case 'r': /* Record_f */	
+			case 'r':
+				/*TODO:
+			       	Record_f
 				if(port_record(L,va_arg(vl,struct Record_f*)) == -1){
 					return -1;
 				}
+				*/
 				break;
 			case 'd': /* double */	
 				lua_pushnumber(L,va_arg(vl,double));
@@ -228,7 +250,7 @@ static void free_inactive_caches(struct Cache *c)
 				return;
 			}
 
-			Node *r = ht_delete((void*)c[i].file_name,&cache_register,STR);
+			Node *r = ht_delete((void*)c[i].file_name,cache_r_ptr,STR);
 			if(!r){
 				fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
 				return;

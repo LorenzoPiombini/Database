@@ -2,23 +2,6 @@
 #include <string.h>
 #include "test.h"
 
-extern int luaopen_db(lua_State *L);
-
-int LUA_test_init(char *file_config){
-	L = luaL_newstate();
-	luaL_openlibs(L);
-
-	// Force Lua to use the C-linked version of the module!
-	// When the Lua script calls `require "db"`, it will use this instead of the .so file.
-	luaL_requiref(L, "db", luaopen_db, 1);
-	lua_pop(L, 1);
-	if(luaL_loadfile(L,file_config) || lua_pcall(L,0,0,0)){
-		fprintf(stderr,"%s\n",lua_tostring(L,-1));
-		return -1;
-	}
-	return 0;
-}
-
 #define GREEN_TEXT "\033[32m"
 #define RED_TEXT "\033[31m"
 #define REGULAR_TEXT "\033[0m"
@@ -55,7 +38,7 @@ int main()
 		passed++;
 	}
 
-	LUA_test_init("test/lua/old_test.lua");
+	init_lua("test/lua/old_test.lua");
 
 	/*create a file once for the tests!*/
 	struct Schema sch = {0};

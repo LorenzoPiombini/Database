@@ -50,6 +50,17 @@ static const luaL_Reg db_funcs[] = {
 
 int luaopen_db(lua_State *L){
 	luaL_newlib(L,db_funcs);
+
+	/*this is to access cache data from lua for our export_db_lua.c module*/
+	lua_pushlightuserdata(L,dbCache);
+	lua_setglobal(L,"dbCache_ptr");
+	
+
+	lua_pushlightuserdata(L,&cache_register);
+	lua_setglobal(L,"cache_register_ptr");
+
+	lua_pushlightuserdata(L,(void*)port_table_to_record);
+	lua_setglobal(L,"port_table_function");
 	return 1;
 }
 

@@ -231,7 +231,7 @@ int LUA_test_save_key_at_index_chache(struct Schema *sch)
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	func = "indexing";
 	lua_getglobal(L,func);
@@ -255,22 +255,22 @@ int LUA_test_save_key_at_index_chache(struct Schema *sch)
 
 	/*WE NEED TO CLEAN THE CACHE*/
 	int i;
-	for(i = 0;i < CACHE_SIZE; i++){
-		if(!dbCache[i].index_file) continue;
+	for(i = 0;i < 30; i++){
+		if(!dbcache_ptr[i].index_file) continue;
 
 		char* k= "keySTRcache";
-		if(get(k,&dbCache[i].index_file[2],STR) == -1){
-			free_cache(&dbCache[i]);
+		if(get(k,&dbcache_ptr[i].index_file[2],STR) == -1){
+			free_cache(&dbcache_ptr[i]);
 			goto clean_on_failure;
 		}
 
-		Node *r = ht_delete((void*)dbCache[i].file_name,&cache_register,STR);
+		Node *r = ht_delete((void*)dbcache_ptr[i].file_name,cache_r_ptr,STR);
 		if(!r){
 			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
 			goto clean_on_failure;
 		}
 		free_ht_node(r);
-		free_cache(&dbCache[i]);
+		free_cache(&dbcache_ptr[i]);
 	}
 
 	free_record(&rec,rec.fields_num);
@@ -300,7 +300,7 @@ int LUA_test_save_key_at_index(struct Schema *sch)
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	func = "indexing";
 	lua_getglobal(L,func);
@@ -342,7 +342,7 @@ int LUA_test_create_record(struct Schema *sch)
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	clear_lua_stack();
 	
@@ -393,7 +393,7 @@ int LUA_port_table_to_record_test()
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,&sch) == -1) goto clean_on_failure;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -448,7 +448,7 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -474,18 +474,18 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 
 	
 	int i;
-	for(i = 0;i < CACHE_SIZE; i++){
-		if(!dbCache[i].index_file) continue;
+	for(i = 0;i < 30; i++){
+		if(!dbcache_ptr[i].index_file) continue;
 
-		if(write_cache_to_disk(&dbCache[i]) == -1) goto clean_on_failure;
+		if(write_cache_to_disk(&dbcache_ptr[i]) == -1) goto clean_on_failure;
 
-		Node *r = ht_delete((void*)dbCache[i].file_name,&cache_register,STR);
+		Node *r = ht_delete((void*)dbcache_ptr[i].file_name,cache_r_ptr,STR);
 		if(!r){
 			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
 			goto clean_on_failure;
 		}
 		free_ht_node(r);
-		free_cache(&dbCache[i]);
+		free_cache(&dbcache_ptr[i]);
 	}
 	
 	/*VERIFY THE ACTUAL FILE HAS THE DATA!*/
@@ -543,7 +543,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -569,7 +569,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	lua_pushstring(L,"key_1"); /*Arg 2*/
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	char *k_s = (char*)lua_tostring(L, -3); 
 	if(!k_s) goto clean_on_failure;
@@ -589,7 +589,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	lua_pushinteger(L,32); /*Arg 3*/
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	is_num = 0;
 	k = lua_tonumberx(L, -3, &is_num); 
@@ -610,7 +610,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	lua_pushinteger(L,100); /*Arg 4*/
 	if(lua_pcall(L,4,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(port_table_to_record(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
 
 	is_num = 0;
 	k = lua_tonumberx(L, -3, &is_num); 
@@ -704,15 +704,15 @@ int LUA_test_write_customer_cache()
 	/*WE NEED TO CLEAN THE CACHE*/
 	int i;
 	for(i = 0;i < CACHE_SIZE; i++){
-		if(!dbCache[i].index_file) continue;
+		if(!dbcache_ptr[i].index_file) continue;
 
-		Node *r = ht_delete((void*)dbCache[i].file_name,&cache_register,STR);
+		Node *r = ht_delete((void*)dbcache_ptr[i].file_name,cache_r_ptr,STR);
 		if(!r){
 			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
 			goto clean_on_failure;
 		}
 		free_ht_node(r);
-		free_cache(&dbCache[i]);
+		free_cache(&dbcache_ptr[i]);
 	}
 
 	free_schema(&sch);
