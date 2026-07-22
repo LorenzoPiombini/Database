@@ -99,11 +99,6 @@ library:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibp)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJlibl)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBdate) $(OBJlibdate)
-#	if [ "$(IS_FEDORA)" = "no" ]; then \
-#		sudo gcc -Wall -fPIC -shared -llua5.4  -o $(SHAREDLIBexpl) $(OBJlibexpl);\
-#	else\
-#		sudo gcc -Wall -fPIC -shared -llua -o $(SHAREDLIBexpl) $(OBJlibexpl);\
-#	fi
 
 
 libraryPR:
@@ -113,10 +108,9 @@ libraryPR:
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBf) $(OBJlibfPR)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBp) $(OBJlibpPR)
 	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBl) $(OBJliblPR)
-	sudo gcc -Wall -fPIC -shared -o $(SHAREDLIBexpl) $(OBJlibexplPR)
 
 clean:
-	sudo rm -f $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
+	sudo rm -f $(BINDIR)/CHANGE_NAMES $(BINDIR)/$(TARGET) $(BINDIR)/SWAP_INDEXES $(BINDIR)/GET $(BINDIR)/LIST $(BINDIR)/FILE $(BINDIR)/KEYS $(BINDIR)/WRITE $(BINDIR)/UPDATE $(BINDIR)/DEL $(BINDIR)/DELa
 	sudo rm -f $(INCLUDEDIR)/file.h $(INCLUDEDIR)/str_op.h $(INCLUDEDIR)/record.h $(INCLUDEDIR)/parse.h $(INCLUDEDIR)/bst.h $(INCLUDEDIR)/hash_tbl.h $(INCLUDEDIR)/lock.h 
 	sudo rm -f $(LIBDIR)/$(SHAREDLIBf) $(LIBDIR)/$(SHAREDLIBs) $(LIBDIR)/$(SHAREDLIBr) $(LIBDIR)/$(SHAREDLIBp) $(LIBDIR)/$(SHAREDLIBht) $(LIBDIR)/$(SHAREDLIBl)
 	sudo ldconfig
@@ -130,7 +124,7 @@ clean:
 
 test:
 	if [ "$(IS_FEDORA)" = "no" ]; then \
-		gcc -g3 -o test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -ldblua -lcrud -llua5.4 -fsanitize=address -Itest/include;\
+		gcc -g3 -o test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -lcrud -llua5.4 -fsanitize=address -Itest/include;\
 	else\
 		gcc -g3 -DFEDORA -o  test/test_suite test/src/main.c test/src/test.c network_interface/src/lua_start.c -lcrud -llua -fsanitize=address -Itest/include;\
 	fi
@@ -155,7 +149,6 @@ lua: lua_obj
 		gcc -shared -o db.so obj/export_db_lua.o  -L/usr/local/lib -lcrud -llua -DFEDORA -ldl -fsanitize=address;\
 		cp db.so /usr/share/lua/5.4/;\
 		cp db.so /usr/lib64/lua/5.4/;\
-		mv db.so /usr/local/lib/libdb.so;\
 	fi
 
 lua_obj: 
