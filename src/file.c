@@ -23,7 +23,7 @@
 static char prog[] = "db";
 static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);
 static size_t get_string_size(int fd, struct Ram_file *ram);
-static long long get_disk_size_record(struct Record_f *rec);
+static size_t get_disk_size_record(struct Record_f *rec);
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 #if defined(_WIN32)
 static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
@@ -6673,10 +6673,9 @@ int add_index(int index_nr, char *file_name, int bucket)
 }
 
 
-static long long get_disk_size_record(struct Record_f *rec)
+static size_t get_disk_size_record(struct Record_f *rec)
 {
-
-	size_t size = (sizeof(ui8));
+	size_t size = sizeof(ui8);
 	int i;
 	for(i = 0; i < rec->fields_num; i++){
 		if(rec->field_set[i] == 0) continue;
@@ -7370,7 +7369,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 	 * this block check if we have enough size in the ram file*/
 	if(ram->offset == ram->size){
 		if(rec_disk_size > (ram->capacity - ram->size)){
-			size_t new_size = ram->capacity * 2;
+			size_t new_size = ram->capacity + rec_disk_size;
 			ui8 *n_buff = (ui8*)realloc(ram->mem, new_size * sizeof(ui8));
 			if(!n_buff){
 				fprintf(stderr,"realloc failed, %s:%d.\n",__FILE__,__LINE__-2);
@@ -7379,7 +7378,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 			ram->capacity = new_size;
 			ram->mem = n_buff;
-			ram->offset = ram->size;
+			ram->offset = ram->size;/*this may be unneccessery*/
 		}
 	}
 
