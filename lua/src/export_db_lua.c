@@ -436,6 +436,7 @@ use_cache:
 
 		if(set_tbl(p->index_file,k,p->data_file.size,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.size) == -1) goto err_cache_write_const_unique;
+		p->data_file.offset = p->data_file.size;
 		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 		p->used = now_seconds();
 	}else{
@@ -446,6 +447,7 @@ use_cache:
 
 		if(set_tbl(p->index_file,k,p->data_file.size,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.size) == -1) goto err_cache_write_const_unique;
+		p->data_file.offset = p->data_file.size;
 		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 
 		p->used = now_seconds();
