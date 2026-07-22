@@ -434,8 +434,8 @@ use_cache:
 		struct Header_d hd_c = {0,0,&p->sch};
 		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0) == -1) goto err_cache_invalid_data;
 
-		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
-		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
+		if(set_tbl(p->index_file,k,p->data_file.size,key_type,0) == -1) goto err_cache_write_index;
+		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.size) == -1) goto err_cache_write_const_unique;
 		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 		p->used = now_seconds();
 	}else{
@@ -444,8 +444,8 @@ use_cache:
 
 		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) goto err_cache_invalid_data;
 
-		if(set_tbl(p->index_file,k,p->data_file.offset,key_type,0) == -1) goto err_cache_write_index;
-		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.offset) == -1) goto err_cache_write_const_unique;
+		if(set_tbl(p->index_file,k,p->data_file.size,key_type,0) == -1) goto err_cache_write_index;
+		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.size) == -1) goto err_cache_write_const_unique;
 		if(write_ram_record(&p->data_file, &rec, 0, -1, 0) == -1) goto err_cache_write;
 
 		p->used = now_seconds();
