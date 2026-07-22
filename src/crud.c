@@ -359,7 +359,7 @@ int write_record(int *fds,
 		return 0;
 	}
 
-	if((*lock_f) != 0){
+	if((*lock_f) == 0){
 		/* aquire lock */
 		if(acquire_lock(fds,*lock_f) == -1){
 			fprintf(stderr,"can't acquire or release proper lock.\n");
