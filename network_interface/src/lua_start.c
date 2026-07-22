@@ -257,7 +257,7 @@ static void free_inactive_caches(struct Cache *c)
 			}
 			free_ht_node(r);
 			free_cache(&c[i]);
-		}else if((long)(c[i].used - c[i].ts) > (long) TWENTY_MINUTES){
+		}else if((long)(c[i].used - now_seconds()) > (long) TWENTY_MINUTES){
 			/*Just flush the content to disk*/
 			if(write_cache_to_disk(&c[i]) == -1){
 				fprintf(stderr,"!!! CANNOT WRITE THE CACHE TO FILE !!!!!!%s:%d\n",__FILE__,__LINE__);
