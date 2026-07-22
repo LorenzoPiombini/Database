@@ -246,7 +246,9 @@ static int lock(int fd, int flag){
 		fputs(strpid,fp);
 		fclose(fp);
 		return 0;
-	}else if(!fp && flag == RLOCK) return 0;
+	}else if(!fp && flag == RLOCK){ 
+		return 0;
+	}else if(!fp) return 0;
 
 	return -1;
 }
