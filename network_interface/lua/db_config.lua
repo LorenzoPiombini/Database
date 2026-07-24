@@ -1,11 +1,14 @@
 db = require("db")
 
-TEST = true
+TEST = false
 --- DB GLOBALS
 ORDER_BASE = 100
 KEY_NOT_FOUND = 16
 INDEX_OUT_OF_RANGE = 18 
 CACHE_FAILED = 19
+
+--ERRORS
+VALUE_ERROR = -20 -- when creating new orders, this means one of the value is wrong, like a negative qty
 
 --- database files
 -- name_file = "db/name_file" /* i do not need it for now */
@@ -171,8 +174,14 @@ function write_orders(orders_head, orders_lines)
 		-- and the following string sub return the string without w|
 		local line = string.sub(orders_lines, 2, -2)
 		local data = string.sub(line, 3, #line)
+		-- MAKE SURE THE QTY IS MORE THAN 0 and is PRESENT!!!!!
+		local qty = tonumber(string.match(data,"qty:([^:]+)"))
+		if qty == nil or qty <= 0 then
+			return nil,VALUE_ERROR
+		end
 		local kl, ord_lines = w_rec(sales_orders.lines, data, key_line)
 	else
+		local lines_table = {}
 		for i = 1, f.lines_nr do
 			local key_line = string.format("%d/%d", kh, i)
 			local line
@@ -180,19 +189,32 @@ function write_orders(orders_head, orders_lines)
 			if ending == nil then
 				line = string.sub(orders_lines, 2, -2)
 				line = string.sub(line, 3, #line)
+				-- MAKE SURE THE QTY IS MORE THAN 0 and is PRESENT!!!!!
+				local qty = tonumber(string.match(line,"qty:([^:]+)"))
+				if qty == nil or qty <= 0 then
+					return nil,VALUE_ERROR
+				end
+				lines_table[key_line] = line
 			else
 				line = string.sub(orders_lines, 1, ending)
 				orders_lines = string.sub(orders_lines, sub_str_ending + 1, #orders_lines)
 				line = string.sub(line, 2, -2)
 				line = string.sub(line, 3, #line)
+				-- MAKE SURE THE QTY IS MORE THAN 0 and is PRESENT!!!!!
+				local qty = tonumber(string.match(line,"qty:([^:]+)"))
+				if qty == nil or qty <= 0 then
+					return nil,VALUE_ERROR
+				end
+				lines_table[key_line] = line
 			end
-			local kh, ord_lines = w_rec(sales_orders.lines, line, key_line)
+		end
+		for kl,l in pairs(lines_table) do
+			local kh, ord_lines = w_rec(sales_orders.lines, l, kl)
 			if ord_lines == nil then
 				return nil
 			end
 		end
 	end
-
 	return kh
 end
 
