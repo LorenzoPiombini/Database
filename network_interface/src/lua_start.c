@@ -165,7 +165,10 @@ TODO:
 					{
 						int is_num;
 						int l = (int)lua_tointegerx(L,nres,&is_num);
-						if(!is_num || l < 0){
+						if(!is_num){
+							/*get error code*/
+							l = lua_tointegerx(L,-1,&is_num);
+							*va_arg(vl, int*) = l;
 							clear_lua_stack();
 							return -1;
 						}
@@ -176,7 +179,10 @@ TODO:
 					{
 						int is_num;
 						long long l = (long long)lua_tointegerx(L,nres,&is_num);
-						if(!is_num || l < 0){
+						if(!is_num){
+							/*get error code*/
+							l = lua_tointegerx(L,-1,&is_num);
+							*va_arg(vl, long long*) = l;
 							clear_lua_stack();
 							return -1;
 						}

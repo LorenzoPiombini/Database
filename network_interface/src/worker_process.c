@@ -17,7 +17,12 @@
 #include "lua_start.h"
 #include "string_utilities.h"
 
+static char prog[] = "worker_process";
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
+
+#define LUA_VALUE_ERROR -20
+#define GENERAL_ERROR -1
+#define NO_ERROR 0
 
 #define EIGTH_Kib 1024*8
 int work_process(int sock)
@@ -160,11 +165,6 @@ report_error:
 		case NEW_SORD:
 		case UPDATE_SORD:
 		{
-			/* when insert new order
-			 * if the customer is known, the program should check
-			 * if it's past due, if it's on credit hold
-			 * */
-
 			size_t len = 0;
 			char *t = NULL;
 
@@ -230,8 +230,21 @@ report_error:
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
-				if(execute_lua_function("write_orders","ss>i",orders_head,orders_line,&key_ord) == -1){
+				if(execute_lua_function("write_orders","ss>li",orders_head,orders_line,&key_ord) == -1){
 					/*send error and resume*/
+					/*key ord contain the error code*/
+					short int err_code = (short int)key_ord;
+					memcpy(&err[0],&err_code,sizeof(short int));
+					switch(err_code){
+					case LUA_VALUE_ERROR:
+						if(copy_to_string(&err[2],1024-2,"%s",
+								"{\"message\":\"Check values like Quantity,Discount and so on, some values are wrong!\"}") == -1){
+							fprintf(stderr,"(%s):copy_to_string() failed to write error,%s:%d\n",prog,__FILE__,__LINE__);
+						}
+						break;
+					default:
+						break;
+					}
 					clear_lua_stack();
 					goto new_up_ords_err;
 				}
@@ -272,33 +285,43 @@ report_error:
 
 			if(operation_to_perform == NEW_SORD){
 				memset(succ,0,1024);
-				if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %d, created!\"}",key_ord) == -1){
+				if(copy_to_string(&succ[2],1022,"{ \"message\" : \"order nr %d, created!\"}",key_ord) == -1){
 					/*log error*/
 					close(data_sock);
 					data_sock = -1;
 					continue;
 				}
 
-				if(write(data_sock,succ,sizeof(succ)) == -1) goto new_up_ords_err;
+				size_t l = strlen(&succ[2])+ 3;
+				if(write(data_sock,succ,l) == -1) goto new_up_ords_err;
 
 			}else if(operation_to_perform == UPDATE_SORD){
 				memset(succ,0,1024);
-				if(copy_to_string(succ,1024,"{ \"message\" : \"order nr %s, updated!\"}",key_up) == -1){
+				if(copy_to_string(&succ[2],1022,"{ \"message\" : \"order nr %s, updated!\"}",key_up) == -1){
 					/*log error*/
 					goto new_up_ords_err;
 				}
-				if(write(data_sock,succ,sizeof(succ)) == -1) goto new_up_ords_err;
-			}
+				size_t l = strlen(&succ[2])+ 3;
 
+				if(write(data_sock,succ,l) == -1) goto new_up_ords_err;
+			}
 
 			close(data_sock);
 			data_sock = -1;
 			continue;
 
 new_up_ords_err:
-			memset(err,0,1024);
-			write(data_sock,err,sizeof(err));
+
+			if(err[2] != '\0'){
+				size_t l = strlen(&err[2]) + 3; /* 2 is for short int  and 1 for '\0'*/
+				write(data_sock,err,l);
+			}else{
+				uint16_t e = GENERAL_ERROR;
+				memcpy(&err[0],&e,sizeof(uint16_t));
+				write(data_sock,err,2);
+			}
 			close(data_sock);
+			memset(err,0,sizeof(err));
 			data_sock = -1;
 			continue;
 		}	
@@ -306,7 +329,6 @@ new_up_ords_err:
 		case CUSTOMER_GET_ALL: 
 		case S_ORD:
 		{
-			/*TODO this can be moved to lua side completely*/
 			/*get the all keys for the sales order file or the CUSTOMER*/
 			char *keys = 0x0;
 			int index = 0,mode = 0;
