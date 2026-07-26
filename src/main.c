@@ -1248,7 +1248,6 @@ int main(int argc, char *argv[])
 			release_lock(fds,-1);
 			close_file(3, fds[0], fds[1],fds[2]);
 			free_ht_array(ht,index);
-			free_schema(hd.sch_d);
 			return 0;
 			
 			clean_on_error_6:
