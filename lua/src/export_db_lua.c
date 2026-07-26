@@ -26,7 +26,7 @@ static int l_write_record(lua_State *L);
 static int l_update_record(lua_State *L);
 static int l_create_record(lua_State *L);
 static int l_string_data_to_add_template(lua_State *L);
-/*static int l_get_numeric_key(lua_State *L);*/
+static int l_get_numeric_key(lua_State *L);
 static int l_save_key_at_index(lua_State *L);
 static int l_delete_record(lua_State *L);
 static int l_get_all_key(lua_State *L);
@@ -39,7 +39,7 @@ static const luaL_Reg db_funcs[] = {
 	{"create_record",l_create_record},		/* create_record(file_name,data) */
 	{"string_data_to_add_template",
 		l_string_data_to_add_template},		/* string_data_to_add_template(file_name) */
-	/*{"get_numeric_key",l_get_numeric_key},*/	/* get_numeric_key(file_name,mode) -- some optional args --  */
+	{"get_numeric_key",l_get_numeric_key},	/* get_numeric_key(file_name,mode) -- some optional args --  */
 	{"save_key_at_index",
 		l_save_key_at_index},               /* save_key_at_index(file_name,key,index,offset)*/
 	{"update_record",l_update_record},		/* update_record(file_name,data,key) */
@@ -972,7 +972,9 @@ err_ask_mem:
 }
 
 
-#if 0
+/* 
+ * This generates a key for a record that you migh want to write
+ * */
 static int l_get_numeric_key(lua_State *L)
 {		
 	char *file_name = (char*)luaL_checkstring(L,1);
@@ -990,10 +992,76 @@ static int l_get_numeric_key(lua_State *L)
 	struct Header_d hd = {0,0,&sch};
 
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
-	if(open_files(file_name,fds,file_names,-1) == -1)
-		goto err_open_file;
-	if(is_db_file(&hd,fds) == -1) 
-		goto err_not_db_file;
+
+	if(is_test(L)) goto gen_key_test;
+
+	/*check if the file is cached in memory*/
+	off_t file_pos_in_the_cache = -1;
+	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
+		goto use_cache;
+	}
+
+	/*cache the file*/
+	int first_free_cache = 0;
+	if((first_free_cache = get_free_slot_cache(dbCache)) == -1){
+		/*cache is full free one spot in the cache */
+		if((first_free_cache = check_and_free_one_cache(dbCache)) == -1)
+			goto err_cache;/*we cannot free a cache slot, we use the disk*/
+	}
+
+	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+
+	if(cache_file(fds,file_name,hd.sch_d,dbCache,&cache_register,first_free_cache) == -1)
+		goto err_cache;
+
+	free_schema(hd.sch_d);
+	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,3*sizeof(int));
+
+use_cache:
+
+	struct Cache *p = NULL;
+	if(file_pos_in_the_cache != -1){
+		p = &dbCache[file_pos_in_the_cache];	
+	}else{
+		p = &dbCache[first_free_cache];	
+	}
+
+	switch(mode){
+	case REG:
+	{
+		if((n = generate_numeric_key(fds,REG | KEY_GEN_CACHE_MODE,-1,p) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	case BASE:
+	{
+		int base = (int)luaL_checkinteger(L,3);
+		if((n = generate_numeric_key(fds,BASE | KEY_GEN_CACHE_MODE,base,p)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	case INCREM:
+	{
+		if((n = generate_numeric_key(fds,INCREM | KEY_GEN_CACHE_MODE,-1,p)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	default:
+		/*error*/
+		lua_pushnil(L);
+		lua_pushstring(L,"key mode unknown");
+		close_file(1,fds[0]);
+		return 2;
+	}
+gen_key_test:
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,-1) == -1)
+			goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) 
+			goto err_not_db_file;
+	}
 
 	free_schema(hd.sch_d);
 
@@ -1028,6 +1096,7 @@ static int l_get_numeric_key(lua_State *L)
 	close_file(1,fds[0]);
 	return 1;
 
+
 err_open_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not open the file.");
@@ -1045,7 +1114,6 @@ err_key_gen:
 }
 
 
-#endif /*comment out for now 07-12-26*/
 
 static int l_get_all_key(lua_State *L)
 {
