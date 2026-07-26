@@ -22,7 +22,7 @@ sales_orders["lines"] = "/root/db/sales_orders_lines"
 --- database crud functions
 write_record = db.write_record
 update_record = db.update_record
-get_numeric_key = db.get_numeric_key
+get_numeric_key = db.get_numeric_key --creates the next avaible key number for a record, without write the key in the file
 string_data_to_add_template = db.string_data_to_add_template
 indexing = db.save_key_at_index
 create_rec = db.create_record
@@ -159,6 +159,10 @@ function update_orders(orders_head, orders_lines, key)
 end
 
 function write_orders(orders_head, orders_lines)
+	-- this is wrong!
+	-- TODO: YOU HAVE TO USE get_numeric_key() on sales_orders.head then
+	-- check all the orders lines if they are correct,
+	-- if everything is ok, than you write the sales oreders head, and then the sales order lines
 	local kh, ord_head = w_rec(sales_orders.head, orders_head, "base", ORDER_BASE)
 
 	if ord_head == nil or kh == nil then
