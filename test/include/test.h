@@ -27,6 +27,8 @@ int LUA_test_save_key_at_index(struct Schema *sch);
 int LUA_test_save_key_at_index_chache(struct Schema *sch);
 int LUA_test_create_record(struct Schema *sch);
 int LUA_test_w_rec(struct Schema *sch);
+int LUA_test_get_numeric_key_cache();
+int LUA_test_get_numeric_key();
 int LUA_test_w_rec_cache(struct Schema *sch);
 int LUA_port_table_to_record_test();
 int LUA_test_write_customer_cache();

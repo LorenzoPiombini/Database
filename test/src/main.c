@@ -65,6 +65,21 @@ int main()
 	}
 		
 	count++;
+	if(LUA_test_get_numeric_key() ==-1){
+		strncpy(failed_test[failed],"LUA_test_get_numeric_key()",strlen("LUA_test_get_numeric_key()"));
+		failed++;
+	}else{
+		passed++;
+	}
+
+	count++;
+	if(LUA_test_get_numeric_key_cache() == -1){
+		strncpy(failed_test[failed],"LUA_test_get_numeric_key_cache()",strlen("LUA_test_get_numeric_key_cache()"));
+		failed++;
+	} else{
+		passed++;
+	}
+	count++;
 	if(LUA_test_w_rec_cache(&sch) == -1){
 		strncpy(failed_test[failed],"LUA_test_w_rec_cache()",strlen("LUA_test_w_rec_cache()"));
 		failed++;

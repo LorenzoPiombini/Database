@@ -641,6 +641,73 @@ clean_on_failure:
 	return -1;
 }
 
+int LUA_test_get_numeric_key_cache(){
+	/*desable the test mode and use the cache system*/
+	lua_pushboolean(L,0);
+	lua_setglobal(L,"TEST");
+
+	if(LUA_test_get_numeric_key() == -1){
+		/*enable back the test mode*/
+		lua_pushboolean(L,1);
+		lua_setglobal(L,"TEST");
+		clear_lua_stack();
+		return -1;
+	}
+
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
+	clear_lua_stack();
+	return 0;
+}
+
+int LUA_test_get_numeric_key()
+{
+
+	char *func = "get_numeric_key";
+
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1(file name)*/
+	lua_pushinteger(L,REG); /*Arg 2 (mode)*/
+
+	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
+
+	int is_num;
+	int k = lua_tonumberx(L, -1, &is_num); 
+	if(!is_num) goto clean_on_failure;
+	if(k != 4) goto clean_on_failure;
+
+	clear_lua_stack();
+
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1(file name)*/
+	lua_pushinteger(L,BASE); /*	Arg 2 (mode)*/
+	lua_pushinteger(L,100); /*	Arg 3 (base start)*/
+
+	if(lua_pcall(L,3,1,0) != LUA_OK) goto clean_on_failure;
+
+	k = lua_tonumberx(L,-1,&is_num);
+	if(!is_num) goto clean_on_failure;
+	if(k != 104) goto clean_on_failure;
+	
+	clear_lua_stack();
+
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1(file name)*/
+	lua_pushinteger(L,INCREM); /*Arg 2 (mode)*/
+
+	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
+
+	k = lua_tonumberx(L,-1,&is_num);
+	if(!is_num) goto clean_on_failure;
+	if(k != 5) goto clean_on_failure;
+
+	clear_lua_stack();
+	return 0;
+clean_on_failure:
+	clear_lua_stack();
+	return -1;
+}
+
 int LUA_test_write_customer_cache()
 {
 	int fds[3];
@@ -651,7 +718,7 @@ int LUA_test_write_customer_cache()
 	char *file_name = "customer";
     char *data_to_add = "name:Test LLC:addr:1B W 8th St:csz:New York NY 10011 :price_level_id:STND";
 
-	/*this creates a file named test, and give a definitions*/
+	/*this creates a file named customer, and give a definitions*/
 	if(open_files(file_name,fds,files,CREATE_FILE) == -1){
 		return -1;
 	}
@@ -742,3 +809,5 @@ clean_on_failure:
 	delete_file(3,files[0],files[1],files[2]);
 	return -1;
 }
+
+
