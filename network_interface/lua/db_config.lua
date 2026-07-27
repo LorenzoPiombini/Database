@@ -2,13 +2,23 @@ db = require("db")
 
 TEST = false
 --- DB GLOBALS
+
+--[[ key generation modes]]
+REG = 0
+BASE = 1
+INCREMENT = 2
+-- [[ @@@@@@@@@@@@@@@@@@@@@@@@]]
+
 ORDER_BASE = 100
 KEY_NOT_FOUND = 16
 INDEX_OUT_OF_RANGE = 18 
 CACHE_FAILED = 19
 
 --ERRORS
+CACHE_FAILED = -19 
 VALUE_ERROR = -20 -- when creating new orders, this means one of the value is wrong, like a negative qty
+SALES_ORDER_HEAD_WRITE_FAILED = -21
+SALES_ORDER_LINES_WRITE_FAILED = -22
 
 --- database files
 -- name_file = "db/name_file" /* i do not need it for now */
@@ -159,11 +169,7 @@ function update_orders(orders_head, orders_lines, key)
 end
 
 function write_orders(orders_head, orders_lines)
-	-- this is wrong!
-	-- TODO: YOU HAVE TO USE get_numeric_key() on sales_orders.head then
-	-- check all the orders lines if they are correct,
-	-- if everything is ok, than you write the sales oreders head, and then the sales order lines
-	local kh, ord_head = w_rec(sales_orders.head, orders_head, "base", ORDER_BASE)
+	local next_head_key = get_numeric_key(sales_orders.head,BASE,ORDER_BASE)
 
 	if ord_head == nil or kh == nil then
 		return nil
@@ -171,7 +177,7 @@ function write_orders(orders_head, orders_lines)
 
 	local f = ord_head.fields
 	if f.lines_nr == 1 then
-		local key_line = string.format("%d/%d", kh, f.lines_nr)
+		local key_line = string.format("%d/%d", next_head_key, f.lines_nr)
 		-- the lines of the orders will be a string like this:
 		-- [w|item:Soccer shoes:uom:pair:qty:43:disc:2.2:unit_price:200:total:8410.80:request_date:1-8-26]
 		-- string.sub(orders_lines,2,-2) return a string without []
@@ -183,11 +189,15 @@ function write_orders(orders_head, orders_lines)
 		if qty == nil or qty <= 0 then
 			return nil,VALUE_ERROR
 		end
+		local kh, ord_head = w_rec(sales_orders.head, orders_head,next_head_key)
+		if ord_head == nil then return nil, SALES_ORDER_HEAD_WRITE_FAILED end
 		local kl, ord_lines = w_rec(sales_orders.lines, data, key_line)
+		if ord_lines == nil then return nil, SALES_ORDER_LINE_WRITE_FAILED end
+		return next_head_key
 	else
 		local lines_table = {}
 		for i = 1, f.lines_nr do
-			local key_line = string.format("%d/%d", kh, i)
+			local key_line = string.format("%d/%d", next_head_key, i)
 			local line
 			local ending, sub_str_ending = string.find(orders_lines, "],")
 			if ending == nil then
@@ -212,14 +222,16 @@ function write_orders(orders_head, orders_lines)
 				lines_table[key_line] = line
 			end
 		end
+		local kh, ord_head = w_rec(sales_orders.head, orders_head,next_head_key)
+		if ord_head == nil then return nil, SALES_ORDER_HEAD_WRITE_FAILED end
 		for kl,l in pairs(lines_table) do
-			local kh, ord_lines = w_rec(sales_orders.lines, l, kl)
+			local k, ord_lines = w_rec(sales_orders.lines, l, kl)
 			if ord_lines == nil then
 				return nil
 			end
 		end
+		return next_head_key
 	end
-	return kh
 end
 
 local function rec_to_json(rec)
