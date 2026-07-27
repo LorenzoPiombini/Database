@@ -170,14 +170,13 @@ end
 
 function write_orders(orders_head, orders_lines)
 	local next_head_key = get_numeric_key(sales_orders.head,BASE,ORDER_BASE)
+	if next_head_key == nil then return nil end
 
-	if ord_head == nil or kh == nil then
-		return nil
-	end
 
-	local f = ord_head.fields
-	if f.lines_nr == 1 then
-		local key_line = string.format("%d/%d", next_head_key, f.lines_nr)
+	local lines_nr = tonumber(string.match(orders_head,"lines_nr:([^:]+)"))
+
+	if lines_nr == 1 then
+		local key_line = string.format("%d/%d", next_head_key, lines_nr)
 		-- the lines of the orders will be a string like this:
 		-- [w|item:Soccer shoes:uom:pair:qty:43:disc:2.2:unit_price:200:total:8410.80:request_date:1-8-26]
 		-- string.sub(orders_lines,2,-2) return a string without []
@@ -196,7 +195,7 @@ function write_orders(orders_head, orders_lines)
 		return next_head_key
 	else
 		local lines_table = {}
-		for i = 1, f.lines_nr do
+		for i = 1, lines_nr do
 			local key_line = string.format("%d/%d", next_head_key, i)
 			local line
 			local ending, sub_str_ending = string.find(orders_lines, "],")
