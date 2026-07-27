@@ -21,6 +21,9 @@ static char prog[] = "worker_process";
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
 #define LUA_VALUE_ERROR -20
+#define LUA_SALES_ORDER_HEAD_WRITE_FAILED = -21
+#define LUA_SALES_ORDER_LINES_WRITE_FAILED = -22
+#define LUA_GET_NUMERIC_KEY_FAILED = -23
 #define GENERAL_ERROR -1
 #define NO_ERROR 0
 
@@ -230,7 +233,7 @@ report_error:
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
-				if(execute_lua_function("write_orders","ss>li",orders_head,orders_line,&key_ord) == -1){
+				if(execute_lua_function("write_orders","ss>l",orders_head,orders_line,&key_ord) == -1){
 					/*send error and resume*/
 					/*key ord contain the error code*/
 					short int err_code = (short int)key_ord;
@@ -316,8 +319,8 @@ new_up_ords_err:
 				size_t l = strlen(&err[2]) + 3; /* 2 is for short int  and 1 for '\0'*/
 				write(data_sock,err,l);
 			}else{
-				uint16_t e = GENERAL_ERROR;
-				memcpy(&err[0],&e,sizeof(uint16_t));
+				short int e = GENERAL_ERROR;
+				memcpy(&err[0],&e,sizeof(short int));
 				write(data_sock,err,2);
 			}
 			close(data_sock);
