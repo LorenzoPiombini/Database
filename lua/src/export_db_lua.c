@@ -134,6 +134,7 @@ static int l_get_record(lua_State *L)
 
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
+
 use_cache:
 	
 	off_t pos = 0;
@@ -181,7 +182,7 @@ err_cache:
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);
-	lua_pushinteger(L,(lua_Integer)CACHE_FAILED);
+	lua_pushinteger(L,(lua_Integer)-CACHE_FAILED);
 	return 2; /*return the record and the cache error*/
 err_key:
 		lua_pushnil(L);
@@ -1031,7 +1032,7 @@ use_cache:
 	switch(mode){
 	case REG:
 	{
-		if((n = generate_numeric_key(fds,REG | KEY_GEN_CACHE_MODE,-1,p) == -1) goto err_key_gen;
+		if((n = generate_numeric_key(fds,REG | KEY_GEN_CACHE_MODE,-1,p)) == -1) goto err_key_gen;
 		lua_pushinteger(L,n);
 		break;
 	}
@@ -1052,36 +1053,39 @@ use_cache:
 		/*error*/
 		lua_pushnil(L);
 		lua_pushstring(L,"key mode unknown");
-		close_file(1,fds[0]);
 		return 2;
 	}
+
+	return 1;
+
 gen_key_test:
 	if(fds[0] == -1){
 		if(open_files(file_name,fds,file_names,-1) == -1)
 			goto err_open_file;
 		if(is_db_file(&hd,fds) == -1) 
 			goto err_not_db_file;
+
+		free_schema(hd.sch_d);
 	}
 
-	free_schema(hd.sch_d);
 
 	switch(mode){
 	case REG:
 	{
-		if((n = generate_numeric_key(fds,REG,-1)) == -1) goto err_key_gen;
+		if((n = generate_numeric_key(fds,REG,-1,NULL)) == -1) goto err_key_gen;
 		lua_pushinteger(L,n);
 		break;
 	}
 	case BASE:
 	{
 		int base = (int)luaL_checkinteger(L,3);
-		if((n = generate_numeric_key(fds,BASE,base)) == -1) goto err_key_gen;
+		if((n = generate_numeric_key(fds,BASE,base,NULL)) == -1) goto err_key_gen;
 		lua_pushinteger(L,n);
 		break;
 	}
 	case INCREM:
 	{
-		if((n = generate_numeric_key(fds,INCREM,-1)) == -1) goto err_key_gen;
+		if((n = generate_numeric_key(fds,INCREM,-1,NULL)) == -1) goto err_key_gen;
 		lua_pushinteger(L,n);
 		break;
 	}
@@ -1093,9 +1097,52 @@ gen_key_test:
 		return 2;
 	}
 
-	close_file(1,fds[0]);
+	close_file(3,fds[0],fds[1],fds[2]);
 	return 1;
 
+
+err_cache:
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,-1) == -1)
+			goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) 
+			goto err_not_db_file;
+
+		free_schema(hd.sch_d);
+	}
+
+
+	switch(mode){
+	case REG:
+	{
+		if((n = generate_numeric_key(fds,REG,-1,NULL)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	case BASE:
+	{
+		int base = (int)luaL_checkinteger(L,3);
+		if((n = generate_numeric_key(fds,BASE,base,NULL)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	case INCREM:
+	{
+		if((n = generate_numeric_key(fds,INCREM,-1,NULL)) == -1) goto err_key_gen;
+		lua_pushinteger(L,n);
+		break;
+	}
+	default:
+		/*error*/
+		lua_pushnil(L);
+		lua_pushstring(L,"key mode unknown");
+		close_file(1,fds[0]);
+		return 2;
+	}
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	lua_pushinteger(L,(lua_Integer)-CACHE_FAILED);
+	return 2;
 
 err_open_file:
 	lua_pushnil(L);
@@ -1104,12 +1151,12 @@ err_open_file:
 err_not_db_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"not a db file.");
-	close_file(1,fds[0]);
+	close_file(3,fds[0],fds[1],fds[2]);
 	return 2;
 err_key_gen:
 	lua_pushnil(L);
 	lua_pushstring(L,"error generating  key.");
-	close_file(1,fds[0]);
+	close_file(3,fds[0],fds[1],fds[2]);
 	return 2;
 }
 
@@ -1207,7 +1254,7 @@ err_cache:
 		goto error;
 
 	lua_pushstring(L,res);
-	lua_pushinteger(L,(lua_Integer)CACHE_FAILED);
+	lua_pushinteger(L,(lua_Integer)-CACHE_FAILED);
 	close_file(3,fds[0],fds[1],fds[2]);
 	free(res);
 	return 2;
@@ -1360,7 +1407,7 @@ err_cache:
 	free_ht_array(ht,tbl_ix);
 	close_file(3,fds[0],fds[1],fds[2]);
 	lua_pushinteger(L,index);
-	lua_pushinteger(L,(lua_Integer)CACHE_FAILED);
+	lua_pushinteger(L,(lua_Integer)-CACHE_FAILED);
 	return 2;
 	
 err_open_file:
