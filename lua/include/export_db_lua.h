@@ -13,7 +13,6 @@
 #include "file.h"
 #include "record.h"
 
-#define CACHE_FAILED -21 /*cache operation failed */
 #define CACHE_SIZE 30
 extern struct Cache dbCache[CACHE_SIZE];
 
