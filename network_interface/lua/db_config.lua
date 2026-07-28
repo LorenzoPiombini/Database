@@ -481,8 +481,8 @@ end
 
 -- return begining of the current week in seconds (since january 1 1970) 
 local function get_week_start()
-	today_second = os.time()
-	start = os.date('%w',today_second)
+	local today_second = os.time()
+	local start = os.date('%w',today_second)
 	if start == 0 then
 		return today_second
 	end
@@ -491,12 +491,7 @@ end
 
 -- return the end of the current week in seconds (since january 1 1970) 
 local function get_week_end()
-	today_second = os.time()
-	finish = os.date('%w',today_second)
-	if finish == 6 then
-		return today_second
-	end
-	return today_second + ((finish +(6 - finish)) *(60*60*24))
+	return tonumber(get_week_start() + (6*60*60*24))
 end
 
 local function convert_date(date)
@@ -508,8 +503,8 @@ local function convert_date(date)
 end
 
 local function is_date_this_week(date_second)
-	start = get_week_start()
-	finish = get_week_end()
+	local start = get_week_start()
+	local finish = get_week_end()
 	return (start <= date_second) and (finish >= date_second)
 end
 
@@ -532,9 +527,6 @@ local function get_orders_by_week_range(head_keys)
 				else
 					result = string.format('%s,%d',result,v)
 				end
-			elseif convert_date(line.fields.request_date) > get_week_end() then
-				exit = true
-				break
 			end
 		end
 		if exit then
@@ -557,6 +549,7 @@ end
 
 function sales_orders_week()
 	local all_head_k = g_all_key(sales_orders.head,0)
+	print(all_head_k)
 	if type(all_head_k) ~= "string" then return -1 end
 
 	-- we sort the keys, to increase performance (NOTE: FOR NOW!)
