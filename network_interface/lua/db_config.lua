@@ -483,23 +483,20 @@ end
 local function get_week_start()
 	local today_second = os.time()
 	local start = os.date('%w',today_second)
-	if start == 0 then
-		return today_second
-	end
-	return today_second - (start *(60*60*24))
+	local s = os.date('*t', today_second - (start * (60*60*24)))
+	return os.time({year = s.year, month = s.month, day = s.day, hour = 0, min = 0, sec = 0})
 end
 
 -- return the end of the current week in seconds (since january 1 1970) 
 local function get_week_end()
-	return tonumber(get_week_start() + (6*60*60*24))
+	return get_week_start() + (6*60*60*24)
 end
 
 local function convert_date(date)
 	if date == nil then return {year  = 1987 ,month = 3, day = 2} end
 	m,d,y = string.match(date,"(%d+)-(%d+)-(%d+)")
 	y = tonumber(y) + 2000
-	date = {year  = y ,month = m, day = d}
-	return os.time(date)
+	return os.time({year  = y ,month = m, day = d, hour = 0, min = 0, sec = 0})
 end
 
 local function is_date_this_week(date_second)
@@ -529,15 +526,13 @@ local function get_orders_by_week_range(head_keys)
 				end
 			end
 		end
-		if exit then
-			break
-		end
 	end
 	
 	if string.sub(result,-1) == '[' then
 		return '{"message":[]}'
 	end
 
+	print(result)
 	if string.sub(result,-1) == ',' then
 		result = string.sub(result, 1, #result - 1)
 		return string.format('%s]}',result)
