@@ -14,6 +14,15 @@
 #include "lock.h"
 #include "lua_start.h"
 
+int DB_test_count_fields()
+{
+	if(count_fields("field:field:field:",":") != 3) return -1;
+	if(count_fields("string:t_s:double:t_d:typet_string:t_s",T_) != 3) return -1;
+	if(count_fields("string:TYPE_STRING:double:TYPE_DOUBLE:typet_string:TYPE_STRING",TYPE_) != 3) return -1;
+
+	return 0;
+}
+
 int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_FILE_PATH_LENGTH], char *file_name)
 {
 	struct Record_f rec_old = {0};

@@ -21,6 +21,13 @@ int main()
 		passed++;
 	}
 	
+	count++;
+	if(DB_test_count_fields() == -1){
+		strncpy(failed_test[failed],"DB_test_count_fields()",strlen("DB_test_count_fields()"));
+		failed++;
+	} else{
+		passed++;
+	}
 	
 	count++;
 	if(lock_file_test() == -1){
