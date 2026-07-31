@@ -4213,6 +4213,7 @@ int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
 	for(i = 0; i < old->fields_num; i++){
 		if((!old->field_set[i] && new->field_set[i]) || (old->field_set[i] && new->field_set[i])){
 			if(copy_fields(&new->fields[i],&old->fields[i]) == -1)return -1;
+			old->field_set[i] = 1;
 			continue;
 		}
 
@@ -4220,6 +4221,14 @@ int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
 			switch(old->fields[i].type){
 			case TYPE_STRING:
 					free(old->fields[i].data.s);
+					old->field_set[i] = 0;
+					continue;
+			case TYPE_INT:
+			case TYPE_DOUBLE:
+			case TYPE_FLOAT:
+			case TYPE_BYTE:
+			case TYPE_LONG:
+			case TYPE_DATE:
 					old->field_set[i] = 0;
 					continue;
 			default:

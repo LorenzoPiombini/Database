@@ -30,7 +30,24 @@ int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_
 
 	free_record(&rec_old,rec_old.fields_num);
 	free_record(&rec_new,rec_new.fields_num);
+	memset(&rec_old,0,sizeof(struct Record_f));
+	memset(&rec_new,0,sizeof(struct Record_f));
+
+	if((check = check_data(file_name,"double:20.00",fds,files, &rec_old,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
+	if((check = check_data(file_name,"field:This is a string field NEW",fds,files, &rec_new,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
+
+	if(combine_old_and_new_rec(&rec_old,&rec_new) == -1) goto clean_on_failure;
+
+	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.fields[0].data.s)) goto clean_on_failure;
+	if(strncmp(rec_old.fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
+
+	/*the field named double should be turned off in the old record*/
+	if(rec_old.field_set[4]) goto clean_on_failure;
+
+	free_record(&rec_old,rec_old.fields_num);
+	free_record(&rec_new,rec_new.fields_num);
 	return 0;
+
 clean_on_failure:
 	if(rec_old.fields)
 		free_record(&rec_old,rec_old.fields_num);
@@ -47,7 +64,7 @@ int create_file_for_test(char *file_name,char *file_definition, struct Schema *s
 		return -1;
 	}
 
-	int field_count = count_fields(file_definition,":");
+	int field_count = count_fields(file_definition,T_);
 	if(!create_file_definition_with_no_value(TYPE_DF,field_count,file_definition,&sch_in)) goto clean_on_failure;
 
 

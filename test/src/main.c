@@ -45,7 +45,7 @@ int main()
 	memset(fds,-1,sizeof(int)*3);
 	struct Schema sch = {0};
 	char files[3][256] = {0};
-	if(create_file_for_test("./test","field:t_s", &sch,files,fds) == -1){
+	if(create_file_for_test("./test","field:t_s:integer:t_i:float:t_f:byte:t_b:double:t_d", &sch,files,fds) == -1){
 		fprintf(stderr,"(%s): cannot create file for testing...aborting\n",prog);
 		return -1;
 	}
