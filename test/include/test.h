@@ -18,7 +18,8 @@
 #endif
 
 
-int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH]);
+int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_FILE_PATH_LENGTH], char *file_name);
+int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH],int *fds);
 int create_file_test();
 int delete_file_test(char files_name[3][MAX_FILE_PATH_LENGTH]);
 int lock_file_test();

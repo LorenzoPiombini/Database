@@ -41,11 +41,21 @@ int main()
 	init_lua("test/lua/old_test.lua");
 
 	/*create a file once for the tests!*/
+	int fds[3];
+	memset(fds,-1,sizeof(int)*3);
 	struct Schema sch = {0};
 	char files[3][256] = {0};
-	if(create_file_for_test("./test","field:t_s", &sch,files) == -1){
+	if(create_file_for_test("./test","field:t_s", &sch,files,fds) == -1){
 		fprintf(stderr,"(%s): cannot create file for testing...aborting\n",prog);
 		return -1;
+	}
+
+	count++;
+	if(DB_test_combine_old_and_new_rec(&sch,fds,files,"./test") == -1){
+		strncpy(failed_test[failed],"DB_test_combine_old_and_new_rec()",strlen("DB_test_combine_old_and_new_rec()"));
+		failed++;
+	}else{
+		passed++;
 	}
 
 	count++;

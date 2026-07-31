@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include "test.h"
+#include "record.h"
 #include "common.h"
 #include "key.h"
 #include "file.h"
@@ -13,10 +14,33 @@
 #include "lock.h"
 #include "lua_start.h"
 
-int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH])
+int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_FILE_PATH_LENGTH], char *file_name)
 {
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	struct Record_f rec_old = {0};
+	struct Record_f rec_new = {0};
+	struct Header_d hd = {0,0,s};
+	int lock_f = STD_LOCK, check = 0;
+	if((check = check_data(file_name,"field:This is a string field",fds,files, &rec_old,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
+	if((check = check_data(file_name,"field:This is a string field NEW",fds,files, &rec_new,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
+
+	if(combine_old_and_new_rec(&rec_old,&rec_new) == -1) goto clean_on_failure;
+
+	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.fields[0].data.s)) goto clean_on_failure;
+	if(strncmp(rec_old.fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
+
+	free_record(&rec_old,rec_old.fields_num);
+	free_record(&rec_new,rec_new.fields_num);
+	return 0;
+clean_on_failure:
+	if(rec_old.fields)
+		free_record(&rec_old,rec_old.fields_num);
+	if(rec_new.fields)
+		free_record(&rec_new,rec_new.fields_num);
+	return -1;
+}
+
+int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH],int *fds)
+{
 	struct Schema sch_in = {0};
 	/*this creates a file named test, and give a definitions*/
 	if(open_files(file_name,fds,files,CREATE_FILE) == -1){

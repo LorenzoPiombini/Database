@@ -236,6 +236,49 @@ int write_field_to_record(char *field_name,struct Record_f *rec,void *data, int 
 	return 0;
 }
 
+int copy_fields(struct Field *src,struct Field *dest)
+{
+	if(src->type != dest->type) return -1;
+	switch(src->type){
+		case TYPE_INT:
+			dest->data.i = src->data.i;
+			return 0;
+		case TYPE_LONG:
+			dest->data.l = src->data.l;
+			return 0;
+		case TYPE_BYTE:
+			dest->data.b = src->data.b;
+			return 0;
+		case TYPE_FLOAT:
+			dest->data.f = src->data.f;
+			return 0;
+		case TYPE_DOUBLE:
+			dest->data.d = src->data.d;
+			return 0;
+		case TYPE_DATE:
+			dest->data.date = src->data.date;
+			return 0;
+		case TYPE_STRING:
+			if(!dest->data.s){
+				dest->data.s = duplicate_str(src->data.s);
+				if(!dest->data.s){
+					fprintf(stderr,"(%s): duplicate_str() failed, %s:%d.\n",ERR_MSG_PAR-2);
+					return -1;
+				}
+				return 0;
+			}
+			free(dest->data.s);
+			dest->data.s = duplicate_str(src->data.s);
+			if(!dest->data.s){
+				fprintf(stderr,"(%s): duplicate_str() failed, %s:%d.\n",ERR_MSG_PAR-2);
+				return -1;
+			}
+			return 0;
+		default:
+			fprintf(stderr, "type not supported.\n");
+			return -1;
+	}
+}
 int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 {
 	strncpy(rec->file_name,file_name,strlen(file_name));
@@ -4163,3 +4206,28 @@ ui8 has_constrain_unique(ui8 *constraints, int *field_num)
 	}
 	return 0;
 }
+
+int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
+{
+	int i;
+	for(i = 0; i < old->fields_num; i++){
+		if((!old->field_set[i] && new->field_set[i]) || (old->field_set[i] && new->field_set[i])){
+			if(copy_fields(&new->fields[i],&old->fields[i]) == -1)return -1;
+			continue;
+		}
+
+		if(!new->field_set[i] && old->field_set[i]){
+			switch(old->fields[i].type){
+			case TYPE_STRING:
+					free(old->fields[i].data.s);
+					old->field_set[i] = 0;
+					continue;
+			default:
+					fprintf(stderr,"type not supported %s:%d.\n",__FILE__,__LINE__);
+					return -1;
+			}
+		}
+	}
+	return 0;
+}
+

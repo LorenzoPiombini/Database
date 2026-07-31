@@ -141,5 +141,7 @@ int parse_record_to_json(struct Record_f *rec,char **buffer);
 int drop_field(struct Schema *s, char *fields);
 int change_fields_name(char *buffer,struct Schema *sch);
 ui8 has_constrain_unique(ui8 *constraints, int *field_num);
+int copy_fields(struct Field *src,struct Field *dest);
+int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new);
 
 #endif /*record.h*/
