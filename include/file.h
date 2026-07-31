@@ -63,6 +63,7 @@ file_offset get_file_size(int fd, char *file_name);
 int add_index(int index_nr, char *file_name, int bucket);
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset);
 long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch);
+file_offset read_update_offset_ram_file(struct Ram_file *ram);
 int get_all_record(int fd, struct Ram_file *ram);
 void clear_ram_file(struct Ram_file *ram);
 void close_ram_file(struct Ram_file *ram);

@@ -7344,6 +7344,14 @@ long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *
 	return (long long) ram->offset;
 }
 
+/*NOTE this is to be used after read_ram_file */
+file_offset read_update_offset_ram_file(struct Ram_file *ram){
+	ui64 pos = 0;
+	memcpy(&pos,&ram->mem[ram->offset],sizeof(ui64));
+	ram->offset += sizeof(ui64);
+	return (file_offset) swap64(pos);
+}
+
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size)
 {
 	if(ram->size == ram->offset){
