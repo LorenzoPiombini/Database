@@ -19,6 +19,7 @@ int DB_test_count_fields()
 	if(count_fields("field:field:field:",":") != 3) return -1;
 	if(count_fields("string:t_s:double:t_d:typet_string:t_s",T_) != 3) return -1;
 	if(count_fields("string:TYPE_STRING:double:TYPE_DOUBLE:typet_string:TYPE_STRING",TYPE_) != 3) return -1;
+	if(count_fields("string:TYPE_STRING:double:TYPE_DOUBLE:typet_string:TYPE_STRING",NULL) != 3) return -1;
 
 	return 0;
 }
@@ -49,9 +50,7 @@ int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_
 
 	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.fields[0].data.s)) goto clean_on_failure;
 	if(strncmp(rec_old.fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
-
-	/*the field named double should be turned off in the old record*/
-	if(rec_old.field_set[4]) goto clean_on_failure;
+	if(!rec_old.field_set[4]) goto clean_on_failure;
 
 	free_record(&rec_old,rec_old.fields_num);
 	free_record(&rec_new,rec_new.fields_num);
