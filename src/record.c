@@ -4216,15 +4216,28 @@ int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
 		for(i = 0; i < o->fields_num; i++){
 			if(!new->field_set[i]) continue;
 
-			if((!o->field_set[i] && new->field_set[i]) || (o->field_set[i] && new->field_set[i])){
+			if(o->field_set[i] && new->field_set[i]){
 				if(copy_fields(&new->fields[i],&o->fields[i]) == -1)return -1;
-				o->field_set[i] = 1;
 				continue;
 			}
+			if(!o->field_set[i] && new->field_set[i]){
+			}
 		}
-
 		o = o->next;
 	}while(o);
+	/*---------------TODO------------------*/
+	/* to update a record, we assume that the new record overwrites
+	 * whatever fields are already active in the old record from the file, if they are active in the new record as well
+	 * i.e :
+	  		if(o->field_set[i] && new->field_set[i]){
+				if(copy_fields(&new->fields[i],&o->fields[i]) == -1)return -1;
+				continue;
+			}
+
+	 * if a field is active in the new record but not in the record on file
+	 * we need to create a new record in the first free spot in the record linked list, and populated with the new field 
+	 * of the updated record.
+	 * */
 	return 0;
 }
 
