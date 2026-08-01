@@ -1429,7 +1429,7 @@ int count_fields(char *fields, const char *user_target)
 	if(user_target){
 		while ((p = strstr(p, user_target)) != 0x0) {
 			c++;
-			p += strlen(user_target);
+			p++;
 		}
 		return c;
 	}
@@ -1441,11 +1441,11 @@ int count_fields(char *fields, const char *user_target)
 		if(strstr(p,new_target) != 0x0){
 			while ((p = strstr(p, new_target)) != 0x0) {
 				if(is_target_db_type((char *)p) == -1){
-					p += strlen(new_target);
+					p++;
 					continue;
 				}
 				c++;
-				p += strlen(new_target);
+				p++;
 			}
 		}
 	} else {
@@ -1454,20 +1454,25 @@ int count_fields(char *fields, const char *user_target)
 
 			while ((p = strstr(p, second_target)) != 0x0) {
 				if(is_target_db_type((char *)p) == -1){
-					p += strlen(second_target);
+					p++;
 					continue;
 				}
 				c++;
-				p += strlen(second_target);
+				p++;
 			}
 		}
 
 		p = fields;
-		while ((p = strstr(p, target)) != 0x0) {
+		char *r = NULL;
+		while ((r = strstr(p, target)) != 0x0) {
 				c++;
-				p += strlen(target);
+				p = ++r;
 		}
 
+		while((p = strstr(p,":")) != 0x0){
+			if(p[1] != '\0') c++;
+			p++;
+		}
 	}
 
 	if(c == 0){
@@ -1497,7 +1502,6 @@ int count_fields(char *fields, const char *user_target)
 			c -= cos;
 		}
 	}
-
 	return c;
 }
 
