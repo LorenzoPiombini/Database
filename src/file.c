@@ -7365,6 +7365,8 @@ static void move_ram_file_ptr(struct Ram_file *ram,size_t size)
  *
  * if you pass init_ram_size as 0, in case the struct Ram_file memory is NULL
  * it will allocate the STD_RAM_FILE size to it (3 Mib)
+ *
+ * offset parameter is the offset of another part of the record, when the record is in more than one place in the file
  * */
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset)
 {
