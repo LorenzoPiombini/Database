@@ -4207,36 +4207,24 @@ ui8 has_constrain_unique(ui8 *constraints, int *field_num)
 	return 0;
 }
 
+/* This function is used to update the old record*/
 int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
 {
-	int i;
-	for(i = 0; i < old->fields_num; i++){
-		if((!old->field_set[i] && new->field_set[i]) || (old->field_set[i] && new->field_set[i])){
-			if(copy_fields(&new->fields[i],&old->fields[i]) == -1)return -1;
-			old->field_set[i] = 1;
-			continue;
-		}
+	struct Record_f *o = old;
+	do{
+		int i;
+		for(i = 0; i < o->fields_num; i++){
+			if(!new->field_set[i]) continue;
 
-		if(!new->field_set[i] && old->field_set[i]){
-			switch(old->fields[i].type){
-			case TYPE_STRING:
-					free(old->fields[i].data.s);
-					old->field_set[i] = 0;
-					continue;
-			case TYPE_INT:
-			case TYPE_DOUBLE:
-			case TYPE_FLOAT:
-			case TYPE_BYTE:
-			case TYPE_LONG:
-			case TYPE_DATE:
-					old->field_set[i] = 0;
-					continue;
-			default:
-					fprintf(stderr,"type not supported %s:%d.\n",__FILE__,__LINE__);
-					return -1;
+			if((!o->field_set[i] && new->field_set[i]) || (o->field_set[i] && new->field_set[i])){
+				if(copy_fields(&new->fields[i],&o->fields[i]) == -1)return -1;
+				o->field_set[i] = 1;
+				continue;
 			}
 		}
-	}
+
+		o = o->next;
+	}while(o);
 	return 0;
 }
 
