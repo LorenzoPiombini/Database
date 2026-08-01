@@ -20,6 +20,8 @@ int DB_test_count_fields()
 	if(count_fields("string:t_s:double:t_d:typet_string:t_s",T_) != 3) return -1;
 	if(count_fields("string:TYPE_STRING:double:TYPE_DOUBLE:typet_string:TYPE_STRING",TYPE_) != 3) return -1;
 	if(count_fields("string:TYPE_STRING:double:TYPE_DOUBLE:typet_string:TYPE_STRING",NULL) != 3) return -1;
+	if(count_fields("string:t_s:double:TYPE_DOUBLE:typet_string:TYPE_STRING",NULL) != 3) return -1;
+	if(count_fields("string:t_s:double:TYPE_DOUBLE:typet_string:TYPE_STRING:just_a_field",NULL) != 4) return -1;
 
 	return 0;
 }
@@ -54,6 +56,16 @@ int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_
 
 	free_record(&rec_old,rec_old.fields_num);
 	free_record(&rec_new,rec_new.fields_num);
+	memset(&rec_old,0,sizeof(struct Record_f));
+	memset(&rec_new,0,sizeof(struct Record_f));
+	
+	/* 
+	 * read one of the record from the file
+	 * and update it using combine_old_and_new_rec
+	 * */
+	
+
+	
 	return 0;
 
 clean_on_failure:
