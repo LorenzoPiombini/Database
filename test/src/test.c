@@ -35,7 +35,7 @@ int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_
 	if((check = check_data(file_name,"field:This is a string field",fds,files, &rec_old,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
 	if((check = check_data(file_name,"field:This is a string field NEW",fds,files, &rec_new,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
 
-	if(combine_old_and_new_rec(&rec_old,&rec_new) == -1) goto clean_on_failure;
+	if(combine_old_and_new_rec(NULL,&rec_old,&rec_new,*s) == -1) goto clean_on_failure;
 
 	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.fields[0].data.s)) goto clean_on_failure;
 	if(strncmp(rec_old.fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
@@ -48,24 +48,14 @@ int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_
 	if((check = check_data(file_name,"double:20.00",fds,files, &rec_old,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
 	if((check = check_data(file_name,"field:This is a string field NEW",fds,files, &rec_new,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
 
-	if(combine_old_and_new_rec(&rec_old,&rec_new) == -1) goto clean_on_failure;
+	if(combine_old_and_new_rec(file_name,&rec_old,&rec_new,*s) == -1) goto clean_on_failure;
 
-	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.fields[0].data.s)) goto clean_on_failure;
-	if(strncmp(rec_old.fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
+	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.next->fields[0].data.s)) goto clean_on_failure;
+	if(strncmp(rec_old.next->fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
 	if(!rec_old.field_set[4]) goto clean_on_failure;
 
 	free_record(&rec_old,rec_old.fields_num);
 	free_record(&rec_new,rec_new.fields_num);
-	memset(&rec_old,0,sizeof(struct Record_f));
-	memset(&rec_new,0,sizeof(struct Record_f));
-	
-	/* 
-	 * read one of the record from the file
-	 * and update it using combine_old_and_new_rec
-	 * */
-	
-
-	
 	return 0;
 
 clean_on_failure:

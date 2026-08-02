@@ -58,14 +58,6 @@ int main()
 	}
 
 	count++;
-	if(DB_test_combine_old_and_new_rec(&sch,fds,files,"./test") == -1){
-		strncpy(failed_test[failed],"DB_test_combine_old_and_new_rec()",strlen("DB_test_combine_old_and_new_rec()"));
-		failed++;
-	}else{
-		passed++;
-	}
-
-	count++;
 	if(LUA_port_table_to_record_test() == -1){
 		strncpy(failed_test[failed],"LUA_port_table_to_record_test()",strlen("LUA_port_table_to_record_test()"));
 		failed++;
@@ -81,6 +73,14 @@ int main()
 		passed++;
 	}
 		
+	count++;
+	if(DB_test_combine_old_and_new_rec(&sch,fds,files,"./test") == -1){
+		strncpy(failed_test[failed],"DB_test_combine_old_and_new_rec()",strlen("DB_test_combine_old_and_new_rec()"));
+		failed++;
+	}else{
+		passed++;
+	}
+
 	count++;
 	if(LUA_test_get_numeric_key() ==-1){
 		strncpy(failed_test[failed],"LUA_test_get_numeric_key()",strlen("LUA_test_get_numeric_key()"));
