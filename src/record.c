@@ -4208,8 +4208,12 @@ ui8 has_constrain_unique(ui8 *constraints, int *field_num)
 }
 
 /* This function is used to update the old record*/
-int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
+int combine_old_and_new_rec(char *file_name,struct Record_f *old, struct Record_f *new,struct Schema sch)
 {
+	int pos[old->fields_num];
+	memset(pos,-1,sizeof(int)*old->fields_num);
+
+	ui8 need_new = 0;
 	struct Record_f *o = old;
 	do{
 		int i;
@@ -4220,11 +4224,20 @@ int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
 				if(copy_fields(&new->fields[i],&o->fields[i]) == -1)return -1;
 				continue;
 			}
+
 			if(!o->field_set[i] && new->field_set[i]){
+				pos[i] = i;
+				need_new = 1;
 			}
 		}
-		o = o->next;
+
+		if(o->next)
+			o = o->next;
+		else
+			break;
+
 	}while(o);
+	
 	/*---------------TODO------------------*/
 	/* to update a record, we assume that the new record overwrites
 	 * whatever fields are already active in the old record from the file, if they are active in the new record as well
@@ -4233,11 +4246,32 @@ int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new)
 				if(copy_fields(&new->fields[i],&o->fields[i]) == -1)return -1;
 				continue;
 			}
-
 	 * if a field is active in the new record but not in the record on file
 	 * we need to create a new record in the first free spot in the record linked list, and populated with the new field 
 	 * of the updated record.
 	 * */
+
+	if(need_new){
+		o->next = malloc(sizeof *o);
+		if(!o->next){
+			fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			return -1;
+		}
+
+		if(create_record(file_name,sch, o->next) == -1){
+			fprintf(stderr,"create_record() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			return -1;
+		}
+
+		int i;
+		for(i = 0; i < o->fields_num; i++){
+			if(pos[i] == -1)continue; 
+			copy_fields(&new->fields[i],&o->next->fields[i]);
+			o->next->field_set[i] = 1;
+		}
+
+		old->count++;
+	}
 	return 0;
 }
 

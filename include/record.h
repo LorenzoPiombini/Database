@@ -142,6 +142,6 @@ int drop_field(struct Schema *s, char *fields);
 int change_fields_name(char *buffer,struct Schema *sch);
 ui8 has_constrain_unique(ui8 *constraints, int *field_num);
 int copy_fields(struct Field *src,struct Field *dest);
-int combine_old_and_new_rec(struct Record_f *old, struct Record_f *new);
+int combine_old_and_new_rec(char *file_name,struct Record_f *old, struct Record_f *new,struct Schema sch);
 
 #endif /*record.h*/
