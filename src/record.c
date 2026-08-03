@@ -284,6 +284,7 @@ int create_record(char *file_name, struct Schema sch, struct Record_f *rec)
 	strncpy(rec->file_name,file_name,strlen(file_name));
 	rec->fields_num = sch.fields_num;
 	rec->count = 1;
+	rec->offset = 0;
 	rec->fields = (struct Field*)malloc((sizeof(struct Field)*sch.fields_num));
 	rec->field_set = (ui8*)malloc(sizeof(ui8)*sch.fields_num);
 	if(!rec->fields || !rec->field_set){
@@ -2299,6 +2300,7 @@ void free_type_file(struct Record_f *rec,int optimized)
 
 void free_record(struct Record_f *rec, int fields_num)
 {
+	if(!rec) return;
 	int i;
 	for (i = 0; i < fields_num; i++){
 
@@ -4258,6 +4260,7 @@ int combine_old_and_new_rec(char *file_name,struct Record_f *old, struct Record_
 			return -1;
 		}
 
+		memset(o->next,0,sizeof *o);
 		if(create_record(file_name,sch, o->next) == -1){
 			fprintf(stderr,"create_record() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			return -1;
