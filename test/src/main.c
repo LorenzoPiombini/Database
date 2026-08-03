@@ -105,6 +105,13 @@ int main()
 	}
 
 	count++;
+	if(LUA_test_update_rec_cache() == -1){
+		strncpy(failed_test[failed],"LUA_test_update_rec_cache()",strlen("LUA_test_update_rec_cache()"));
+		failed++;
+	}else{
+		passed++;
+	}
+	count++;
 	if(LUA_test_create_record(&sch) == -1){
 		strncpy(failed_test[failed],"LUA_test_create_record()",strlen("LUA_test_create_record()"));
 		failed++;

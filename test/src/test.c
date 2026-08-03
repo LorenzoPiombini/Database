@@ -482,6 +482,80 @@ clean_on_failure:
 	return -1;
 }
 
+int LUA_test_update_rec_cache()
+{
+
+	/*desable the test mode and use the cache system*/
+	lua_pushboolean(L,0);
+	lua_setglobal(L,"TEST");
+
+	char *func = "update_record";
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"double:2.0"); /*Arg 2*/
+	lua_pushinteger(L,103); /*Arg 3*/
+	
+	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
+
+	int is_num;
+	int r = lua_tonumberx(L, -2, &is_num); 
+	if(!is_num) goto clean_on_failure;
+
+	if(r != 0) goto clean_on_failure;
+	clear_lua_stack();
+
+	/*NOTE: here the operation should have succeed, so we need to clean up the cache*/
+	int i;
+	for(i = 0;i < 30; i++){
+		if(!dbcache_ptr[i].index_file) continue;
+
+		if(write_cache_to_disk(&dbcache_ptr[i]) == -1) goto clean_on_failure;
+
+		Node *r = ht_delete((void*)dbcache_ptr[i].file_name,cache_r_ptr,STR);
+		if(!r){
+			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
+			free_cache(&dbcache_ptr[i]);
+			goto clean_on_failure;
+		}
+		free_ht_node(r);
+		free_cache(&dbcache_ptr[i]);
+	}
+	
+	/*VERIFY THE ACTUAL FILE HAS THE DATA!*/
+
+	char command[100] = {0};
+	if(snprintf(command,100,"SHOW test %d",103) == -1) goto clean_on_failure;
+
+	FILE *fp = popen(command,"r");
+	if(!fp){
+		goto clean_on_failure;
+	}
+
+	char buffer[1024*4];
+	int found = 0;
+	while(fgets(buffer,1024*4,fp) != NULL){
+		if(strstr(buffer, "field")) found++;
+		if(strstr(buffer,"This is a field")) found++;
+		if(strstr(buffer, "double")) found++;
+		if(strstr(buffer,"2.00")) found++;
+	}
+
+	if(found != 4){
+		pclose(fp);
+		goto clean_on_failure;
+	}
+
+	pclose(fp);
+	/*enable back the test mode*/
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
+	return 0;
+
+clean_on_failure:
+	lua_pushboolean(L,1);
+	lua_setglobal(L,"TEST");
+	return -1;
+}
 int LUA_test_w_rec_cache(struct Schema *sch)
 {
 	/*desable the test mode and use the cache system*/
@@ -520,7 +594,6 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	
 	
 	/*expand the test here if needed*/
-
 	/*NOTE: here the operation should have succeed, so we need to clean up the cache*/
 
 	
