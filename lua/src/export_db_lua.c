@@ -623,10 +623,114 @@ static int l_update_record(lua_State *L)
 
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
-	int lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
+	if(is_test(L)) goto update_rec_test;
+
+	/*check if the file is cached in memory*/
+	off_t file_pos_in_the_cache = get((void*)file_name,&cache_register,STR);
+	if(file_pos_in_the_cache != -1) goto use_cache;
+
 	if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 	if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
-	int check = -1;
+
+
+	/*cache the file*/
+	int first_free_cache = 0;
+	if((first_free_cache = get_free_slot_cache(dbCache)) == -1){
+		/*cache is full free one spot in the cache */
+		if((first_free_cache = check_and_free_one_cache(dbCache)) == -1)
+			goto err_cache_full;/*we cannot free a cache slot*/
+	}
+
+	if(cache_file(fds,file_name,hd.sch_d,dbCache,&cache_register,first_free_cache) == -1)
+		goto err_cache_first_time;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	memset(fds,-1,3*sizeof(int));
+	free_schema(hd.sch_d);
+
+use_cache:
+
+	struct Record_f rec_old = {0};
+	off_t pos = 0;
+	struct Cache *p = NULL;
+	if(file_pos_in_the_cache != -1){
+		p = &dbCache[file_pos_in_the_cache];
+	}else{
+		/*first time we cache the file*/
+		p = &dbCache[first_free_cache];
+	}
+
+	/*create a new record for the updated data */
+	int check = 0;
+	int lock = STD_LOCK | LOCK_FROM_LUA;
+	struct Header_d hd_c = {0,0,&p->sch};
+	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0)) == -1) goto err_cache_invalid_data;
+	
+	/*get old record*/
+	if((pos = get(key, &p->index_file[0],key_type)) == -1) goto err_cache_rec_not_found;
+	p->data_file.offset = (uint64_t)pos;
+
+	if(read_ram_file(file_name, &p->data_file, &rec_old, p->sch) == -1) goto err_read_ram_file;
+	struct Record_f *temp = &rec_old;
+
+	/*NOTE: we do not have to save the update pos, the ram file functions move the offset
+	 * internally*/
+	while(read_update_offset_ram_file(&p->data_file) != 0){
+		struct Record_f *n = malloc(sizeof *n);
+		if(!n) goto err_memory_allocation_update;
+		memset(n,0,sizeof *n);
+
+		if(read_ram_file(file_name, &p->data_file, n, p->sch) == -1){ 
+			free(n);
+			goto err_read_ram_file;
+		}
+		temp->next = n;
+		temp = temp->next;
+		rec_old.count++;
+	}
+
+	switch(check){
+	case SCHEMA_EQ:
+	case SCHEMA_CT:
+		if(combine_old_and_new_rec(file_name,&rec_old,&rec,p->sch) == -1) goto err_combine_rec;
+		break;
+	default:
+		fprintf(stderr,"%s(), schema check value not implemented, %s:%d.\n",__func__,__FILE__,__LINE__);
+		goto err_cache_wrong_schema;
+	}
+
+	struct Record_f *o = &rec_old;
+	off_t update_offset = 0;
+	p->data_file.offset = o->offset;
+	while(o){
+		if(o->next){
+			if(!o->next->next){ 
+				update_offset = p->data_file.size;
+			}else{
+				update_offset = o->next->offset;
+			}
+
+		}else{
+			update_offset = 0;
+		}
+
+		if(write_ram_record(&p->data_file,o,1,-1,update_offset) == -1) goto err_cache_write;
+		p->data_file.offset = update_offset;
+		o = o->next;
+	}
+
+	free_record(&rec,rec.fields_num);
+	free_record(&rec_old,rec_old.fields_num);
+	lua_pushinteger(L,0); /*return 0 on success*/
+	return 1;
+
+update_rec_test:
+	lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
+	if(fds[0] == -1){
+		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
+	}
+	check = -1;
 	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,1)) == -1) goto err_invalid_data;
 	int r = 0;
 	if((r = update_rec(file_name,fds,key,key_type,&rec,hd,check,&lock,NULL,-1)) == -1) goto err_update_rec;
@@ -635,13 +739,62 @@ static int l_update_record(lua_State *L)
 	if(r == KEY_NOT_FOUND)
 		goto err_update_rec;
 
-	close_file(3,fds[0],fds[1],fds[2]);
-	free_schema(hd.sch_d);
+	if(fds[0] != -1) free_schema(hd.sch_d);
+	if(fds[0] != -1) close_file(3,fds[0],fds[1],fds[2]);
 	free_record(&rec,rec.fields_num);
-	lua_Integer ok = 0;
-	lua_pushinteger(L,ok);
+	lua_pushinteger(L,0);
 	return 1;
 
+err_cache_write:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot write cached file.");
+	free_record(&rec,rec.fields_num);
+	free_record(&rec_old,rec_old.fields_num);
+	return 2;
+err_read_ram_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot read cached file.");
+	free_record(&rec,rec.fields_num);
+	free_record(&rec_old,rec_old.fields_num);
+	return 2;
+err_cache_rec_not_found:
+	lua_pushnil(L);
+	lua_pushstring(L,"rec not found in the cache.");
+	free_record(&rec,rec.fields_num);
+	return 2;
+err_cache_full:
+	lua_pushnil(L);
+	lua_pushstring(L,"cache is full, cannot complete your request");
+	return 2;
+err_cache_first_time:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot initialize file into the cache!");
+	free_schema(hd.sch_d);
+	close_file(3,fds[0],fds[1],fds[2]);
+	return 2;
+err_memory_allocation_update:
+	lua_pushnil(L);
+	lua_pushstring(L,"cannot allocate memory for old rec in the cache.");
+	free_record(&rec,rec.fields_num);
+	free_record(&rec_old,rec_old.fields_num);
+	return 2;
+err_cache_invalid_data:
+	lua_pushnil(L);
+	lua_pushstring(L,"data not valid.");
+	free_record(&rec,rec.fields_num);
+	return 2;
+err_cache_wrong_schema:
+	lua_pushnil(L);
+	lua_pushstring(L,"schema is wrong, this feature is not implemented yet");
+	free_record(&rec,rec.fields_num);
+	free_record(&rec_old,rec_old.fields_num);
+	return 2;
+err_combine_rec:
+	lua_pushnil(L);
+	lua_pushstring(L,"schema is wrong, this feature is not implemented yet");
+	free_record(&rec,rec.fields_num);
+	free_record(&rec_old,rec_old.fields_num);
+	return 2;
 err_open_file:
 	lua_pushnil(L);
 	lua_pushstring(L,"could not open the file.");
@@ -1806,4 +1959,5 @@ static int is_test(lua_State *L)
 	}
 	lua_pop(L,1);
 	return 0;
-}
+} 
+
