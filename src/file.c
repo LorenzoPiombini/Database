@@ -7676,7 +7676,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							ram->mem = n_mem;
 							ram->capacity += buff_update; 
 							ram->capacity += sizeof(ui16);
-							offset = ram->capacity;
+							/*offset = ram->capacity;*/
 
 						}else if((eof + buff_update) > ram->capacity){
 							errno = 0;
@@ -7688,7 +7688,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							ram->mem = n_mem;
 							ram->capacity += ((eof + buff_update) - ram->capacity); 
 							ram->capacity += sizeof(ui16);
-							offset = ram->capacity;
+							/*ram->offset = ram->capacity;*/
 						}
 					}
 
