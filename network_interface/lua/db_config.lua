@@ -564,9 +564,7 @@ local function is_date_in_the_past(date)
 	if type(date) == 'table' then return false end
 	one_day_seconds = 60*60*24
 	now = os.time()
-	if now - date < one_day_seconds then
-		-- TODO: convert to table and check the date
-	end
+	if (now - date) < one_day_seconds then return false end
 	return (now - date) > one_day_seconds
 end
 
