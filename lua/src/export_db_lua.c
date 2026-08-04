@@ -675,11 +675,14 @@ use_cache:
 
 	/*NOTE: we do not have to save the update pos, the ram file functions move the offset
 	 * internally*/
-	while(read_update_offset_ram_file(&p->data_file) != 0){
+	
+	
+	while((pos = read_update_offset_ram_file(&p->data_file)) != 0){
 		struct Record_f *n = malloc(sizeof *n);
 		if(!n) goto err_memory_allocation_update;
 		memset(n,0,sizeof *n);
 
+		p->data_file.offset =pos;
 		if(read_ram_file(file_name, &p->data_file, n, p->sch) == -1){ 
 			free(n);
 			goto err_read_ram_file;
@@ -705,7 +708,7 @@ use_cache:
 	while(o){
 		if(o->next){
 			if(!o->next->next){ 
-				update_offset = p->data_file.size;
+				update_offset = o->next->offset == 0 ? p->data_file.size : o->next->offset;
 			}else{
 				update_offset = o->next->offset;
 			}
