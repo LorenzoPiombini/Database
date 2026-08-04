@@ -662,9 +662,9 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		/* file_error_handler will close the file descriptors if there are issues */
 		if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
 			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.%s:%d.\n",prog,file_name,__FILE__,__LINE__-2);
+				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, __FILE__, __LINE__ - 2);
 
 			return STATUS_ERROR;
 		}
