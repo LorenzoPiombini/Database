@@ -32,13 +32,19 @@ int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_
 	struct Record_f rec_new = {0};
 	struct Header_d hd = {0,0,s};
 	int lock_f = STD_LOCK, check = 0;
+	size_t l = strlen("This is a string field NEW");
+	char *new_string = malloc(l+1);
+	if(!new_string) return -1;
+	new_string[l] = '\0';
+	strncpy(new_string,"This is a string field NEW",l);
+
 	if((check = check_data(file_name,"field:This is a string field",fds,files, &rec_old,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
 	if((check = check_data(file_name,"field:This is a string field NEW",fds,files, &rec_new,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
 
 	if(combine_old_and_new_rec(NULL,&rec_old,&rec_new,*s) == -1) goto clean_on_failure;
 
-	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.fields[0].data.s)) goto clean_on_failure;
-	if(strncmp(rec_old.fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
+	if(strlen(rec_old.fields[0].data.s) != l) goto clean_on_failure;
+	if(strncmp(rec_old.fields[0].data.s,new_string,l) != 0) goto clean_on_failure;
 
 	free_record(&rec_old,rec_old.fields_num);
 	free_record(&rec_new,rec_new.fields_num);
@@ -50,15 +56,18 @@ int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_
 
 	if(combine_old_and_new_rec(file_name,&rec_old,&rec_new,*s) == -1) goto clean_on_failure;
 
-	if(strlen(rec_new.fields[0].data.s) != strlen(rec_old.next->fields[0].data.s)) goto clean_on_failure;
-	if(strncmp(rec_old.next->fields[0].data.s,rec_new.fields[0].data.s,strlen(rec_new.fields[0].data.s)) != 0) goto clean_on_failure;
+	if(strlen(rec_old.next->fields[0].data.s) != l) goto clean_on_failure;
+	if(strncmp(rec_old.next->fields[0].data.s,new_string,l) != 0) goto clean_on_failure;
 	if(!rec_old.field_set[4]) goto clean_on_failure;
 
 	free_record(&rec_old,rec_old.fields_num);
 	free_record(&rec_new,rec_new.fields_num);
+	free(new_string);
+	new_string = NULL;
 	return 0;
 
 clean_on_failure:
+	free(new_string);
 	if(rec_old.fields)
 		free_record(&rec_old,rec_old.fields_num);
 	if(rec_new.fields)
@@ -484,7 +493,6 @@ clean_on_failure:
 
 int LUA_test_update_rec_cache()
 {
-
 	/*desable the test mode and use the cache system*/
 	lua_pushboolean(L,0);
 	lua_setglobal(L,"TEST");
@@ -522,11 +530,7 @@ int LUA_test_update_rec_cache()
 	}
 	
 	/*VERIFY THE ACTUAL FILE HAS THE DATA!*/
-
-	char command[100] = {0};
-	if(snprintf(command,100,"SHOW test %d",103) == -1) goto clean_on_failure;
-
-	FILE *fp = popen(command,"r");
+	FILE *fp = popen("SHOW test 103","r");
 	if(!fp){
 		goto clean_on_failure;
 	}
@@ -541,6 +545,116 @@ int LUA_test_update_rec_cache()
 	}
 
 	if(found != 4){
+		pclose(fp);
+		goto clean_on_failure;
+	}
+
+	pclose(fp);
+	
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"integer:1"); /*Arg 2*/
+	lua_pushinteger(L,103); /*Arg 3*/
+	
+	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
+
+	is_num;
+	r = lua_tonumberx(L, -2, &is_num); 
+	if(!is_num) goto clean_on_failure;
+
+	if(r != 0) goto clean_on_failure;
+	clear_lua_stack();
+
+	/*NOTE: here the operation should have succeed, so we need to clean up the cache*/
+	for(i = 0;i < 30; i++){
+		if(!dbcache_ptr[i].index_file) continue;
+
+		if(write_cache_to_disk(&dbcache_ptr[i]) == -1) goto clean_on_failure;
+
+		Node *r = ht_delete((void*)dbcache_ptr[i].file_name,cache_r_ptr,STR);
+		if(!r){
+			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
+			free_cache(&dbcache_ptr[i]);
+			goto clean_on_failure;
+		}
+		free_ht_node(r);
+		free_cache(&dbcache_ptr[i]);
+	}
+
+
+	/*VERIFY THE ACTUAL FILE HAS THE DATA!*/
+	fp = popen("SHOW test 103","r");
+	if(!fp){
+		goto clean_on_failure;
+	}
+
+	memset(buffer,0,1024*4);
+	found = 0;
+	while(fgets(buffer,1024*4,fp) != NULL){
+		if(strstr(buffer, "field")) found++;
+		if(strstr(buffer,"This is a field")) found++;
+		if(strstr(buffer, "double")) found++;
+		if(strstr(buffer,"2.00")) found++;
+		if(strstr(buffer, "integer")) found++;
+		if(strstr(buffer,"1")) found++;
+	}
+
+	if(found != 6){
+		pclose(fp);
+		goto clean_on_failure;
+	}
+
+	pclose(fp);
+
+	lua_getglobal(L,func);
+	lua_pushstring(L,"test"); /*Arg 1*/
+	lua_pushstring(L,"field:This is the new string, is it longer, because i want to try how does the fucntion work,this should succeed and be written in the right spot in the file"); /*Arg 2*/
+	lua_pushinteger(L,103); /*Arg 3*/
+	
+	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
+
+	is_num;
+	r = lua_tonumberx(L, -2, &is_num); 
+	if(!is_num) goto clean_on_failure;
+
+	if(r != 0) goto clean_on_failure;
+	clear_lua_stack();
+
+	/*NOTE: here the operation should have succeed, so we need to clean up the cache*/
+	for(i = 0;i < 30; i++){
+		if(!dbcache_ptr[i].index_file) continue;
+
+		if(write_cache_to_disk(&dbcache_ptr[i]) == -1) goto clean_on_failure;
+
+		Node *r = ht_delete((void*)dbcache_ptr[i].file_name,cache_r_ptr,STR);
+		if(!r){
+			fprintf(stderr,"!!! SOMENTHIG WRONG WITH THE CACHE!!!%s:%d\n",__FILE__,__LINE__);
+			free_cache(&dbcache_ptr[i]);
+			goto clean_on_failure;
+		}
+		free_ht_node(r);
+		free_cache(&dbcache_ptr[i]);
+	}
+
+
+	/*VERIFY THE ACTUAL FILE HAS THE DATA!*/
+	fp = popen("SHOW test 103","r");
+	if(!fp){
+		goto clean_on_failure;
+	}
+
+	memset(buffer,0,1024*4);
+	found = 0;
+	while(fgets(buffer,1024*4,fp) != NULL){
+		if(strstr(buffer, "field")) found++;
+		if(strstr(buffer,"This is the new string, is it longer, because i want to try how does the fucntion work,this should succeed and be written in the right spot in the file")) found++;
+		if(strstr(buffer, "double")) found++;
+		if(strstr(buffer,"2.00")) found++;
+		if(strstr(buffer, "integer")) found++;
+		if(strstr(buffer,"1")) found++;
+	}
+
+	if(found != 6){
 		pclose(fp);
 		goto clean_on_failure;
 	}
