@@ -4224,6 +4224,11 @@ int combine_old_and_new_rec(char *file_name,struct Record_f *old, struct Record_
 
 			if(o->field_set[i] && new->field_set[i]){
 				if(copy_fields(&new->fields[i],&o->fields[i]) == -1)return -1;
+				new->field_set[i] = 0;
+				if(new->fields[i].type == TYPE_STRING){
+					free(new->fields[i].data.s);
+					new->fields[i].data.s = NULL;
+				}
 				continue;
 			}
 
