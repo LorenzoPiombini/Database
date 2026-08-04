@@ -571,7 +571,7 @@ end
 local function get_overdue_order(head_keys)
 	local result = '{"message":['
 	local exit = false
-	now = os.time()
+	local now = os.time()
 	for k,v in pairs(head_keys) do
 		local h,err_h = g_rec(sales_orders.head,v)
 
@@ -583,12 +583,10 @@ local function get_overdue_order(head_keys)
 			if line == nil then print(err_l) return -1 end
 			
 			if is_date_in_the_past(convert_date(line.fields.request_date)) == true then
-				if i == 1 then
-					if string.sub(result,-1) == '[' then
-						result = string.format('%s"%s"',result,v)
-					else
-						result = string.format('%s,"%s"',result,v)
-					end
+				if string.sub(result,-1) == '[' then
+					result = string.format('%s"%s"',result,v)
+				else
+					result = string.format('%s,"%s"',result,v)
 				end
 			end
 		end
