@@ -173,31 +173,6 @@ report_error:
 
 			char key_up[1024];
 			memset(key_up,0,1024);
-			if(operation_to_perform == UPDATE_SORD){
-				/*get the key of the record that we have to update*/
-				clear_tok();
-				t = tok(&buffer[2],"^");
-				if(t){
-					len = strlen(t);	
-				}else{
-					memset(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					continue;
-				}
-
-				if(len >= 1024){/*if the length is >= than 1024 we need a code refactor*/
-					fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__- 10);
-					memset(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					continue;
-				}
-				strncpy(key_up,t,len);
-			}
-
 			clear_tok();
 			t = tok(&buffer[2],"^");
 			if(t){
@@ -208,6 +183,30 @@ report_error:
 				close(data_sock);
 				data_sock = -1;
 				continue;
+			}
+
+			if(operation_to_perform == UPDATE_SORD){
+				/*get the key of the record that we have to update*/
+
+				if(len >= 1024){/*if the length is >= than 1024 we need a code refactor*/
+					fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__- 10);
+					memset(err,0,1024);
+					write(data_sock,err,sizeof(err));
+					close(data_sock);
+					data_sock = -1;
+					continue;
+				}
+				strncpy(key_up,t,len);
+				t = tok(NULL,"^");
+				if(t){
+					len = strlen(t);	
+				}else{
+					memset(err,0,1024);
+					write(data_sock,err,sizeof(err));
+					close(data_sock);
+					data_sock = -1;
+					continue;
+				}
 			}
 
 			char orders_head[len+1];
