@@ -79,10 +79,7 @@ int work_process(int sock)
 			clear_lua_stack();
 
 			memset(succ,0,1024);
-			if(copy_to_string(succ,
-								1024,
-								"{\"message\":\"customer nr %d, created!\"}",
-								key) == -1) goto new_cust_error;
+			if(copy_to_string(succ,	1024,"{\"message\":\"customer nr %d, created!\"}",key) == -1) goto new_cust_error;
 
 			if(write(data_sock,succ,sizeof(succ)) == -1) goto new_cust_error;
 
@@ -190,7 +187,7 @@ report_error:
 			clear_lua_stack();
 			json = NULL;
 			
-			if(write(data_sock,msg,size_json) == -1 ) {
+			if(write(data_sock,msg,size_json) == -1 ){
 				free(msg);
 				goto report_error;
 			}

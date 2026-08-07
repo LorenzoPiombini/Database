@@ -64,14 +64,20 @@ function write_to_name_file(data)
 end
 
 function write_item(data)
+	local name = string.match(data,"name:([^:]+)")
 	local p_level = string.match(data,"price_level_id:([^:]+)")
+
 	--if price level is there, make sure is accurate
 	if p_level ~= nil then
 		local k = g_rec(price_level,p_level,1)
-		-- TODO: return an error for this error --> PRICE_LEVEL present but wrong
-		if k == nil then return nil end
+		if k == nil then return VALUE_ERROR_PRICE_LEVEL end
 	end
+
+	local k, i = w_rec(items,data)
+	if k == nil then return i end
+	return name
 end
+
 function write_customers(data)
 
 	local cli_rec = create_rec(customers, data)
