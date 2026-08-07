@@ -21,9 +21,10 @@ static char prog[] = "worker_process";
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
 #define LUA_VALUE_ERROR -20
-#define LUA_SALES_ORDER_HEAD_WRITE_FAILED = -21
-#define LUA_SALES_ORDER_LINES_WRITE_FAILED = -22
-#define LUA_GET_NUMERIC_KEY_FAILED = -23
+#define LUA_SALES_ORDER_HEAD_WRITE_FAILED -21
+#define LUA_SALES_ORDER_LINES_WRITE_FAILED -22
+#define LUA_GET_NUMERIC_KEY_FAILED -23
+#define LUA_NEW_ITEM_WRITE_ERROR -24
 #define GENERAL_ERROR -1
 #define NO_ERROR 0
 
@@ -74,22 +75,42 @@ int work_process(int sock)
 			long long res = -1, key = -1;
 			if(execute_lua_function("write_customers","s>ll",cust_data,&res,&key) == -1 || res == 2 ){
 				/*send error and resume*/
+				short int err_code = (short int)res;
+				memcpy(&err[0],&err_code,sizeof(short int));
+				switch(err_code){
+				case LUA_VALUE_ERROR:
+					if(copy_to_string(&err[2],1024-2,"%s",
+								"{\"message\":\"values are wrong!\"}") == -1){
+						fprintf(stderr,"(%s):copy_to_string() failed to write error,%s:%d\n",prog,__FILE__,__LINE__);
+					}
+					break;
+				default:
+					break;
+				}
+				clear_lua_stack();
 				goto new_cust_error;
 			}
 			clear_lua_stack();
 
 			memset(succ,0,1024);
-			if(copy_to_string(succ,	1024,"{\"message\":\"customer nr %d, created!\"}",key) == -1) goto new_cust_error;
+			if(copy_to_string(&succ[2],1024-2,"{\"message\":\"customer nr %d, created!\"}",key) == -1) goto new_cust_error;
 
-			if(write(data_sock,succ,sizeof(succ)) == -1) goto new_cust_error;
+			if(write(data_sock,succ,strlen(&succ[2])) == -1) goto new_cust_error;
 
 			close(data_sock);
 			data_sock = -1;
 			continue;
 
-new_cust_error:
-			memset(err,0,1024);
-			write(data_sock,err,sizeof(err));
+new_cust_error:	
+			if(err[2] != '\0'){
+				size_t l = strlen(&err[2]) + 3; /* 2 is for short int  and 1 for '\0'*/
+				write(data_sock,err,l);
+			}else{
+				short int e = GENERAL_ERROR;
+				memcpy(&err[0],&e,sizeof(short int));
+				write(data_sock,err,2);
+			}
+			memset(err,0,sizeof(err));
 			close(data_sock);
 			data_sock = -1;
 			continue;
@@ -102,7 +123,6 @@ new_cust_error:
 			if(get_function_signature(function_to_execute,sig) == -1)
 				goto report_error;
 
-			long long res = -1;
 			char *json = NULL;
 			if(execute_lua_function(function_to_execute,sig,&json) == -1){
 				/*send error and resume*/
@@ -166,32 +186,56 @@ report_error:
 		{
 			char *data = &buffer[2];
 			long long res = -1;
-			char *json = NULL;
-			if(execute_lua_function("write_item","s>s",data,&json) == -1){
-				/*send error and resume*/
-				goto report_error;
-			}
-
-			/*copy the json string from lua to memory*/
-			size_t size_json = strlen(json);
-			char *msg = (char*) malloc(size_json+1);
-			if(!msg){
-				fprintf(stderr,"malloc() failed. %s:%d.\n",__FILE__,__LINE__-2);
+			char *item_name = NULL;
+			if(execute_lua_function("write_item","s>ls",data,&res,&item_name) == -1){
+				short int err_code = (short int)res;
+				memcpy(&err[0],&err_code,sizeof(short int));
+				switch(err_code){
+					case LUA_NEW_ITEM_WRITE_ERROR:
+						if(copy_to_string(&err[2],1024-2,"%s",
+									"{\"message\":\"Cannot Write to database, call your admin.\"}") == -1){
+							fprintf(stderr,"(%s):copy_to_string() failed to write error,%s:%d\n",prog,__FILE__,__LINE__);
+						}
+						break;
+					case LUA_VALUE_ERROR:
+						if(copy_to_string(&err[2],1024-2,"%s",
+									"{\"message\":\"Check values like price_level and unit_price, values are wrong!\"}") == -1){
+							fprintf(stderr,"(%s):copy_to_string() failed to write error,%s:%d\n",prog,__FILE__,__LINE__);
+						}
+						break;
+					default:
+						break;
+				}
 				clear_lua_stack();
-				goto report_error;
+				goto n_item_error;
 			}
 
-			memset(msg,0,size_json+1);
-			memcpy(msg,json,size_json);
+			memset(succ,0,1024);
+			if(copy_to_string(&succ[2],1024-2,"{\"message\":\"'%s' added!\"}",item_name) == -1){ 
+				goto n_item_error;
+			}
 
 			clear_lua_stack();
-			json = NULL;
+			item_name = NULL;
 			
-			if(write(data_sock,msg,size_json) == -1 ){
-				free(msg);
-				goto report_error;
+			if(write(data_sock,succ,strlen(succ)) == -1 ) goto n_item_error;
+
+			close(data_sock);
+			data_sock = -1;
+			continue;
+n_item_error:
+			if(err[2] != '\0'){
+				size_t l = strlen(&err[2]) + 3; /* 2 is for short int  and 1 for '\0'*/
+				write(data_sock,err,l);
+			}else{
+				short int e = GENERAL_ERROR;
+				memcpy(&err[0],&e,sizeof(short int));
+				write(data_sock,err,2);
 			}
-			break;
+			memset(err,0,sizeof(err));
+			close(data_sock);
+			data_sock = -1;
+			continue;
 		}
 		case NEW_SORD:
 		case UPDATE_SORD:
@@ -266,6 +310,13 @@ report_error:
 					short int err_code = (short int)key_ord;
 					memcpy(&err[0],&err_code,sizeof(short int));
 					switch(err_code){
+					case LUA_SALES_ORDER_LINES_WRITE_FAILED:
+					case LUA_SALES_ORDER_HEAD_WRITE_FAILED:
+						if(copy_to_string(&err[2],1024-2,"%s",
+									"{\"message\":\"Cannot Write to database, call your admin.\"}") == -1){
+							fprintf(stderr,"(%s):copy_to_string() failed to write error,%s:%d\n",prog,__FILE__,__LINE__);
+						}
+						break;
 					case LUA_VALUE_ERROR:
 						if(copy_to_string(&err[2],1024-2,"%s",
 								"{\"message\":\"Check values like Quantity,Discount and so on, some values are wrong!\"}") == -1){

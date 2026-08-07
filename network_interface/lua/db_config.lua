@@ -19,6 +19,8 @@ CACHE_FAILED = -19
 VALUE_ERROR = -20 -- when creating new orders, this means one of the value is wrong, like a negative qty
 SALES_ORDER_HEAD_WRITE_FAILED = -21
 SALES_ORDER_LINES_WRITE_FAILED = -22
+-- TODO -23 is taken, i need to verify where and why
+NEW_ITEM_WRITE_FAILED = -24
 
 --- database files
 -- name_file = "db/name_file" /* i do not need it for now */
@@ -66,16 +68,19 @@ end
 function write_item(data)
 	local name = string.match(data,"name:([^:]+)")
 	local p_level = string.match(data,"price_level_id:([^:]+)")
-
+	local price = tonumber(string.match(data,"unit_prcie:([^:]+)"))
+	if price == nil or price < 0 then return nil,VALUE_ERROR end
+	if name == nil then return nil,VALUE_ERROR end
+	
 	--if price level is there, make sure is accurate
 	if p_level ~= nil then
-		local k = g_rec(price_level,p_level,1)
-		if k == nil then return VALUE_ERROR_PRICE_LEVEL end
+		local p_level_record = g_rec(price_level,p_level,1)
+		if p_level_record == nil then return nil,VALUE_ERROR end
 	end
 
 	local k, i = w_rec(items,data)
-	if k == nil then return i end
-	return name
+	if k == nil then return  nil,NEW_ITEM_WRITE_FAILED end
+	return 0,name
 end
 
 function write_customers(data)

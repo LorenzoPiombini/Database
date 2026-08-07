@@ -30,7 +30,7 @@ int map_end_point(char *end_point)
 	 * */
 	if(strstr(end_point,NEW_ITEM)){
 		s = strlen(end_point);
-		so_s = strlen(NEW_ITEMS);
+		so_s = strlen(NEW_ITEM);
 
 		if(s == so_s){
 			if(strncmp(end_point,NEW_ITEM,so_s) == 0)
