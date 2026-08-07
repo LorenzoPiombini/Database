@@ -69,9 +69,8 @@ function write_item(data)
 	if p_level ~= nil then
 		local k = g_rec(price_level,p_level,1)
 		-- TODO: return an error for this error --> PRICE_LEVEL present but wrong
-		if k == nil then return -1 nil end
+		if k == nil then return nil end
 	end
-
 end
 function write_customers(data)
 
