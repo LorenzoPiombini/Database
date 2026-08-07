@@ -53,6 +53,7 @@ function w_rec(file_name, data, key, number)
 	end
 end
 
+
 --- return the key of the name_file record
 function write_to_name_file(data)
 	local key, rec = write_record(name_file, data)
@@ -62,6 +63,16 @@ function write_to_name_file(data)
 	return key
 end
 
+function write_item(data)
+	local p_level = string.match(data,"price_level_id:([^:]+)")
+	--if price level is there, make sure is accurate
+	if p_level ~= nil then
+		local k = g_rec(price_level,p_level,1)
+		-- TODO: return an error for this error --> PRICE_LEVEL present but wrong
+		if k == nil then return -1 nil end
+	end
+
+end
 function write_customers(data)
 
 	local cli_rec = create_rec(customers, data)

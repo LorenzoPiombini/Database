@@ -23,12 +23,13 @@ enum endp{
 	CUSTOMER_GET_ALL,
 	NEW_CUST,
 	ITEM_GET_ALL,
-	NEW_ITEM,
+	N_ITEM,
 	UPDATE_ITEM,
 	ITEM_GET,
 	RPT
 };
 
+/* DB END POINTS*/
 #define NEW_S_ORDER "/new_sales_order"
 #define CUSTOMERS "/customers"
 #define SALES_NEW_ORDER_CUSTOMERS "/sales_new_order_customers"

@@ -165,6 +165,37 @@ report_error:
 			data_sock = -1;
 			continue;
 		}
+		case N_ITEM:
+		{
+			char *data = &buffer[2];
+			long long res = -1;
+			char *json = NULL;
+			if(execute_lua_function("write_item","s>s",data,&json) == -1){
+				/*send error and resume*/
+				goto report_error;
+			}
+
+			/*copy the json string from lua to memory*/
+			size_t size_json = strlen(json);
+			char *msg = (char*) malloc(size_json+1);
+			if(!msg){
+				fprintf(stderr,"malloc() failed. %s:%d.\n",__FILE__,__LINE__-2);
+				clear_lua_stack();
+				goto report_error;
+			}
+
+			memset(msg,0,size_json+1);
+			memcpy(msg,json,size_json);
+
+			clear_lua_stack();
+			json = NULL;
+			
+			if(write(data_sock,msg,size_json) == -1 ) {
+				free(msg);
+				goto report_error;
+			}
+			break;
+		}
 		case NEW_SORD:
 		case UPDATE_SORD:
 		{

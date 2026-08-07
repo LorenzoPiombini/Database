@@ -28,6 +28,16 @@ int map_end_point(char *end_point)
 	 * ITEM SECTION Note: anything that contains '/items' should be tested before 
 	 * this if statement
 	 * */
+	if(strstr(end_point,NEW_ITEM)){
+		s = strlen(end_point);
+		so_s = strlen(NEW_ITEMS);
+
+		if(s == so_s){
+			if(strncmp(end_point,NEW_ITEM,so_s) == 0)
+				return N_ITEM;
+		}
+	}
+
 	if(strstr(end_point,ITEMS)){
 		s = strlen(end_point);
 		so_s = strlen(ITEMS);
