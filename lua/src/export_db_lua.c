@@ -372,7 +372,6 @@ static int l_write_record(lua_State *L)
 		k = (void*)&n;
 		lua_pushinteger(L,n);
 	}else if(type == LUA_TSTRING){
-		/*TODO: implement other modes*/
 		char *param = (char*)luaL_checkstring(L,3);
 		if(param && (strlen(param) == strlen("base")) &&
 			(strncmp("base",param,strlen("base")) == 0)){
@@ -391,6 +390,24 @@ static int l_write_record(lua_State *L)
 			k = (void*)&n;
 			lua_pushinteger(L,n);
 			key_type = UINT;
+		}else if(param 
+				&& (strlen(param) == strlen("increment"))
+				&& (strncmp(param,"increment",strlen("increment")) == 0)){
+
+			int key_mode = file_pos_in_the_cache == -1 ? KEY_GEN_DISK_MODE : KEY_GEN_CACHE_MODE;
+			if(key_mode == KEY_GEN_DISK_MODE){
+				if(open_files(file_name,fds,file_names,-1) == -1) 
+					goto err_open_file;
+				if(is_db_file(&hd,fds) == -1) 
+					goto err_not_db_file;
+				if((n = generate_numeric_key(fds,INCREM | key_mode,-1,NULL)) == -1) goto err_key_gen;
+			}else{
+				if((n = generate_numeric_key(fds,INCREM | key_mode,-1,&dbCache[file_pos_in_the_cache])) == -1) goto err_key_gen;
+			}	
+			k = (void*)&n;
+			lua_pushinteger(L,n);
+			key_type = UINT;
+
 		}else{
 			key_type = STR; 
 			k = (void*)param;
