@@ -437,66 +437,72 @@ int write_record(int *fds,
 
 int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht, file_offset eof)
 {
-	int inx = sch->fields_num;
-	if(sch->has_unique(sch->constraints,&inx) && rec->field_set[inx]){
-		switch(rec->fields[inx].type){
-		case TYPE_INT:
-			if(set_tbl(*ht,(void*)&rec->fields[inx].data.i,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				return STATUS_ERROR;
-			}
-			break;
-		case TYPE_LONG:
-		{
-			if(rec->fields[inx].data.l > (long)UINT_MAX){
-				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-				return STATUS_ERROR;
-			}
+	int inx[sch->fields_num];
+	memset(inx,-1,sizeof(int)*sch->fields_num);
+	if(sch->has_unique(sch->constraints,sch->fields_num,inx)){
+		int i;
+		for(i = 0; i < sch->fields_num; i++){
+			if(inx[i] == -1 || !rec->field_set[inx[i]])continue;
 
-			if(set_tbl(*ht,(void*)&rec->fields[inx].data.l,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				return STATUS_ERROR;
-			}
-			break;
-		}
-		case TYPE_FLOAT:
-		{
-			ui32 f = htonf(rec->fields[inx].data.f);
-			if( f > (ui32)UINT_MAX){
-				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-				return STATUS_ERROR;
-			}
+			switch(rec->fields[inx[i]].type){
+			case TYPE_INT:
+				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.i,eof,UINT,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
+					return STATUS_ERROR;
+				}
+				break;
+			case TYPE_LONG:
+			{
+				if(rec->fields[inx[i]].data.l > (long)UINT_MAX){
+					fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+					return STATUS_ERROR;
+				}
 
-			if(set_tbl(*ht,(void*)&f,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				return STATUS_ERROR;
+				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.l,eof,UINT,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
+					return STATUS_ERROR;
+				}
+				break;
 			}
-			break;
-		}
-		case TYPE_DOUBLE:
-		{
-			ui64 d = htonf(rec->fields[inx].data.d);
-			if( d > (ui64)UINT_MAX){
-				fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
-				return STATUS_ERROR;
-			}
+			case TYPE_FLOAT:
+			{
+				ui32 f = htonf(rec->fields[inx[i]].data.f);
+				if( f > (ui32)UINT_MAX){
+					fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+					return STATUS_ERROR;
+				}
 
-			if(set_tbl(*ht,(void*)d,eof,UINT,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				return STATUS_ERROR;
+				if(set_tbl(*ht,(void*)&f,eof,UINT,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
+					return STATUS_ERROR;
+				}
+				break;
 			}
-			break;
-		}
-		case TYPE_STRING:
-		{
-			if(set_tbl(*ht,rec->fields[inx].data.s,eof,STR,1) == -1){
-				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx].field_name);
-				return STATUS_ERROR;
+			case TYPE_DOUBLE:
+			{
+				ui64 d = htonf(rec->fields[inx[i]].data.d);
+				if( d > (ui64)UINT_MAX){
+					fprintf(stderr,"(%s): key out of range. %s:%d.\n",prog,__FILE__,__LINE__-2);
+					return STATUS_ERROR;
+				}
+
+				if(set_tbl(*ht,(void*)d,eof,UINT,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
+					return STATUS_ERROR;
+				}
+				break;
 			}
+			case TYPE_STRING:
+			{
+				if(set_tbl(*ht,rec->fields[inx[i]].data.s,eof,STR,1) == -1){
+					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
+					return STATUS_ERROR;
+				}
+				break;
+			}
+			default:
 			break;
-		}
-		default:
-			break;
+			}
 		}
 	}
 	return 0;
@@ -535,140 +541,140 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 		fprintf(stderr,"(%s): file name or path '%s' too long",prog,file_name);
 		return STATUS_ERROR;
 	}
-	
+
 	int err = 0;
 	switch(option){
-	case CREATE_ONLY_SCHEMA:
-	{
-		fds[2] = create_file(files[2]);
-		if ((err = file_error_handler(1,fds[2])) != 0) {
-			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-			else if(err == EEXIST)
-				fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
-			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+		case CREATE_ONLY_SCHEMA:
+			{
+				fds[2] = create_file(files[2]);
+				if ((err = file_error_handler(1,fds[2])) != 0) {
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+					else if(err == EEXIST)
+						fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
+					else
+						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
 
-			return STATUS_ERROR;
-		}	
-		break;
-	}
-	case CREATE_ONLY_DATA:
-	{
-		fds[1] = create_file(files[1]);
-		fds[2] = create_file(files[2]);
-		if ((err = file_error_handler(2, fds[0],fds[1])) != 0){
-			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-			else if(err == EEXIST)
-				fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
-			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+					return STATUS_ERROR;
+				}	
+				break;
+			}
+		case CREATE_ONLY_DATA:
+			{
+				fds[1] = create_file(files[1]);
+				fds[2] = create_file(files[2]);
+				if ((err = file_error_handler(2, fds[0],fds[1])) != 0){
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+					else if(err == EEXIST)
+						fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
+					else
+						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
 
-			return STATUS_ERROR;
-		}	
-		break;
-	}
-	case ONLY_SCHEMA:
-	{
-		fds[2] = open_file(files[2], 0);
-		if ((err = file_error_handler(1,fds[2])) != 0) {
-			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist. %s:%d\n",prog,file_name,__FILE__,__LINE__-2);
-			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+					return STATUS_ERROR;
+				}	
+				break;
+			}
+		case ONLY_SCHEMA:
+			{
+				fds[2] = open_file(files[2], 0);
+				if ((err = file_error_handler(1,fds[2])) != 0) {
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): File '%s' doesn't exist. %s:%d\n",prog,file_name,__FILE__,__LINE__-2);
+					else
+						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
 
-			return STATUS_ERROR;
-		}
+					return STATUS_ERROR;
+				}
 
-		break;
-	}	
-	case ONLY_INDEX:
-	{
-		fds[0]= open_file(files[0], 0);
-		if ((err = file_error_handler(1,fds[0])) != 0) {
-			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
+				break;
+			}	
+		case ONLY_INDEX:
+			{
+				fds[0]= open_file(files[0], 0);
+				if ((err = file_error_handler(1,fds[0])) != 0) {
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+					else
+						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
 
-			return STATUS_ERROR;
-		}
-		return 0;
-	}
-	case ONLY_DATA:
-	{
-		fds[1] = open_file(files[1], 0);
-		if ((err = file_error_handler(1,fds[1])) != 0) {
-			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
+					return STATUS_ERROR;
+				}
+				return 0;
+			}
+		case ONLY_DATA:
+			{
+				fds[1] = open_file(files[1], 0);
+				if ((err = file_error_handler(1,fds[1])) != 0) {
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+					else
+						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
 
-			return STATUS_ERROR;
-		}
-		return 0;
-	}
-	case CREATE_FILE:
-	{
-		fds[0] = create_file(files[0]);
-		fds[1] = create_file(files[1]);
-		fds[2] = create_file(files[2]);
-		if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
-			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-			else if(err == EEXIST)
-				fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
-			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+					return STATUS_ERROR;
+				}
+				return 0;
+			}
+		case CREATE_FILE:
+			{
+				fds[0] = create_file(files[0]);
+				fds[1] = create_file(files[1]);
+				fds[2] = create_file(files[2]);
+				if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+					else if(err == EEXIST)
+						fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
+					else
+						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
 
-			return STATUS_ERROR;
-		}	
+					return STATUS_ERROR;
+				}	
 
-		
-		struct Schema sch;
-		memset(&sch,0,sizeof(struct Schema));
-		struct Header_d hd = {HEADER_ID_SYS, VS, &sch};
-		if (!write_empty_header(fds[2], &hd)) {
-			fprintf(stderr,"%s:%d.\n", F, L - 1);
-			close_file(3,fds[0],fds[1],fds[2]);
-			return STATUS_ERROR;
-		}
-		/*  write the index file */
-		if (!write_index_file_head(fds[0], 5)) {
-			close_file(3,fds[0],fds[1],fds[2]);
-			return STATUS_ERROR;
-		}
 
-		int i = 0;
-		for (i = 0; i < 5; i++) {
-			HashTable ht = {0};
-			ht.size = 7;
-			ht.write = write_ht;
-			if (!write_index_body(fds[0], i, &ht)) {
-				destroy_hasht(&ht);
-				close_file(3,fds[0],fds[1],fds[2]);
+				struct Schema sch;
+				memset(&sch,0,sizeof(struct Schema));
+				struct Header_d hd = {HEADER_ID_SYS, VS, &sch};
+				if (!write_empty_header(fds[2], &hd)) {
+					fprintf(stderr,"%s:%d.\n", F, L - 1);
+					close_file(3,fds[0],fds[1],fds[2]);
+					return STATUS_ERROR;
+				}
+				/*  write the index file */
+				if (!write_index_file_head(fds[0], 5)) {
+					close_file(3,fds[0],fds[1],fds[2]);
+					return STATUS_ERROR;
+				}
+
+				int i = 0;
+				for (i = 0; i < 5; i++) {
+					HashTable ht = {0};
+					ht.size = 7;
+					ht.write = write_ht;
+					if (!write_index_body(fds[0], i, &ht)) {
+						destroy_hasht(&ht);
+						close_file(3,fds[0],fds[1],fds[2]);
+						return STATUS_ERROR;
+					}
+					destroy_hasht(&ht);
+				}
+				break;
+			}
+		default:
+			fds[0] = open_file(files[0], 0);
+			fds[1] = open_file(files[1], 0);
+			fds[2] = open_file(files[2], 0);
+
+			/* file_error_handler will close the file descriptors if there are issues */
+			if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
+				if(err == ENOENT)
+					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
+				else
+					printf("(%s): Error in creating or opening files, %s:%d.\n",prog, __FILE__, __LINE__ - 2);
+
 				return STATUS_ERROR;
 			}
-			destroy_hasht(&ht);
-		}
-		break;
-	}
-	default:
-		fds[0] = open_file(files[0], 0);
-		fds[1] = open_file(files[1], 0);
-		fds[2] = open_file(files[2], 0);
-
-		/* file_error_handler will close the file descriptors if there are issues */
-		if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
-			if(err == ENOENT)
-				fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-			else
-				printf("(%s): Error in creating or opening files, %s:%d.\n",prog, __FILE__, __LINE__ - 2);
-
-			return STATUS_ERROR;
-		}
-		break;
+			break;
 	}
 
 	return 0;
@@ -777,7 +783,7 @@ int update_rec(char *file_path,
 				continue;
 			}
 
-			
+
 			no_updates = 0;
 			changed = 1;
 			if (find_record_position(fds[1], recs[j]->offset) == -1) {
@@ -983,16 +989,16 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
 }
 
 /*
-struct Cache{
-	HashTable *index_file;
-	int indexes;
-	char *file_name;
-	struct Ram_file data_file;
-	struct Schema sch;
-	time_t ts;
-	time_t used;
-};
-*/
+   struct Cache{
+   HashTable *index_file;
+   int indexes;
+   char *file_name;
+   struct Ram_file data_file;
+   struct Schema sch;
+   time_t ts;
+   time_t used;
+   };
+   */
 
 int write_cache_to_disk(struct Cache *c){
 	int fds[3];

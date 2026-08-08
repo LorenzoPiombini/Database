@@ -2578,10 +2578,16 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 			if(!rec->field_set[j])
 				continue;
 
-			int f = rec->fields_num;
-			if(hd.sch_d->has_unique(hd.sch_d->constraints,&f) && rec->field_set[f]){
-				if(unique_constraint_update(fds,rec,rec_old[0],f,file_path) == -1){
-					return 0;
+			int f[rec->fields_num];
+			memset(f,-1,sizeof(int)*rec->fields_num);
+			if(hd.sch_d->has_unique(hd.sch_d->constraints,rec->fields_num,f)){
+				int i;
+				for(i = 0; i < rec->fields_num; i++){
+					if(!rec->field_set[i] || f[i] == -1) continue;
+
+					if(unique_constraint_update(fds,rec,rec_old[0],f[i],file_path) == -1){
+						return 0;
+					}
 				}
 			}
 
@@ -3513,11 +3519,17 @@ void find_fields_to_update(
 				dif++; 
 				continue;
 			}
-			int f = rec->fields_num;
-			if(hd.sch_d->has_unique(hd.sch_d->constraints,&f) && f == index){
-				if(unique_constraint_update(fds,rec,rec_old[j],f,file_path) == -1){
-					positions[0] = '0';
-					return;
+
+			int f[rec->fields_num];
+			memset(f,-1,sizeof(int)*rec->fields_num);
+			if(hd.sch_d->has_unique(hd.sch_d->constraints,rec->fields_num,f)){
+				int i;
+				for(i = 0; i < rec->fields_num; i++){
+					if(f[i] != index) continue;
+					if(unique_constraint_update(fds,rec,rec_old[j],f[i],file_path) == -1){
+						positions[0] = '0';
+						return;
+					}
 				}
 			}
 			switch (rec->fields[index].type) {

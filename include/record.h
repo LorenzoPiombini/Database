@@ -20,7 +20,7 @@ struct Schema {
 	ui8 *is_dropped;
 	ui8 *constraints;
 	void **defaults; 
-	ui8 (*has_unique)(ui8*,int*);
+	ui8 (*has_unique)(ui8*,int,int*);
 };/*48 b*/
 
 struct Header_d{
@@ -140,7 +140,7 @@ void free_type_file(struct Record_f *rec,int optimized);
 int parse_record_to_json(struct Record_f *rec,char **buffer);
 int drop_field(struct Schema *s, char *fields);
 int change_fields_name(char *buffer,struct Schema *sch);
-ui8 has_constrain_unique(ui8 *constraints, int *field_num);
+ui8 has_constrain_unique(ui8 *constraints, int field_num,int *field_unique);
 int copy_fields(struct Field *src,struct Field *dest);
 int combine_old_and_new_rec(char *file_name,struct Record_f *old, struct Record_f *new,struct Schema sch);
 

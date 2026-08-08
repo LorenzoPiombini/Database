@@ -4197,16 +4197,17 @@ int change_fields_name(char *buffer,struct Schema *sch)
 	else
 		return -1;
 }
-ui8 has_constrain_unique(ui8 *constraints, int *field_num)
+
+ui8 has_constrain_unique(ui8 *constraints, int field_num,int *field_unique)
 {
-	int i;
-	for(i = 0; i < *field_num; i++){
+	int i,f = 0;
+	for(i = 0; i < field_num; i++){
 		if(constraints[i] & CONST_UNIQUE){
-			*field_num = i;
-			return 1;
+			field_unique[i] = i;
+			f = 1;
 		}
 	}
-	return 0;
+	return f;
 }
 
 /* This function is used to update the old record*/
