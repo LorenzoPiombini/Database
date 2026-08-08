@@ -218,7 +218,7 @@ report_error:
 			clear_lua_stack();
 			item_name = NULL;
 			
-			if(write(data_sock,succ,strlen(succ)) == -1 ) goto n_item_error;
+			if(write(data_sock,succ,strlen(&succ[2]) + 2 ) == -1) goto n_item_error;
 
 			close(data_sock);
 			data_sock = -1;
