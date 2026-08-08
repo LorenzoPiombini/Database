@@ -68,7 +68,7 @@ end
 function write_item(data)
 	local name = string.match(data,"name:([^:]+)")
 	local p_level = string.match(data,"price_level_id:([^:]+)")
-	local price = tonumber(string.match(data,"unit_prcie:([^:]+)"))
+	local price = tonumber(string.match(data,"unit_price:([^:]+)"))
 	if price == nil or price < 0 then return nil,VALUE_ERROR end
 	if name == nil then return nil,VALUE_ERROR end
 	
@@ -78,7 +78,7 @@ function write_item(data)
 		if p_level_record == nil then return nil,VALUE_ERROR end
 	end
 
-	local k, i = w_rec(items,data)
+	local k, i = w_rec(items,data,INCREMENT)
 	if k == nil then return  nil,NEW_ITEM_WRITE_FAILED end
 	return 0,name
 end
