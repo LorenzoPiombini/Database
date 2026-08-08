@@ -4,9 +4,9 @@ TEST = false
 --- DB GLOBALS
 
 --[[ key generation modes]]
-REG = 0
-BASE = 1
-INCREMENT = 2
+REG = 0 -- this is automatically used if yuo don't pass any
+BASE = "base"
+INCREMENT = "increment"
 -- [[ @@@@@@@@@@@@@@@@@@@@@@@@]]
 
 ORDER_BASE = 100
