@@ -25,7 +25,11 @@ void print_hash_table(HashTable tbl)
 		{
 			switch (node->key.type)
 			{
+#if defined(_WIN32)
+			case STR_KEY:
+#else
 			case STR:
+#endif
 			{
 				if (node->key.k.s)
 				{
@@ -36,7 +40,11 @@ void print_hash_table(HashTable tbl)
 				node = node->next;
 				break;
 			}
+#if defined(_WIN32)
+			case UINT_KEY:
+#else
 			case UINT:
+#endif
 			{
 				printf("\t{ %u,%ld}\n", node->key.k.n, node->value);
 				node = node->next;
@@ -93,7 +101,11 @@ int write_ht(int fd, HashTable *ht)
 		Node *current = ht->data_map[i];
 		while (current != NULL) {
 			switch (current->key.type){
+#if defined(_WIN32)
+			case STR_KEY:
+#else
 			case STR:
+#endif
 			{
 				ui32 type = swap32(current->key.type);
 				ui64 key_l = swap64(strlen(current->key.k.s));
@@ -122,7 +134,11 @@ int write_ht(int fd, HashTable *ht)
 				current = current->next;
 				break;
 			}
+#if defined(_WIN32)
+			case UINT_KEY:
+#else
 			case UINT:
+#endif
 			{
 				ui32 type = swap32(current->key.type);
 				ui8 size = (ui8)current->key.size;
@@ -211,14 +227,22 @@ int hash(void *key, int size, int key_type)
 	/*compute the prime number */
 	ui32 prime = (ui32)(power(2, 31) - 1);
 	switch (key_type) {
+#if defined(_WIN32)
+	case UINT_KEY:
+#else
 	case UINT:
+#endif
 	{
 		integer_key = *(ui32 *)key;
 		/*printf("size is %d, integer_key %u, coprime is %d, prime is %d\n",size,integer_key,COPRIME,prime);*/
 		hash = ((COPRIME * integer_key + number) % prime) % size;
 		break;
 	}
+#if defined(_WIN32)
+	case STR_KEY:
+#else
 	case STR:
+#endif
 		string_key = (char *)key;
 		for (; *string_key != '\0'; string_key++, number = COPRIME * number % (size - 1)){
 			hash = (number * hash + *string_key) % size;
@@ -239,7 +263,11 @@ file_offset get(void *key, HashTable *tbl, int key_type)
 	while (temp != NULL)
 	{
 		switch (key_type) {
+#if defined(_WIN32)
+		case STR_KEY:
+#else
 		case STR:
+#endif
 			if(temp->key.type != key_type){
 				temp = temp->next;
 				break;
@@ -251,7 +279,11 @@ file_offset get(void *key, HashTable *tbl, int key_type)
 
 			temp = temp->next;
 			break;
+#if defined(_WIN32)
+		case UINT_KEY:
+#else
 		case UINT:
+#endif
 		{
 			if(temp->key.size == 16 && *(ui16*)key < USHRT_MAX){
 				if(temp->key.k.n16 == *(ui16 *)key)
@@ -284,7 +316,11 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 	}
 
 	switch (key_type){
+#if defined(_WIN32)
+	case UINT_KEY:
+#else
 	case UINT:
+#endif
 	{
 		if(*(ui32*)key < USHRT_MAX){ 
 			new_node->key.k.n16 = *(ui16 *)key;
@@ -299,7 +335,11 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 		}
 		break;
 	}
+#if defined(_WIN32)
+	case STR_KEY:
+#else 
 	case STR:
+#endif
 	{
 		new_node->key.k.s = duplicate_str((char *)key);
 		if (!new_node->key.k.s) {
@@ -319,14 +359,22 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 
 	if (tbl->data_map[index] == NULL) {
 		tbl->data_map[index] = new_node;
+#if defined(_WIN32)
+	}else if (key_type == STR_KEY){
+#else
 	}else if (key_type == STR){
+#endif
 		/*for key strings*/
 		/*
 		 * check if the key already exists at
 		 * the base  element of the index
 		 * */
 		size_t key_len = 0;
+#if defined(_WIN32)
+		if(tbl->data_map[index]->key.type == STR_KEY){
+#else
 		if(tbl->data_map[index]->key.type == STR){
+#endif
 			if ((key_len = strlen(tbl->data_map[index]->key.k.s)) == strlen(new_node->key.k.s))
 			{
 				if (strncmp(tbl->data_map[index]->key.k.s, new_node->key.k.s, ++key_len) == 0)
@@ -345,7 +393,11 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 		 * */
 		Node *temp = tbl->data_map[index];
 		while (temp->next != NULL) {
+#if defined(_WIN32)
+			if (temp->next->key.type != STR_KEY){
+#else
 			if (temp->next->key.type != STR){
+#endif
 				temp = temp->next;
 				continue;
 			}
@@ -360,7 +412,12 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 			}
 			temp = temp->next;
 		}
+#if defined(_WIN32)
+		if(temp->key.type == STR_KEY){
+#else
 		if(temp->key.type == STR){
+#endif
+
 			if ((key_len = strlen(temp->key.k.s)) == strlen(new_node->key.k.s)) {
 				if (strncmp(temp->key.k.s, new_node->key.k.s, ++key_len) == 0) {
 					printf("could not insert new node \"%s\"\n", new_node->key.k.s);
@@ -377,7 +434,11 @@ int set(void *key, int key_type, file_offset value, HashTable *tbl)
 		 * we add the node to the list
 		 * */
 		temp->next = new_node;
+#if defined(_WIN32)
+	} else if (key_type == UINT_KEY) {
+#else
 	} else if (key_type == UINT) {
+#endif
 		if (tbl->data_map[index]->key.size == new_node->key.size){
 			if(new_node->key.size == 16){
 				if(tbl->data_map[index]->key.k.n16 == new_node->key.k.n16) {
@@ -453,7 +514,11 @@ Node *ht_delete(void *key, HashTable *tbl, int key_type)
 	{
 		switch (key_type)
 		{
+#if defined(_WIN32)
+		case STR_KEY:
+#else
 		case STR:
+#endif
 			if (strcmp(current->key.k.s, (char *)key) == 0)
 			{
 				if (previous == NULL){
@@ -467,7 +532,11 @@ Node *ht_delete(void *key, HashTable *tbl, int key_type)
 			previous = current;
 			current = current->next;
 			break;
+#if defined(_WIN32)
+		case UINT_KEY:
+#else
 		case UINT:
+#endif
 		{
 
 			if(current->key.size == 16){
@@ -525,7 +594,11 @@ void destroy_hasht(HashTable *tbl)
 		Node *current = tbl->data_map[i];
 		while (current != NULL) {
 			switch (current->key.type) {
+#if defined(_WIN32)
+			case STR_KEY:
+#else
 			case STR:
+#endif
 			{
 				Node *next = current->next;
 				free(current->key.k.s);
@@ -533,7 +606,11 @@ void destroy_hasht(HashTable *tbl)
 				current = next;
 				break;
 			}
-			case UINT:
+#if defined(_WIN32)
+		case UINT_KEY:
+#else
+		case UINT:
+#endif
 			{
 				Node *next = current->next;
 				free(current);
@@ -568,25 +645,42 @@ int keys(HashTable *ht, struct Keys_ht *all_keys)
 		Node *temp = ht->data_map[i];
 		while (temp != NULL)
 		{
+#if defined(_WIN32)
+			if (temp->key.type == STR_KEY)
+#else
 			if (temp->key.type == STR)
+#endif
 			{
 				keys[index].k.s = duplicate_str(temp->key.k.s);
 				if (!keys[index].k.s){
 					fprintf(stderr, "duplicate_str failed, %s:%d",F,L-2);
 					return -1;
 				}
+#if defined(_WIN32)
+				keys[index].type = STR_KEY;
+#else
 				keys[index].type = STR;
+#endif
+
 			}
 			else
 			{
 				if(temp->key.size == 16){
 					keys[index].k.n16 = temp->key.k.n16;
+#if defined(_WIN32)
+					keys[index].type = UINT_KEY;
+#else
 					keys[index].type = UINT;
+#endif
 					keys[index].size = 16;
 					pack(keys[index].k.n16,keys[index].paked_k);
 				}else{
 					keys[index].k.n = temp->key.k.n;
+#if defined(_WIN32)
+					keys[index].type = UINT_KEY;
+#else
 					keys[index].type = UINT;
+#endif
 					keys[index].size = 32;
 					pack(keys[index].k.n,keys[index].paked_k);
 					
@@ -630,7 +724,12 @@ void free_nodes(Node **data_map, int size)
 		while (current) {
 			switch (current->key.type)
 			{
+
+#if defined(_WIN32)
+			case STR_KEY:
+#else
 			case STR:
+#endif
 			{
 				Node *next = current->next;
 				free(current->key.k.s);
@@ -638,7 +737,11 @@ void free_nodes(Node **data_map, int size)
 				current = next;
 				break;
 			}
+#if defined(_WIN32)
+			case UINT_KEY:
+#else
 			case UINT:
+#endif
 			{
 				Node *next = current->next;
 				free(current);
@@ -660,10 +763,19 @@ void free_ht_node(Node *node)
 
 	switch (node->key.type)
 	{
+#if defined(_WIN32)
+	case STR_KEY:
+#else
 	case STR:
+#endif
 		free(node->key.k.s);
 		break;
+	
+#if defined(_WIN32)
+	case UINT_KEY:
+#else
 	case UINT:
+#endif
 		break;
 	default:
 		fprintf(stderr, "key type not supported");
@@ -677,7 +789,11 @@ void free_keys_data(struct Keys_ht *data)
 {
 	int i;
 	for (i = 0; i < data->length; i++){
+#if defined(_WIN32)
+		if (data->keys[i].type == STR_KEY)
+#else
 		if (data->keys[i].type == STR)
+#endif
 			free(data->keys[i].k.s);
 	}
 
@@ -708,7 +824,11 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 		if (src->data_map[i])
 		{
 			switch (src->data_map[i]->key.type){
+#if defined(_WIN32)
+			case STR_KEY:
+#else
 			case STR:
+#endif
 			{
 				set((void *)src->data_map[i]->key.k.s,
 					src->data_map[i]->key.type,
@@ -722,7 +842,11 @@ unsigned char copy_ht(HashTable *src, HashTable *dest, int mode)
 				}
 				break;
 			}
+#if defined(_WIN32)
+			case UINT_KEY:
+#else
 			case UINT:
+#endif
 			{
 				if(src->data_map[i]->key.size == 16){
 					set((void *)&src->data_map[i]->key.k.n16,
@@ -782,7 +906,11 @@ int swap_indexes(int src,int dest, HashTable *ht)
 				memset(*n,0,sizeof **n);
 
 				switch(c->key.type){
+#if defined(_WIN32)
+				case STR_KEY:
+#else
 				case STR:
+#endif
 				{
 					(*n)->key.type = c->key.type;
 					(*n)->key.size = c->key.size;
@@ -794,7 +922,11 @@ int swap_indexes(int src,int dest, HashTable *ht)
 					(*n)->value = c->value;
 					break;
 				}
+#if defined(_WIN32)
+				case UINT_KEY:
+#else
 				case UINT:
+#endif
 				{
 					(*n)->key.type = c->key.type;
 					(*n)->key.size = c->key.size;
@@ -850,6 +982,7 @@ int swap_indexes(int src,int dest, HashTable *ht)
 	}
 
 	if(0 < len(ht[dest]) && 0 == len(ht[src])){
+		/*TODO*/
 
 
 	}

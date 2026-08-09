@@ -7,8 +7,13 @@
 #define MAX_KEY 4294967296
 #define MAX_HT_BUCKET 503 
 
-#define STR 1
-#define UINT 2
+#if defined(_WIN32)
+	#define STR_KEY 1
+	#define UINT_KEY 2
+#else
+	#define STR 1
+	#define UINT 2
+#endif
 
 struct Key{
 	int type;
