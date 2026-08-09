@@ -19,7 +19,12 @@
 /* input modes */
 #define WR 128 
 #define DF 64
-#define CONST 32
+#if defined(_WIN32)
+	#define CONSTR 32
+#else
+	#define CONST 32
+#endif
+
 #define NO_TYPE 0
 #define TYPE 1
 #define HYB 3
@@ -29,10 +34,19 @@
 #define HYB_DF (HYB | DF) 
 #define TYPE_DF (TYPE | DF) 
 #define NO_TYPE_DF (NO_TYPE | DF)		
-#define NO_TYPE_CONST (NO_TYPE | CONST)
-#define TYPE_CONST (TYPE | CONST)
-#define HYB_CONST (HYB | CONST)
 
+
+
+
+#if defined(_WIN32)
+	#define NO_TYPE_CONST (NO_TYPE | CONSTR)
+	#define TYPE_CONST (TYPE | CONSTR)
+	#define HYB_CONST (HYB | CONSTR)
+#else
+	#define NO_TYPE_CONST (NO_TYPE | CONST)
+	#define TYPE_CONST (TYPE | CONST)
+	#define HYB_CONST (HYB | CONST)
+#endif
 
 #define ASCII_INT_MAX 			526     /*the sum of ASCII values for every char in INT_MAX*/
 #define ASCII_INT_MIN 			572     /*the sum of ASCII values for every char in INT_MIN*/
