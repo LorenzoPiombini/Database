@@ -156,9 +156,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};
 		three_file_path(files_n[j],files);
 #if defined(_WIN32)
-		HANDLE fd_schema = -1;
-		HANDLE fd_index = -1;
-		HANDLE fd_data = -1;
+		HANDLE fd_schema,fd_index,fd_data;
 #else
 		int fd_schema = -1;
 		int fd_index = -1;

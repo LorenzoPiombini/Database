@@ -840,6 +840,7 @@ size_t record_size_on_disk(void *rec_f)
 	return rec_size;
 }
 
+/*TODO: are we using this?????*/
 int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, unsigned char update)
 {
 	file_offset go_back_to = 0;
@@ -6570,6 +6571,7 @@ int file_error_handler(int count, ...)
 }
 
 
+/*TODO: make it windows compatible*/
 int add_index(int index_nr, char *file_name, int bucket)
 {
 	if (index_nr == 0)

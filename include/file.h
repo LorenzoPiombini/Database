@@ -74,12 +74,24 @@ void free_cache(struct Cache *c);
 
 #include <windows.h>
 
+int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
+static size_t get_string_size(struct Ram_file *ram);
+int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset);
+int get_all_record(HANDLE file_handle, struct Ram_file *ram);
+unsigned char read_index_file(HANDLE file_handle, HashTable *ht);
+unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_index);
+unsigned char nr_bucket(HANDLE file_handle, int *p_buck);
+unsigned char indexes_on_file(HANDLE file_handle, int *p_i_nr);
+unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht);
+unsigned char write_index_file_head(HANDLE file_handle,int index_num);
+unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht);
 HANDLE open_file(char *fileName, ui32 use_trunc);
 HANDLE create_file(char *file_name);
 void close_file(int count, ...);
 int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 void free_cache(struct Cache *c);
 int delete_file(int count,...);
+file_offset get_update_offset(HANDLE file_handle);
 file_offset begin_in_file(HANDLE file_handle);
 file_offset get_file_offset(HANDLE file_handle);
 file_offset find_record_position(HANDLE file_handle, long long offset);
