@@ -31,13 +31,14 @@ struct Cache{
 	time_t used;
 };
 
-/*these are global between OS*/
+/*these are valid for all OS*/
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset);
 long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch);
 file_offset read_update_offset_ram_file(struct Ram_file *ram);
 void clear_ram_file(struct Ram_file *ram);
 void close_ram_file(struct Ram_file *ram);
 int init_ram_file(struct Ram_file *ram, size_t size);
+int file_error_handler(int count, ...);
 
 #if defined(__linux__) || defined(__APPLE__)
 
@@ -61,7 +62,6 @@ int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, uns
 int buffered_write(int *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset);
 file_offset get_update_offset(int fd);
 int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch);
-int file_error_handler(int count, ...);
 int padding_file(int fd, int bytes, size_t hd_st);
 unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);

@@ -15,6 +15,9 @@
 #include "crud.h"
 #include "globals.h"
 #include "string_utilities.h"
+#if defined(_WIN32)
+	#include <windows.h>
+#endif
 
 static char prog[] = "db";
 int get_number_value_from_txt_file(FILE *fp)
@@ -152,9 +155,15 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	{
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};
 		three_file_path(files_n[j],files);
+#if defined(_WIN32)
+		HANDLE fd_schema = -1;
+		HANDLE fd_index = -1;
+		HANDLE fd_data = -1;
+#else
 		int fd_schema = -1;
 		int fd_index = -1;
 		int fd_data = -1;
+#endif
 
 		if(file_field[j]){
 			fd_schema = create_file(files[2]);
@@ -360,7 +369,12 @@ int import_data_to_system(char *data_file)
 			return STATUS_ERROR;
 		}
 
+	
+#if defined(_WIN32)
+		int key_type = STR_KEY;
+#else
 		int key_type = STR;
+#endif
 		if(is_integer(key)) key_type = -1;
 
 		if(write_record(fds,(void*)key,key_type,&rec, 0,files,&lock_f,IMPORT,hd.sch_d) == -1) {
