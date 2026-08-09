@@ -31,7 +31,13 @@ struct Cache{
 	time_t used;
 };
 
-
+/*these are global between OS*/
+int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset);
+long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch);
+file_offset read_update_offset_ram_file(struct Ram_file *ram);
+void clear_ram_file(struct Ram_file *ram);
+void close_ram_file(struct Ram_file *ram);
+int init_ram_file(struct Ram_file *ram, size_t size);
 
 #if defined(__linux__) || defined(__APPLE__)
 
@@ -61,16 +67,12 @@ unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);
 file_offset get_file_size(int fd, char *file_name);
 int add_index(int index_nr, char *file_name, int bucket);
-int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset);
-long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch);
-file_offset read_update_offset_ram_file(struct Ram_file *ram);
 int get_all_record(int fd, struct Ram_file *ram);
-void clear_ram_file(struct Ram_file *ram);
-void close_ram_file(struct Ram_file *ram);
-int init_ram_file(struct Ram_file *ram, size_t size);
 int cache_file(int *fds,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 void free_cache(struct Cache *c);
 #elif defined(_WIN32)
+
+#include <windows.h>
 
 HANDLE open_file(char *fileName, ui32 use_trunc);
 HANDLE create_file(char *file_name);
