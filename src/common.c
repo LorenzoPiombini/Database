@@ -9,7 +9,12 @@ static int BST_node_init(struct BSTnode **node, struct BSTnode **v);
 void *array_init(size_t size, int type)
 {
 	switch(type){
+
+#if defined(_WIN32)
+	case ARR_INT:
+#else
 	case INT:
+#endif
 	{
 		struct Metadata *head = malloc(sizeof(int)*size +sizeof(struct Metadata));
 		if(!head)
@@ -21,7 +26,11 @@ void *array_init(size_t size, int type)
 		head->type = type;
 		return (void*)(head +1);
 	}
+#if defined(_WIN32)
+	case ARR_LONG:
+#else
 	case LONG:
+#endif
 	{
 		struct Metadata *head = malloc(sizeof(long)*size +sizeof(struct Metadata));
 		if(!head)
@@ -34,7 +43,11 @@ void *array_init(size_t size, int type)
 		
 		return (void*)(head +1);
 	}
+#if defined(_WIN32)
+	case ARR_BYTE:
+#else
 	case BYTE:
+#endif
 	{
 		struct Metadata *head = malloc(sizeof(unsigned char)*size +sizeof(struct Metadata));
 		if(!head)
@@ -58,7 +71,11 @@ void *array_init(size_t size, int type)
 		head->type = type;
 		return (void*)(head +1);
 	}
+#if defined(_WIN32)
+	case ARR_DOUBLE:
+#else
 	case DOUBLE:
+#endif
 	{
 		struct Metadata *head = malloc(sizeof(double)*size +sizeof(struct Metadata));
 		if(!head)
@@ -70,7 +87,11 @@ void *array_init(size_t size, int type)
 		head->type = type;
 		return (void*)(head +1);
 	}	
+#if defined(_WIN32)
+	case ARR_FLOAT:
+#else
 	case FLOAT:
+#endif
 	{
 		struct Metadata *head = malloc(sizeof(float)*size +sizeof(struct Metadata));
 		if(!head)
@@ -125,7 +146,11 @@ int mix_type_init(int type,struct Mix_t **el, void* value)
 	}
 
 	switch(type){
+#if defined(_WIN32)
+	case ARR_INT:
+#else
 	case INT:
+#endif
 	{ 
 		(*el)->type = type;
 		(*el)->v = (void*)malloc(sizeof(int));
@@ -135,7 +160,11 @@ int mix_type_init(int type,struct Mix_t **el, void* value)
 		*(int*)(*el)->v = *(int *)value;	
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_LONG:
+#else
 	case LONG:
+#endif
 	{
 		(*el)->type = type;
 		(*el)->v = (void*)malloc(sizeof(long));
@@ -145,7 +174,11 @@ int mix_type_init(int type,struct Mix_t **el, void* value)
 		*(long*)(*el)->v = *(long*)value;	
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_BYTE:
+#else
 	case BYTE:
+#endif
 	{
 		(*el)->type = type;
 		(*el)->v = (void*)malloc(sizeof(unsigned char));
@@ -155,7 +188,11 @@ int mix_type_init(int type,struct Mix_t **el, void* value)
 		*(unsigned char*)(*el)->v = *(unsigned char*)value;	
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_FLOAT:
+#else
 	case FLOAT:
+#endif
 	{
 		(*el)->type = type;
 		(*el)->v = (void*)malloc(sizeof(float));
@@ -165,7 +202,11 @@ int mix_type_init(int type,struct Mix_t **el, void* value)
 		*(float*)(*el)->v = *(float*)value;	
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_DOUBLE:
+#else
 	case DOUBLE:
+#endif
 	{
 		(*el)->type = type;
 		(*el)->v = (void*)malloc(sizeof(double));
@@ -199,7 +240,11 @@ int array_insert_at(int i, void **arr, void *el)
 {
 	struct Metadata *h = (struct Metadata*)*arr - 1;
 	switch(h->type){
+#if defined(_WIN32)
+	case ARR_LONG:
+#else
 	case LONG:
+#endif
 	{
 		if(h->capacity <= i){
 			int new_size = (i - h->capacity) + 1;
@@ -238,7 +283,11 @@ int array_insert_at(int i, void **arr, void *el)
 		h->elements++;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_INT:
+#else
 	case INT:
+#endif
 	{
 		if(h->capacity <= i){
 			/*realloc*/
@@ -278,7 +327,11 @@ int array_insert_at(int i, void **arr, void *el)
 		h->elements++;
 		return 0; 
 	}
+#if defined(_WIN32)
+	case ARR_DOUBLE:
+#else
 	case DOUBLE:
+#endif
 	{
 		if(h->capacity <= i){
 			/*realloc*/
@@ -317,7 +370,11 @@ int array_insert_at(int i, void **arr, void *el)
 		h->elements++;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_FLOAT:
+#else
 	case FLOAT:
+#endif
 	{
 		if(h->capacity < i){
 			/*realloc*/
@@ -356,7 +413,11 @@ int array_insert_at(int i, void **arr, void *el)
 		h->elements++;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_BYTE:
+#else
 	case BYTE:
+#endif
 	{
 		if(h->capacity < i){
 			/*realloc*/
@@ -492,7 +553,11 @@ int array_push(void **arr, void *el)
 {
 	struct Metadata *h = (struct Metadata*)*arr - 1;
 	switch(h->type){
+#if defined(_WIN32)
+	case ARR_LONG:
+#else
 	case LONG:
+#endif
 	{
 		if(h->elements == h->capacity){
 			/*realloc*/
@@ -513,7 +578,11 @@ int array_push(void **arr, void *el)
 			h->elements++;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_INT:
+#else
 	case INT:
+#endif
 	{
 		if(h->elements == h->capacity){
 			/*realloc*/
@@ -533,7 +602,11 @@ int array_push(void **arr, void *el)
 		h->elements++;
 		return 0; 
 	}
+#if defined(_WIN32)
+	case ARR_DOUBLE:
+#else
 	case DOUBLE:
+#endif
 	{
 		if(h->elements == h->capacity){
 			/*realloc*/
@@ -554,7 +627,11 @@ int array_push(void **arr, void *el)
 		h->elements++;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_FLOAT:
+#else
 	case FLOAT:
+#endif
 	{
 		if(h->elements == h->capacity){
 			/*realloc*/
@@ -574,7 +651,11 @@ int array_push(void **arr, void *el)
 		h->elements++;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_BYTE:
+#else
 	case BYTE:
+#endif
 	{
 		if(h->elements == h->capacity){
 			/*realloc*/
@@ -649,11 +730,19 @@ void array_free(void*arr)
 
 	struct Metadata *h = (struct Metadata *)arr - 1;
 	switch(h->type){
+#if defined(_WIN32)
+	case ARR_INT:
+	case ARR_LONG:
+	case ARR_DOUBLE:
+	case ARR_FLOAT:
+	case ARR_BYTE:
+#else
 	case INT:
 	case LONG:
 	case DOUBLE:
 	case FLOAT:
 	case BYTE:
+#endif
 		free(h);
 		return;
 	case STRING:
@@ -715,15 +804,27 @@ int comparison(void *src, void *dest)
 	}
 
 	switch(s->type){
+#if defined(_WIN32)
+	case ARR_BYTE:
+#else
 	case BYTE:
+#endif
 		if(*(unsigned char*)s->v > *(unsigned char*)d->v) return LEFT;
 		if(*(unsigned char*)s->v == *(unsigned char*)d->v) return 0;
 		return RIGHT;
+#if defined(_WIN32)
+	case ARR_INT:
+#else
 	case INT:
+#endif
 		if(*(int*)s->v > *(int*)d->v) return LEFT;
 		if(*(int*)s->v == *(int*)d->v) return 0;
 		return RIGHT;
+#if defined(_WIN32)
+	case ARR_LONG:
+#else
 	case LONG:
+#endif
 		if(*(long*)s->v > *(long*)d->v) return LEFT;
 		if(*(long*)s->v == *(long*)d->v) return 0;
 		return RIGHT;

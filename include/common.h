@@ -37,15 +37,24 @@ int mix_type_init(int type,struct Mix_t **el,void *value);
 						}while(0)
 
 enum arr_type{
+#if defined(_WIN32)
+	ARR_INT,
+	ARR_LONG,
+	ARR_BYTE,
+	ARR_DOUBLE,
+	ARR_FLOAT,
+#else
 	INT,
 	LONG,
 	BYTE,
-	STRING,
 	DOUBLE,
 	FLOAT,
+#endif
+	STRING,
 	VOID,
 	USER_DEF
 };
+
 void *array_init(size_t size, int type);
 int array_push(void **arr, void *el);
 int array_insert_at(int i, void **arr, void *el);
