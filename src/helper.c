@@ -11,7 +11,11 @@
 #include "debug.h"
 
 static char prog[] = "db";
+#if defined(_WIN32)
+unsigned char create_empty_file(HANDLE fd_schema, HANDLE fd_index, int bucket_ht)
+#else
 unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
+#endif
 {
 
 	struct Schema sch;

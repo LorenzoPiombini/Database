@@ -417,19 +417,32 @@ int create_header(struct Header_d *hd)
 	return 1;
 }
 
+#if defined(_WIN32)
+int write_empty_header(HANDLE fd, struct Header_d *hd)
+#else
 int write_empty_header(int fd, struct Header_d *hd)
+#endif
 {
 	ui32 id = swap32(hd->id_n); /*converting the endianess*/
+
+#if defined(__linux__) || defined(__APPLE__)
 	if (write(fd, &id, sizeof(id)) == -1)
-	{
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if(!WriteFile(fd,&id,sizeof(id),&written,NULL)){
+#endif
 		perror("write header id.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
 
 	ui16 vs = swap16(hd->version);
-	if (write(fd, &vs, sizeof(vs)) == -1)
-	{
+#if defined(__linux__) || defined(__APPLE__)
+	if (write(fd, &vs, sizeof(vs)) == -1){
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if(!WriteFile(fd,&vs,sizeof(vs),&written,NULL)){
+#endif
 		perror("write header version.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
@@ -437,13 +450,17 @@ int write_empty_header(int fd, struct Header_d *hd)
 
 	/* important we need to write 0 field_number when the user creates a file with no data*/
 	ui16 fn = swap16((ui16)hd->sch_d->fields_num);
+#if defined(__linux__) || defined(__APPLE__)
 	if (write(fd, &fn, sizeof(fn)) == -1)
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if(!WriteFile(fd,&fn,sizeof(fn),&written,NULL))
+#endif
 	{
 		perror("writing fields number header.");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
 	}
-
 	return 1;
 }
 
