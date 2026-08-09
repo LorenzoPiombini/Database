@@ -1823,7 +1823,11 @@ int get_constrains(char *buff, int field_count,int **cnstr,char ***value)
 		}
 	}
 
+#if defined(_WIN32)
+	*cnstr = array_init(field_count,ARR_INT);
+#else
 	*cnstr = array_init(field_count,INT);
+#endif
 	if(!(*cnstr)){
 		fprintf(stderr,"array_init() failed, %s:%d.\n",F, L - 2);
 		return -1;
