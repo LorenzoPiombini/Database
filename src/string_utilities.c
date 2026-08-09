@@ -286,6 +286,7 @@ int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 					is_long = 1;
 					continue;
 				case 'd':
+				{
 					char number[15];
 					memset(number,0,15);
 					int j = 0;
@@ -354,6 +355,7 @@ int extract_numbers_from_string(char *buff,size_t size,char *format,...)
 						*n = l;
 					}
 					break;
+				}	
 				default:
 					break;
 				}
