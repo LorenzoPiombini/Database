@@ -561,7 +561,12 @@ static int write_hd_VS1(ui8 **buf, long *bwritten, struct Schema **sch)
 	return 0;
 
 }
-int write_header(int fd, struct Header_d *hd)
+
+#if defined(_WIN32)
+	int write_header(HANDLE fd, struct Header_d *hd)
+#else
+	int write_header(int fd, struct Header_d *hd)
+#endif
 {
 	if (!hd->sch_d->fields_name || !hd->sch_d->fields_name[0]) {
 		printf("\nschema is NULL.\ncreate header failed, %s:%d.\n",__FILE__, __LINE__ - 3);
@@ -612,7 +617,12 @@ int write_header(int fd, struct Header_d *hd)
 		return 0;
 	}
 	
+#if defined(__linux__) || defined(__APPLE__)
 	if(write(fd,buf,bwritten) == -1){
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if(!WriteFile(file_handle,buff,bwritten,&written,NULL)){
+#endif
 		fprintf(stderr,"cannot write header, %s:%d.\n",__FILE__,__LINE__ - 1);
 		buf -= sizeof(unsigned long);
 		free(buf);
@@ -843,9 +853,18 @@ static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch)
 	return 0;
 }
 
-int read_header(int fd, struct Header_d *hd)
+#if defined(_WIN32)
+	int read_header(HANDLE fd, struct Header_d *hd);
+#else
+	int read_header(int fd, struct Header_d *hd);
+#endif
 {
+#if defined(_WIN32)
+	file_offset msize = get_file_size(fd);
+#else
 	file_offset msize = get_file_size(fd, NULL);
+#endif
+
 	if(msize <= 0)
 		return 0;
 
@@ -856,7 +875,12 @@ int read_header(int fd, struct Header_d *hd)
 		return 0;
 	}
 
+#if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, buf, msize) == -1){
+#elif defined(_WIN32) 
+	DWORD written = 0;
+	if (!ReadFile(fd,&buf,msize,&written,NULL)){
+#endif
 		perror("reading header.\n");
 		printf("parse.c %s:%d.\n",__FILE__, __LINE__ - 2);
 		free(buf);

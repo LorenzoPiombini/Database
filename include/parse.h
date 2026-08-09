@@ -4,6 +4,9 @@
 /* for Record_f, ValueTypes */
 
 #include "record.h"
+#if defined(_WIN32)
+	#include <windows.h>
+#endif
 
 #define NO_TYPE 0
 
@@ -42,8 +45,16 @@ int parse_input_with_no_type(
 
 int create_header(struct Header_d *hd);
 int write_empty_header(int fd, struct Header_d *hd);
-int write_header(int fd, struct Header_d *hd);
-int read_header(int fd, struct Header_d *hd);
+#if defined(_WIN32)
+	int write_header(HANDLE fd, struct Header_d *hd);
+#else
+	int write_header(int fd, struct Header_d *hd);
+#endif
+#if defined(_WIN32)
+	int read_header(HANDLE fd, struct Header_d *hd);
+#else
+	int read_header(int fd, struct Header_d *hd);
+#endif
 unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd);
 unsigned char check_schema(int fields_n, char *buffer,struct Header_d *hd);
 int check_schema_with_no_types(char names[][MAX_FIELD_LT], struct Header_d hd,char **sorted_names);

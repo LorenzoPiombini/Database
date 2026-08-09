@@ -37,8 +37,11 @@ unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 	return 1;
 }
 
-unsigned char append_to_file(int *fds, char *file_path, char *key,
-		char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
+#if defined(_WIN32)
+unsigned char append_to_file(HANDLE *fds, char *file_path, char *key,char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
+#else
+unsigned char append_to_file(int *fds, char *file_path, char *key,char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
+#endif
 {
 
 	struct Record_f rec;

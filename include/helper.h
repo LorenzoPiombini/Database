@@ -4,6 +4,10 @@
 #include "hash_tbl.h"
 #include "str_op.h"
 
+#if defined(_WIN32)
+	#include <windows.h>
+#endif
+
 unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht);
 unsigned char append_to_file(int *fds, char *file_path, char *key,
 		char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht);
