@@ -75,7 +75,8 @@ void free_cache(struct Cache *c);
 #include <windows.h>
 
 int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sch);
-int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
+int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, unsigned char update);
+int cache_file(HANDLE *fd,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset);
 int get_all_record(HANDLE file_handle, struct Ram_file *ram);
 unsigned char read_index_file(HANDLE file_handle, HashTable *ht);
