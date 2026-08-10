@@ -25,7 +25,11 @@ int g_index = 0;
 int *p_gi = &g_index;
 struct Ram_file ram = {0, 0, 0, 0};
 
+#if defined(__linux__) || defined(__APPLE__)
 int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, int *fds, int index)
+#else
+int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, HANDLE *fds, int index)
+#endif
 {
 	int e = 0;
 	if(mode == RAM_FILE){

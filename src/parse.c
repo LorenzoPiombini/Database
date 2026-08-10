@@ -429,8 +429,9 @@ int write_empty_header(int fd, struct Header_d *hd)
 	if (write(fd, &id, sizeof(id)) == -1)
 #elif defined(_WIN32)
 	DWORD written = 0;
-	if(!WriteFile(fd,&id,sizeof(id),&written,NULL)){
+	if(!WriteFile(fd,&id,sizeof(id),&written,NULL))
 #endif
+	{
 		perror("write header id.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
@@ -438,11 +439,12 @@ int write_empty_header(int fd, struct Header_d *hd)
 
 	ui16 vs = swap16(hd->version);
 #if defined(__linux__) || defined(__APPLE__)
-	if (write(fd, &vs, sizeof(vs)) == -1){
+	if (write(fd, &vs, sizeof(vs)) == -1)
 #elif defined(_WIN32)
 	DWORD written = 0;
-	if(!WriteFile(fd,&vs,sizeof(vs),&written,NULL)){
+	if(!WriteFile(fd,&vs,sizeof(vs),&written,NULL))
 #endif
+	{
 		perror("write header version.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
 		return 0;
@@ -871,9 +873,9 @@ static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch)
 }
 
 #if defined(_WIN32)
-	int read_header(HANDLE fd, struct Header_d *hd);
+	int read_header(HANDLE fd, struct Header_d *hd)
 #else
-	int read_header(int fd, struct Header_d *hd);
+	int read_header(int fd, struct Header_d *hd)
 #endif
 {
 #if defined(_WIN32)

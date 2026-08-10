@@ -258,8 +258,13 @@ int import_data_to_system(char *data_file)
 	 *  it affects how the string functions detect types */
 	__IMPORT_EZ = 1;
 
+#if defined(_WIN32)
+	HANDLE fds[3];
+	memset(fds,0,sizeof(HANDLE)*3);
+#else
 	int fds[3];
 	memset(fds,-1,sizeof(int)*3);
+#endif
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 	/* init the Schema structure*/
 	struct Schema sch;
@@ -306,7 +311,13 @@ int import_data_to_system(char *data_file)
 
 		if(buf[0] == '='){
 
-			if(write(fds[1],ram.mem,ram.size) == -1){
+#if defined(_WIN32)
+			DWORD written
+			if(!WriteFile(fds[1],ram.mem,ram.size,&written,NULL))
+#else
+			if(write(fds[1],ram.mem,ram.size) == -1)
+#endif
+			{
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);
 				close_ram_file(&ram);
