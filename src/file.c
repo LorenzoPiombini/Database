@@ -332,6 +332,96 @@ DWORD get_file_size(HANDLE file_handle)
 }
 #endif
 
+static size_t get_disk_size_record(struct Record_f *rec)
+{
+	size_t size = sizeof(ui8);
+	int i;
+	for(i = 0; i < rec->fields_num; i++){
+		if(rec->field_set[i] == 0) continue;
+
+		size += sizeof(ui8);
+		switch(rec->fields[i].type){
+		case -1:
+			break;
+		case TYPE_KEY:
+		case TYPE_INT:
+		case TYPE_DATE:
+		case TYPE_FLOAT:
+			size += sizeof(ui32);
+			break;
+		case TYPE_LONG:
+		case TYPE_DOUBLE:
+			size += sizeof(ui64);
+			break;
+		case TYPE_BYTE:
+			size += sizeof(ui8);
+			break;
+		case TYPE_STRING:
+			size += (sizeof(ui32) + sizeof(ui16));
+			size += ((strlen(rec->fields[i].data.s) * 2) + 1);
+			break;
+		case TYPE_ARRAY_INT:
+		case TYPE_SET_INT:
+			size++;
+			size += (sizeof(ui32) * 2);
+			size += (sizeof(ui32) * rec->fields[i].data.v.size);
+			size += (sizeof(ui64));
+			break;
+		case TYPE_ARRAY_LONG:
+		case TYPE_SET_LONG:
+			size++;
+			size += (sizeof(ui32) * 2);
+			size += (sizeof(ui64) * rec->fields[i].data.v.size);
+			size += (sizeof(ui64));
+			break;
+		case TYPE_ARRAY_BYTE:
+		case TYPE_SET_BYTE:
+			size++;
+			size += (sizeof(ui32) * 2);
+			size += (sizeof(ui8) * rec->fields[i].data.v.size);
+			size += (sizeof(ui64));
+			break;
+		case TYPE_ARRAY_FLOAT:
+		case TYPE_SET_FLOAT:
+			size++;
+			size += (sizeof(ui32) * 2);
+			size += (sizeof(ui32) * rec->fields[i].data.v.size);
+			size += (sizeof(ui64));
+			break;
+		case TYPE_ARRAY_DOUBLE:
+		case TYPE_SET_DOUBLE:
+			size++;
+			size += (sizeof(ui32) * 2);
+			size += (sizeof(ui64) * rec->fields[i].data.v.size);
+			size += (sizeof(ui64));
+			break;
+		case TYPE_ARRAY_STRING:
+		case TYPE_SET_STRING:
+			size++; /*one byte for option set*/
+			size += (sizeof(ui32) * 2);
+			size += ((sizeof(ui32) + sizeof(ui16)) * rec->fields[i].data.v.size);
+			int j;
+			for(j = 0; j < rec->fields[i].data.v.size; j++){
+				size += ((strlen(rec->fields[i].data.v.elements.s[j]) * 2) + 1);
+			}
+			size += (sizeof(ui64));
+			break;
+		case TYPE_FILE:
+			size += (sizeof(ui32) * 2);
+			ui32 k;
+			for(k = 0; k < rec->fields[i].data.file.count; k++){
+				size += get_disk_size_record(&rec->fields[i].data.file.recs[k]);
+			}
+			size += (sizeof(ui64));
+			break;
+		default:
+			return -1;
+		}
+	}
+	
+	size += (sizeof(ui64));
+	return size;
+}
 #if defined(__linux__) || defined(__APPLE__)
 static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type)
 #elif defined(_WIN32)
@@ -1229,7 +1319,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 			if (write(fd, &i_ne, sizeof(i_ne)) < 0)
 #elif defined(_WIN32)
-			DWORD written =0;
 			if(!WriteFile(fd,&i_ne,sizeof(i_ne),&written,NULL))
 #endif
 			{
@@ -1244,7 +1333,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 			if (write(fd, &l_ne, sizeof(l_ne)) < 0)
 #elif defined(_WIN32)
-			DWORD written =0;
 			if(!WriteFile(fd,&l_ne,sizeof(l_ne),&written,NULL))
 #endif
 			{
@@ -1259,7 +1347,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 			if (write(fd, &f, sizeof(f)) < 0)
 #elif defined(_WIN32)
-			DWORD written = 0;
 			if(!WriteFile(fd,&f,sizeof(f),&written,NULL))
 #endif
 			{
@@ -1290,7 +1377,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					write(fd, &bu_ne, sizeof(bu_ne)) < 0 ||
 					write(fd, buff_w, buff_update) < 0)
 #elif defined(_WIN32)
-				DWORD written = 0;
 				if(!WriteFile(fd,&str_loc_ne,sizeof(str_loc_ne),&written,NULL)
 					|| !WriteFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL)
 					|| !WriteFile(fd,buff_w,buff_update,&written,NULL))
@@ -1512,7 +1598,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 			if (write(fd, &rec->fields[i].data.b, sizeof(unsigned char)) < 0)
 #elif defined(_WIN32)
-			DWORD written = 0;
 			if(!WriteFile(fd,&rec->fields[i].data.b,sizeof(unsigned char),&written,NULL))
 #endif
 			{
@@ -1542,7 +1627,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 			if (write(fd, &d_ne, sizeof(d_ne)) < 0)
 #elif defined(_WIN32)
-			DWORD written = 0;
 			if(!WriteFile(fd,&d_ne,sizeof(d_ne),&written,NULL))
 #endif
 			{
@@ -1560,7 +1644,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 				if (write(fd, &set, sizeof(set)) == -1)
 #elif defined(_WIN32)
-				DWORD written = 0;
 				if (!WriteFile(fd, &set, sizeof(set),&written,NULL))
 #endif
 				{
@@ -1574,7 +1657,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 				if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 #elif defined(_WIN32)
-				written = 0;
 				if (!WriteFile(fd, &size_ne, sizeof(size_ne),&written,NULL) == -1)
 #endif
 				{
@@ -1604,7 +1686,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 					if (write(fd, &num_ne, sizeof(num_ne)) == -1)
 #elif defined(_WIN32)
-					written = 0;
 					if (!WriteFile(fd, &num_ne, sizeof(num_ne),&written,NULL))
 #endif
 					{
@@ -1617,7 +1698,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 #elif defined(_WIN32)
-				written = 0;
 				if (!WriteFile(fd, &upd_ne, sizeof(upd_ne),&written,NULL) == -1)
 #endif
 				{
@@ -1639,7 +1719,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__) 
 				if (write(fd, &set, sizeof(set)) == -1)
 #elif defined(_WIN32)
-				DWORD written = 0;
 				if (!WriteFile(fd, &set, sizeof(set),&written,NULL))
 #endif
 				{
@@ -1673,7 +1752,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__) 
 					if (read(fd, &pd_ne, sizeof(pd_ne)) == -1)
 #elif defined(_WIN32)
-					written = 0;
 					if (!ReadFile(fd, &pd_ne, sizeof(pd_ne),&written,NULL) == -1)
 #endif
 					{
@@ -1713,7 +1791,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__) 
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
 #elif defined(_WIN32)
-							written = 0;
 							if (!WriteFile(fd, &new_sz, sizeof(new_sz),&written,NULL))
 #endif
 							{
@@ -5939,8 +6016,8 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 			}
 
 			break;
-		}
 #endif
+		}
 	
 		default:
 			break;
@@ -7586,96 +7663,6 @@ int add_index(int index_nr, char *file_name, int bucket)
 	return 0;
 }
 
-static size_t get_disk_size_record(struct Record_f *rec)
-{
-	size_t size = sizeof(ui8);
-	int i;
-	for(i = 0; i < rec->fields_num; i++){
-		if(rec->field_set[i] == 0) continue;
-
-		size += sizeof(ui8);
-		switch(rec->fields[i].type){
-		case -1:
-			break;
-		case TYPE_KEY:
-		case TYPE_INT:
-		case TYPE_DATE:
-		case TYPE_FLOAT:
-			size += sizeof(ui32);
-			break;
-		case TYPE_LONG:
-		case TYPE_DOUBLE:
-			size += sizeof(ui64);
-			break;
-		case TYPE_BYTE:
-			size += sizeof(ui8);
-			break;
-		case TYPE_STRING:
-			size += (sizeof(ui32) + sizeof(ui16));
-			size += ((strlen(rec->fields[i].data.s) * 2) + 1);
-			break;
-		case TYPE_ARRAY_INT:
-		case TYPE_SET_INT:
-			size++;
-			size += (sizeof(ui32) * 2);
-			size += (sizeof(ui32) * rec->fields[i].data.v.size);
-			size += (sizeof(ui64));
-			break;
-		case TYPE_ARRAY_LONG:
-		case TYPE_SET_LONG:
-			size++;
-			size += (sizeof(ui32) * 2);
-			size += (sizeof(ui64) * rec->fields[i].data.v.size);
-			size += (sizeof(ui64));
-			break;
-		case TYPE_ARRAY_BYTE:
-		case TYPE_SET_BYTE:
-			size++;
-			size += (sizeof(ui32) * 2);
-			size += (sizeof(ui8) * rec->fields[i].data.v.size);
-			size += (sizeof(ui64));
-			break;
-		case TYPE_ARRAY_FLOAT:
-		case TYPE_SET_FLOAT:
-			size++;
-			size += (sizeof(ui32) * 2);
-			size += (sizeof(ui32) * rec->fields[i].data.v.size);
-			size += (sizeof(ui64));
-			break;
-		case TYPE_ARRAY_DOUBLE:
-		case TYPE_SET_DOUBLE:
-			size++;
-			size += (sizeof(ui32) * 2);
-			size += (sizeof(ui64) * rec->fields[i].data.v.size);
-			size += (sizeof(ui64));
-			break;
-		case TYPE_ARRAY_STRING:
-		case TYPE_SET_STRING:
-			size++; /*one byte for option set*/
-			size += (sizeof(ui32) * 2);
-			size += ((sizeof(ui32) + sizeof(ui16)) * rec->fields[i].data.v.size);
-			int j;
-			for(j = 0; j < rec->fields[i].data.v.size; j++){
-				size += ((strlen(rec->fields[i].data.v.elements.s[j]) * 2) + 1);
-			}
-			size += (sizeof(ui64));
-			break;
-		case TYPE_FILE:
-			size += (sizeof(ui32) * 2);
-			ui32 k;
-			for(k = 0; k < rec->fields[i].data.file.count; k++){
-				size += get_disk_size_record(&rec->fields[i].data.file.recs[k]);
-			}
-			size += (sizeof(ui64));
-			break;
-		default:
-			return -1;
-		}
-	}
-	
-	size += (sizeof(ui64));
-	return size;
-}
 
 int init_ram_file(struct Ram_file *ram, size_t size)
 {
@@ -12131,7 +12118,11 @@ int cache_file(HANDLE *fds,char *file_name,struct Schema *sch,struct Cache *c,Ha
 {
 	
 	/*check if the file is cached already*/
+#if defined(__linux__) || defined(__APPLE__)
+	if(get((void*)file_name,cache_register,STR) != -1)
+#elif defined(_WIN32)
 	if(get((void*)file_name,cache_register,STR_KEY) != -1)
+#endif
 		return FILE_IS_CACHED;
 
 	int index = 0;
@@ -12201,7 +12192,12 @@ int cache_file(HANDLE *fds,char *file_name,struct Schema *sch,struct Cache *c,Ha
 		}
 	}
 	
-	if(!set((void*)file_name,STR_KEY,cache_pos,cache_register)){
+#if defined(__linux__) || defined(__APPLE__)
+	if(!set((void*)file_name,STR,cache_pos,cache_register))
+#elif defined(_WIN32)
+	if(!set((void*)file_name,STR_KEY,cache_pos,cache_register))
+#endif
+	{
 		free_ht_array(c->index_file,index);
 		close_ram_file(&c->data_file);
 		return -1;
