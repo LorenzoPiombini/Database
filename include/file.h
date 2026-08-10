@@ -89,7 +89,6 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht);
 HANDLE open_file(char *fileName, ui32 use_trunc);
 HANDLE create_file(char *file_name);
 void close_file(int count, ...);
-int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 void free_cache(struct Cache *c);
 int delete_file(int count,...);
 file_offset get_update_offset(HANDLE file_handle);
