@@ -458,7 +458,12 @@ static int is_array_last_block(HANDLE fd, struct Ram_file *ram, int element_nr, 
 			}
 		}	
 		ui64 update_off_ne = 0;
+#if defined(__linux__) || defined(__APPLE__)
 		if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+#elif defined(_WIN32)
+		DWORD written = 0;
+		if (!ReadFile(fd, &update_off_ne, sizeof(update_off_ne),&written,NULL))
+#endif
 		{
 			perror("failed read update file_offset int array.\n");
 			return 0;
@@ -651,7 +656,11 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 		return 0;
 	}
 
+#if defined(__linux__) || defined(__APPLE__)
 	if ((pos = get_file_offset(fd)) == -1)
+#elif defined(_WIN32)
+	if ((pos = get_file_offset(file_handle)) == -1)
+#endif
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
@@ -663,7 +672,11 @@ unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht)
 		return 0;
 	}
 
+#if defined(__linux__) || defined(__APPLE__)
 	if (begin_in_file(fd) == -1)
+#elif defined(_WIN32)
+	if (begin_in_file(file_handle) == -1)
+#endif
 	{
 		__er_file_pointer(F, L - 2);
 		return 0;
