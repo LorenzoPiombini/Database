@@ -6387,6 +6387,7 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 #elif defined(_WIN32)
 					written = 0;
 					if (!ReadFile(fd,&num_ne,sizeof(num_ne),&written,NULL))
+#endif
 					{
 						perror("can't read int array from file.\n");
 						free_record(rec, rec->fields_num);
