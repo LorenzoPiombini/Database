@@ -885,6 +885,7 @@ unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_ind
 #if defined(__linux__) || defined(__APPLE__)
 	if (read(fd, &a_s, sizeof(a_s)) == STATUS_ERROR) {
 #elif defined(_WIN32)
+	DWORD written = 0;
 	if (!ReadFile(file_handle,&a_s,sizeof(a_s),&written,NULL)){
 #endif
 		printf("read from file failed. %s:%d.\n", F, L - 2);
@@ -4150,7 +4151,6 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__)
 							if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 #elif defined(_WIN32)
-							writing = 0;
 							if(!WriteFile(fd,&eof_ne,sizeof(eof_ne),&written,NULL))
 #endif
 							{
