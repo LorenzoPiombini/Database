@@ -23,18 +23,18 @@
 #include "string_utilities.h"
 
 static char prog[] = "db";
-static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);
 #if defined(__linux__) || defined(__APPLE__)
+static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);
 static size_t get_string_size(int fd, struct Ram_file *ram);
-#else 
+#elif defined(_WIN32)
 static size_t get_string_size(HANDLE fd, struct Ram_file *ram);
+static int is_array_last_block(HANDLE fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type);
+static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
 #endif
+
 static size_t get_disk_size_record(struct Record_f *rec);
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 
-#if defined(_WIN32)
-static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position);
-#endif
 
 #if defined(__linux__) || defined(__APPLE__)
 int open_file(char *fileName, int use_trunc)
@@ -200,7 +200,305 @@ file_offset get_file_size(int fd, char *file_name)
 		return (file_offset)st.st_size;
 	}
 }
-#endif /*linux*/
+	/*END OF LINUX SPECIFIC CODE*/
+#elif defined(_WIN32) 
+
+HANDLE open_file(char *fileName, ui32 use_trunc)
+{
+	DWORD creation = 0;	
+	DWORD access = 0;
+	HANDLE h_file;
+
+	if(!use_trunc){
+		access = GENERIC_WRITE | GENERIC_READ;
+		creation = OPEN_EXISTING;
+
+	}else{
+		access = GENERIC_WRITE | GENERIC_READ;
+		creation = TRUNCATE_EXISTING;
+	}
+
+	h_file = CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
+
+	return h_file;
+}
+
+HANDLE create_file(char *file_name)
+{
+	DWORD err = GetFileAttributesA(file_name);
+	if(err !=  INVALID_FILE_ATTRIBUTES){
+		fprintf(stderr,"file %s already exist");
+		return INVALID_HANDLE_VALUE;
+	}
+
+	HANDLE h_file = CreateFileA(file_name,GENERIC_READ | GENERIC_WRITE, 
+								FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+								NULL,
+								CREATE_NEW,
+								FILE_ATTRIBUTE_NORMAL,
+								NULL);
+	return h_file;
+
+}
+
+void close_file(int count, ...)
+{
+	int fails = 0;
+
+	va_list args;
+	va_start(args,count);
+
+	int i;
+	for(i = 0; i < count; i++){
+		HANDLE h = va_arg(args,HANDLE);
+		if(h != INVALID_HANDLE_VALUE){
+			if(!CloseHandle(h))
+				fails++;
+		}
+	}
+		
+	va_end(args);
+	if(fails) fprintf(stderr,"error closing the file: %ld",GetLastError());
+}
+
+int delete_file(int count,...)
+{
+	int err = 0;
+	va_list args;
+	va_start(args,count);
+	int i;
+	for(i = 0; i < count; i++){
+		char *file_name = va_arg(args, char*);
+		if(file_name){
+			if(!DeleteFileA(file_name))
+				err++;
+		}
+	}
+
+	if(err){
+		fprintf(stderr,"failed to delete one or more file, error code: %ld\n",GetLastError());
+		va_end(args);
+		return -1;
+	}
+
+	va_end(args);
+	return 0;
+
+}
+
+static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position)
+{
+	LARGE_INTEGER li;
+	li.QuadPart = offset;
+	LARGE_INTEGER new_file_ptr;
+	if(!SetFilePointerEx(file_handle,li,&new_file_ptr,file_position)){
+		fprintf(stderr,"seek failed %s:%d\n",__FILE__,__LINE__-1);
+		return -1;
+	}
+
+	return (file_offset) new_file_ptr.QuadPart;
+}
+
+file_offset begin_in_file(HANDLE file_handle)
+{
+	return seek_file_win(file_handle,0,FILE_BEGIN);
+
+}
+
+file_offset get_file_offset(HANDLE file_handle)
+{
+	return seek_file_win(file_handle,0,FILE_CURRENT);
+}
+
+file_offset find_record_position(HANDLE file_handle, long long offset)
+{
+	return seek_file_win(file_handle,offset,FILE_BEGIN);
+
+}
+
+file_offset go_to_EOF(HANDLE file_handle)
+{
+	return seek_file_win(file_handle,0,FILE_END);
+}
+
+file_offset move_in_file_bytes(HANDLE file_handle, file_offset offset)
+{
+	return seek_file_win(file_handle,offset,FILE_CURRENT);
+}
+
+DWORD get_file_size(HANDLE file_handle)
+{
+	return GetFileSize(file_handle, NULL);
+}
+#endif
+
+#if defined(__linux__) || defined(__APPLE__)
+static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type)
+#elif defined(_WIN32)
+static int is_array_last_block(HANDLE fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type)
+#endif
+{
+
+#if defined(__linux__) || defined(__APPLE__)
+	if(fd != -1)
+#elif defined(_WIN32)
+	if(fd)
+#endif
+	{
+		file_offset go_back_to = 0;
+		if ((go_back_to = get_file_offset(fd)) == -1)
+		{
+			__er_file_pointer(F, L - 1);
+			return -1;
+		}
+
+		if(type == TYPE_ARRAY_STRING || type == TYPE_SET_STRING){
+			int i;
+			for(i = 0; i < element_nr; i++){
+				if(get_string_size(fd,NULL) == (size_t)-1){
+					__er_file_pointer(F, L - 1);
+					return -1;
+				} 
+			}
+		}else {
+			if(move_in_file_bytes(fd, element_nr * bytes_each_element) == -1)
+			{
+				__er_file_pointer(F, L - 1);
+				return -1;
+			}
+		}	
+		ui64 update_off_ne = 0;
+		if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+		{
+			perror("failed read update file_offset int array.\n");
+			return 0;
+		}
+
+		if (find_record_position(fd, go_back_to) == -1)
+		{
+			__er_file_pointer(F, L - 1);
+			return -1;
+		}
+
+		file_offset update_pos = (file_offset)swap64(update_off_ne);
+
+		return update_pos == 0;
+	}
+
+	if(ram){
+		if(ram->mem){
+			file_offset go_back_to = ram->offset;
+
+			if(type == TYPE_ARRAY_STRING || type == TYPE_SET_STRING){
+				int i;
+				for(i = 0; i < element_nr; i++){
+#if defined(__linux__) || defined(__APPLE__)
+					if(get_string_size(-1,ram) == (size_t)-1)
+#elif defined(_WIN32)
+					if(get_string_size(NULL,ram) == (size_t)-1)
+#endif
+
+					{
+						__er_file_pointer(F, L - 1);
+						return -1;
+					} 
+				}
+			}else {
+				ram->offset += (element_nr * bytes_each_element);
+			}	
+
+			ui64 update_off_ne = 0;
+			memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(ui64));
+			ram->offset += sizeof(ui64);
+
+			ram->offset = go_back_to;
+
+			file_offset update_pos = (file_offset)swap64(update_off_ne);
+
+			return update_pos == 0;
+
+
+		}
+	}
+
+	return -1;
+}
+
+#if defined(__linux__) || defined(__APPLE__)
+static size_t get_string_size(int fd, struct Ram_file *ram)
+#elif defined(_WIN32)
+static size_t get_string_size(HANDLE fd, struct Ram_file *ram)
+#endif
+{
+
+#if defined(__linux__) || defined(__APPLE__)
+	if(fd != -1 && ram) {
+		fprintf(stderr,"(%s): wrong usage of %s(), you can pass either fd or Ram_file, both is not allowed.\n",prog,__func__);
+		return -1;
+	}
+
+	if(fd != -1){
+		if(move_in_file_bytes(fd,sizeof(ui32)) == -1) return -1;
+
+		ui16 bu_ne = 0;
+		if(read(fd,&bu_ne,sizeof(bu_ne)) == -1) return -1;
+
+		size_t buffer_update = (size_t)swap16(bu_ne);
+
+		if(move_in_file_bytes(fd,buffer_update) == -1) return -1;
+
+		return 0;
+	}
+#else
+
+	if(!fd && ram){
+		fprintf(stderr,"(%s): wrong usage of %s(), you can pass either fd or Ram_file, both is not allowed.\n",prog,__func__);
+		return -1;
+	}
+	if(fd && !ram){
+		if(move_in_file_bytes(fd,sizeof(ui32)) == -1) return -1;
+
+		ui16 bu_ne = 0;
+		DWORD written = 0;
+		if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL)) return -1;
+
+		size_t buffer_update = (size_t)swap16(bu_ne);
+
+		if(move_in_file_bytes(fd,buffer_update) == -1) return -1;
+
+		return 0;
+
+	}
+#endif
+
+	if(ram){
+		if(ram->mem){
+			ram->offset += sizeof(ui32);			
+
+			ui16 bu_ne = 0;
+			memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(ui16));
+			ram->offset += sizeof(ui16);			
+
+			size_t buff_up = (size_t)swap16(bu_ne); 
+			ram->offset += buff_up;
+
+			return 0;
+		}	
+	}
+
+	return -1;
+}
+
+static void move_ram_file_ptr(struct Ram_file *ram,size_t size)
+{
+	if(ram->size == ram->offset){
+		ram->size += size;
+		ram->offset = ram->size;
+	}else{
+		ram->offset += size;
+	}
+}
+
 
 #if defined(__linux__) || defined(__APPLE__)
 	unsigned char write_index_file_head(int fd, int index_num)
@@ -616,7 +914,11 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 		int key_type = (int)swap32(type);
 
 		switch (key_type) {
+#if defined(__linux__) || defined(__APPLE__)
 		case STR:
+#elif defined(_WIN32)
+		case STR_KEY:
+#endif
 		{
 			ui64 key_l = 0;
 #if defined(__linux__) || defined(__APPLE__)
@@ -695,7 +997,11 @@ unsigned char read_index_file(HANDLE file_handle, HashTable *ht)
 			}
 			break;
 		}
+#if defined(__linux__) || defined(__APPLE__)
 		case UINT:
+#elif defined(_WIN32)
+		case UINT_KEY:
+#endif
 		{
 			ui8 size = 0;
 			ui32 k = 0;
@@ -884,7 +1190,13 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 	 * that are going to be written to the file
 	 * */
 
-	if (write(fd, &count, sizeof(count)) < 0) {
+#if defined(__linux__) || defined(__APPLE__) 
+	if (write(fd, &count, sizeof(count)) < 0) 
+#elif defined(_WIN32)
+	DWORD written = 0;
+	if (!WriteFile(fd, &count, sizeof(count),&written,NULL))
+#endif
+	{
 		perror("could not write fields number");
 		return 0;
 	}
@@ -895,7 +1207,13 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 		/*position in the field_set array*/
 		ui8 i_ne = (ui8)i;
-		if (write(fd, &i_ne, sizeof(i_ne)) < 0) {
+#if defined(__linux__) || defined(__APPLE__) 
+		if (write(fd, &i_ne, sizeof(i_ne)) < 0) 
+#elif defined(_WIN32)
+		written = 0;
+		if (!WriteFile(fd, &i_ne, sizeof(i_ne),&written,NULL) < 0) 
+#endif
+		{
 			perror("could not write fields number");
 			return 0;
 		}
@@ -1318,7 +1636,13 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 				int padding_value = 0;
 
 				ui8 set = (ui8) rec->fields[i].data.v.is_set;
-				if (write(fd, &set, sizeof(set)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+				if (write(fd, &set, sizeof(set)) == -1)
+#elif defined(_WIN32)
+				DWORD written = 0;
+				if (!WriteFile(fd, &set, sizeof(set),&written,NULL))
+#endif
+				{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
@@ -1328,7 +1652,12 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 				{
 					/* check the size */
 					ui32 sz_ne = 0;
+#if defined(__linux__) || defined(__APPLE__) 
 					if (read(fd, &sz_ne, sizeof(sz_ne)) == -1)
+#elif defined(_WIN32)
+					written = 0;
+					if (!ReadFile(fd, &sz_ne, sizeof(sz_ne),&written,NULL) == -1)
+#endif
 					{
 						fprintf(stderr, "can't read int array size.\n");
 						return 0;
@@ -1341,7 +1670,12 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 					/*read the padding data*/
 					ui32 pd_ne = 0;
+#if defined(__linux__) || defined(__APPLE__) 
 					if (read(fd, &pd_ne, sizeof(pd_ne)) == -1)
+#elif defined(_WIN32)
+					written = 0;
+					if (!ReadFile(fd, &pd_ne, sizeof(pd_ne),&written,NULL) == -1)
+#endif
 					{
 						fprintf(stderr, "can't read padding array.\n");
 						return 0;
@@ -1375,7 +1709,13 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 							/* write the updated size of the array */
 							ui32 new_sz = swap32((ui32)sz);
+
+#if defined(__linux__) || defined(__APPLE__) 
 							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
+#elif defined(_WIN32)
+							written = 0;
+							if (!WriteFile(fd, &new_sz, sizeof(new_sz),&written,NULL))
+#endif
 							{
 								perror("error in writing remaining size int array.\n");
 								return 0;
@@ -1383,7 +1723,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 							/* write the updated padding value */
 							ui32 new_pd = swap32((ui32)padding_value);
+#if defined(__linux__) || defined(__APPLE__) 
 							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
+#elif defined(_WIN32)
+							if (!WriteFile(fd, &new_pd, sizeof(new_pd),&written,NULL))
+#endif
 							{
 								perror("error in writing new pading value int array.\n");
 								return 0;
@@ -1399,7 +1743,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 							if (step < rec->fields[i].data.v.size)
 							{
 								ui32 num_ne = swap32(rec->fields[i].data.v.elements.i[step]);
+#if defined(__linux__) || defined(__APPLE__) 
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+#elif defined(_WIN32)
+								if (!WriteFile(fd, &num_ne, sizeof(num_ne),&written,NULL) == -1)
+#endif
 								{
 									perror("failed write int array to file");
 									return 0;
@@ -1413,7 +1761,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						{
 							/*write the epty update offset*/
 							ui64 empty_offset = swap64(0);
+#if defined(__linux__) || defined(__APPLE__) 
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+#elif defined(_WIN32)
+							if (!WriteFile(fd, &empty_offset, sizeof(empty_offset),&written,NULL))
+#endif
 							{
 								perror("error in writing size array to file.\n");
 								return 0;
@@ -1445,7 +1797,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 									/* write the updated size of the array */
 									ui32 new_sz = swap32((ui32)sz);
+#if defined(__linux__) || defined(__APPLE__) 
 									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
+#elif defined(_WIN32)
+									if (!WriteFile(fd, &new_sz, sizeof(new_sz),&written,NULL))
+#endif
 									{
 										perror("error in writing remaining size int array.\n");
 										return 0;
@@ -1453,7 +1809,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 									/*write padding */
 									ui32 new_pd = swap32((ui32)padding_value);
+#if defined(__linux__) || defined(__APPLE__) 
 									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
+#elif defined(_WIN32)
+									if (!WriteFile(fd, &new_pd, sizeof(new_pd),&written,NULL))
+#endif
 									{
 										perror("error in writing new padd int array.\n");
 										return 0;
@@ -1467,7 +1827,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 									continue;
 
 								ui32 num_ne = swap32(rec->fields[i].data.v.elements.i[step]);
+#if defined(__linux__) || defined(__APPLE__) 
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+#elif defined(_WIN32)
+								if (!WriteFile(fd, &num_ne, sizeof(num_ne),&written,NULL))
+#endif
 								{
 									perror("failed write int array to file");
 									return 0;
@@ -1490,7 +1854,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 							}
 							/*write the epty update offset*/
 							ui64 empty_offset = swap64(0);
+#if defined(__linux__) || defined(__APPLE__) 
 							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+#elif defined(_WIN32)
+							if (!WriteFile(fd, &empty_offset, sizeof(empty_offset),&written,NULL))
+#endif
 							{
 								perror("error in writing size array to file.\n");
 								return 0;
@@ -1510,8 +1878,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 					ui64 update_off_ne = 0;
 					file_offset go_back_to = get_file_offset(fd);
-
+#if defined(__linux__) || defined(__APPLE__) 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+#elif defined(_WIN32)
+					if (!ReadFile(fd, &update_off_ne, sizeof(update_off_ne),&written,NULL))
+#endif
 					{
 						perror("failed read update file_offset int array.\n");
 						return 0;
@@ -1532,14 +1903,22 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.v.size - step;
 						ui32 size_left_ne = swap32((ui32)size_left);
+#if defined(__linux__) || defined(__APPLE__) 
 						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1)
+#elif defined(_WIN32)
+						if (!WriteFile(fd, &size_left_ne, sizeof(size_left_ne),&written,NULL))
+#endif
 						{
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
 						ui32 padding_ne = 0;
+#if defined(__linux__) || defined(__APPLE__) 
 						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
+#elif defined(_WIN32)
+						if (!WriteFile(fd, &padding_ne, sizeof(padding_ne),&written,NULL))
+#endif
 						{
 							perror("error in writing size array to file.\n");
 							return 0;
@@ -1553,7 +1932,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 									continue;
 
 								ui32 num_ne = swap32(rec->fields[i].data.v.elements.i[step]);
+#if defined(__linux__) || defined(__APPLE__) 
 								if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+#elif defined(_WIN32)
+								if (!WriteFile(fd, &num_ne, sizeof(num_ne),&written,NULL))
+#endif
 								{
 									perror("failed write int array to file");
 									return 0;
@@ -1564,7 +1947,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 						/*write the empty update offset*/
 						ui64 empty_offset = swap64(0);
+#if defined(__linux__) || defined(__APPLE__) 
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+#elif defined(_WIN32)
+						if (!WriteFile(fd, &empty_offset, sizeof(empty_offset),&written,NULL))
+#endif
 						{
 							perror("error in writing size array to file.\n");
 							return 0;
@@ -1576,7 +1963,11 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						}
 
 						update_off_ne = (ui64)swap64((ui64)update_pos);
+#if defined(__linux__) || defined(__APPLE__) 
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+#elif defined(_WIN32)
+						if (!WriteFile(fd, &update_off_ne, sizeof(update_off_ne),&written,NULL))
+#endif
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
 									F, L - 1);
@@ -3321,7 +3712,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if(!ReadFile(fd,&update_off_ne,sizeof(update_off_ne),written,NULL))
+					if(!ReadFile(fd,&update_off_ne,sizeof(update_off_ne),&written,NULL))
 #endif
 					{
 
@@ -3413,7 +3804,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 #elif defined(_WIN32)
 						written = 0;
-						if(!WriteFile(fd,&empty_offset,sizeof(empty_offset),written,NULL))
+						if(!WriteFile(fd,&empty_offset,sizeof(empty_offset),&written,NULL))
 #endif
 						{
 							perror("error in writing size array to file.\n");
@@ -3431,7 +3822,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 #elif defined(_WIN32)
 						written = 0;
-						if(!WriteFile(fd,&update_off_ne,sizeof(update_off_ne),written,NULL))
+						if(!WriteFile(fd,&update_off_ne,sizeof(update_off_ne),&written,NULL))
 #endif
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
@@ -3464,7 +3855,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					if (write(fd, &size_ne, sizeof(size_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if(!WriteFile(fd,&size_ne,sizeof(size_ne),written,NULL))
+					if(!WriteFile(fd,&size_ne,sizeof(size_ne),&written,NULL))
 #endif
 					{
 						perror("error in writing size array to file.\n");
@@ -3477,7 +3868,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					if (read(fd, &pad_ne, sizeof(pad_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if(!ReadFile(fd,&pad_ne,sizeof(pad_ne),written,NULL))
+					if(!ReadFile(fd,&pad_ne,sizeof(pad_ne),&written,NULL))
 #endif
 					{
 						perror("error in writing padding array to file.\n");
@@ -3499,7 +3890,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if(!WriteFile(fd,&pad_ne,sizeof(pad_ne),written,NULL))
+					if(!WriteFile(fd,&pad_ne,sizeof(pad_ne),&written,NULL))
 #endif
 					{
 						perror("error in writing padding array to file.\n");
@@ -3525,7 +3916,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
 #elif defined(_WIN32)
 						written = 0;
-						if(!ReadFile(fd,&str_loc_ne,sizeof(str_loc_ne),written,NULL))
+						if(!ReadFile(fd,&str_loc_ne,sizeof(str_loc_ne),&written,NULL))
 #endif
 						{
 							perror("can't read string location: ");
@@ -3546,7 +3937,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						if (read(fd, &bu_ne, sizeof(bu_ne)) < 0)
 #elif defined(_WIN32)
 						written = 0;
-						if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),written,NULL))
+						if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL))
 #endif
 						{
 							perror("can't read safety buffer before writing string.\n");
@@ -3589,7 +3980,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 							if(read(fd, &bu_ne, sizeof(bu_ne)) < 0)	
 #elif defined(_WIN32)
 							written = 0;
-							if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),written,NULL))
+							if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL))
 #endif
 							{
 								perror("read file.\n");
@@ -3656,8 +4047,8 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 							write(fd, buff_w, buff_update) < 0)
 #elif defined(_WIN32)
 						written = 0;
-						if(!WriteFile(fd,&bu_ne,sizeof(bu_ne),written,NULL)
-							|| !WriteFile(fd,buff_w,buff_update,written,NULL))
+						if(!WriteFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL)
+							|| !WriteFile(fd,buff_w,buff_update,&written,NULL))
 #endif
 						{
 							perror("error in writing type string (char *)file.\n");
@@ -3683,7 +4074,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 							if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 #elif defined(_WIN32)
 							writing = 0;
-							if(!WriteFile(fd,&eof_ne,sizeof(eof_ne),written,NULL))
+							if(!WriteFile(fd,&eof_ne,sizeof(eof_ne),&written,NULL))
 #endif
 							{
 								perror("write file: ");
@@ -3731,7 +4122,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if(!WriteFile(fd,&update_arr_ne,sizeof(update_arr_ne),written,NULL))
+					if(!WriteFile(fd,&update_arr_ne,sizeof(update_arr_ne),&written,NULL))
 #endif
 					{
 						perror("failed write int array to file");
@@ -3758,7 +4149,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 #elif defined(_WIN32)
 						written = 0;
-						if(!WriteFile(fd,&sz_ne,sizeof(sz_ne),written,NULL))
+						if(!WriteFile(fd,&sz_ne,sizeof(sz_ne),&written,NULL))
 #endif
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
@@ -3772,7 +4163,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					if (read(fd, &pad_ne, sizeof(pad_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if(!ReadFile(fd,&pad_ne,sizeof(pad_ne),written,NULL))
+					if(!ReadFile(fd,&pad_ne,sizeof(pad_ne),&written,NULL))
 #endif
 					{
 						perror("error in writing padding array to file.\n");
@@ -3801,7 +4192,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 							if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == STATUS_ERROR)
 #elif defined(_WIN32)
 							written = 0;
-							if(!ReadFile(fd,&str_loc_ne,sizeof(str_loc_ne),written,NULL))
+							if(!ReadFile(fd,&str_loc_ne,sizeof(str_loc_ne),&written,NULL))
 #endif
 							{
 								perror("can't read string location: ");
@@ -3822,7 +4213,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 							if (read(fd, &bu_ne, sizeof(bu_ne)) < 0)
 #elif defined(_WIN32)
 							written = 0;
-							if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),written,NULL))
+							if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL))
 #endif
 							{
 								perror("can't read safety buffer before writing string.\n");
@@ -3865,7 +4256,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 								if (read(fd, &bu_ne, sizeof(bu_ne)) < 0)
 #elif defined(_WIN32)
 								written = 0;
-								if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),written,NULL))
+								if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL))
 #endif
 								{
 									perror("read file.\n");
@@ -3934,8 +4325,8 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 								write(fd, buff_w, buff_update) < 0)
 #elif defined(_WIN32)
 							written = 0;
-							if(!WriteFile(fd,&bu_ne,sizeof(bu_ne),written,NULL)
-							 	|| !WriteFile(fd,buff_w,buff_update,written,NULL))
+							if(!WriteFile(fd,&bu_ne,sizeof(bu_ne),&written,NULL)
+							 	|| !WriteFile(fd,buff_w,buff_update,&written,NULL))
 #endif
 							{
 								perror("error in writing type string (char *)file.\n");
@@ -3963,7 +4354,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 								if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 #elif defined(_WIN32)
 								written = 0;
-								if(!WriteFile(fd,&eof_ne,sizeof(eof_ne),written,NULL))
+								if(!WriteFile(fd,&eof_ne,sizeof(eof_ne),&written,NULL))
 #endif
 								{
 									perror("write file: ");
@@ -4021,7 +4412,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if(!WriteFile(fd,&update_arr_ne,sizeof(update_arr_ne),written,NULL))
+					if(!WriteFile(fd,&update_arr_ne,sizeof(update_arr_ne),&written,NULL))
 #endif
 					{
 						perror("failed write int array to file");
@@ -4999,6 +5390,8 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 		}
 		case TYPE_FILE:
 		{
+			/*TODO: do we need this TYPE_FILE ????*/
+#if 0
 			if (!update){	
 
 				/*write the size of the LIST */
@@ -5547,6 +5940,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 
 			break;
 		}
+#endif
 	
 		default:
 			break;
@@ -5810,7 +6204,7 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 #if defined(__linux__) || defined(__APPLE__)
 			if (read(fd, &str_loc_ne, sizeof(str_loc_ne)) == -1)
 #elif defined(_WIN32)
-			DWORD written = 0;
+			written = 0;
 			if (!ReadFile(fd,&str_loc_ne,sizeof(str_loc_ne),&written,NULL))
 #endif
 			{
@@ -5825,7 +6219,7 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 #if defined(__linux__) || defined(__APPLE__)
 			if (read(fd, &bu_up_ne, sizeof(bu_up_ne)) < 0)
 #elif defined(_WIN32)
-			DWORD written = 0;
+			written = 0;
 			if (!ReadFile(fd,&bu_up_ne,sizeof(bu_up_ne),&written,NULL))
 #endif
 			{
@@ -5921,9 +6315,9 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 
 #if defined(__linux__) || defined(__APPLE__)
 			if (read(fd, &rec->fields[i].data.b, sizeof(unsigned char)) == -1)
-#elif
+#elif defined(_WIN32)
 			DWORD written = 0;
-			if (!ReadFile(fd,rec->fields[i].data.b,sizeof(unsigned char),&written,NULL))
+			if (!ReadFile(fd,&rec->fields[i].data.b,sizeof(unsigned char),&written,NULL))
 #endif
 			{
 				perror("could not read type byte: ");
@@ -5948,7 +6342,7 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 			ui64 d_ne = 0;
 #if defined(__linux__) || defined(__APPLE__)
 			if (read(fd, &d_ne, sizeof(d_ne)) < 0)
-#elif
+#elif defined(_WIN32)
 			DWORD written = 0;
 			if (!ReadFile(fd,&d_ne,sizeof(d_ne),&written,NULL))
 #endif
@@ -6025,7 +6419,7 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 					if (read(fd, &num_ne, sizeof(num_ne)) == -1)
 #elif defined(_WIN32)
 					written = 0;
-					if (!ReadFile(fd,&num_ne,sizeof(num_me),&written,NULL))
+					if (!ReadFile(fd,&num_ne,sizeof(num_ne),&written,NULL))
 #endif
 					{
 						perror("can't read int array from file.\n");
@@ -6182,7 +6576,7 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 				if (read(fd, &upd_ne, sizeof(upd_ne)) == -1)
 #elif defined(_WIN32)
 				written = 0;
-				if (!ReadFile(fd,&num_ne,sizeof(num_ne),&written,NULL))
+				if (!ReadFile(fd,&upd_ne,sizeof(upd_ne),&written,NULL))
 #endif
 				{
 					perror("can't read int array from file.\n");
@@ -6261,7 +6655,7 @@ int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sc
 				if (read(fd, &padding, sizeof(padding)) == -1)
 #elif defined(_WIN32)
 				written = 0;
-				if (!ReadFile(fd,&padding,sizeof(paddding),&written,NULL))
+				if (!ReadFile(fd,&padding,sizeof(padding),&written,NULL))
 #endif 
 				{
 					perror("error readig array.");
@@ -7048,7 +7442,7 @@ int file_error_handler(int count, ...)
 		int fd = va_arg(args, int);
 		if (fd == STATUS_ERROR) 
 #elif defined(_WIN32)
-		HANDLE file_handle = va_args(args,HANDLE);
+		HANDLE file_handle = va_arg(args,HANDLE);
 		if (file_handle == INVALID_HANDLE_VALUE)
 #endif
 		{
@@ -7060,7 +7454,7 @@ int file_error_handler(int count, ...)
 		if (fd == EEXIST) exist++;
 		fds[i] = fd;
 #elif defined(_WIN32)
-		if (file_handle == ERROR_FILE_NOT_FOUND) err++;
+		if (file_handle == INVALID_HANDLE_VALUE) err++;
 		handles[i] = file_handle;
 #endif
 	}
@@ -7071,7 +7465,7 @@ int file_error_handler(int count, ...)
 #if defined(__linux__) || defined(__APPLE__)
 			if(fds[x] != -1 && fds[x] > 2) close(fds[x]);
 #elif defined(_WIN32)
-			if(handles[x] !=  INVALID_HANDLE_VALUE || handles[x] != ERROR_FILE_NOT_FOUND)
+			if(handles[x] !=  INVALID_HANDLE_VALUE)
 				CloseHandle(handles[x]);
 #endif
 	   } 
@@ -7087,6 +7481,8 @@ int file_error_handler(int count, ...)
 
 
 /*TODO: make it windows compatible*/
+
+
 int add_index(int index_nr, char *file_name, int bucket)
 {
 	if (index_nr == 0)
@@ -7106,7 +7502,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 	int fd = open_file(buff, 0);
 	if (file_error_handler(1, fd) > 0) 
 #elif defined(_WIN32)
-	HANDLE file_handle = open_file(buff,0);
+	HANDLE fd = open_file(buff,0);
 #endif
 	{
 		fprintf(stderr,"can't open %s, %s:%d.\n", buff, F, L - 3);
@@ -7143,6 +7539,7 @@ int add_index(int index_nr, char *file_name, int bucket)
 
 		ht[j] = dummy;
 	}
+
 	/*reopen the file with O_TRUNCATE flag to overwrite the old content*/
 	fd = open_file(buff, 1);
 	if (file_error_handler(1, fd) > 0) {
@@ -7868,15 +8265,6 @@ file_offset read_update_offset_ram_file(struct Ram_file *ram){
 	return (file_offset) swap64(pos);
 }
 
-static void move_ram_file_ptr(struct Ram_file *ram,size_t size)
-{
-	if(ram->size == ram->offset){
-		ram->size += size;
-		ram->offset = ram->size;
-	}else{
-		ram->offset += size;
-	}
-}
 /*
  *
  * if you pass init_ram_size as 0, in case the struct Ram_file memory is NULL
@@ -8364,7 +8752,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							int exit = 0;
 							int array_last = 0;
-							if((array_last = is_array_last_block(-1,ram,sz,sizeof(int),TYPE_INT)) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+							if((array_last = is_array_last_block(-1,ram,sz,sizeof(int),TYPE_INT)) == -1)
+#elif defined(_WIN32)
+							if((array_last = is_array_last_block(NULL,ram,sz,sizeof(int),TYPE_INT)) == -1)
+#endif
+							{
+
 								fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 								return -1;
 							}
@@ -8418,7 +8812,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								if(step > 0 && k == 0 ){
 									if((step + sz) > rec->fields[i].data.v.size){
 										int array_last = 0;
-										if((array_last = is_array_last_block(-1,ram,sz,sizeof(int),TYPE_INT)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+										if((array_last = is_array_last_block(-1,ram,sz,sizeof(int),TYPE_INT)) == -1)
+#elif defined(_WIN32)
+										if((array_last = is_array_last_block(NULL,ram,sz,sizeof(int),TYPE_INT)) == -1)
+#endif
+										{
 											fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 											return -1;
 										}
@@ -8721,7 +9120,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							int exit = 0;
 							int array_last = 0;
-							if((array_last = is_array_last_block(-1,ram,sz,sizeof(long),TYPE_INT)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+							if((array_last = is_array_last_block(-1,ram,sz,sizeof(long),TYPE_INT)) == -1)
+#elif defined(_WIN32)
+							if((array_last = is_array_last_block(NULL,ram,sz,sizeof(long),TYPE_INT)) == -1)
+#endif
+
+							{
 								fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 								return -1;
 							}
@@ -8775,7 +9180,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								if(step > 0 && k == 0 ){
 									if((step + sz) > rec->fields[i].data.v.size){
 										int array_last = 0;
-										if((array_last = is_array_last_block(-1,ram,sz,sizeof(long),TYPE_INT)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+										if((array_last = is_array_last_block(-1,ram,sz,sizeof(long),TYPE_INT)) == -1)
+#elif defined(_WIN32)
+										if((array_last = is_array_last_block(NULL,ram,sz,sizeof(long),TYPE_INT)) == -1)
+
+#endif
+										{
 											fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 											return -1;
 										}
@@ -9070,7 +9481,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							int exit = 0;
 							int array_last = 0;
-							if((array_last = is_array_last_block(-1,ram,sz,sizeof(unsigned char),0)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+							if((array_last = is_array_last_block(-1,ram,sz,sizeof(unsigned char),0)) == -1)
+#elif defined(_WIN32)
+							if((array_last = is_array_last_block(NULL,ram,sz,sizeof(unsigned char),0)) == -1)
+#endif
+
+							{
 								fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 								return -1;
 							}
@@ -9124,9 +9541,17 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								if(step > 0 && k == 0 ){
 									if((step + sz) > rec->fields[i].data.v.size){
 										int array_last = 0;
+#if defined(__linux__) || defined(__APPLE__) 
 										if((array_last = is_array_last_block(-1,ram,sz,
 														sizeof(unsigned char),
-														0)) == -1){
+														0)) == -1)
+#elif defined(_WIN32)
+										if((array_last = is_array_last_block(NULL,ram,sz,
+														sizeof(unsigned char),
+														0)) == -1)
+#endif
+
+										{
 											fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 											return -1;
 										}
@@ -9424,7 +9849,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							int exit = 0;
 							int array_last = 0;
-							if((array_last = is_array_last_block(-1,ram,sz,sizeof(float),TYPE_FLOAT)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+							if((array_last = is_array_last_block(-1,ram,sz,sizeof(float),TYPE_FLOAT)) == -1)
+#elif defined(_WIN32)
+							if((array_last = is_array_last_block(NULL,ram,sz,sizeof(float),TYPE_FLOAT)) == -1)
+#endif
+							{
 								fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 								return -1;
 							}
@@ -9478,7 +9908,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								if(step > 0 && k == 0 ){
 									if((step + sz) > rec->fields[i].data.v.size){
 										int array_last = 0;
-										if((array_last = is_array_last_block(-1,ram,sz,sizeof(float),TYPE_FLOAT)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+										if((array_last = is_array_last_block(-1,ram,sz,sizeof(float),TYPE_FLOAT)) == -1)
+#elif defined(_WIN32)
+										if((array_last = is_array_last_block(NULL,ram,sz,sizeof(float),TYPE_FLOAT)) == -1)
+#endif
+										{
 											fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 											return -1;
 										}
@@ -9774,7 +10209,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							int exit = 0;
 							int array_last = 0;
-							if((array_last = is_array_last_block(-1,ram,sz,sizeof(double),TYPE_DOUBLE)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+							if((array_last = is_array_last_block(-1,ram,sz,sizeof(double),TYPE_DOUBLE)) == -1)
+#elif defined(_WIN32)
+							if((array_last = is_array_last_block(NULL,ram,sz,sizeof(double),TYPE_DOUBLE)) == -1)
+#endif
+							{
 								fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 								return -1;
 							}
@@ -9828,7 +10268,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 								if(step > 0 && k == 0 ){
 									if((step + sz) > rec->fields[i].data.v.size){
 										int array_last = 0;
-										if((array_last = is_array_last_block(-1,ram,sz,sizeof(double),0)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+										if((array_last = is_array_last_block(-1,ram,sz,sizeof(double),0)) == -1)
+#elif defined(_WIN32)
+										if((array_last = is_array_last_block(NULL,ram,sz,sizeof(double),0)) == -1)
+#endif
+										{
 											fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 											return -1;
 										}
@@ -10145,7 +10590,13 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 							int exit = 0;
 							int array_last = 0;
-							if((array_last = is_array_last_block(-1,ram,sz,0,rec->fields[i].type)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+							if((array_last = is_array_last_block(-1,ram,sz,0,rec->fields[i].type)) == -1)
+#elif defined(_WIN32)
+							if((array_last = is_array_last_block(NULL,ram,sz,0,rec->fields[i].type)) == -1)
+#endif
+							{
+
 								fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 								return -1;
 							}
@@ -10347,7 +10798,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									if(step > 0 && k == 0 ){
 										if((step + sz) > rec->fields[i].data.v.size){
 											int array_last = 0;
-											if((array_last = is_array_last_block(-1,ram,sz,0,rec->fields[i].type)) == -1){
+#if defined(__linux__) || defined(__APPLE__) 
+											if((array_last = is_array_last_block(-1,ram,sz,0,rec->fields[i].type)) == -1)
+#elif defined(_WIN32)
+											if((array_last = is_array_last_block(NULL,ram,sz,0,rec->fields[i].type)) == -1)
+#endif
+											{
 												fprintf(stderr,"(%s): can't verify array last block %s:%d",prog,__FILE__,__LINE__-1);
 												return -1;
 											}
@@ -10533,7 +10989,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 									if (padding > 0) {
 										int i;
 										for(i = 0; i < padding; i++){
-											if(get_string_size(-1,ram) == (size_t) -1){
+#if defined(__linux__) || defined(__APPLE__)
+											if(get_string_size(-1,ram) == (size_t) -1)
+#elif defined(_WIN32)
+											if(get_string_size(NULL,ram) == (size_t) -1)
+#endif
+											{
 												__er_file_pointer(F, L - 1);
 												return 0;
 											}
@@ -10551,7 +11012,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							if (padding > 0) {
 								int i;
 								for(i = 0; i < padding; i++){
-									if(get_string_size(-1,ram) == (size_t) -1){
+#if defined(__linux__) || defined(__APPLE__)
+									if(get_string_size(-1,ram) == (size_t) -1)
+#elif defined(_WIN32)
+									if(get_string_size(NULL,ram) == (size_t) -1)
+#endif
+									{
 										__er_file_pointer(F, L - 1);
 										return 0;
 									}
@@ -10844,7 +11310,12 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 							if (padding > 0) {
 								int i;
 								for(i = 0; i < padding; i++){
-									if(get_string_size(-1,ram) == (size_t) -1){
+#if defined(__linux__) || defined(__APPLE__)
+									if(get_string_size(-1,ram) == (size_t) -1)
+#elif defined(_WIN32)
+									if(get_string_size(NULL,ram) == (size_t) -1)
+#endif
+									{
 										__er_file_pointer(F, L - 1);
 										return 0;
 									}
@@ -11043,6 +11514,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 					break;
 				}
 			case TYPE_FILE:
+#if 0
 				{
 					if(!update){
 						ui32 size = swap32(rec->fields[i].data.file.count);
@@ -11538,6 +12010,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 					break;
 				}
+#endif
 			default:
 				break;
 		}
@@ -11554,86 +12027,11 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 }
 
 
-static int is_array_last_block(int fd, struct Ram_file *ram, int element_nr, size_t bytes_each_element, int type)
-{
-	if(fd != -1){
-		file_offset go_back_to = 0;
-		if ((go_back_to = get_file_offset(fd)) == -1)
-		{
-			__er_file_pointer(F, L - 1);
-			return -1;
-		}
-
-		if(type == TYPE_ARRAY_STRING || type == TYPE_SET_STRING){
-			int i;
-			for(i = 0; i < element_nr; i++){
-				if(get_string_size(fd,NULL) == (size_t)-1){
-					__er_file_pointer(F, L - 1);
-					return -1;
-				} 
-			}
-		}else {
-			if(move_in_file_bytes(fd, element_nr * bytes_each_element) == -1)
-			{
-				__er_file_pointer(F, L - 1);
-				return -1;
-			}
-		}	
-		ui64 update_off_ne = 0;
-		if (read(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
-		{
-			perror("failed read update file_offset int array.\n");
-			return 0;
-		}
-
-		if (find_record_position(fd, go_back_to) == -1)
-		{
-			__er_file_pointer(F, L - 1);
-			return -1;
-		}
-
-		file_offset update_pos = (file_offset)swap64(update_off_ne);
-
-		return update_pos == 0;
-	}
-
-	if(ram){
-		if(ram->mem){
-			file_offset go_back_to = ram->offset;
-
-			if(type == TYPE_ARRAY_STRING || type == TYPE_SET_STRING){
-				int i;
-				for(i = 0; i < element_nr; i++){
-					if(get_string_size(-1,ram) == (size_t)-1){
-						__er_file_pointer(F, L - 1);
-						return -1;
-					} 
-				}
-			}else {
-				ram->offset += (element_nr * bytes_each_element);
-			}	
-
-			ui64 update_off_ne = 0;
-			memcpy(&update_off_ne,&ram->mem[ram->offset],sizeof(ui64));
-			ram->offset += sizeof(ui64);
-
-			ram->offset = go_back_to;
-
-			file_offset update_pos = (file_offset)swap64(update_off_ne);
-
-			return update_pos == 0;
-
-
-		}
-	}
-
-	return -1;
-}
 
 #if defined(__linux__) || defined(__APPLE__)
 int buffered_write(int *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
 #elif defined(_WIN32)
-int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
+int buffered_write(HANDLE *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
 #endif
 {
 	struct Ram_file ram;
@@ -11677,9 +12075,9 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
 		if(file_error_handler(1,*fd) != 0) 
 #elif defined(_WIN32)
-		CloseHandle(*file_handle);
-		*file_handle = open_file(buf,1)
-		if(file_error_handler(1,*file_handle) != 0) 
+		CloseHandle(*fd);
+		*fd= open_file(buf,1);
+		if(file_error_handler(1,*fd) != 0) 
 #endif
 		{
 			close_ram_file(&ram);
@@ -11690,7 +12088,7 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 	if(write(*fd,ram.mem,ram.size) == -1)
 #elif defined(_WIN32)
 	DWORD written = 0;
-	if(!WriteFile(file_handle,ram.mem,ram.size,&written,NULL))
+	if(!WriteFile(*fd,ram.mem,ram.size,&written,NULL))
 #endif
 	{
 		fprintf(stderr,"write to file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
@@ -11704,9 +12102,9 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 		*fd = open_file(buf,0); /*open the file in nirmal mode*/
 		if(file_error_handler(1,*fd) != 0) 
 #elif defined(_WIN32)
-		CloseHandle(*file_handle);
-		*file_handle = open_file(buf,0);
-		if(file_error_handler(1,*file_handle) != 0) 
+		CloseHandle(*fd);
+		*fd = open_file(buf,0);
+		if(file_error_handler(1,*fd) != 0) 
 #endif
 		{
 			close_ram_file(&ram);
@@ -11717,69 +12115,6 @@ int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_o
 	return 0;
 }
 
-#if defined(__linux__) || defined(__APPLE__)
-static size_t get_string_size(int fd, struct Ram_file *ram)
-#elif defined(_WIN32)
-static size_t get_string_size(HANDLE fd, struct Ram_file *ram)
-#endif
-{
-
-#if defined(__linux__) || defined(__APPLE__)
-	if(fd != -1 && ram) {
-		fprintf(stderr,"(%s): wrong usage of %s(), you can pass either fd or Ram_file, both is not allowed.\n",prog,__func__);
-		return -1;
-	}
-
-	if(fd != -1){
-		if(move_in_file_bytes(fd,sizeof(ui32)) == -1) return -1;
-
-		ui16 bu_ne = 0;
-		if(read(fd,&bu_ne,sizeof(bu_ne)) == -1) return -1;
-
-		size_t buffer_update = (size_t)swap16(bu_ne);
-
-		if(move_in_file_bytes(fd,buffer_update) == -1) return -1;
-
-		return 0;
-	}
-#else
-
-	if(fd != 0 && ram){
-		fprintf(stderr,"(%s): wrong usage of %s(), you can pass either fd or Ram_file, both is not allowed.\n",prog,__func__);
-		return -1;
-	}
-	if(fd && !ram){
-		if(move_in_file_bytes(fd,sizeof(ui32)) == -1) return -1;
-
-		ui16 bu_ne = 0;
-		DWORD written = 0;
-		if(!ReadFile(fd,&bu_ne,sizeof(bu_ne),written,NULL)) return -1;
-
-		size_t buffer_update = (size_t)swap16(bu_ne);
-
-		if(move_in_file_bytes(fd,buffer_update) == -1) return -1;
-
-		return 0;
-
-	}
-#endif
-	if(ram){
-		if(ram->mem){
-			ram->offset += sizeof(ui32);			
-
-			ui16 bu_ne = 0;
-			memcpy(&bu_ne,&ram->mem[ram->offset],sizeof(ui16));
-			ram->offset += sizeof(ui16);			
-
-			size_t buff_up = (size_t)swap16(bu_ne); 
-			ram->offset += buff_up;
-
-			return 0;
-		}	
-	}
-
-	return -1;
-}
 
 /*
  * parameter cache_pos defines behavior for this funtion.
@@ -11796,7 +12131,7 @@ int cache_file(HANDLE *fds,char *file_name,struct Schema *sch,struct Cache *c,Ha
 {
 	
 	/*check if the file is cached already*/
-	if(get((void*)file_name,cache_register,STR) != -1)
+	if(get((void*)file_name,cache_register,STR_KEY) != -1)
 		return FILE_IS_CACHED;
 
 	int index = 0;
@@ -11866,7 +12201,7 @@ int cache_file(HANDLE *fds,char *file_name,struct Schema *sch,struct Cache *c,Ha
 		}
 	}
 	
-	if(!set((void*)file_name,STR,cache_pos,cache_register)){
+	if(!set((void*)file_name,STR_KEY,cache_pos,cache_register)){
 		free_ht_array(c->index_file,index);
 		close_ram_file(&c->data_file);
 		return -1;
@@ -11885,141 +12220,3 @@ void free_cache(struct Cache *c)
 	free(c->file_name);
 	memset(c,0,sizeof *c);
 }
-
-#if defined(_WIN32) 
-#include <windows.h>
-#include "file.h"
-#include "db_types.h"
-#include "str_op.h"
-#include "common.h"
-#include "endian.h"
-#include "debug.h"
-
-HANDLE open_file(char *fileName, ui32 use_trunc)
-{
-	DWORD creation = 0;	
-	DWORD access = 0;
-	HANDLE h_file;
-
-	if(!use_trunc){
-		access = GENERIC_WRITE | GENERIC_READ;
-		creation = OPEN_EXISTING;
-
-	}else{
-		access = GENERIC_WRITE | GENERIC_READ;
-		creation = TRUNCATE_EXISTING;
-	}
-
-	h_file = CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
-
-	return h_file;
-}
-
-HANDLE create_file(char *file_name)
-{
-	DWORD err = GetFileAttributesA(file_name);
-	if(err !=  INVALID_FILE_ATTRIBUTES){
-		fprintf(stderr,"file %s already exist");
-		return INVALID_HANDLE_VALUE;
-	}
-
-	HANDLE h_file = CreateFileA(file_name,GENERIC_READ | GENERIC_WRITE, 
-								FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-								NULL,
-								CREATE_NEW,
-								FILE_ATTRIBUTE_NORMAL,
-								NULL);
-	return h_file;
-
-}
-
-void close_file(int count, ...)
-{
-	int fails = 0;
-
-	va_list args;
-	va_start(args,count);
-
-	int i;
-	for(i = 0; i < count; i++){
-		HANDLE h = va_arg(args,HANDLE);
-		if(h != INVALID_HANDLE_VALUE){
-			if(!CloseHandle(h))
-				fails++;
-		}
-	}
-		
-	va_end(args);
-	if(fails) fprintf(stderr,"error closing the file: %ld",GetLastError());
-}
-
-int delete_file(int count,...)
-{
-	int err = 0;
-	va_list args;
-	va_start(args,count);
-	int i;
-	for(i = 0; i < count; i++){
-		char *file_name = va_arg(args, char*);
-		if(file_name){
-			if(!DeleteFileA(file_name))
-				err++;
-		}
-	}
-
-	if(err){
-		fprintf(stderr,"failed to delete one or more file, error code: %ld\n",GetLastError());
-		va_end(args);
-		return -1;
-	}
-
-	va_end(args);
-	return 0;
-
-}
-
-static file_offset seek_file_win(HANDLE file_handle,long long offset, DWORD file_position)
-{
-	LARGE_INTEGER li;
-	li.QuadPart = offset;
-	LARGE_INTEGER new_file_ptr;
-	if(!SetFilePointerEx(file_handle,li,&new_file_ptr,file_position)){
-		fprintf(stderr,"seek failed %s:%d\n",__FILE__,__LINE__-1);
-		return -1;
-	}
-
-	return (file_offset) new_file_ptr.QuadPart;
-}
-
-file_offset begin_in_file(HANDLE file_handle)
-{
-	return seek_file_win(file_handle,0,FILE_BEGIN);
-
-}
-
-file_offset get_file_offset(HANDLE file_handle)
-{
-	return seek_file_win(file_handle,0,FILE_CURRENT);
-}
-
-file_offset find_record_position(HANDLE file_handle, long long offset)
-{
-	return seek_file_win(file_handle,offset,FILE_BEGIN);
-
-}
-
-file_offset go_to_EOF(HANDLE file_handle)
-{
-	return seek_file_win(file_handle,0,FILE_END);
-}
-
-file_offset move_in_file_bytes(HANDLE file_handle, file_offset offset)
-{
-	return seek_file_win(file_handle,offset,FILE_CURRENT);
-}
-
-DWORD get_file_size(HANDLE file_handle)
-{
-	return GetFileSize(file_handle, NULL);
-}
-#endif
