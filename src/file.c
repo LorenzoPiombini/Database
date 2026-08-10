@@ -2,11 +2,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdarg.h>
 #include <sys/mman.h>
 #include <time.h>
-#endif /*linux*/
+#else /*linux*/
+#include <windows.h>
+#endif
 
+#include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -11789,7 +11791,7 @@ static size_t get_string_size(HANDLE fd, struct Ram_file *ram)
 #if defined(__linux__) || defined(__APPLE__)
 int cache_file(int *fds,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos)
 #elif defined(_WIN32)
-int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos)
+int cache_file(HANDLE *fds,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos)
 #endif
 {
 	
@@ -11799,11 +11801,7 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 
 	int index = 0;
 	if(cache_pos != -1){
-#if defined(__linux__) || defined(__APPLE__)
 		if(!read_all_index_file(fds[0],&c[cache_pos].index_file,&index))
-#elif defined(_WIN32)
-		if(!read_all_index_file(file_handle,&c[cache_pos].index_file,&index))
-#endif
 		{
 			free_ht_array(c[cache_pos].index_file,index);
 			close_ram_file(&c[cache_pos].data_file);
@@ -11811,11 +11809,7 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 		}
 		c[cache_pos].indexes = index;
 	}else{
-#if defined(__linux__) || defined(__APPLE__)
 		if(!read_all_index_file(fds[0],&c->index_file,&index))
-#elif defined(_WIN32)
-		if(!read_all_index_file(file_handle,&c->index_file,&index))
-#endif
 		{
 			free_ht_array(c->index_file,index);
 			close_ram_file(&c->data_file);
@@ -11825,22 +11819,14 @@ int cache_file(HANDLE file_handle,char *file_name,struct Schema *sch,struct Cach
 	}
 
 	if(cache_pos != -1){
-#if defined(__linux__) || defined(__APPLE__)
 		if(get_all_record(fds[1],&c[cache_pos].data_file) == -1)
-#elif defined(_WIN32)
-		if(get_all_record(file_handle,&c[cache_pos]->data_file) == -1)
-#endif
 		{
 			free_ht_array(c[cache_pos].index_file,index);
 			close_ram_file(&c[cache_pos].data_file);
 			return -1;
 		}
 	}else{
-#if defined(__linux__) || defined(__APPLE__)
 		if(get_all_record(fds[1],&c->data_file) == -1)
-#elif defined(_WIN32)
-		if(get_all_record(file_handle,&c->data_file) == -1)
-#endif
 		{
 			free_ht_array(c->index_file,index);
 			close_ram_file(&c->data_file);
@@ -11916,38 +11902,33 @@ HANDLE open_file(char *fileName, ui32 use_trunc)
 	HANDLE h_file;
 
 	if(!use_trunc){
-		access = GENERIC_WRITE | GENERIC_READ 
+		access = GENERIC_WRITE | GENERIC_READ;
 		creation = OPEN_EXISTING;
 
 	}else{
-		access = GENERIC_WRITE | GENERIC_READ 
+		access = GENERIC_WRITE | GENERIC_READ;
 		creation = TRUNCATE_EXISTING;
 	}
 
-	h_file = createFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
-	if(h_file == INVALID_HANDLE_VALUE)
-		return GetLastError();
+	h_file = CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
 
 	return h_file;
 }
 
 HANDLE create_file(char *file_name)
 {
-	DWORD err = getFileAttributesA(file_name);
-	if(err !=  INVALID_FILE_ATTRIBUTE){
+	DWORD err = GetFileAttributesA(file_name);
+	if(err !=  INVALID_FILE_ATTRIBUTES){
 		fprintf(stderr,"file %s already exist");
 		return INVALID_HANDLE_VALUE;
 	}
 
-	HANDLE h_file = createFileA(file_name,GENERIC_READ | GENERIC_WRITE, 
+	HANDLE h_file = CreateFileA(file_name,GENERIC_READ | GENERIC_WRITE, 
 								FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 								NULL,
 								CREATE_NEW,
 								FILE_ATTRIBUTE_NORMAL,
 								NULL);
-	if(h_file == INVALID_HANDLE_VALUE) 
-		return GetLastError();
-
 	return h_file;
 
 }
@@ -11961,7 +11942,7 @@ void close_file(int count, ...)
 
 	int i;
 	for(i = 0; i < count; i++){
-		HANDLE h = va_args(args,HANDLE);
+		HANDLE h = va_arg(args,HANDLE);
 		if(h != INVALID_HANDLE_VALUE){
 			if(!CloseHandle(h))
 				fails++;
@@ -11975,11 +11956,11 @@ void close_file(int count, ...)
 int delete_file(int count,...)
 {
 	int err = 0;
-	va_args args;
+	va_list args;
 	va_start(args,count);
 	int i;
 	for(i = 0; i < count; i++){
-		char *file_name = va_args(args, char*);
+		char *file_name = va_arg(args, char*);
 		if(file_name){
 			if(!DeleteFileA(file_name))
 				err++;
@@ -11988,9 +11969,11 @@ int delete_file(int count,...)
 
 	if(err){
 		fprintf(stderr,"failed to delete one or more file, error code: %ld\n",GetLastError());
+		va_end(args);
 		return -1;
 	}
 
+	va_end(args);
 	return 0;
 
 }
@@ -12037,6 +12020,6 @@ file_offset move_in_file_bytes(HANDLE file_handle, file_offset offset)
 
 DWORD get_file_size(HANDLE file_handle)
 {
-	return GetFileSize(file_handle, NULL)
+	return GetFileSize(file_handle, NULL);
 }
 #endif
