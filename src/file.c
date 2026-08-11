@@ -3856,7 +3856,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__) 
 									if (write(fd, &eof_ne, sizeof(eof_ne)) == STATUS_ERROR)
 #elif defined(_WIN32)
-									if (write(fd, &eof_ne, sizeof(eof_ne),NULL,NULL))
+									if (!WriteFile(fd, &eof_ne, sizeof(eof_ne),NULL,NULL))
 #endif
 									{
 										perror("write file: ");
@@ -4036,7 +4036,7 @@ int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, 
 #if defined(__linux__) || defined(__APPLE__) 
 									if (read(fd, &bu_ne, sizeof(bu_ne)) < 0)
 #elif defined(_WIN32)
-									if (read(fd, &bu_ne, sizeof(bu_ne),NULL,NULL))
+									if (!ReadFile(fd, &bu_ne, sizeof(bu_ne),NULL,NULL))
 #endif
 									{
 										perror("read file.\n");
