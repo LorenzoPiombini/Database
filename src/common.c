@@ -106,7 +106,12 @@ void *array_init(size_t size, int type)
 	/* this was more of a challenge that i want to accomplish
 	 * I hardly find the need to have an array of mixed type, 
 	 * but was fun to implement*/
+#if defined(_WIN32)
+	case ARR_VOID:
+#else
 	case VOID:
+#endif
+
 	{
 		struct Metadata *head = malloc(sizeof(struct Mix_t)*size +sizeof(struct Metadata));
 		if(!head)
@@ -503,7 +508,11 @@ int array_insert_at(int i, void **arr, void *el)
 		*arr = (void*)a;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_VOID:
+#else
 	case VOID:
+#endif
 	{
 		if(h->capacity < i){
 			/*realloc*/
@@ -697,7 +706,11 @@ int array_push(void **arr, void *el)
 		*arr = (void*)a;
 		return 0;
 	}
+#if defined(_WIN32)
+	case ARR_VOID:
+#else
 	case VOID:
+#endif
 	{
 		if(h->elements == h->capacity){
 			/*realloc*/
@@ -716,7 +729,6 @@ int array_push(void **arr, void *el)
 		*arr = (void*)a;
 		h->elements++;
 		return 0;
-
 	}
 	default:
 		return -1;
@@ -756,7 +768,11 @@ void array_free(void*arr)
 		free(h);
 		return;
 	}
+#if defined(_WIN32)
+	case ARR_VOID:
+#else
 	case VOID:
+#endif
 	{
 		struct Mix_t *v = (struct Mix_t*)arr;
 		int i;
@@ -835,7 +851,6 @@ int comparison(void *src, void *dest)
 
 int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(void*,void*))
 {
-
 	if(!(*root)){
 		if(BST_node_init(root,&node) == -1)
 			return -1;

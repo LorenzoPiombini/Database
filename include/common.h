@@ -17,6 +17,7 @@ int BST_insert(struct BSTnode **root, struct BSTnode *node,int (*comparison)(voi
 void BST_free(struct BSTnode **root);
 
 /* =========================== */
+
 /*used for arrays in the database*/
 struct Metadata{
 	long long elements;
@@ -43,15 +44,16 @@ enum arr_type{
 	ARR_BYTE,
 	ARR_DOUBLE,
 	ARR_FLOAT,
+	ARR_VOID,
 #else
 	INT,
 	LONG,
 	BYTE,
 	DOUBLE,
 	FLOAT,
+	VOID,
 #endif
 	STRING,
-	VOID,
 	USER_DEF
 };
 
