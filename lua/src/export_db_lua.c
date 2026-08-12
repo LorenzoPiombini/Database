@@ -428,7 +428,7 @@ static int l_write_record(lua_State *L)
 	if(file_pos_in_the_cache != -1) goto use_cache;
 
 	/*if is not valid open the file!*/
-	IS_FILE_T_VALID(fds[0]){
+	if(!IS_FILE_T_VALID(fds[0])){
 		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	}

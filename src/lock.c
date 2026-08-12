@@ -37,10 +37,7 @@ int release_lock(file_t *fds,int mode){
 	}	
 	if(mode == STD_LOCK) return 0;
 	if(mode == LOCK_SCHEMA_FILE){
-
-		IS_FILE_T_VALID(fds[0]){
-
-		}else{
+		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -51,9 +48,7 @@ int release_lock(file_t *fds,int mode){
 			}
 		}
 
-		IS_FILE_T_VALID(fds[1]){
-
-		}else{
+		if(IS_FILE_T_VALID(fds[1])){
 			while((r = lock(fds[1],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -63,11 +58,11 @@ int release_lock(file_t *fds,int mode){
 				}
 			}
 		}
+		
 	}
 
 	if(mode == LOCK_DATA_FILE){
-		IS_FILE_T_VALID(fds[0]){
-		}else{
+		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -78,8 +73,7 @@ int release_lock(file_t *fds,int mode){
 			}
 		}
 
-		IS_FILE_T_VALID(fds[2]){
-		}else{
+		if(IS_FILE_T_VALID(fds[2])){
 			while((r = lock(fds[2],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -123,8 +117,7 @@ int acquire_lock(file_t *fds, int mode){
 
 	/*IF THE LOCK is DIFFERENT than standard we need to check if the other 2 files are locked!*/
 	if(mode == LOCK_SCHEMA_FILE){
-		IS_FILE_T_VALID(fds[0]){
-		}else{
+		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -136,8 +129,7 @@ int acquire_lock(file_t *fds, int mode){
 			}
 		}
 
-		IS_FILE_T_VALID(fds[1]){
-		}else{
+		if(IS_FILE_T_VALID(fds[1])){
 			while((r = lock(fds[1],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -151,8 +143,7 @@ int acquire_lock(file_t *fds, int mode){
 	}
 
 	if(mode == LOCK_DATA_FILE){
-		IS_FILE_T_VALID(fds[0]){
-		}else{
+		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -164,8 +155,7 @@ int acquire_lock(file_t *fds, int mode){
 			}
 		}
 
-		IS_FILE_T_VALID(fds[0]){
-		}else{
+		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[2],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
