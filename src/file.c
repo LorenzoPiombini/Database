@@ -5047,7 +5047,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 					}
 
 					ui64 update_arr_ne = 0;
-					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					if (os_write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
 						return 0;
@@ -5073,13 +5073,13 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 				/*write the size of the LIST */
 				ui32 size_ne = swap32(rec->fields[i].data.file.count);
-				if (write(fd, &size_ne, sizeof(size_ne)) == -1)	{
+				if (os_write(fd, &size_ne, sizeof(size_ne)) == -1)	{
 					perror("error in writing size array to file.\n");
 					return 0;
 				}
 
 				ui32 padding_ne = 0;
-				if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
+				if (os_write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
@@ -5095,7 +5095,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 				
 
 				ui64 upd_ne = 0;
-				if (write(fd, &upd_ne, sizeof(upd_ne)) == -1)
+				if (os_write(fd, &upd_ne, sizeof(upd_ne)) == -1)
 				{
 					perror("error in writing size array to file.\n");
 					return 0;
@@ -5214,7 +5214,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 							/* write the updated size of the array */
 							ui32 new_sz = swap32((ui32)sz);
-							if (write(fd, &new_sz, sizeof(new_sz)) == -1)
+							if (os_write(fd, &new_sz, sizeof(new_sz)) == -1)
 							{
 								perror("error in writing remaining size int array.\n");
 								return 0;
@@ -5222,7 +5222,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 							/* write the updated padding value */
 							ui32 new_pd = swap32((ui32)padding_value);
-							if (write(fd, &new_pd, sizeof(new_pd)) == -1)
+							if (os_write(fd, &new_pd, sizeof(new_pd)) == -1)
 							{
 								perror("error in writing new pading value int array.\n");
 								return 0;
@@ -5250,7 +5250,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 						if (exit){
 							/*write the epty update offset*/
 							ui64 empty_offset = 0;
-							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+							if (os_write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
 								return 0;
@@ -5282,7 +5282,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 									/* write the updated size of the array */
 									ui32 new_sz = swap32((ui32)sz);
-									if (write(fd, &new_sz, sizeof(new_sz)) == -1)
+									if (os_write(fd, &new_sz, sizeof(new_sz)) == -1)
 									{
 										perror("error in writing remaining size int array.\n");
 										return 0;
@@ -5290,7 +5290,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 									/*write padding */
 									ui32 new_pd = swap32((ui32)padding_value);
-									if (write(fd, &new_pd, sizeof(new_pd)) == -1)
+									if (os_write(fd, &new_pd, sizeof(new_pd)) == -1)
 									{
 										perror("error in writing new padd int array.\n");
 										return 0;
@@ -5334,7 +5334,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 							}
 							/*write the epty update offset*/
 							ui64 empty_offset = 0;
-							if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+							if (os_write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 							{
 								perror("error in writing size array to file.\n");
 								return 0;
@@ -5389,13 +5389,13 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 						/* write the size of the array */
 						int size_left = rec->fields[i].data.file.count - step;
 						ui32 size_left_ne = swap32((ui32)size_left);
-						if (write(fd, &size_left_ne, sizeof(size_left_ne)) == -1) {
+						if (os_write(fd, &size_left_ne, sizeof(size_left_ne)) == -1) {
 							perror("error in writing remaining size int array.\n");
 							return 0;
 						}
 
 						ui32 padding_ne = 0;
-						if (write(fd, &padding_ne, sizeof(padding_ne)) == -1)
+						if (os_write(fd, &padding_ne, sizeof(padding_ne)) == -1)
 						{
 							perror("error in writing size array to file.\n");
 							return 0;
@@ -5414,7 +5414,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 						/*write the empty update offset*/
 						ui64 empty_offset = 0;
-						if (write(fd, &empty_offset, sizeof(empty_offset)) == -1)
+						if (os_write(fd, &empty_offset, sizeof(empty_offset)) == -1)
 						{
 							perror("error in writing size array to file.\n");
 							return 0;
@@ -5427,7 +5427,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 						}
 
 						update_off_ne = (ui64)swap64((ui64)update_pos);
-						if (write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
+						if (os_write(fd, &update_off_ne, sizeof(update_off_ne)) == -1)
 						{
 							fprintf(stderr, "can't write update position int array, %s:%d.\n",
 									F, L - 1);
@@ -5456,7 +5456,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 					/*write the size of the array */
 					ui32 size_ne = swap32(rec->fields[i].data.file.count);
-					if (write(fd, &size_ne, sizeof(size_ne)) == -1){
+					if (os_write(fd, &size_ne, sizeof(size_ne)) == -1){
 						perror("error in writing size array to file.\n");
 						return 0;
 					}
@@ -5479,7 +5479,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 					/* write the padding to apply after the  array */
 					pad_ne = swap32((ui32)pd_he);
-					if (write(fd, &pad_ne, sizeof(pad_ne)) == -1)
+					if (os_write(fd, &pad_ne, sizeof(pad_ne)) == -1)
 					{
 						perror("error in writing padding array to file.\n");
 						return 0;
@@ -5519,7 +5519,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 					}
 
 					ui64 update_arr_ne = 0;
-					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					if (os_write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
 						return 0;
@@ -5541,7 +5541,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 
 						int size_left = rec->fields[i].data.file.count - step;
 						ui32 sz_ne = swap32((ui32)size_left);
-						if (write(fd, &sz_ne, sizeof(sz_ne)) == -1)
+						if (os_write(fd, &sz_ne, sizeof(sz_ne)) == -1)
 						{
 							fprintf(stderr, "write failed %s:%d.\n", F, L - 1);
 							return 0;
@@ -5598,7 +5598,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 					}
 
 					ui64 update_arr_ne = 0;
-					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					if (os_write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
 						return 0;
@@ -5628,7 +5628,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 	if(update_file_offset > 0)
 		uot_ne = swap64((ui64)update_file_offset);
 
-	if (write(fd, &uot_ne, sizeof(uot_ne)) == STATUS_ERROR)
+	if (os_write(fd, &uot_ne, sizeof(uot_ne)) == STATUS_ERROR)
 	{
 		perror("writing file_offset for future update");
 		printf(" %s:%d", F, L - 3);
@@ -11599,11 +11599,7 @@ int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, siz
 
 
 
-#if defined(__linux__) || defined(__APPLE__)
-int buffered_write(int *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
-#elif defined(_WIN32)
-int buffered_write(HANDLE *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
-#endif
+int buffered_write(file_t *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset)
 {
 	struct Ram_file ram;
 	memset(&ram,0,sizeof(struct Ram_file));
@@ -11641,13 +11637,12 @@ int buffered_write(HANDLE *fd, struct Record_f *rec, int update, file_offset rec
 		strncpy(buf,rec->file_name,strlen(rec->file_name));
 		strncat(buf,".dat",strlen(".dat")+1);		
 
+		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
 #if defined(__linux__) || defined(__APPLE__)
 		close(*fd);
-		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
 		if(file_error_handler(1,*fd) != 0) 
 #elif defined(_WIN32)
 		CloseHandle(*fd);
-		*fd= open_file(buf,1);
 		if(file_error_handler(1,*fd) != 0) 
 #endif
 		{
@@ -11655,12 +11650,7 @@ int buffered_write(HANDLE *fd, struct Record_f *rec, int update, file_offset rec
 			return -1;
 		}
 	}
-#if defined(__linux__) || defined(__APPLE__)
-	if(write(*fd,ram.mem,ram.size) == -1)
-#elif defined(_WIN32)
-	DWORD written = 0;
-	if(!WriteFile(*fd,ram.mem,ram.size,&written,NULL))
-#endif
+	if(os_write(*fd,ram.mem,ram.size) == -1)
 	{
 		fprintf(stderr,"write to file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
 		close_ram_file(&ram);
