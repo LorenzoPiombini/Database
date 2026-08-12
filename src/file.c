@@ -56,7 +56,7 @@ file_t open_file(char *fileName, int use_trunc)
 	}
 
 	fd = (file_t)CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
-	if(!fd || fd == INVALID_HANDLE_VALUE) return -1;
+	if(!fd || fd == INVALID_HANDLE_VALUE) return fd;
 #endif
 	return fd;
 }
@@ -81,19 +81,19 @@ file_t create_file(char *fileName)
 
 	return fd;
 #elif defined(_WIN32)
-	DWORD err = GetFileAttributesA(file_name);
+	DWORD err = GetFileAttributesA(fileName);
 	if(err !=  INVALID_FILE_ATTRIBUTES){
 		fprintf(stderr,"file %s already exist");
 		return INVALID_HANDLE_VALUE;
 	}
 
-	file_t fd = CreateFileA(file_name,GENERIC_READ | GENERIC_WRITE, 
+	file_t fd = CreateFileA(fileName,GENERIC_READ | GENERIC_WRITE, 
 								FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 								NULL,
 								CREATE_NEW,
 								FILE_ATTRIBUTE_NORMAL,
 								NULL);
-	if(fd == NULL || fd == INVALID_HANDLE_VALUE) return -1;
+	if(fd == NULL || fd == INVALID_HANDLE_VALUE) return NULL;
 	return fd;
 #endif
 }
@@ -4979,7 +4979,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 					}
 
 					ui64 update_arr_ne = swap64(0);
-					if (write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
+					if (os_write(fd, &update_arr_ne, sizeof(update_arr_ne)) == -1)
 					{
 						perror("failed write int array to file");
 						return 0;
@@ -5023,7 +5023,7 @@ int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, 
 						if (step < rec->fields[i].data.v.size)
 						{
 							ui64 num_ne = htond(rec->fields[i].data.v.elements.d[j]);
-							if (write(fd, &num_ne, sizeof(num_ne)) == -1)
+							if (os_write(fd, &num_ne, sizeof(num_ne)) == -1)
 							{
 								perror("failed write int array to file");
 								return 0;
