@@ -155,27 +155,20 @@ unsigned char create_system_from_txt_file(char *txt_f)
 	{
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};
 		three_file_path(files_n[j],files);
-#if defined(_WIN32)
-		HANDLE fd_schema,fd_index,fd_data;
-#else
-		int fd_schema = -1;
-		int fd_index = -1;
-		int fd_data = -1;
-#endif
+		file_t fd_schema,fd_index,fd_data;
 
 		if(file_field[j]){
-			fd_schema = create_file(files[2]);
-
-			if(file_error_handler(1,fd_schema) !=0){
+			if(create_file(files[2],&fd_schema) == -1){
+				file_error_handler(1,fd_schema);
 				fprintf(stderr, "system already exist!\n");
 				free_strs(lines, 2, files_n, schemas);
 				return 0;
 			}
 		}else{
-			fd_index = create_file(files[0]);
-			fd_data = create_file(files[1]);
-			fd_schema = create_file(files[2]);
-			if (file_error_handler(3,fd_schema,fd_data,fd_index) !=0){
+			if(create_file(files[0],&fd_index) == -1
+					|| create_file(files[1],&fd_data) == -1
+					|| create_file(files[2],&fd_schema) == -1){
+					file_error_handler(3,fd_schema,fd_data,fd_index)
 				fprintf(stderr, "system already exist!\n");
 				free_strs(lines, 2, files_n, schemas);
 				return 0;
