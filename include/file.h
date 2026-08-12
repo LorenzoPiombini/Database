@@ -32,8 +32,8 @@ struct Cache{
 };
 
 /*these are valid for all OS*/
-file_t open_file(char *fileName, int use_trunc);
-file_t create_file(char *fileName);
+int open_file(char *fileName, int use_trunc, file_t *fd);
+int create_file(char *fileName, file_t *fd);
 int os_read(file_t fd, void* data, size_t size);
 int os_write(file_t fd, void* data, size_t size);
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset);

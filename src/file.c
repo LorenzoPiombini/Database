@@ -28,23 +28,23 @@ static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 static size_t get_string_size(file_t fd, struct Ram_file *ram);
 
 
-file_t open_file(char *fileName, int use_trunc)
+int open_file(char *fileName, int use_trunc, file_t *fd)
 {
 #if defined(__linux__) || defined(__APPLE__)
-	int fd = 0;
 	errno = 0;
 	if (!use_trunc) {
-		fd = open(fileName, O_RDWR , S_IRWXU);
+		*fd = open(fileName, O_RDWR , S_IRWXU);
 	} else {
-		fd = open(fileName, O_WRONLY | O_TRUNC, S_IRWXU);
+		*fd = open(fileName, O_WRONLY | O_TRUNC, S_IRWXU);
 	}
 
-	if ( errno != 0) return errno;			
-
+	if ( errno != 0) {
+		*fd = errno;
+		return errno;			
+	}
 #elif defined(_WIN32)
 	DWORD creation = 0;	
 	DWORD access = 0;
-	file_t fd;
 
 	if(!use_trunc){
 		access = GENERIC_WRITE | GENERIC_READ;
@@ -55,46 +55,47 @@ file_t open_file(char *fileName, int use_trunc)
 		creation = TRUNCATE_EXISTING;
 	}
 
-	fd = (file_t)CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
-	if(!fd || fd == INVALID_HANDLE_VALUE) return fd;
+	*fd = (file_t)CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
+	if(!(*fd) || *fd == INVALID_HANDLE_VALUE) return -1;
 #endif
-	return fd;
+	return 0;
 }
 
-file_t create_file(char *fileName)
+int create_file(char *fileName, file_t *fd)
 {
 
 #if defined(__linux__) || defined(__APPLE__)
-	file_t fd = open(fileName, O_RDONLY);
-	if (fd != STATUS_ERROR) {
+	*fd = open(fileName, O_RDONLY);
+	if (*fd != STATUS_ERROR) {
 		printf("File already exist.\n");
 		close(fd);
-		return EEXIST;
+		*fd = EEXIST;
+		return -1;
 	}
 
-	fd = open(fileName, O_RDWR | O_CREAT, S_IRWXU);
+	*fd = open(fileName, O_RDWR | O_CREAT, S_IRWXU);
 
-	if (fd == STATUS_ERROR) {
+	if (*fd == STATUS_ERROR) {
 		perror("open");
 		return STATUS_ERROR;
 	}
 
-	return fd;
+	return 0;
 #elif defined(_WIN32)
 	DWORD err = GetFileAttributesA(fileName);
 	if(err !=  INVALID_FILE_ATTRIBUTES){
 		fprintf(stderr,"file %s already exist");
-		return INVALID_HANDLE_VALUE;
+		return -1;
 	}
 
-	file_t fd = CreateFileA(fileName,GENERIC_READ | GENERIC_WRITE, 
+	*fd = CreateFileA(fileName,GENERIC_READ | GENERIC_WRITE, 
 								FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 								NULL,
 								CREATE_NEW,
 								FILE_ATTRIBUTE_NORMAL,
 								NULL);
-	if(fd == NULL || fd == INVALID_HANDLE_VALUE) return NULL;
-	return fd;
+	if(fd == NULL || fd == INVALID_HANDLE_VALUE) return -1;
+	return 0;
 #endif
 }
 
@@ -7157,9 +7158,6 @@ int file_error_handler(int count, ...)
 }
 
 
-/*TODO: make it windows compatible*/
-
-
 int add_index(int index_nr, char *file_name, int bucket)
 {
 	if (index_nr == 0)
@@ -7175,13 +7173,10 @@ int add_index(int index_nr, char *file_name, int bucket)
 				F, L - 3);
 		return -1;
 	}
-#if defined(__linux__) || defined(__APPLE__)
-	int fd = open_file(buff, 0);
-	if (file_error_handler(1, fd) > 0) 
-#elif defined(_WIN32)
-	HANDLE fd = open_file(buff,0);
-#endif
-	{
+	file_t fd;
+	if(open_file(buff, 0,&fd) == -1){
+		/*TODO expand file_error_handler errors */
+		file_error_handler(1, fd);
 		fprintf(stderr,"can't open %s, %s:%d.\n", buff, F, L - 3);
 		return -1;
 	}
@@ -7218,8 +7213,8 @@ int add_index(int index_nr, char *file_name, int bucket)
 	}
 
 	/*reopen the file with O_TRUNCATE flag to overwrite the old content*/
-	fd = open_file(buff, 1);
-	if (file_error_handler(1, fd) > 0) {
+	if(open_file(buff, 1,&fd) == -1){
+		file_error_handler(1, fd);
 		fprintf(stderr,	"can't open %s, %s:%d.\n", buff, F, L - 3);
 		free_ht_array(ht, total_indexes);
 		return -1;
@@ -11637,19 +11632,15 @@ int buffered_write(file_t *fd, struct Record_f *rec, int update, file_offset rec
 		strncpy(buf,rec->file_name,strlen(rec->file_name));
 		strncat(buf,".dat",strlen(".dat")+1);		
 
-		*fd = open_file(buf,1);	/* open the file back with O_TRUNC*/
-#if defined(__linux__) || defined(__APPLE__)
-		close(*fd);
-		if(file_error_handler(1,*fd) != 0) 
-#elif defined(_WIN32)
-		CloseHandle(*fd);
-		if(file_error_handler(1,*fd) != 0) 
-#endif
-		{
+		if(open_file(buf,1,fd) == -1){ /* open the file back with O_TRUNC*/
+			file_error_handler(1,*fd);
 			close_ram_file(&ram);
 			return -1;
 		}
+			
+		close_file(1,*fd);
 	}
+/*TODO undesrtand the logic here!! it seems funny */
 	if(os_write(*fd,ram.mem,ram.size) == -1)
 	{
 		fprintf(stderr,"write to file failed, %s:%d.\n",__FILE__, __LINE__ - 1);
@@ -11658,16 +11649,9 @@ int buffered_write(file_t *fd, struct Record_f *rec, int update, file_offset rec
 	}
 
 	if(update){
-#if defined(__linux__) || defined(__APPLE__)
-		close(*fd);
-		*fd = open_file(buf,0); /*open the file in nirmal mode*/
-		if(file_error_handler(1,*fd) != 0) 
-#elif defined(_WIN32)
-		CloseHandle(*fd);
-		*fd = open_file(buf,0);
-		if(file_error_handler(1,*fd) != 0) 
-#endif
-		{
+		close_file(1,*fd);
+		if(open_file(buf,1,fd) == -1){ /* open the file back with O_TRUNC*/
+			file_error_handler(1,*fd);
 			close_ram_file(&ram);
 			return -1;
 		}

@@ -38,7 +38,7 @@ static int write_hd_VS1(ui8 **buf, long *bwritten, struct Schema **sch);
 /*static int write_hd_VS1_1(ui8 **buf, long *bwritten, struct Schema **sch);*/
 static int is_input_correct(char names[][MAX_FIELD_LT],int fields_num);
 static int enforce_constraints(struct Schema *sch, int i, int found,struct Record_f *rec);
-static int unique_constraint_update(int *fds, struct Record_f *rec, struct Record_f *old_rec, int index, char *file_path);
+static int unique_constraint_update(file_t *fds, struct Record_f *rec, struct Record_f *old_rec, int index, char *file_path);
 
 int parse_d_flag_input(	char *file_path, 
 						int fields_num, 
@@ -438,12 +438,8 @@ int write_empty_header(int fd, struct Header_d *hd)
 	}
 
 	ui16 vs = swap16(hd->version);
-#if defined(__linux__) || defined(__APPLE__)
-	if (write(fd, &vs, sizeof(vs)) == -1)
-#elif defined(_WIN32)
-	DWORD written = 0;
-	if(!WriteFile(fd,&vs,sizeof(vs),&written,NULL))
-#endif
+	
+	if (os_write(fd, &vs, sizeof(vs)) == -1)
 	{
 		perror("write header version.\n");
 		printf("parse.c l %d.\n", __LINE__ - 3);
@@ -452,12 +448,7 @@ int write_empty_header(int fd, struct Header_d *hd)
 
 	/* important we need to write 0 field_number when the user creates a file with no data*/
 	ui16 fn = swap16((ui16)hd->sch_d->fields_num);
-#if defined(__linux__) || defined(__APPLE__)
-	if (write(fd, &fn, sizeof(fn)) == -1)
-#elif defined(_WIN32)
-	DWORD written = 0;
-	if(!WriteFile(fd,&fn,sizeof(fn),&written,NULL))
-#endif
+	if (os_write(fd, &fn, sizeof(fn)) == -1)
 	{
 		perror("writing fields number header.");
 		printf("parse.c l %d.\n", __LINE__ - 3);
@@ -581,11 +572,7 @@ static int write_hd_VS1(ui8 **buf, long *bwritten, struct Schema **sch)
 
 }
 
-#if defined(_WIN32)
-	int write_header(HANDLE fd, struct Header_d *hd)
-#else
-	int write_header(int fd, struct Header_d *hd)
-#endif
+int write_header(file_t fd, struct Header_d *hd)
 {
 	if (!hd->sch_d->fields_name || !hd->sch_d->fields_name[0]) {
 		printf("\nschema is NULL.\ncreate header failed, %s:%d.\n",__FILE__, __LINE__ - 3);
@@ -636,12 +623,7 @@ static int write_hd_VS1(ui8 **buf, long *bwritten, struct Schema **sch)
 		return 0;
 	}
 	
-#if defined(__linux__) || defined(__APPLE__)
-	if(write(fd,buf,bwritten) == -1){
-#elif defined(_WIN32)
-	DWORD written = 0;
-	if(!WriteFile(file_handle,buff,bwritten,&written,NULL)){
-#endif
+	if(os_write(fd,buf,bwritten) == -1){
 		fprintf(stderr,"cannot write header, %s:%d.\n",__FILE__,__LINE__ - 1);
 		buf -= sizeof(unsigned long);
 		free(buf);
@@ -872,11 +854,7 @@ static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch)
 	return 0;
 }
 
-#if defined(_WIN32)
-	int read_header(HANDLE fd, struct Header_d *hd)
-#else
-	int read_header(int fd, struct Header_d *hd)
-#endif
+int read_header(file_t fd, struct Header_d *hd)
 {
 #if defined(_WIN32)
 	file_offset msize = get_file_size(fd);
@@ -894,12 +872,7 @@ static int read_hd_V1(ui8 **buf, long *bread, struct Schema **sch)
 		return 0;
 	}
 
-#if defined(__linux__) || defined(__APPLE__)
-	if (read(fd, buf, msize) == -1){
-#elif defined(_WIN32) 
-	DWORD written = 0;
-	if (!ReadFile(fd,&buf,msize,&written,NULL)){
-#endif
+	if (os_read(fd, buf, msize) == -1){
 		perror("reading header.\n");
 		printf("parse.c %s:%d.\n",__FILE__, __LINE__ - 2);
 		free(buf);
@@ -2605,7 +2578,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 		unsigned char check,
 		int option,
 		struct Header_d hd,
-		int *fds,
+		file_t *fds,
 		char *file_path)
 {
 	int changed = 0;
@@ -3537,7 +3510,7 @@ void find_fields_to_update(
 		struct Record_f *rec,
 		int option,
 		struct Header_d hd,
-		int *fds,
+		file_t *fds,
 		char *file_path)
 {
 	int dif = 0;
@@ -3938,6 +3911,7 @@ void find_fields_to_update(
 					}
 				case TYPE_FILE:
 					{
+#if 0
 						int rlen =(int)strlen(rec->fields[index].field_name);
 						int sfxl =strlen(".sch");
 						int len = sfxl + rlen + 1;
@@ -3945,7 +3919,7 @@ void find_fields_to_update(
 						memset(fn,0,len);
 						strncpy(fn,rec->fields[index].field_name,rlen);
 						strncat(fn,".sch",sfxl);
-						int fd_sch = open_file(fn,0);
+						file_t fd_sch = open_file(fn,0);
 						if(file_error_handler(1,fd_sch) != 0){
 							positions[0] = '0';
 							return;
@@ -4276,6 +4250,7 @@ void find_fields_to_update(
 							positions[j] = 'y';
 							break;
 						}
+#endif
 					}
 				default:
 					printf("no matching type\n");
@@ -4776,7 +4751,7 @@ static int enforce_constraints(struct Schema *sch, int i, int found,struct Recor
  ** the new field value. 
  ** 
  */
-static int unique_constraint_update(int *fds, struct Record_f *rec, struct Record_f *old_rec, int index, char *file_path)
+static int unique_constraint_update(file_t *fds, struct Record_f *rec, struct Record_f *old_rec, int index, char *file_path)
 {
 	/*LOAD ALL INDEX*/
 	HashTable *ht = NULL;
@@ -4790,7 +4765,11 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 	switch(old_rec->fields[index].type){
 	case TYPE_LONG:
 	{
+#if defined(__linux__) || defined(__APPLE__)
 		Node *n = ht_delete((void*)&old_rec->fields[index].data.l,&ht[1],UINT);
+#elif defined(_WIN32) || defined(_WIN64)
+		Node *n = ht_delete((void*)&old_rec->fields[index].data.l,&ht[1],UINT_KEY);
+#endif
 		assert(n != NULL);
 		free_ht_node(n);
 		break;
@@ -4800,7 +4779,11 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 
 		ui64 d = htonf(rec->fields[index].data.d);
 		ui32 f = (ui32)d;
+#if defined(__linux__) || defined(__APPLE__)
 		Node *n = ht_delete((void*)&f,&ht[1],UINT);
+#elif defined(_WIN32) || defined(_WIN64)
+		Node *n = ht_delete((void*)&f,&ht[1],UINT_KEY);
+#endif
 		assert(n != NULL);
 		free_ht_node(n);
 		break;
@@ -4808,21 +4791,33 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 	case TYPE_FLOAT:
 	{
 		ui32 f = htonf(rec->fields[index].data.f);
+#if defined(__linux__) || defined(__APPLE__)
 		Node *n = ht_delete((void*)&f,&ht[1],UINT);
+#elif defined(_WIN32) || defined(_WIN64)
+		Node *n = ht_delete((void*)&f,&ht[1],UINT_KEY);
+#endif
 		assert(n != NULL);
 		free_ht_node(n);
 		break;
 	}
 	case TYPE_INT:
 	{
+#if defined(__linux__) || defined(__APPLE__)
 		Node *n = ht_delete((void*)&old_rec->fields[index].data.i,&ht[1],UINT);
+#elif defined(_WIN32) || defined(_WIN64)
+		Node *n = ht_delete((void*)&old_rec->fields[index].data.i,&ht[1],UINT_KEY);
+#endif
 		assert(n != NULL);
 		free_ht_node(n);
 		break;
 	}
 	case TYPE_STRING:
 	{
+#if defined(__linux__) || defined(__APPLE__)
 		Node *n = ht_delete((void*)old_rec->fields[index].data.s,&ht[1],STR);
+#elif defined(_WIN32) || defined(_WIN64)
+		Node *n = ht_delete((void*)old_rec->fields[index].data.s,&ht[1],STR_KEY);
+#endif
 		assert(n != NULL);
 		free_ht_node(n);
 		break;
@@ -4832,7 +4827,12 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 	}
 	switch(rec->fields[index].type){
 		case TYPE_INT:
-			if(set_tbl(ht,(void*)&rec->fields[index].data.i,old_rec->offset,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+			if(set_tbl(ht,(void*)&rec->fields[index].data.i,old_rec->offset,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+			if(set_tbl(ht,(void*)&rec->fields[index].data.i,old_rec->offset,UINT_KEY,1) == -1)
+#endif
+			{
 				fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
 				free_ht_array(ht, inx);
 				return -1;
@@ -4846,7 +4846,12 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 					return -1;
 				}
 
-				if(set_tbl(ht,(void*)&rec->fields[index].data.l,old_rec->offset,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(ht,(void*)&rec->fields[index].data.l,old_rec->offset,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(ht,(void*)&rec->fields[index].data.l,old_rec->offset,UINT_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
 					free_ht_array(ht, inx);
 					return -1;
@@ -4862,7 +4867,12 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 					return -1;
 				}
 
-				if(set_tbl(ht,(void*)&f,old_rec->offset,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(ht,(void*)&f,old_rec->offset,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(ht,(void*)&f,old_rec->offset,UINT_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
 					free_ht_array(ht, inx);
 					return -1;
@@ -4878,7 +4888,12 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 					return -1;
 				}
 
-				if(set_tbl(ht,(void*)d,old_rec->offset,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(ht,(void*)d,old_rec->offset,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(ht,(void*)d,old_rec->offset,UINT_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
 					free_ht_array(ht, inx);
 					return -1;
@@ -4887,7 +4902,13 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 			}
 		case TYPE_STRING:
 			{
-				if(set_tbl(ht,rec->fields[index].data.s,old_rec->offset,STR,1) == -1){
+
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(ht,rec->fields[index].data.s,old_rec->offset,STR,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(ht,rec->fields[index].data.s,old_rec->offset,STR_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[index].field_name);
 					free_ht_array(ht, inx);
 					return -1;
@@ -4906,11 +4927,11 @@ static int unique_constraint_update(int *fds, struct Record_f *rec, struct Recor
 
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};
 	three_file_path(file_path,files);
-	if(write_index(fds,5,ht,files[0]) == -1){
+	if(write_index(fds,inx,ht,files[0]) == -1){
 		fprintf(stderr,"(%s): write_index() failed. %s:%d.\n",prog,__FILE__,__LINE__-1);
 		return -1;
 	}
 
-	free(ht);
+	free_ht_array(ht, inx);
 	return 0 ;	
 }

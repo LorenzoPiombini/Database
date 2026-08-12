@@ -1107,10 +1107,11 @@ unsigned char set_field(
 					strncat(file_name,sfx,sfxl);
 				}
 
-				int fd_schema = -1;
+				file_t fd_schema;
 				int cr = 0;
-				if((fd_schema = open_file(file_name,0)) == -1 || fd_schema == ENOENT){
-					if((fd_schema = create_file(file_name)) == -1){
+				if(open_file(file_name,0,&fd_schema) == -1){
+					file_error_handler(1,fd_schema);
+					if(create_file(file_name,&fd_schema) == -1){
 						fprintf(stderr,"(%s): cannot create file %s:%d.\n",ERR_MSG_PAR-1);
 						return 0; 
 					}
@@ -1574,9 +1575,8 @@ unsigned char set_field(
 								}
 								*/
 								close_file(1,fd_schema);
-								fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
-
-								if(file_error_handler(1,fd_schema) != 0){
+								if(open_file(file_name,1,&fd_schema) == -1){ /*open with O_TRUNCATE*/
+									file_error_handler(1,fd_schema);
 									free_schema(hd.sch_d);
 									return 0;
 								}
@@ -1677,9 +1677,8 @@ unsigned char set_field(
 							*/
 
 							close_file(1,fd_schema);
-							fd_schema = open_file(file_name,1); /*open with O_TRUNCATE*/
-
-							if(file_error_handler(1,fd_schema) != 0){
+							if(open_file(file_name,1,&fd_schema) == -1){ /*open with O_TRUNCATE*/
+								file_error_handler(1,fd_schema);
 								free_schema(hd.sch_d);
 								return 0;
 							}

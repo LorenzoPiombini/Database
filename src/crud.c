@@ -2,7 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+
+#if dfined(__linux__)
 #include <unistd.h>
+#endif
+
 #include "crud.h"
 #include "endian.h"
 #include "record.h"
@@ -25,11 +29,7 @@ int g_index = 0;
 int *p_gi = &g_index;
 struct Ram_file ram = {0, 0, 0, 0};
 
-#if defined(__linux__) || defined(__APPLE__)
-int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, int *fds, int index)
-#else
-int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, HANDLE *fds, int index)
-#endif
+int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key_type, struct Header_d hd, file_t *fds, int index)
 {
 	int e = 0;
 	if(mode == RAM_FILE){
@@ -150,7 +150,7 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 	return 0;
 }
 
-int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Header_d hd)
+int get_all_records(char *file_name,file_t *fds,struct Record_f ***recs,struct Header_d hd,size_t *all_size)
 {
 	if(get_all_record(fds[1],&ram) == -1){
 		fprintf(stderr,"cannot get all the record from '%s'.\n",file_name);
@@ -158,15 +158,15 @@ int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Head
 	}
 
 	
-	fds[3] = (ram.size/sizeof(struct Record_f*)) +1;
-	*recs = (struct Record_f**)malloc(sizeof(struct Record_f*)*fds[3]);
+	all_size = (ram.size/sizeof(struct Record_f*)) +1;
+	*recs = (struct Record_f**)malloc(sizeof(struct Record_f*)*all_size);
 	if(!recs){ 
 		fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 		clear_ram_file(&ram);
 		return STATUS_ERROR;
 	}
 
-	memset(*recs,0,fds[3] * sizeof *recs);
+	memset(*recs,0,all_size * sizeof *recs);
 	i32 i = 0;
 	do{
 		file_offset pos_after_read = 0;
@@ -220,14 +220,14 @@ int get_all_records(char *file_name,int *fds,struct Record_f ***recs,struct Head
 	return 0;
 }
 
-int is_db_file(struct Header_d *hd, int *fds)
+int is_db_file(struct Header_d *hd, file_t *fds)
 {
 	if (!read_header(fds[2], hd)) return STATUS_ERROR;
 	return 0;
 }
 
 int check_data(char *file_path,char *data_to_add,
-		int *fds, 
+		file_t *fds, 
 		char files[][MAX_FILE_PATH_LENGTH], 
 		struct Record_f *rec,
 		struct Header_d *hd,
@@ -330,7 +330,7 @@ int check_data(char *file_path,char *data_to_add,
 	return check;
 }
 
-int write_record(int *fds,
+int write_record(file_t *fds,
 		void *key,
 		int key_type,
 		struct Record_f *rec, 
@@ -511,7 +511,7 @@ int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht,
 	}
 	return 0;
 }
-int write_index(int *fds, int index, HashTable *ht, char *file_name)
+int write_index(file_t *fds, int index, HashTable *ht, char *file_name)
 {
 	close_file(1, fds[0]);
 	fds[0] = open_file(file_name, 1); /*opening with o_trunc*/
@@ -539,7 +539,7 @@ int write_index(int *fds, int index, HashTable *ht, char *file_name)
 	return 0;
 }
 
-int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], int option)
+int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH], int option)
 {
 	if(three_file_path(file_name, files) == EFLENGTH){
 		fprintf(stderr,"(%s): file name or path '%s' too long",prog,file_name);
@@ -669,6 +669,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 			fds[1] = open_file(files[1], 0);
 			fds[2] = open_file(files[2], 0);
 
+			/*TODO: make error for windows */
 			/* file_error_handler will close the file descriptors if there are issues */
 			if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
 				if(err == ENOENT)
@@ -685,7 +686,7 @@ int open_files(char *file_name, int *fds, char files[3][MAX_FILE_PATH_LENGTH], i
 }
 
 int update_rec(char *file_path,
-		int *fds,
+		file_t *fds,
 		void *key,
 		int key_type,
 		struct Record_f *rec,
@@ -963,21 +964,43 @@ clean_on_error:
 
 int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,int indexing)
 {
-	if(key_type == UINT){
+#if defined(__linux__) || defined(__APPLE__)
+	if(key_type == UINT)
+#elif defined(_WIN32) || defined(_WIN64)
+	if(key_type == UINT_KEY)
+#endif
+	{
 		if(!set(key, key_type, offset, indexing >= 1 ? &ht[indexing] : &ht[0])) return -1;
 
 		return 0;
-	} else if (key_type == STR) {
+	}
+#if defined(__linux__) || defined(__APPLE__)
+	 else if (key_type == STR) 
+#elif defined(_WIN32) || defined(_WIN64)
+	 else if (key_type == STR_KEY) 
+#endif
+	{
 		if(!set((void *)key, key_type, offset,indexing >= 1 ? &ht[indexing] : &ht[0])) return -1;
 
 		return 0;
 	}
 
 	void *key_conv = key_converter((char*)key, &key_type);
-	if (key_type == UINT && !key_conv) {
+#if defined(__linux__) || defined(__APPLE__)
+	if (key_type == UINT && !key_conv) 
+#elif defined(_WIN32) || defined(_WIN64)
+	if (key_type == UINT_KEY && !key_conv) 
+#endif
+	{
 		fprintf(stderr, "error to convert key");
 		return -1;
-	} else if (key_type == UINT) {
+	}
+#if defined(__linux__) || defined(__APPLE__)
+	else if (key_type == UINT)
+#elif defined(_WIN32) || defined(_WIN64)
+	else if (key_type == UINT_KEY)
+#endif
+	{
 		if (key_conv) {
 			if (!set(key_conv, key_type, offset,indexing >= 1 ? &ht[indexing] : &ht[0])){
 				free(key_conv);
@@ -985,7 +1008,13 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
 			}
 			free(key_conv);
 		}
-	} else if (key_type == STR) {
+	} 
+#if defined(__linux__) || defined(__APPLE__)
+	else if (key_type == STR) 
+#elif defined(_WIN32) || defined(_WIN64)
+	else if (key_type == STR_KEY) 
+#endif
+	{
 		/*create a new key value pair in the hash table*/
 		if (!set((void *)key, key_type, offset, indexing >= 1 ? &ht[indexing]: &ht[0])) return -1;
 	}
@@ -1005,7 +1034,7 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
    */
 
 int write_cache_to_disk(struct Cache *c){
-	int fds[3];
+	file_t fds[3];
 	memset(fds,-1,3*sizeof(int));
 	char file_names[3][MAX_FILE_PATH_LENGTH];
 	memset(file_names,0,3*MAX_FILE_PATH_LENGTH);
@@ -1024,7 +1053,7 @@ int write_cache_to_disk(struct Cache *c){
 	fds[1] = open_file(file_names[1],1);/*OPEN WITH O_TRUNC*/
 	if(file_error_handler(1,fds[1]) != 0) goto release_lock_on_failure;
 
-	if(write(fds[1],c->data_file.mem,c->data_file.size) == -1) goto release_lock_on_failure;
+	if(os_write(fds[1],c->data_file.mem,c->data_file.size) == -1) goto release_lock_on_failure;
 
 	/*TODO: write the schema to file*/
 
@@ -1037,16 +1066,28 @@ release_lock_on_failure:
 	close_file(3,fds[0],fds[1],fds[2]);
 	return -1;			
 }
+
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type)
 {
 	file_offset offset = 0;
 	void *key_conv =NULL;
 	if(key_type == -1){
 		key_conv = key_converter(key, &key_type);
-		if (key_type == UINT && !key_conv) {
+#if defined(__linux__) || defined(__APPLE__)
+		if (key_type == UINT && !key_conv) 
+#elif defined(_WIN32) || defined(_WIN64)
+		if (key_type == UINT_KEY && !key_conv) 
+#endif
+		{
 			fprintf(stderr, "(%s): error to convert key",prog);
 			return STATUS_ERROR;
-		} else if (key_type == UINT) {
+		} 
+#if defined(__linux__) || defined(__APPLE__)
+		else if (key_type == UINT) 
+#elif defined(_WIN32) || defined(_WIN64)
+		else if (key_type == UINT_KEY) 
+#endif
+		{
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
 				free(key_conv);
@@ -1055,7 +1096,13 @@ static file_offset get_rec_position(struct HashTable *ht, void *key, int key_typ
 
 				return offset;
 			}
-		} else if (key_type == STR) {
+		} 
+#if defined(__linux__) || defined(__APPLE__)
+		else if (key_type == STR) 
+#elif defined(_WIN32) || defined(_WIN64)
+		else if (key_type == STR_KEY) 
+#endif
+		{
 			offset = get((void *)key, ht, key_type); /*look for the key in the ht */
 			if(offset == -1) return KEY_NOT_FOUND;
 			return offset;

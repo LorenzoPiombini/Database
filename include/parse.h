@@ -4,7 +4,8 @@
 /* for Record_f, ValueTypes */
 
 #include "record.h"
-#if defined(_WIN32)
+#include "db_types.h"
+#if defined(_WIN32) || defined(_WIN64) 
 	#include <windows.h>
 #endif
 
@@ -44,17 +45,9 @@ int parse_input_with_no_type(
 			int update);
 
 int create_header(struct Header_d *hd);
-int write_empty_header(int fd, struct Header_d *hd);
-#if defined(_WIN32)
-	int write_header(HANDLE fd, struct Header_d *hd);
-#else
-	int write_header(int fd, struct Header_d *hd);
-#endif
-#if defined(_WIN32)
-	int read_header(HANDLE fd, struct Header_d *hd);
-#else
-	int read_header(int fd, struct Header_d *hd);
-#endif
+int write_empty_header(file_t fd, struct Header_d *hd);
+int write_header(file_t fd, struct Header_d *hd);
+int read_header(file_t fd, struct Header_d *hd);
 unsigned char ck_input_schema_fields(char names[][MAX_FIELD_LT], int *types_i, struct Header_d *hd);
 unsigned char check_schema(int fields_n, char *buffer,struct Header_d *hd);
 int check_schema_with_no_types(char names[][MAX_FIELD_LT], struct Header_d hd,char **sorted_names);
@@ -74,7 +67,7 @@ unsigned char compare_old_rec_update_rec(struct Record_f **rec_old,
 		unsigned char check,
 		int option,
 		struct Header_d hd,
-		int *fds,
+		file_t *fds,
 		char *file_path);
 
 void find_fields_to_update(
@@ -83,7 +76,7 @@ void find_fields_to_update(
 		struct Record_f *rec,
 		int option,
 		struct Header_d hd,
-		int *fds,
+		file_t *fds,
 		char *file_path);
 void print_schema(struct Schema sch);
 void print_header(struct Header_d hd);
