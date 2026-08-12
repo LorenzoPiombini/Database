@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include "file.h"
 #include "hash_tbl.h"
 #include "str_op.h"
 #include "debug.h"
@@ -60,10 +61,9 @@ void print_hash_table(HashTable tbl)
 	}
 }
 
-int write_ht(int fd, HashTable *ht)
+int write_ht(file_t fd, HashTable *ht)
 {
 	int i = 0;
-
 	
 	/*NOTE: you have to write the data about the size and len of HashTable
 	 * even if it is empty*/
@@ -86,7 +86,7 @@ int write_ht(int fd, HashTable *ht)
 	bwritten += sizeof(ht_ln);
 
 	if(len(*ht) == 0) {
-		if(write(fd,buff,bwritten) == -1){
+		if(os_write(fd,buff,bwritten) == -1){
 			free(buff);
 			return 0;
 		}
@@ -202,7 +202,7 @@ int write_ht(int fd, HashTable *ht)
 		}
 	}
 
-	if(write(fd, buff, bwritten) == -1) {
+	if(os_write(fd, buff, bwritten) == -1) {
 		perror("writing index file");
 		free(buff);
 		return 0;
