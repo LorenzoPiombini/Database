@@ -43,6 +43,16 @@ void clear_ram_file(struct Ram_file *ram);
 void close_ram_file(struct Ram_file *ram);
 int init_ram_file(struct Ram_file *ram, size_t size);
 int file_error_handler(int count, ...);
+unsigned char read_index_file(file_t file_handle, HashTable *ht);
+unsigned char read_all_index_file(file_t file_handle, HashTable **ht, int *p_index);
+unsigned char nr_bucket(file_t file_handle, int *p_buck);
+unsigned char indexes_on_file(file_t file_handle, int *p_i_nr);
+unsigned char read_index_nr(int i_num, file_t file_handle, HashTable **ht);
+unsigned char write_index_file_head(file_t file_handle,int index_num);
+unsigned char write_index_body(file_t file_handle, int i, HashTable *ht);
+int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, unsigned char update);
+int read_file(file_t fd, char *file_name, struct Record_f *rec, struct Schema sch);
+int get_all_record(file_t fd, struct Ram_file *ram);
 
 #if defined(__linux__) || defined(__APPLE__)
 
@@ -54,51 +64,32 @@ file_offset find_record_position(int fd, file_offset offset);
 void delete_file(unsigned short count, ...);
 file_offset begin_in_file(int fd);
 file_offset move_in_file_bytes(int fd, file_offset offset);
-unsigned char write_index_file_head(int fd, int index_num);
-unsigned char write_index_body(int fd, int i, HashTable *ht);
-unsigned char read_index_nr(int i_num, int fd, HashTable **ht);
-unsigned char read_all_index_file(int fd, HashTable **ht, int *p_index);
-unsigned char read_index_file(int fd, HashTable *ht);
 size_t record_size_on_disk(void *rec_f);
-int write_file(int fd, struct Record_f *rec, file_offset update_file_offset, unsigned char update);
 int buffered_write(int *fd, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset);
 file_offset get_update_offset(int fd);
-int read_file(int fd, char *file_name, struct Record_f *rec, struct Schema sch);
 int padding_file(int fd, int bytes, size_t hd_st);
 unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);
 file_offset get_file_size(int fd, char *file_name);
 int add_index(int index_nr, char *file_name, int bucket);
-int get_all_record(int fd, struct Ram_file *ram);
 int cache_file(int *fds,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 void free_cache(struct Cache *c);
 #elif defined(_WIN32)
 
 #include <windows.h>
 
-int read_file(HANDLE fd, char *file_name, struct Record_f *rec, struct Schema sch);
-int write_file(HANDLE fd, struct Record_f *rec, file_offset update_file_offset, unsigned char update);
-int cache_file(HANDLE *fd,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
-int buffered_write(HANDLE *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset);
-int get_all_record(HANDLE file_handle, struct Ram_file *ram);
-unsigned char read_index_file(HANDLE file_handle, HashTable *ht);
-unsigned char read_all_index_file(HANDLE file_handle, HashTable **ht, int *p_index);
-unsigned char nr_bucket(HANDLE file_handle, int *p_buck);
-unsigned char indexes_on_file(HANDLE file_handle, int *p_i_nr);
-unsigned char read_index_nr(int i_num, HANDLE file_handle, HashTable **ht);
-unsigned char write_index_file_head(HANDLE file_handle,int index_num);
-unsigned char write_index_body(HANDLE file_handle, int i, HashTable *ht);
-HANDLE open_file(char *fileName, ui32 use_trunc);
-HANDLE create_file(char *file_name);
+int cache_file(file_t *fd,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
+int buffered_write(file_t *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset);
+int get_all_record(file_t file_handle, struct Ram_file *ram);
 void close_file(int count, ...);
 void free_cache(struct Cache *c);
 int delete_file(int count,...);
-file_offset get_update_offset(HANDLE file_handle);
-file_offset begin_in_file(HANDLE file_handle);
-file_offset get_file_offset(HANDLE file_handle);
-file_offset find_record_position(HANDLE file_handle, long long offset);
-file_offset go_to_EOF(HANDLE file_handle);
-file_offset move_in_file_bytes(HANDLE file_handle, file_offset offset);
-DWORD get_file_size(HANDLE file_handle);
+file_offset get_update_offset(file_t file_handle);
+file_offset begin_in_file(file_t file_handle);
+file_offset get_file_offset(file_t file_handle);
+file_offset find_record_position(file_t file_handle, long long offset);
+file_offset go_to_EOF(file_t file_handle);
+file_offset move_in_file_bytes(file_t file_handle, file_offset offset);
+DWORD get_file_size(file_t file_handle);
 #endif /* os if*/
 #endif /* ifndef */
