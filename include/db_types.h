@@ -22,6 +22,7 @@ typedef 	long long		i64;
 typedef		long long 		file_offset;
 typedef 	long long		process_id;
 #elif CPU_WORD_SIZE == 8
+#if defined(__linux__)
 typedef 	char			i8;
 typedef 	unsigned char	ui8;
 typedef 	unsigned short	ui16;
@@ -32,6 +33,18 @@ typedef 	unsigned long	ui64;
 typedef 	long		i64;
 typedef		long int		file_offset;
 typedef 	long long		process_id;
+#elif defined(_WIN32) || defined(_WIN65)
+typedef 	char			i8;
+typedef 	unsigned char	ui8;
+typedef 	unsigned short	ui16;
+typedef 	short			i16;
+typedef 	unsigned int	ui32;
+typedef 	int				i32;
+typedef 	unsigned long long	ui64;
+typedef 	long long		i64;
+typedef		long long 		file_offset;
+typedef 	long long		process_id;
+#endif
 #endif
 
 #if defined(__linux__)
@@ -44,6 +57,7 @@ typedef 	HANDLE        file_t;
 
 
 #ifndef _LIBC_LIMITS_H_
+#if defined(__linux__)
 /*signed short max and min*/
 #  define SHRT_MIN	(-32768)
 #  define SHRT_MAX	32767
@@ -77,7 +91,8 @@ typedef 	HANDLE        file_t;
 #   define ULONG_MAX	4294967295UL
 #  endif
 
+#endif /*linux*/
 
 #endif 
 
-#endif /*types.h*/
+#endif /*db types.h*/
