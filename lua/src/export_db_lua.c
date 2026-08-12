@@ -102,8 +102,8 @@ static int l_get_record(lua_State *L)
 	memset(&sch,0,sizeof(struct Schema));
 	struct Header_d hd = {0,0,&sch};
 		
-	int fds[3];
-	memset(fds,-1,3*sizeof(int));
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
 
@@ -133,6 +133,7 @@ static int l_get_record(lua_State *L)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
+	INIT_FILE_T_ARRAY(fds,3);
 	free_schema(hd.sch_d);
 
 use_cache:
@@ -245,15 +246,16 @@ static int l_get_all_records(lua_State *L)
 	memset(&sch,0,sizeof(struct Schema));
 	struct Header_d hd = {0,0,&sch};
 		
-	int fds[4];/*last file descriptor used for size record array*/
-	memset(fds,-1,4*sizeof(int));
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 
 	if(open_files(file_name,fds,file_names,-1) == -1) 
 		goto err_open_file;
 	if(is_db_file(&hd,fds) == -1)
 		goto err_not_db_file;
-	if(get_all_records(file_name,fds,&recs,hd) == -1)
+	size_t size_records_memory = 0;
+	if(get_all_records(file_name,fds,&recs,hd,&size_records_memory) == -1)
 		goto err_get_record_failed;
 
 	close_file(3,fds[0],fds[1],fds[2]);
@@ -282,7 +284,7 @@ err_get_record_failed:
 		lua_pushnil(L);
 		lua_pushstring(L,"get_record failed.");
 		close_file(3,fds[0],fds[1],fds[2]);
-		free_record_array(fds[3],recs);
+		free_record_array(size_records_memory,recs);
 		free_schema(hd.sch_d);
 		return 2;
 
@@ -327,8 +329,8 @@ static int l_write_record(lua_State *L)
 	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
 	
 
-	int fds[3];
-	memset(fds,-1,3*sizeof(int));
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 
 	struct Record_f rec = {0};
 	struct Schema sch;
@@ -425,7 +427,8 @@ static int l_write_record(lua_State *L)
 	/*check if the file is cached in memory*/
 	if(file_pos_in_the_cache != -1) goto use_cache;
 
-	if(fds[0] == -1){
+	/*if is not valid open the file!*/
+	IS_FILE_T_VALID(fds[0]){
 		if(open_files(file_name,fds,file_names,-1) == -1) goto err_open_file;
 		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	}
@@ -630,8 +633,8 @@ static int l_update_record(lua_State *L)
 		return 2;
 	}
 
-	int fds[3];
-	memset(fds,-1,3*sizeof(int));
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 
 	struct Record_f rec = {0};
 	struct Schema sch;
@@ -961,8 +964,8 @@ static int l_create_record(lua_State *L)
 	char *data_to_add = (char*)luaL_checkstring(L,2);
 	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
 	
-	int fds[3];
-	memset(fds,-1,3*sizeof(int));
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 
 	struct Record_f rec = {0};
 	struct Schema sch;
@@ -1011,8 +1014,8 @@ static int l_string_data_to_add_template(lua_State *L)
 	char *file_name = (char*)luaL_checkstring(L,1);
 	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
 
-	int fds[3];
-	memset(fds,-1,3*sizeof(int));
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 
 	struct Schema sch;
 	memset(&sch,0,sizeof(struct Schema));
@@ -1158,8 +1161,8 @@ static int l_get_numeric_key(lua_State *L)
 	luaL_argcheck(L, mode >= 0, 2,"mode must be bigger than 0");
 	long long n = 0;
 
-	int fds[3];
-	memset(fds,-1,3*sizeof(int));
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 
 	struct Schema sch;
 	memset(&sch,0,sizeof(struct Schema));
@@ -1360,8 +1363,8 @@ static int l_get_all_key(lua_State *L)
 		break;
 	}
 
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 	struct Schema sch = {0};
 	struct Header_d hd = {0,0,&sch};
@@ -1486,8 +1489,8 @@ static int l_save_key_at_index(lua_State *L)
 	long long record_offset = (int)luaL_checkinteger(L,4);
 	luaL_argcheck(L, record_offset >= 0, 4,"offset cannot be negative");
 
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
 	struct Schema sch = {0};
 	struct Header_d hd = {0,0, &sch};

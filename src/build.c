@@ -168,7 +168,7 @@ unsigned char create_system_from_txt_file(char *txt_f)
 			if(create_file(files[0],&fd_index) == -1
 					|| create_file(files[1],&fd_data) == -1
 					|| create_file(files[2],&fd_schema) == -1){
-					file_error_handler(3,fd_schema,fd_data,fd_index)
+					file_error_handler(3,fd_schema,fd_data,fd_index);
 				fprintf(stderr, "system already exist!\n");
 				free_strs(lines, 2, files_n, schemas);
 				return 0;

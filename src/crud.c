@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#if dfined(__linux__)
+#if defined(__linux__)
 #include <unistd.h>
 #endif
 
@@ -158,15 +158,15 @@ int get_all_records(char *file_name,file_t *fds,struct Record_f ***recs,struct H
 	}
 
 	
-	all_size = (ram.size/sizeof(struct Record_f*)) +1;
-	*recs = (struct Record_f**)malloc(sizeof(struct Record_f*)*all_size);
+	*all_size = (ram.size/sizeof(struct Record_f*)) +1;
+	*recs = (struct Record_f**)malloc(sizeof(struct Record_f*)*(*all_size));
 	if(!recs){ 
 		fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 		clear_ram_file(&ram);
 		return STATUS_ERROR;
 	}
 
-	memset(*recs,0,all_size * sizeof *recs);
+	memset(*recs,0,*all_size * sizeof *recs);
 	i32 i = 0;
 	do{
 		file_offset pos_after_read = 0;
@@ -303,9 +303,9 @@ int check_data(char *file_path,char *data_to_add,
 		}
 
 		close_file(1,fds[2]);
-		fds[2] = open_file(files[2],1); /*open with O_TRUNCATE*/
-
-		if(file_error_handler(1,fds[2]) != 0) {
+		/*open with O_TRUNCATE*/
+		if(open_file(files[2],1,&fds[2]) == -1){
+			file_error_handler(1,fds[2]); 
 			release_lock(fds,*lock_f);
 			*lock_f = 0;
 			return STATUS_ERROR;
@@ -319,8 +319,9 @@ int check_data(char *file_path,char *data_to_add,
 		}
 
 		close_file(1,fds[2]);
-		fds[2] = open_file(files[2],0); /*open in regular mode*/
-		if(file_error_handler(1,fds[2]) != 0){
+		/*open in regular mode*/
+		if(open_file(files[2],0,&fds[2]) == -1){
+			file_error_handler(1,fds[2]);
 			release_lock(fds,*lock_f);
 			*lock_f = 0;
 			return STATUS_ERROR;
@@ -514,8 +515,9 @@ int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht,
 int write_index(file_t *fds, int index, HashTable *ht, char *file_name)
 {
 	close_file(1, fds[0]);
-	fds[0] = open_file(file_name, 1); /*opening with o_trunc*/
-	if(file_error_handler(1,fds[0]) != 0) {
+	/*opening with o_trunc*/
+	if(open_file(file_name, 1,&fds[0]) == -1){
+		file_error_handler(1,fds[0]);
 		return STATUS_ERROR;
 	}
 
@@ -533,9 +535,12 @@ int write_index(file_t *fds, int index, HashTable *ht, char *file_name)
 		}
 	}
 
-
 	close_file(1, fds[0]);
-	fds[0] = open_file(file_name, 0); /* opening in regular mode */
+	/* opening in regular mode */
+	if(open_file(file_name, 0,&fds[0]) == -1){
+		file_error_handler(1,fds[0]);
+		return STATUS_ERROR;
+	}
 	return 0;
 }
 
@@ -550,8 +555,8 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 	switch(option){
 		case CREATE_ONLY_SCHEMA:
 			{
-				fds[2] = create_file(files[2]);
-				if ((err = file_error_handler(1,fds[2])) != 0) {
+				if(create_file(files[2],&fds[2]) == -1){
+					err = file_error_handler(1,fds[2]);
 					if(err == ENOENT)
 						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 					else if(err == EEXIST)
@@ -565,9 +570,9 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			}
 		case CREATE_ONLY_DATA:
 			{
-				fds[1] = create_file(files[1]);
-				fds[2] = create_file(files[2]);
-				if ((err = file_error_handler(2, fds[0],fds[1])) != 0){
+				if(create_file(files[1],&fds[1]) == -1 ||
+					create_file(files[2],&fds[2]) == -1){
+					err = file_error_handler(2, fds[1],fds[2]);
 					if(err == ENOENT)
 						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 					else if(err == EEXIST)
@@ -581,8 +586,8 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			}
 		case ONLY_SCHEMA:
 			{
-				fds[2] = open_file(files[2], 0);
-				if ((err = file_error_handler(1,fds[2])) != 0) {
+				if( open_file(files[2], 0,&fds[2]) == -1){
+					err = file_error_handler(1,fds[2]);
 					if(err == ENOENT)
 						fprintf(stderr,"(%s): File '%s' doesn't exist. %s:%d\n",prog,file_name,__FILE__,__LINE__-2);
 					else
@@ -595,8 +600,8 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			}	
 		case ONLY_INDEX:
 			{
-				fds[0]= open_file(files[0], 0);
-				if ((err = file_error_handler(1,fds[0])) != 0) {
+				if(open_file(files[0], 0,&fds[0]) == -1){
+					err = file_error_handler(1,fds[0]);
 					if(err == ENOENT)
 						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 					else
@@ -608,8 +613,8 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			}
 		case ONLY_DATA:
 			{
-				fds[1] = open_file(files[1], 0);
-				if ((err = file_error_handler(1,fds[1])) != 0) {
+				if(open_file(files[1],0,&fds[1]) == -1){
+					err = file_error_handler(1,fds[1]);
 					if(err == ENOENT)
 						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 					else
@@ -621,10 +626,10 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			}
 		case CREATE_FILE:
 			{
-				fds[0] = create_file(files[0]);
-				fds[1] = create_file(files[1]);
-				fds[2] = create_file(files[2]);
-				if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
+				if(create_file(files[0],&fds[0]) == -1 
+					|| create_file(files[1],&fds[1]) == -1
+					|| create_file(files[2],&fds[2]) == -1) {
+					err = file_error_handler(3, fds[0],fds[1],fds[2]);
 					if(err == ENOENT)
 						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 					else if(err == EEXIST)
@@ -665,13 +670,13 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 				break;
 			}
 		default:
-			fds[0] = open_file(files[0], 0);
-			fds[1] = open_file(files[1], 0);
-			fds[2] = open_file(files[2], 0);
+			if(open_file(files[0], 0, &fds[0]) == -1
+				|| 	open_file(files[1], 0, &fds[1]) == -1
+				||	open_file(files[2], 0, &fds[2]) == -1){
 
 			/*TODO: make error for windows */
 			/* file_error_handler will close the file descriptors if there are issues */
-			if ((err = file_error_handler(3, fds[0],fds[1],fds[2])) != 0) {
+				err = file_error_handler(3, fds[0],fds[1],fds[2]);
 				if(err == ENOENT)
 					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
 				else
@@ -1050,8 +1055,10 @@ int write_cache_to_disk(struct Cache *c){
 	if(write_index(fds,c->indexes,c->index_file,file_names[0]) == -1)goto release_lock_on_failure;
 
 	close_file(1,fds[1]);
-	fds[1] = open_file(file_names[1],1);/*OPEN WITH O_TRUNC*/
-	if(file_error_handler(1,fds[1]) != 0) goto release_lock_on_failure;
+	if(open_file(file_names[1],1,&fds[1]) == -1) {/*OPEN WITH O_TRUNC*/
+		file_error_handler(1,fds[1]);
+		goto release_lock_on_failure;
+	}
 
 	if(os_write(fds[1],c->data_file.mem,c->data_file.size) == -1) goto release_lock_on_failure;
 

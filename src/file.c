@@ -68,7 +68,7 @@ int create_file(char *fileName, file_t *fd)
 	*fd = open(fileName, O_RDONLY);
 	if (*fd != STATUS_ERROR) {
 		printf("File already exist.\n");
-		close(fd);
+		close(*fd);
 		*fd = EEXIST;
 		return -1;
 	}

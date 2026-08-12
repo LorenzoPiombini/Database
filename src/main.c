@@ -917,8 +917,8 @@ int main(int argc, char *argv[])
 			}
 
 			close_file(1,fds[2]);
-			fds[2] = open_file(files[2],1); /* truncate*/
-			if(file_error_handler(1,fds[2]) != 0){
+			if(open_file(files[2],1,&fds[2]) == -1){ /* truncate*/
+				file_error_handler(1,fds[2]);
 				release_lock(fds,-1);
 				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
@@ -1043,8 +1043,10 @@ int main(int argc, char *argv[])
 
 
 			close_file(1,fds[2]);
-			fds[2]= open_file(files[2],1);
-			if(file_error_handler(1,fds[2]) != 0) goto clean_on_error_5;
+			if( open_file(files[2],1,&fds[2]) == -1){
+				file_error_handler(1,fds[2]);
+				goto clean_on_error_5;
+			}
 
 			if (!write_header(fds[2], &hd)) {
 				fprintf(stderr,"write to file failed, %s:%d.\n", F, L - 2);
@@ -1106,9 +1108,10 @@ int main(int argc, char *argv[])
 
 						close_file(1, fds[0]);
 						/*opening with O_TRUNC*/
-						fds[0] = open_file(files[0], 1);
-						if(file_error_handler(1,fds[0]) != 0)
+						if(open_file(files[0], 1,&fds[0]) == -1){
+							file_error_handler(1,fds[0]);
 							goto option_clean_on_error;
+						}
 
 						/*  write the index file */
 
@@ -1226,8 +1229,11 @@ int main(int argc, char *argv[])
 
 			free_ht_node(record_del);
 			close_file(1, fds[0]);
-			fds[0] = open_file(files[0], 1); /*opening with o_trunc*/
-
+			/*opening with o_trunc*/
+			if(open_file(files[0], 1,&fds[0]) == -1){
+				free_ht_array(ht,index);
+				goto clean_on_error_6;
+			}
 			/*  write the index file */
 			if (!write_index_file_head(fds[0], index)) {
 				fprintf(stderr,"write to file failed, %s:%d", F, L- 2);

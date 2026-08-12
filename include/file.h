@@ -8,8 +8,29 @@
 #include <time.h>
 
 #define STD_RAM_FILE 4096*1000 /* 4 MiB */  
+#if defined(__linux__) || defined(__APPLE__)
+#define W 0
+#elif defined(_WIN32) || defined(_WIN64)
+#define W 1
+#endif
 
+#define INIT_FILE_T_ARRAY(f,size) \
+	do{\
+		if(W){\
+			memset((f),0,sizeof(file_t)*(size));\
+		}else{\
+			memset((f),-1,sizeof(file_t)*(size));\
+		}\
+	}while(0)
 
+#define IS_FILE_T_VALID(f) \
+	int valid = 0;\
+	if(W){\
+		if((f))	valid = 1;\
+	}else{\
+		if((f) != -1) valid = 1;\
+	}\
+	if(!valid)
 
 struct Ram_file{
 	ui8 *mem; /* memory */

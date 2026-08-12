@@ -21,13 +21,15 @@ static void error(char *msg,int line);
 int journal(int caller_fd, file_offset offset, void *key, int key_type, int operation)
 {
 	int create = 0;
-	int fd = open_file(JINX,0);
-	if(fd == ENOENT){
-		create = 1;
-		fd = create_file(JINX);
-		if(fd == -1){
-			fprintf(stderr,"(%s): can't create or open '%s'.\n",p,JINX);
-			return -1;
+	file_t fd;
+	if(open_file(JINX,0,&fd) == -1){
+		int err = file_error_handler(1,fd);
+		if(err == ENOENT){
+			create = 1;
+			if(create_file(JINX,&fd) == -1) {
+				fprintf(stderr,"(%s): can't create or open '%s'.\n",p,JINX);
+				return -1;
+			}
 		}
 	}
 
@@ -287,17 +289,27 @@ void free_stack(struct stack *index)
 	free(index->elements);
 }
 
-int write_journal_index(int *fd,struct stack *index)
+int write_journal_index(file_t *fd,struct stack *index)
 {
 	if(index->capacity == 0) return -1;
 
 
 	close(*fd);
-	*fd = open_file(JINX,1);
-	if(file_error_handler(1,*fd) != 0) return 1;
+	if(open_file(JINX,1,fd) == -1){
+		/*TODO !!!!!!!! expand on error*/
+		int err = file_error_handler(1,*fd);
+		/* this is just to shus gcc warnings*/
+		if(err){
+			err = 0;
+			return -1;
+		}else{
+			err = 0;
+			return -1;
+		}
+	}
 
 	ui32 cap_ne = swap32(index->capacity);
-	if(write(*fd,&cap_ne,sizeof(cap_ne)) == -1){
+	if(os_write(*fd,&cap_ne,sizeof(cap_ne)) == -1){
 		fprintf(stderr,"(%s): can't write journal index file.",p);
 		return -1;
 	}
@@ -306,34 +318,42 @@ int write_journal_index(int *fd,struct stack *index)
 	int i;
 	for(i = 0; i < index->capacity; i++){
 		ui64 ts_ne = swap64((index->elements[i].timestamp));
-		if(write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
+		if(os_write(*fd,&ts_ne,sizeof(ts_ne)) == -1){
 			error("can't write to journal index file.",__LINE__-1);
 			return -1;
 		}
 		size_t size = strlen(index->elements[i].file_name);
 		ui64 size_ne = swap64(size);
-		if(write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
+		if(os_write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
 				write(*fd,index->elements[i].file_name,size) == -1){
 			error("can't write to journal index file.",__LINE__-1);
 			return -1;
 		}
 
 		switch(index->elements[i].key.type){ 
+#if defined(__linux__) || defined(__APPLE__)
 		case STR:
+#elif defined(_WIN32) || defined(_WIN64)
+		case STR_KEY:
+#endif
 		{
 			ui32 type = swap32(index->elements[i].key.type);
 			ui64 key_l = swap64(strlen(index->elements[i].key.k.s));
 
-			if (write(*fd, &type, sizeof(type)) == -1 ||
-					write(*fd, &key_l, sizeof(key_l)) == -1 ||
-					write(*fd, index->elements[i].key.k.s, strlen(index->elements[i].key.k.s) + 1) == -1 ){
+			if (os_write(*fd, &type, sizeof(type)) == -1 ||
+					os_write(*fd, &key_l, sizeof(key_l)) == -1 ||
+					os_write(*fd, index->elements[i].key.k.s, strlen(index->elements[i].key.k.s) + 1) == -1 ){
 				perror("write index:");
 				return 0; 
 			}
 			break;
 
 		}
+#if defined(__linux__) || defined(__APPLE__)
 		case UINT:
+#elif defined(_WIN32) || defined(_WIN64)
+		case UINT_KEY:
+#endif
 		{
 			ui32 type = swap32(index->elements[i].key.type);
 			ui8 size = (ui8)index->elements[i].key.size;
@@ -345,19 +365,19 @@ int write_journal_index(int *fd,struct stack *index)
 			else
 				k16 = swap16(index->elements[i].key.k.n16);
 
-			if (write(*fd, &type, sizeof(type)) == -1 ||
-					write(*fd, &size, sizeof(size)) == -1) {
+			if (os_write(*fd, &type, sizeof(type)) == -1 ||
+					os_write(*fd, &size, sizeof(size)) == -1) {
 				perror("write index:");
 				return 0; 
 			}
 
 			if(index->elements[i].key.size == 16){
-				if (write(*fd, &k16, sizeof(k16)) == -1) {
+				if (os_write(*fd, &k16, sizeof(k16)) == -1) {
 					perror("write index:");
 					return 0; /*false*/
 				}
 			}else{
-				if (write(*fd, &k, sizeof(k)) == -1) {
+				if (os_write(*fd, &k, sizeof(k)) == -1) {
 					perror("write index:");
 					return 0; /*false*/
 				}
@@ -371,13 +391,13 @@ int write_journal_index(int *fd,struct stack *index)
 		}
 
 		ui64 ot_ne = swap64((index->elements[i].offset));
-		if(write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
+		if(os_write(*fd,&ot_ne,sizeof(ot_ne)) == -1){
 			error("can't write to journal index file.",__LINE__-1);
 			return -1;
 		}
 
 		ui32 op_ne = swap32(index->elements[i].operation);
-		if(write(*fd,&op_ne,sizeof(op_ne)) == -1){
+		if(os_write(*fd,&op_ne,sizeof(op_ne)) == -1){
 			error("can't write to journal index file.",__LINE__-1);
 			return -1;
 		}
@@ -385,16 +405,26 @@ int write_journal_index(int *fd,struct stack *index)
 	}
 
 	close(*fd);
-	*fd = open_file(JINX,0);
-	if(file_error_handler(1,*fd) != 0 ) return -1;
+	if(open_file(JINX,0,fd) == -1){
+		/*TODO !!!!!!!! expand on error*/
+		int err = file_error_handler(1,*fd);
+		/* this is just to shus gcc warnings*/
+		if(err){
+			err = 0;
+			return -1;
+		}else{
+			err = 0;
+			return -1;
+		}
+	}
 
 	return 0;
 }
 
-int read_journal_index(int fd,struct stack *index)
+int read_journal_index(file_t fd,struct stack *index)
 {
 	ui32 cap_ne = 0;
-	if(read(fd,&cap_ne,sizeof(cap_ne)) == -1){
+	if(os_read(fd,&cap_ne,sizeof(cap_ne)) == -1){
 		fprintf(stderr,"(%s): can't write journal index file.",p);
 		return -1;
 	}
@@ -413,7 +443,7 @@ int read_journal_index(int fd,struct stack *index)
 	for(i = 0; i < cap; i++){
 		
 		ui64 ts_ne = 0;
-		if(read(fd,&ts_ne,sizeof(ts_ne)) == -1){
+		if(os_read(fd,&ts_ne,sizeof(ts_ne)) == -1){
 			error("read journal index failed",__LINE__-1);
 			return -1;
 		}
@@ -421,7 +451,7 @@ int read_journal_index(int fd,struct stack *index)
 		index->elements[i].timestamp = (time_t) swap64(ts_ne);
 		
 		ui64 size_ne = 0;
-		if(read(fd,&size_ne,sizeof(size_ne)) == -1){
+		if(os_read(fd,&size_ne,sizeof(size_ne)) == -1){
 			error("read journal index failed",__LINE__-1);
 			return -1;
 		}
@@ -430,7 +460,7 @@ int read_journal_index(int fd,struct stack *index)
 		char buff[size + 1];
 		memset(buff,0,size + 1);
 
-		if(read(fd,buff,size) == -1){
+		if(os_read(fd,buff,size) == -1){
 			error("read journal index failed",__LINE__-1);
 			return -1;
 		}
@@ -438,7 +468,7 @@ int read_journal_index(int fd,struct stack *index)
 		strncpy(index->elements[i].file_name,buff,size);
 
 		ui32 kt_ne = 0;
-		if(read(fd,&kt_ne,sizeof(kt_ne)) == -1){
+		if(os_read(fd,&kt_ne,sizeof(kt_ne)) == -1){
 			error("read journal index failed",__LINE__-1);
 			return -1;
 		}
@@ -446,10 +476,14 @@ int read_journal_index(int fd,struct stack *index)
 		index->elements[i].key.type = (int)swap32(kt_ne);
 
 		switch(index->elements[i].key.type){
+#if defined(__linux__) || defined(__APPLE__)
 		case STR:
+#elif defined(_WIN32) || defined(_WIN64)
+		case STR_KEY:
+#endif
 		{
 			ui64 size_ne = 0;
-			if(read(fd,&size_ne,sizeof(size_ne)) == -1){
+			if(os_read(fd,&size_ne,sizeof(size_ne)) == -1){
 				error("read journal index failed",__LINE__-1);
 				return -1;
 			}
@@ -458,7 +492,7 @@ int read_journal_index(int fd,struct stack *index)
 			char buff[size];
 			memset(buff,0,size);
 
-			if(read(fd,buff,size) == -1){
+			if(os_read(fd,buff,size) == -1){
 				error("read journal index failed",__LINE__-1);
 				return -1;
 			}
@@ -472,10 +506,14 @@ int read_journal_index(int fd,struct stack *index)
 			strncpy(index->elements[i].key.k.s ,buff,size);
 			break;
 		}
+#if defined(__linux__) || defined(__APPLE__)
 		case UINT:
+#elif defined(_WIN32) || defined(_WIN64)
+		case UINT_KEY:
+#endif
 		{
 			ui8 k_size = 0;
-			if(read(fd,&k_size,sizeof(k_size)) == -1){
+			if(os_read(fd,&k_size,sizeof(k_size)) == -1){
 				error("read journal index failed",__LINE__-1);
 				return -1;
 			}
@@ -490,7 +528,7 @@ int read_journal_index(int fd,struct stack *index)
 				index->elements[i].key.k.n16 = swap16(k_ne);
 			}else{
 				ui32 k_ne = 0;
-				if(read(fd,&k_ne,sizeof(k_ne)) == -1){
+				if(os_read(fd,&k_ne,sizeof(k_ne)) == -1){
 
 
 					error("read journal index failed",__LINE__-1);
@@ -506,14 +544,14 @@ int read_journal_index(int fd,struct stack *index)
 		}
 
 		ui64 os_ne = 0;
-		if(read(fd,&os_ne,sizeof(os_ne)) == -1){
+		if(os_read(fd,&os_ne,sizeof(os_ne)) == -1){
 			error("read journal index failed",__LINE__-1);
 			return -1;
 		}
 		
 		index->elements[i].offset = (file_offset) swap64(os_ne);
 		ui32 op_ne = 0;
-		if(read(fd,&op_ne,sizeof(op_ne)) == -1){
+		if(os_read(fd,&op_ne,sizeof(op_ne)) == -1){
 			error("read journal index failed",__LINE__-1);
 			return -1;
 		}
@@ -530,10 +568,18 @@ int show_journal()
 	struct stack index;
 	memset(&index,0,sizeof(struct stack));
 
-	int fd = open_file(JINX,0);
-	if(fd == -1 || fd == ENOENT){
+	file_t fd;
+	if(open_file(JINX,0,&fd) == -1){
+		int err = file_error_handler(1,fd);
 		error("cannot open the journal file.\n",__LINE__-2);
-		return -1;
+		/* this is just to shus gcc warnings*/
+		if(err){
+			err = 0;
+			return -1;
+		}else{
+			err = 0;
+			return -1;
+		}
 	}
 
 	if(read_journal_index(fd,&index)){
