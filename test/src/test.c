@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "db_types.h"
 #include "test.h"
 #include "record.h"
 #include "common.h"
