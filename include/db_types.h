@@ -15,6 +15,7 @@ typedef 	long			i64;
 typedef 	unsigned long 	size_t;
 typedef 	int        file_t;
 #elif defined(_WIN32)
+#include <windows.h>
 typedef 	HANDLE        file_t;
 #endif
 
