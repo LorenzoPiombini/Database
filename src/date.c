@@ -102,7 +102,7 @@ int convert_date_str(int format, char *str, struct tm* input_date)
 	input_date->tm_isdst = -1;
 #if PROD || defined(__APPLE__)
 	input_date->tm_zone = "EST";
-#else
+#elif defined(__linux__)
 	input_date->__tm_zone = "EST";
 #endif
 
@@ -151,7 +151,12 @@ unsigned char w_day(long seconds)
 
 		return day;
 	}else{
+#if defined(_WIN32) || defined(_WIN64)
+		time_t s = (time_t)seconds;
+		struct tm* curr_t = localtime(&s); 
+#else
 		struct tm* curr_t = localtime(&seconds); 
+#endif
 		unsigned char day = 0;
 		if(curr_t->tm_wday == 0) {
 			day = 6;
@@ -392,7 +397,12 @@ int convert_number_to_date(char *date, int date_number)
 
 long next_friday(long seconds)
 {
+#if defined(_WIN32) || defined(_WIN64)
+	time_t s = (time_t) seconds;
+	struct tm *date = localtime(&s);	
+#else
 	struct tm *date = localtime(&seconds);	
+#endif
 	switch(date->tm_wday){
 	case 0: return (long) (seconds + (SEC_IN_A_DAY * 5));
 	case 1: return (long) (seconds + (SEC_IN_A_DAY * 4));
@@ -407,7 +417,11 @@ long next_friday(long seconds)
 
 long rewind_to_first_of_this_month()
 {
-	long now = now_seconds();
+#if defined(_WIN32) || defined(_WIN64)
+		time_t now = (time_t)now_seconds();
+#else
+		long now = now_seconds();
+#endif
 	struct tm *date = localtime(&now);
 	/*rewind to first day of the month*/
 	time_t first_day_of_this_month = now - (SEC_IN_A_DAY * (date->tm_mday - 1));
@@ -423,7 +437,11 @@ long third_friday_of_the_month(long *seconds)
 	long now = 0;
 	int day_to_3th_friday = 19;
 	if(!seconds){
+#if defined(_WIN32) || defined(_WIN64)
+		time_t now = (time_t)now_seconds();
+#else
 		long now = now_seconds();
+#endif
 		date = localtime(&now);
 		memcpy(&today,date,sizeof(struct tm));
 
@@ -523,17 +541,27 @@ int is_date_today(char *date, int format)
 
 long third_friday_january_two_years_out()
 {
+
+#if defined(_WIN32) || defined(_WIN64)
+	time_t sec = (time_t)rewind_to_first_of_this_month();
+	sec += (2 * SEC_IN_A_YEAR);
+#else
 	long sec = rewind_to_first_of_this_month();
 	sec += (2 * SEC_IN_A_YEAR);
-
+#endif
 	struct tm *dt = localtime(&sec);
 	sec -= dt->tm_yday * SEC_IN_A_DAY;
-	return third_friday_of_the_month(&sec);
+	return third_friday_of_the_month((long*)&sec);
 }
 long third_friday_dicember_two_years_out()
 {
+#if defined(_WIN32) || defined(_WIN64)
+	time_t sec = (time_t)rewind_to_first_of_this_month();
+	sec += (2 * SEC_IN_A_YEAR);
+#else
 	long sec = rewind_to_first_of_this_month();
 	sec += (2 * SEC_IN_A_YEAR);
+#endif
 	/*this goes to dicember two years out*/
 	struct tm *dt = localtime(&sec);
 	if(((dt->tm_year + 2000) % 4) == 0)
@@ -541,7 +569,7 @@ long third_friday_dicember_two_years_out()
 	else
 		sec += ((365-31 - dt->tm_yday ) * SEC_IN_A_DAY);
 
-	return third_friday_of_the_month(&sec);
+	return third_friday_of_the_month((long*)&sec);
 }
 
 int convert_date_format(char *src, char *dest, int sform, int dform)
