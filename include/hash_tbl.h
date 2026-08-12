@@ -35,7 +35,7 @@ typedef struct Node {
 typedef struct HashTable {
 	int size;
 	Node *data_map[MAX_HT_BUCKET];
-	int (*write)(int fd, struct HashTable *ht);
+	int (*write)(file_t fd, struct HashTable *ht);
 } HashTable;
 
 /*this will contains all the keys of the hash table*/
@@ -58,7 +58,7 @@ struct Keys_ht{
 
 
 void print_hash_table(HashTable tbl);
-int write_ht(int fd, HashTable *ht);
+int write_ht(file_t fd, HashTable *ht);
 int hash(void *key, int size, int key_type);
 Node *ht_delete(void *key, HashTable *tbl, int key_type);
 int set(void *key, int key_type, file_offset value, HashTable *tbl);
