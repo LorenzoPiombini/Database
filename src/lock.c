@@ -208,22 +208,31 @@ static int lock(file_t fd, int flag){
 		memset(line,0,50);
 		while(fgets(line,50,fp)){
 			errno = 0;
+#if defined(__linux__) || defined(__APPLE__)
 			pid_t p_on_file = (pid_t) string_to_long(line);
+#elif defined(_WIN32) || defined(_WIN64)
+			DWORD p_on_file = (DWORD) string_to_long(line);
+#endif
 			if(errno == EINVAL){ 
 				fprintf(stderr,"string_to_long failed, %s:%d.\n",__FILE__,__LINE__-2);
 				fclose(fp);
 				return -1;
 			}
 
-			fprintf(stderr,"process number %d, try to lock file locked by %d\n",getpid(),p_on_file);
 #if defined(__linux__) || defined(__APPLE__)	
+			fprintf(stderr,"process number %d, try to lock file locked by %d\n",getpid(),p_on_file);
 			if(p_on_file == getpid())
 #elif defined(_WIN32) || defined(_WIN64)
-			if(p_on_file == (pid_t)GetCurrentProcessId())
+			fprintf(stderr,"process number %d, try to lock file locked by %d\n",GetCurrentProcessId(),p_on_file);
+			if(p_on_file == (DWORD)GetCurrentProcessId())
 #endif
 			{
 				fclose(fp);
+#if defined(__linux__) || defined(__APPLE__)	
 				fprintf(stderr,"process number %d already has lock on the file\n",getpid());
+#elif defined(_WIN32) || defined(_WIN64)
+				fprintf(stderr,"process number %d already has lock on the file\n",GetCurrentProcessId());
+#endif
 				return 0;
 			}
 			fprintf(stderr,"process number %d did not lock the file because locked by %d\n",getpid(),p_on_file);
@@ -236,7 +245,11 @@ static int lock(file_t fd, int flag){
 		while(fgets(line,50,fp));
 
 		errno = 0;
-		pid_t p_on_file = (pid_t) string_to_long(line);
+#if defined(__linux__) || defined(__APPLE__)
+			pid_t p_on_file = (pid_t) string_to_long(line);
+#elif defined(_WIN32) || defined(_WIN64)
+			DWORD p_on_file = (DWORD) string_to_long(line);
+#endif
 		if(errno == EINVAL){ 
 			fclose(fp);
 			return -1;
@@ -245,7 +258,7 @@ static int lock(file_t fd, int flag){
 #if defined(__linux__) || defined(__APPLE__)	
 		if(p_on_file == getpid())
 #elif defined(_WIN32) || defined(_WIN64)
-		if(p_on_file == (pid_t)GetCurrentProcessId())
+		if(p_on_file == (DWORD)GetCurrentProcessId())
 #endif
 		{
 			fclose(fp);
@@ -266,7 +279,7 @@ static int lock(file_t fd, int flag){
 #if defined(__linux__) || defined(__APPLE__)	
 		pid_t pid = getpid();
 #elif defined(_WIN32) || defined(_WIN64)
-		pid_t pid = (pid_t)GetCurrentProcessId();
+		DWORD pid = (DWORD)GetCurrentProcessId();
 #endif
 		size_t pid_str_l = number_of_digit(pid)+2;
 		char strpid[pid_str_l];
@@ -287,7 +300,7 @@ static int lock(file_t fd, int flag){
 	return -1;
 }
 
-
+#if 0
 int is_locked(int files, ...)
 {
 	va_list args;
@@ -334,3 +347,4 @@ int is_locked(int files, ...)
 	}
 	return 0;
 }
+#endif

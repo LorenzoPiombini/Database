@@ -10,6 +10,20 @@
     #define CPU_WORD_SIZE 4
 #endif
 
+
+
+
+
+#if defined(__linux__)
+typedef 	unsigned long 	size_t;
+typedef 	int        file_t;
+#elif defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+typedef 	HANDLE        file_t;
+#endif
+
+
+
 #if CPU_WORD_SIZE == 4
 typedef 	char			i8;
 typedef 	unsigned char	ui8;
@@ -43,16 +57,7 @@ typedef 	int				i32;
 typedef 	unsigned long long	ui64;
 typedef 	long long		i64;
 typedef		long long 		file_offset;
-typedef 	long long		process_id;
 #endif
-#endif
-
-#if defined(__linux__)
-typedef 	unsigned long 	size_t;
-typedef 	int        file_t;
-#elif defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-typedef 	HANDLE        file_t;
 #endif
 
 

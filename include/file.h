@@ -23,7 +23,11 @@
 		}\
 	}while(0)
 
-#define IS_FILE_T_VALID(f) ((WOS) ? ((f) != -1) : ((f) != 0))
+#if WOS
+#define IS_FILE_T_VALID(f) ((f) != NULL)
+#else
+#define IS_FILE_T_VALID(f) ((f) != -1)
+#endif
 
 struct Ram_file{
 	ui8 *mem; /* memory */

@@ -451,7 +451,12 @@ int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht,
 
 			switch(rec->fields[inx[i]].type){
 			case TYPE_INT:
-				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.i,eof,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.i,eof,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.i,eof,UINT_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
 					return STATUS_ERROR;
 				}
@@ -463,7 +468,12 @@ int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht,
 					return STATUS_ERROR;
 				}
 
-				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.l,eof,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.l,eof,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(*ht,(void*)&rec->fields[inx[i]].data.l,eof,UINT_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
 					return STATUS_ERROR;
 				}
@@ -477,7 +487,12 @@ int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht,
 					return STATUS_ERROR;
 				}
 
-				if(set_tbl(*ht,(void*)&f,eof,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(*ht,(void*)&f,eof,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(*ht,(void*)&f,eof,UINT_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
 					return STATUS_ERROR;
 				}
@@ -491,7 +506,12 @@ int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht,
 					return STATUS_ERROR;
 				}
 
-				if(set_tbl(*ht,(void*)d,eof,UINT,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(*ht,(void*)&d,eof,UINT,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(*ht,(void*)&d,eof,UINT_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
 					return STATUS_ERROR;
 				}
@@ -499,7 +519,12 @@ int check_const_unique(struct Schema *sch, struct Record_f *rec, HashTable **ht,
 			}
 			case TYPE_STRING:
 			{
-				if(set_tbl(*ht,rec->fields[inx[i]].data.s,eof,STR,1) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+				if(set_tbl(*ht,(void*)rec->fields[inx[i]].data.s,eof,STR,1) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+				if(set_tbl(*ht,(void*)rec->fields[inx[i]].data.s,eof,STR_KEY,1) == -1)
+#endif
+				{
 					fprintf(stderr,"(%s): field '%s' must be unique!\n",prog,rec->fields[inx[i]].field_name);
 					return STATUS_ERROR;
 				}
