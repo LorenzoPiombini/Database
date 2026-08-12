@@ -1,7 +1,7 @@
 #ifndef LOCK_H
 #define LOCK_H
 
-
+#include "file.h"
 #define LOCK_FROM_LUA 0x00000100 
 #define GET_TYPE_LOCK(n) ((n) & 0x000000ff)
 #define IS_LOCK_FROM_LUA(n) (((n) & 0x00000100) != 0)
@@ -36,7 +36,7 @@ typedef enum
     WR_IND
 } mode;
 
-int release_lock(int *fds,int mode);
-int acquire_lock(int *fds,int mode);
+int release_lock(file_t *fds,int mode);
+int acquire_lock(file_t *fds,int mode);
 
 #endif /* lock.h */

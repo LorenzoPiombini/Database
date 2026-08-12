@@ -1,21 +1,28 @@
 #include <stdio.h>
+
+#if defined(__linux__) || defined(__APPLE__)
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#elif defined(_WIN32) || defined(_WIN64)
+#include "windows.h"
+#endif
+
 #include <string.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <errno.h>
 #include "lock.h"
+#include "db_types.h"
+#include "file.h"
 #include "debug.h"
 #include "str_op.h"
 #include "parse.h"
 #include "common.h"
 #include "string_utilities.h"
 
-static int lock(int fd, int flag);
-
-int release_lock(int *fds,int mode){
+static int lock(file_t fd, int flag);
+int release_lock(file_t *fds,int mode){
 	int r = 0, slept = 0, second_to_sleep = 0;
 	if(IS_LOCK_FROM_LUA(mode))
 		second_to_sleep = 1;
@@ -30,7 +37,10 @@ int release_lock(int *fds,int mode){
 	}	
 	if(mode == STD_LOCK) return 0;
 	if(mode == LOCK_SCHEMA_FILE){
-		if(fds[0] != -1){
+
+		IS_FILE_T_VALID(fds[0]){
+
+		}else{
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -41,7 +51,9 @@ int release_lock(int *fds,int mode){
 			}
 		}
 
-		if(fds[1] != -1){
+		IS_FILE_T_VALID(fds[1]){
+
+		}else{
 			while((r = lock(fds[1],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -54,7 +66,8 @@ int release_lock(int *fds,int mode){
 	}
 
 	if(mode == LOCK_DATA_FILE){
-		if(fds[0] != -1){
+		IS_FILE_T_VALID(fds[0]){
+		}else{
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -65,8 +78,9 @@ int release_lock(int *fds,int mode){
 			}
 		}
 
-		if(fds[2] != -1){
-			while((r = lock(fds[1],UNLOCK)) == WTLK){
+		IS_FILE_T_VALID(fds[2]){
+		}else{
+			while((r = lock(fds[2],UNLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
 					slept = 1;
@@ -81,7 +95,7 @@ int release_lock(int *fds,int mode){
 }
 
 
-int acquire_lock(int *fds, int mode){
+int acquire_lock(file_t *fds, int mode){
 	int r = 0, slept = 0, second_to_sleep = 0;
 	if(IS_LOCK_FROM_LUA(mode))
 		second_to_sleep = 1;
@@ -107,9 +121,10 @@ int acquire_lock(int *fds, int mode){
 
 	if(mode == STD_LOCK) return 0;
 
-	/*IF THE LOCK is DIFFERENT than standard we need to check if the other to file are locked!*/
+	/*IF THE LOCK is DIFFERENT than standard we need to check if the other 2 files are locked!*/
 	if(mode == LOCK_SCHEMA_FILE){
-		if(fds[0] != -1){
+		IS_FILE_T_VALID(fds[0]){
+		}else{
 			while((r = lock(fds[0],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -121,7 +136,8 @@ int acquire_lock(int *fds, int mode){
 			}
 		}
 
-		if(fds[1] != -1){
+		IS_FILE_T_VALID(fds[1]){
+		}else{
 			while((r = lock(fds[1],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -135,7 +151,8 @@ int acquire_lock(int *fds, int mode){
 	}
 
 	if(mode == LOCK_DATA_FILE){
-		if(fds[0] != -1){
+		IS_FILE_T_VALID(fds[0]){
+		}else{
 			while((r = lock(fds[0],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
@@ -147,8 +164,9 @@ int acquire_lock(int *fds, int mode){
 			}
 		}
 
-		if(fds[2] != -1){
-			while((r = lock(fds[1],WLOCK)) == WTLK){
+		IS_FILE_T_VALID(fds[0]){
+		}else{
+			while((r = lock(fds[2],WLOCK)) == WTLK){
 				if(!slept){
 					sleep(second_to_sleep ? second_to_sleep : 10);
 					slept = 1;
@@ -163,8 +181,9 @@ int acquire_lock(int *fds, int mode){
 	return 0;
 }
 
-static int lock(int fd, int flag){
+static int lock(file_t fd, int flag){
 
+#if defined(__linux__) || defined(__APPLE__)
 	struct stat st;
 	errno = 0;
 	if(fstat(fd,&st) == -1){
@@ -172,11 +191,22 @@ static int lock(int fd, int flag){
 		fprintf(stderr,"%s\n",strerror(errno));
 		return -1;
 	}
-	
-	size_t l = number_of_digit(st.st_ino) + strlen(".lock")+1;
+
+	ui64 file_id = st.st_ino;
+#elif defined(_WIN32) || defined(_WIN64)
+	BY_HANDLE_FILE_INFORMATION file_info;
+    
+    if (!GetFileInformationByHandle(fd, &file_info)) {
+        fprintf(stderr, "can't acquire lock on file %s:%d. Win32 Error: %lu\n", __FILE__, __LINE__ - 1, GetLastError());
+        return -1;
+    }
+
+	ui64 file_id = ((ui64)file_info.nFileIndexHigh << 32) | file_info.nFileIndexLow;
+#endif
+	size_t l = number_of_digit(file_id) + strlen(".lock")+1;
 	char file_name[l];
 	memset(file_name,0,l);
-	if(copy_to_string(file_name,l,"%ld.lock",st.st_ino) == -1){
+	if(copy_to_string(file_name,l,"%u.lock",file_id) == -1){
 		fprintf(stderr,"can't aquire lock on file %s:%d.\n",__FILE__,__LINE__-1);
 		return -1;
 	}
@@ -196,7 +226,12 @@ static int lock(int fd, int flag){
 			}
 
 			fprintf(stderr,"process number %d, try to lock file locked by %d\n",getpid(),p_on_file);
-			if(p_on_file == getpid()){
+#if defined(__linux__) || defined(__APPLE__)	
+			if(p_on_file == getpid())
+#elif defined(_WIN32) || defined(_WIN64)
+			if(p_on_file == (pid_t)GetCurrentProcessId())
+#endif
+			{
 				fclose(fp);
 				fprintf(stderr,"process number %d already has lock on the file\n",getpid());
 				return 0;
@@ -217,7 +252,12 @@ static int lock(int fd, int flag){
 			return -1;
 		}
 
-		if(p_on_file == getpid()){
+#if defined(__linux__) || defined(__APPLE__)	
+		if(p_on_file == getpid())
+#elif defined(_WIN32) || defined(_WIN64)
+		if(p_on_file == (pid_t)GetCurrentProcessId())
+#endif
+		{
 			fclose(fp);
 			unlink(file_name);
 			return 0;
@@ -233,12 +273,16 @@ static int lock(int fd, int flag){
 			return -1;
 		}
 
+#if defined(__linux__) || defined(__APPLE__)	
 		pid_t pid = getpid();
+#elif defined(_WIN32) || defined(_WIN64)
+		pid_t pid = (pid_t)GetCurrentProcessId();
+#endif
 		size_t pid_str_l = number_of_digit(pid)+2;
 		char strpid[pid_str_l];
 		memset(strpid,0,pid_str_l);
 
-		if(copy_to_string(strpid,pid_str_l,"%d\n",pid) < 0){
+		if(copy_to_string(strpid,pid_str_l,"%ld\n",pid) < 0){
 			fprintf(stderr,"can't aquire lock on file %s:%d.\n",__FILE__,__LINE__-1);
 			return -1;
 		}
@@ -253,6 +297,7 @@ static int lock(int fd, int flag){
 	return -1;
 }
 
+
 int is_locked(int files, ...)
 {
 	va_list args;
@@ -260,7 +305,7 @@ int is_locked(int files, ...)
 	
 	int i;
 	for(i = 0; i < files; i++){
-		int fd = va_arg(args,int);
+		file_t fd = va_arg(args,file_t);
 		struct stat st;
 		if(fstat(fd,&st) == -1) continue;
 		
