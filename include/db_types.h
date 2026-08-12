@@ -1,7 +1,27 @@
 #ifndef __DB_TYPES_H_
 #define __DB_TYPES_H_ 
 
+// Check 64-bit flags first
+#if defined(_M_X64) || defined(__x86_64__) || defined(__aarch64__) || defined(_WIN64)
+    #define CPU_WORD_SIZE 8
 
+// check 32-bit flags
+#elif defined(_M_IX86) || defined(__i386__) || defined(__arm__) || defined(_WIN32)
+    #define CPU_WORD_SIZE 4
+#endif
+
+#if CPU_WORD_SIZE == 4
+typedef 	char			i8;
+typedef 	unsigned char	ui8;
+typedef 	unsigned short	ui16;
+typedef 	short			i16;
+typedef 	unsigned int	ui32;
+typedef 	int				i32;
+typedef 	unsigned long long	ui64;
+typedef 	long long		i64;
+typedef		long int		file_offset;
+typedef 	long long		process_id;
+#elif CPU_WORD_SIZE == 8
 typedef 	char			i8;
 typedef 	unsigned char	ui8;
 typedef 	unsigned short	ui16;
@@ -9,18 +29,19 @@ typedef 	short			i16;
 typedef 	unsigned int	ui32;
 typedef 	int				i32;
 typedef 	unsigned long	ui64;
-typedef 	long			i64;
+typedef 	long		i64;
+typedef		long long 		file_offset;
+typedef 	long long		process_id;
+#endif
 
 #if defined(__linux__)
 typedef 	unsigned long 	size_t;
 typedef 	int        file_t;
-#elif defined(_WIN32)
+#elif defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 typedef 	HANDLE        file_t;
 #endif
 
-typedef		long int		file_offset;
-typedef 	long long		process_id;
 
 #ifndef _LIBC_LIMITS_H_
 /*signed short max and min*/
