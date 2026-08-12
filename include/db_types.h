@@ -10,9 +10,14 @@ typedef 	unsigned int	ui32;
 typedef 	int				i32;
 typedef 	unsigned long	ui64;
 typedef 	long			i64;
+
 #if defined(__linux__)
 typedef 	unsigned long 	size_t;
+typedef 	int        file_t;
+#elif defined(_WIN32)
+typedef 	HANDLE        file_t;
 #endif
+
 typedef		long int		file_offset;
 typedef 	long long		process_id;
 

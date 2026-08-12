@@ -32,6 +32,10 @@ struct Cache{
 };
 
 /*these are valid for all OS*/
+file_t open_file(char *fileName, int use_trunc);
+file_t create_file(char *fileName);
+int os_read(file_t fd, void* data, size_t size);
+int os_write(file_t fd, void* data, size_t size);
 int write_ram_record(struct Ram_file *ram, struct Record_f *rec, int update, size_t init_ram_size, file_offset offset);
 long long read_ram_file(char* file_name, struct Ram_file *ram, struct Record_f *rec, struct Schema sch);
 file_offset read_update_offset_ram_file(struct Ram_file *ram);
@@ -43,11 +47,9 @@ int file_error_handler(int count, ...);
 #if defined(__linux__) || defined(__APPLE__)
 
 /*API end points*/
-int open_file(char *fileName, int use_trunc);
-int create_file(char *fileName);
 void close_file(int count, ...);
-file_offset get_file_offset(int fd);
-file_offset go_to_EOF(int fd);
+file_offset get_file_offset(file_t fd);
+file_offset go_to_EOF(file_t fd);
 file_offset find_record_position(int fd, file_offset offset);
 void delete_file(unsigned short count, ...);
 file_offset begin_in_file(int fd);

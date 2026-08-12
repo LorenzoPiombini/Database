@@ -60,7 +60,12 @@ enum ValueType
 	TYPE_SET_FLOAT,
 	TYPE_SET_STRING,
 	TYPE_SET_BYTE,
-	TYPE_SET_DOUBLE
+	TYPE_SET_DOUBLE,
+	/*THESE ARE NOT DATABASE TYPE -- used to make different OS calls compatible*/
+	LOW_T_U64,
+	LOW_T_U32,
+	LOW_T_U8,
+	LOW_T_STRING
 };
 
 struct Record_f;	
