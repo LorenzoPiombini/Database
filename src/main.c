@@ -993,6 +993,8 @@ int main(int argc, char *argv[])
 
 			/* we can safely delete the files, here, this process is the only one owning locks
 				for both the index and the data file */
+			
+#if defined(__linux__) || defined(__APPLE__)
 			struct stat st;
 			if(fstat(fds[0],&st) != 0){
 				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,cpy_fp);
@@ -1000,17 +1002,27 @@ int main(int argc, char *argv[])
 				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
 			}
-			
+			ui64 file_id = st.st_ino;
+#elif defined(_WIN32) || defined(_WIN64)
+			BY_HANDLE_FILE_INFORMATION file_info;
+			if (!GetFileInformationByHandle(fds[0],&file_info)) {
+				fprintf(stderr,"(%s): delete file '%s' failed.\n",prog,cpy_fp);
+				release_lock(fds,-1);
+				close_file(3, fds[0], fds[1],fds[2]);
+				return -1;
+			}
+			ui64 file_id = ((ui64)file_info.nFileIndexHigh << 32) | file_info.nFileIndexLow;
+#endif
 			close_file(3, fds[0], fds[1],fds[2]);
 			delete_file(3, files[0], files[1],files[2]);
 			fprintf(stderr,"file %s, deleted.\n", cpy_fp);
 
 			/*release the lock*/
-			size_t l = number_of_digit(st.st_ino) + strlen(".lock") + 1;
+			size_t l = number_of_digit(file_id) + strlen(".lock") + 1;
 			char buf[l];
 			memset(buf,0,l);
 			
-			if(copy_to_string(buf,l,"%ld.lock",st.st_ino) < 0){
+			if(copy_to_string(buf,l,"%ld.lock",file_id) < 0){
 				fprintf(stderr,"cannot release the lock");
 				return STATUS_ERROR;
 			}
@@ -1210,7 +1222,14 @@ int main(int argc, char *argv[])
 			if (key_conv) {
 				record_del = ht_delete(key_conv, &ht[index_nr], key_type);
 				free(key_conv);
-			}else if (key_type == STR) {
+
+			}
+#if defined(__linux__) || defined(__APPLE__)
+			else if (key_type == STR)
+#elif defined(_WIN32) || defined(_WIN64)
+			else if (key_type == STR_KEY)
+#endif
+			{
 					record_del = ht_delete((void *)kcpy, &ht[index_nr], key_type);
 			} else {
 				fprintf(stderr,"error key_converter().\n");
@@ -1228,7 +1247,12 @@ int main(int argc, char *argv[])
 			/*this will save the record that we deleted,
 			 * so we can undo this operations */
 			/*TODO: fix this system!!!*/
-			if(record_del->key.type == STR){
+#if defined(__linux__) || defined(__APPLE__)
+			if(record_del->key.type == STR)
+#elif defined(_WIN32) || defined(_WIN64)
+			if(record_del->key.type == STR_KEY)
+#endif
+			{
  				if(journal(fds[0], 
 						record_del->value, 
 						(void*)record_del->key.k.s, 
@@ -1322,7 +1346,12 @@ int main(int argc, char *argv[])
 
 				n = (ui32)k;
 				
-				if(write_record(fds,(void *)&n, UINT, &rec, update, files, &lock_f, -1,hd.sch_d) == -1){
+#if defined(__linux__) || defined(__APPLE__)
+			if(write_record(fds,(void *)&n, UINT, &rec, update, files, &lock_f, -1,hd.sch_d) == -1)
+#elif defined(_WIN32) || defined(_WIN64)
+			if(write_record(fds,(void *)&n, UINT_KEY, &rec, update, files, &lock_f, -1,hd.sch_d) == -1)
+#endif
+			{
 					fprintf(stderr, "write_record failed %s:%d.\n",__FILE__,__LINE__-1);
 					goto clean_on_error_7;
 				}
@@ -1432,10 +1461,18 @@ int main(int argc, char *argv[])
 			int end = len(ht), i = 0, j = 0;
 			for (i = 0, j = i; i < end; i++) {
 				switch (keys_data.keys[i].type){
+#if defined(__linux__) || defined(__APPLE__)
 				case STR:
+#elif defined(_WIN32) || defined(_WIN64)
+				case STR_KEY:
+#endif
 					fprintf(stderr,"%d. %s\n", ++j, keys_data.keys[i].k.s);
 					break;
+#if defined(__linux__) || defined(__APPLE__)
 				case UINT:
+#elif defined(_WIN32) || defined(_WIN64)
+				case UINT_KEY:
+#endif
 				{
 					if(keys_data.keys[i].size == 16)
 						fprintf(stderr,"%d. %u   ", ++j, keys_data.keys[i].k.n16);

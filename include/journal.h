@@ -49,7 +49,7 @@ int pop_journal(struct stack *index);
 int peek_journal(struct stack *index, struct Node_stack *node);
 int is_empty(struct stack *index);
 
-int journal(int caller_fd, file_offset offset, void *key, int key_type, int operation);
+int journal(file_t caller_fd, file_offset offset, void *key, int key_type, int operation);
 int write_journal_index(file_t *fd,struct stack *index);
 int read_journal_index(file_t fd,struct stack *index);
 int show_journal();

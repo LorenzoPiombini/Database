@@ -11,11 +11,7 @@
 #include "debug.h"
 
 static char prog[] = "db";
-#if defined(_WIN32)
-unsigned char create_empty_file(HANDLE fd_schema, HANDLE fd_index, int bucket_ht)
-#else
-unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
-#endif
+unsigned char create_empty_file(file_t fd_schema, HANDLE fd_index, int bucket_ht)
 {
 
 	struct Schema sch;
@@ -41,11 +37,7 @@ unsigned char create_empty_file(int fd_schema, int fd_index, int bucket_ht)
 	return 1;
 }
 
-#if defined(_WIN32)
-unsigned char append_to_file(HANDLE *fds, char *file_path, char *key,char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
-#else
-unsigned char append_to_file(int *fds, char *file_path, char *key,char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
-#endif
+unsigned char append_to_file(file_t *fds, char *file_path, char *key,char files[][MAX_FILE_PATH_LENGTH],char *data_to_add, HashTable *ht)
 {
 
 	struct Record_f rec;
@@ -80,11 +72,7 @@ unsigned char append_to_file(int *fds, char *file_path, char *key,char files[][M
 	return 1;
 }
 
-#if defined(_WIN32)
-int create_file_with_schema(HANDLE fd_schema, HANDLE fd_index, char *schema_def, int bucket_ht, int indexes, int file_field)
-#else
-int create_file_with_schema(int fd_schema,  int fd_index, char *schema_def, int bucket_ht, int indexes, int file_field)
-#endif
+int create_file_with_schema(file_t fd_schema,  file_t fd_index, char *schema_def, int bucket_ht, int indexes, int file_field)
 {
 	int mode = check_handle_input_mode(schema_def, FCRT) | DF;
 	int fields_count = 0; 

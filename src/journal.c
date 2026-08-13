@@ -18,7 +18,7 @@ static char p[] ="db";
 
 static void error(char *msg,int line);
 
-int journal(int caller_fd, file_offset offset, void *key, int key_type, int operation)
+int journal(file_t caller_fd, file_offset offset, void *key, int key_type, int operation)
 {
 	int create = 0;
 	file_t fd;
@@ -51,11 +51,13 @@ int journal(int caller_fd, file_offset offset, void *key, int key_type, int oper
 		if (read_journal_index(fd, &index) == -1) {
 			fprintf(stderr,"(%s): read index from '%s' failed, %s:%d",
 					p,JINX,__FILE__,__LINE__-1);
-			close(fd);
+			close_file(1,fd);
 			return -1;
 		}
 	}
 	
+
+#if defined(__linux__) || defined(__APPLE__)
 	/*get the file name from the caller file descriptor */
 	char path[1024];
 	memset(path,0,1024);
@@ -167,12 +169,114 @@ int journal(int caller_fd, file_offset offset, void *key, int key_type, int oper
 	}else{
 		strncpy(node.file_name,file_name,strlen(file_name));
 	}
+
+#elif defined(_WIN32) || defined(_WIN64)
+/* 1. Retrieve the file path from caller_fd (Windows equivalent of reading /proc/self/fd/...) */
+    WCHAR pathW[MAX_PATH];
+    DWORD path_len = GetFinalPathNameByHandleW(caller_fd, pathW, MAX_PATH, FILE_NAME_NORMALIZED);
+    if (path_len == 0 || path_len >= MAX_PATH) {
+        error("GetFinalPathNameByHandle failed.", __LINE__ - 1);
+        CloseHandle(fd);
+        return -1;
+    }
+
+    /* 2. Retrieve file ID info (Windows equivalent of struct stat inode mapping) */
+    BY_HANDLE_FILE_INFORMATION caller_info;
+    if (!GetFileInformationByHandle(caller_fd, &caller_info)) {
+        error("can't get file info.", __LINE__ - 1);
+        CloseHandle(fd);
+        return -1;
+    }
+
+    /* 3. Get current working directory (Windows native GetCurrentDirectoryW) */
+    WCHAR cwdW[MAX_PATH];
+    DWORD cwd_len = GetCurrentDirectoryW(MAX_PATH, cwdW);
+    if (cwd_len == 0 || cwd_len >= MAX_PATH) {
+        error("can't get current directory.", __LINE__ - 1);
+        CloseHandle(fd);
+        return -1;
+    }
+
+    /* Build search pattern: <cwd>\db\* */
+    WCHAR db_search_path[MAX_PATH];
+    if (swprintf_s(db_search_path, MAX_PATH, L"%s\\db\\*", cwdW) < 0) {
+        error("path truncation error.", __LINE__ - 1);
+        CloseHandle(fd);
+        return -1;
+    }
+
+    /* 4. Find matching file in directory by comparing Unique File Identifier (Index / File Index) */
+    WIN32_FIND_DATAW find_data;
+    HANDLE hFind = FindFirstFileW(db_search_path, &find_data);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        error("can't open db directory.", __LINE__ - 1);
+        CloseHandle(fd);
+        return -1;
+    }
+
+    BOOL found = FALSE;
+    char target_file_name[MAX_FILE_NAME] = {0};
+
+    do {
+        // Skip current and parent directory markers
+        if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0) {
+            continue;
+        }
+
+        // Form full path to query the exact File Index for inode-like comparison
+        WCHAR full_entry_path[MAX_PATH];
+        swprintf_s(full_entry_path, MAX_PATH, L"%s\\db\\%s", cwdW, find_data.cFileName);
+
+        HANDLE hEntry = CreateFileW(
+            full_entry_path,
+            0, // Query metadata only (no read/write access requested)
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            NULL,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            NULL
+        );
+
+        if (hEntry != INVALID_HANDLE_VALUE) {
+            BY_HANDLE_FILE_INFORMATION entry_info;
+            if (GetFileInformationByHandle(hEntry, &entry_info)) {
+                // Compare 64-bit combined file index (Equivalent to st_ino check)
+                if (caller_info.nFileIndexHigh == entry_info.nFileIndexHigh &&
+                    caller_info.nFileIndexLow == entry_info.nFileIndexLow &&
+                    caller_info.dwVolumeSerialNumber == entry_info.dwVolumeSerialNumber) 
+                {
+                    // Convert target file name from Wide String to UTF-8 / ANSI
+                    WideCharToMultiByte(CP_UTF8, 0, find_data.cFileName, -1, target_file_name, MAX_FILE_NAME, NULL, NULL);
+                    found = TRUE;
+                    CloseHandle(hEntry);
+                    break;
+                }
+            }
+            CloseHandle(hEntry);
+        }
+    } while (FindNextFileW(hFind, &find_data));
+
+    FindClose(hFind);
+
+    if (!found) {
+        error("file name not found.\n", __LINE__ - 1);
+        CloseHandle(fd);
+        return -1;
+    }
+
+    strncpy(node.file_name, target_file_name, strlen(target_file_name));
+#endif
+	
 	node.offset = offset;
 	node.key.type = key_type;
 	node.operation = operation;
 
 	switch(key_type){
+#if defined(__linux__) || defined(__APPLE__)
 	case STR:
+#elif defined(_WIN32) || defined(_WIN64)
+	case STR_KEY:
+#endif
 	{	
 		size_t l = strlen((char *) key)+1;
 		node.key.k.s = (char *)malloc(l);
@@ -184,7 +288,11 @@ int journal(int caller_fd, file_offset offset, void *key, int key_type, int oper
 		strncpy(node.key.k.s,(char *)key,l);
 		break;
 	}
+#if defined(__linux__) || defined(__APPLE__)
 	case UINT:
+#elif defined(_WIN32) || defined(_WIN64)
+	case UINT_KEY:
+#endif
 	{
 		if(*(ui32 *)key < USHRT_MAX){
 			node.key.k.n16 = (*(ui32 *)key);
@@ -205,21 +313,20 @@ int journal(int caller_fd, file_offset offset, void *key, int key_type, int oper
 	/*push the node on the stack*/	
 	if(push_journal(&index,node) == -1){
 		error("failed to push on journal stack",__LINE__-1);
-		close(fd);
+		close_file(1,fd);
 		return -1;
 	}
 
 	/* write the index file */
 	if (write_journal_index(&fd, &index) == -1) {
 		printf("write to file failed, %s:%d",__FILE__,__LINE__ - 2);
-		close(fd);
+		close_file(1,fd);
 		return -1;
 	}
 	
-	close(fd);
+	close_file(1,fd);
 	return 0;
 }
-
  
 int push_journal(struct stack *index, struct Node_stack node)
 {
@@ -294,7 +401,7 @@ int write_journal_index(file_t *fd,struct stack *index)
 	if(index->capacity == 0) return -1;
 
 
-	close(*fd);
+	close_file(1,*fd);
 	if(open_file(JINX,1,fd) == -1){
 		/*TODO !!!!!!!! expand on error*/
 		int err = file_error_handler(1,*fd);
@@ -325,7 +432,7 @@ int write_journal_index(file_t *fd,struct stack *index)
 		size_t size = strlen(index->elements[i].file_name);
 		ui64 size_ne = swap64(size);
 		if(os_write(*fd,&size_ne,sizeof(size_ne)) == -1 ||
-				write(*fd,index->elements[i].file_name,size) == -1){
+				os_write(*fd,index->elements[i].file_name,size) == -1){
 			error("can't write to journal index file.",__LINE__-1);
 			return -1;
 		}
@@ -404,7 +511,7 @@ int write_journal_index(file_t *fd,struct stack *index)
 
 	}
 
-	close(*fd);
+	close_file(1,*fd);
 	if(open_file(JINX,0,fd) == -1){
 		/*TODO !!!!!!!! expand on error*/
 		int err = file_error_handler(1,*fd);
@@ -520,7 +627,7 @@ int read_journal_index(file_t fd,struct stack *index)
 
 			if(k_size == 16){
 				ui16 k_ne = 0;
-				if(read(fd,&k_ne,sizeof(k_ne)) == -1){
+				if(os_read(fd,&k_ne,sizeof(k_ne)) == -1){
 					error("read journal index failed",__LINE__-1);
 					return -1;
 				}
@@ -584,7 +691,7 @@ int show_journal()
 
 	if(read_journal_index(fd,&index)){
 		error("cannot read journal file",__LINE__-1);	
-		close(fd);
+		close_file(1,fd);
 		return -1;
 	}			
 	
@@ -597,10 +704,19 @@ int show_journal()
 		printf("%s, ",dt);
 		printf("%s, record key: ",index.elements[i].file_name);
 		switch(index.elements[i].key.type){
+
+#if defined(__linux__) || defined(__APPLE__)
 		case STR:
+#elif defined(_WIN32) || defined(_WIN64)
+		case STR_KEY:
+#endif
 			printf("%s, offset: ",index.elements[i].key.k.s);
 			break;
+#if defined(__linux__) || defined(__APPLE__)
 		case UINT:
+#elif defined(_WIN32) || defined(_WIN64)
+		case UINT_KEY:
+#endif
 			if(index.elements[i].key.size == 16)
 				printf("%d, offset: ",index.elements[i].key.k.n16);	
 			else
@@ -620,7 +736,7 @@ int show_journal()
 
 
 	free_stack(&index);
-	close(fd);
+	close_file(1,fd);
 	return 0;
 }
 static void error(char *msg,int line)

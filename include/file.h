@@ -71,6 +71,7 @@ unsigned char write_index_body(file_t file_handle, int i, HashTable *ht);
 int write_file(file_t fd, struct Record_f *rec, file_offset update_file_offset, unsigned char update);
 int read_file(file_t fd, char *file_name, struct Record_f *rec, struct Schema sch);
 int get_all_record(file_t fd, struct Ram_file *ram);
+int add_index(int index_nr, char *file_name, int bucket);
 
 #if defined(__linux__) || defined(__APPLE__)
 
@@ -89,7 +90,6 @@ int padding_file(int fd, int bytes, size_t hd_st);
 unsigned char indexes_on_file(int fd, int *p_i_nr);
 unsigned char nr_bucket(int fd, int *p_buck);
 file_offset get_file_size(int fd, char *file_name);
-int add_index(int index_nr, char *file_name, int bucket);
 int cache_file(int *fds,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 void free_cache(struct Cache *c);
 #elif defined(_WIN32)
