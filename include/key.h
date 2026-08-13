@@ -20,7 +20,7 @@ enum mode{
 #define IS_KEY_DISK_MODE(n) 	(((n) & KEY_GEN_DISK_MODE) != 0)
 #define GET_MAKE_KEY_JS_STRING(n) ((n) & MAKE_KEY_JS_STRING)
 
-i64 generate_numeric_key(int *fds, int mode,int base,struct Cache *c);
-char *get_all_keys_for_file(int *fds,int index,int mode,HashTable *index_file);
+i64 generate_numeric_key(file_t *fds, int mode,int base,struct Cache *c);
+char *get_all_keys_for_file(file_t *fds,int index,int mode,HashTable *index_file);
 
 #endif

@@ -304,12 +304,7 @@ int import_data_to_system(char *data_file)
 
 		if(buf[0] == '='){
 
-#if defined(_WIN32)
-			DWORD written
-			if(!WriteFile(fds[1],ram.mem,ram.size,&written,NULL))
-#else
-			if(write(fds[1],ram.mem,ram.size) == -1)
-#endif
+			if(os_write(fds[1],ram.mem,ram.size) == -1)
 			{
 				close_file(3,fds[0],fds[1],fds[2]);
 				if(g_ht) free_ht_array(g_ht,g_index);

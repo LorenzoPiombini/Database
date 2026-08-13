@@ -40,7 +40,11 @@ int release_lock(file_t *fds,int mode){
 		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					return -1;
@@ -51,7 +55,11 @@ int release_lock(file_t *fds,int mode){
 		if(IS_FILE_T_VALID(fds[1])){
 			while((r = lock(fds[1],UNLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					return -1;
@@ -65,7 +73,11 @@ int release_lock(file_t *fds,int mode){
 		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],UNLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					return -1;
@@ -76,7 +88,11 @@ int release_lock(file_t *fds,int mode){
 		if(IS_FILE_T_VALID(fds[2])){
 			while((r = lock(fds[2],UNLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					return -1;
@@ -99,7 +115,11 @@ int acquire_lock(file_t *fds, int mode){
 
 	while((r = lock(fds[mode-1],WLOCK)) == WTLK){
 		if(!slept){
-			sleep(second_to_sleep ? second_to_sleep : 10);
+#if defined(__linux__) || defined(__APPLE__)
+					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 			slept = 1;
 		}else{
 			slept = 0;
@@ -120,7 +140,11 @@ int acquire_lock(file_t *fds, int mode){
 		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],WLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					slept = 0;
@@ -132,7 +156,11 @@ int acquire_lock(file_t *fds, int mode){
 		if(IS_FILE_T_VALID(fds[1])){
 			while((r = lock(fds[1],WLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					slept = 0;
@@ -146,7 +174,11 @@ int acquire_lock(file_t *fds, int mode){
 		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[0],WLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					slept = 0;
@@ -158,7 +190,11 @@ int acquire_lock(file_t *fds, int mode){
 		if(IS_FILE_T_VALID(fds[0])){
 			while((r = lock(fds[2],WLOCK)) == WTLK){
 				if(!slept){
+#if defined(__linux__) || defined(__APPLE__)
 					sleep(second_to_sleep ? second_to_sleep : 10);
+#elif defined(_WIN32) || defined(_WIN64)
+					Sleep(second_to_sleep ? second_to_sleep*1000 : 10*1000);
+#endif
 					slept = 1;
 				}else{
 					slept = 0;
@@ -235,7 +271,11 @@ static int lock(file_t fd, int flag){
 #endif
 				return 0;
 			}
+#if defined(__linux__) || defined(__APPLE__)	
 			fprintf(stderr,"process number %d did not lock the file because locked by %d\n",getpid(),p_on_file);
+#elif defined(_WIN32) || defined(_WIN64)
+			fprintf(stderr,"process number %d did not lock the file because locked by %d\n",GetCurrentProcessId(),p_on_file);
+#endif
 		}	
 		fclose(fp);
 		return WTLK; 

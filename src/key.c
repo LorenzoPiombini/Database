@@ -17,7 +17,7 @@
 /*mode select the type of numbering of the key
  *
  * this function assume that the file has content already*/
-i64 generate_numeric_key(int *fds, int mode, int base, struct Cache *c)
+i64 generate_numeric_key(file_t *fds, int mode, int base, struct Cache *c)
 {
 	i64 key = 0;
 	int key_gen_mode = mode & 0x000000ff;
@@ -87,7 +87,7 @@ i64 generate_numeric_key(int *fds, int mode, int base, struct Cache *c)
 	return key;
 }
 
-char *get_all_keys_for_file(int *fds,int index,int mode,HashTable *index_file)
+char *get_all_keys_for_file(file_t *fds,int index,int mode,HashTable *index_file)
 {
 	int cache_mode = IS_KEY_GET_ALL_CACHE(mode);
 	mode = GET_MAKE_KEY_JS_STRING(mode);
@@ -134,14 +134,22 @@ char *get_all_keys_for_file(int *fds,int index,int mode,HashTable *index_file)
 	int i;
 	for(i = 0; i < all_keys.length; i++){
 		switch(all_keys.keys[i].type){
+#if defined(__linux__) || defined(__APPLE__)
 		case STR:
+#elif defined(_WIN32) || defined(_WIN64)
+		case STR_KEY:
+#endif
 		{
 			if(all_keys.keys[i].k.s){
 				str_size += strlen(all_keys.keys[i].k.s);
 			}
 			break;
 		}
+#if defined(__linux__) || defined(__APPLE__)
 		case UINT:
+#elif defined(_WIN32) || defined(_WIN64)
+		case UINT_KEY:
+#endif
 		{
 			if(all_keys.keys[i].size == 16){
 				str_size += number_of_digit(all_keys.keys[i].k.n16);
@@ -177,7 +185,11 @@ char *get_all_keys_for_file(int *fds,int index,int mode,HashTable *index_file)
 	ind_str= 2 -1;
 	for(i = 0; i < all_keys.length; i++){
 		switch(all_keys.keys[i].type){
+#if defined(__linux__) || defined(__APPLE__)
 		case STR:
+#elif defined(_WIN32) || defined(_WIN64)
+		case STR_KEY:
+#endif
 		{
 			size_t l = strlen(all_keys.keys[i].k.s);
 			if(all_keys.keys[i].k.s){
@@ -203,7 +215,11 @@ char *get_all_keys_for_file(int *fds,int index,int mode,HashTable *index_file)
 			}
 			break;
 		}
+#if defined(__linux__) || defined(__APPLE__)
 		case UINT:
+#elif defined(_WIN32) || defined(_WIN64)
+		case UINT_KEY:
+#endif
 		{
 			if(all_keys.keys[i].size == 16){
 				if(mode == MAKE_KEY_JS_STRING){

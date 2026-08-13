@@ -372,8 +372,8 @@ int main(int argc, char *argv[])
 			key.close(&key);
 		}
 
-		int fds[3];
-		memset(fds,-1,sizeof(int)* 3);
+		file_t fds[3];
+		INIT_FILE_T_ARRAY(fds,3);
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 		if (only_dat) {
 			if(open_files(cpy_fp, fds, files,CREATE_ONLY_DATA) == -1)
@@ -659,7 +659,13 @@ int main(int argc, char *argv[])
 						}
 
 						ui32 n = (ui32)k;
-						if (!set((void *)&n, UINT, offset, &ht)) {
+
+#if defined(__linux__) || defined(__APPLE__)
+						if (!set((void *)&n, UINT, offset, &ht)) 
+#elif defined(_WIN32) || defined(_WIN64)
+						if (!set((void *)&n, UINT_KEY, offset, &ht)) 
+#endif
+						{
 							destroy_hasht(&ht);
 							goto clean_on_error_2;
 						}
@@ -667,10 +673,21 @@ int main(int argc, char *argv[])
 					} else {
 						int key_type = 0;
 						void *key_conv = key_converter(kcpy, &key_type);
-						if (key_type == UINT && !key_conv) {
+#if defined(__linux__) || defined(__APPLE__)
+						if (key_type == UINT && !key_conv) 
+#elif defined(_WIN32) || defined(_WIN64)
+						if (key_type == UINT_KEY && !key_conv) 
+#endif
+						{
 							fprintf(stderr, "(%s): error to convert key.\n",prog);
 							goto clean_on_error_2;
-						} else if (key_type == UINT) {
+						}
+#if defined(__linux__) || defined(__APPLE__)
+						 else if (key_type == UINT) 
+#elif defined(_WIN32) || defined(_WIN64)
+						 else if (key_type == UINT_KEY) 
+#endif
+						 {
 							if (key_conv) {
 								if (!set(key_conv, key_type, offset, &ht)) {
 									free(key_conv);
@@ -678,7 +695,13 @@ int main(int argc, char *argv[])
 								}
 								free(key_conv);
 							}
-						} else if (key_type == STR) {
+						} 
+#if defined(__linux__) || defined(__APPLE__)
+						else if (key_type == STR) 
+#elif defined(_WIN32) || defined(_WIN64)
+						else if (key_type == STR_KEY) 
+#endif
+						{
 							/*create a new key value pair in the hash table*/
 							if (!set((void *)kcpy, key_type, offset, &ht)) {
 								destroy_hasht(&ht);
@@ -813,8 +836,8 @@ int main(int argc, char *argv[])
 		/* if we cannot aquire the lock the program will exit	*/
 		/* ====================================================	*/
 		
-		int fds[3];
-		memset(fds,-1,sizeof(int)*3);
+		file_t fds[3];
+		INIT_FILE_T_ARRAY(fds,3);
 		char files[3][MAX_FILE_PATH_LENGTH] = {0};  
 		/* init the Schema structure*/
 		struct Schema sch;
