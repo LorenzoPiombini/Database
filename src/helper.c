@@ -11,7 +11,7 @@
 #include "debug.h"
 
 static char prog[] = "db";
-unsigned char create_empty_file(file_t fd_schema, HANDLE fd_index, int bucket_ht)
+unsigned char create_empty_file(file_t fd_schema, file_t fd_index, int bucket_ht)
 {
 
 	struct Schema sch;
