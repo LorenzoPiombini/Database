@@ -1,19 +1,105 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
+
+#if defined(__linux__) || (__APPLE__)
+
+	#include <unistd.h>
+	#include <sys/wait.h>
+/*for now keep the lua env only in Linux*/
+
+#elif defined(_WIN32) || defined (_WIN64)
+
+	#include <windows.h>
+
+#endif
+
 #include "db_types.h"
 #include "test.h"
 #include "record.h"
 #include "common.h"
 #include "key.h"
 #include "file.h"
-#include "export_db_lua.h"
 #include "crud.h"
 #include "str_op.h"
 #include "lock.h"
-#include "lua_start.h"
+
+#if defined(_WIN32) || defined(_WIN64)
+
+int lock_file_test_WINDOWS(file_t *fds)
+{
+	STARTUPINFOA startup_info;
+	PROCESS_INFORMATION proc_info;
+
+	memset(&startup_info,0,sizeof(startup_info));
+	memset(&proc_info,0,sizeof(proc_info));
+
+	startup_info.cb = sizeof(proc_info);
+
+	char command[256] = {0};
+	if(sprintf_s(command,256,".\\test_suite.exe --child %Iu %Iu %Iu",
+				(ULONG_PTR)fds[0],
+				(ULONG_PTR)fds[1],
+				(ULONG_PTR)fds[2]) == -1){
+		/*sprintf_s failed*/
+		fprintf(stderr,"sprintf_s() failed, %s:%d.\n",__FILE__,__LINE__-5);
+		return -1;
+
+	}
+
+	if(!CreateProcessA(
+				NULL,
+				command,
+				NULL,
+				NULL,
+				TRUE,
+				0,
+				NULL,
+				NULL,
+				&startup_info,
+				&proc_info)){
+		/*child process creation failed*/
+		
+		char buffer[1024] = {0};
+		DWORD systemResult = FormatMessageA(
+				FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+				NULL,
+				GetLastError(),
+				MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+				buffer,
+				1024,
+				NULL
+				);
+		fprintf(stderr,"CreateProcessA failed wirh '%s'\n",buffer);
+		return -1;
+	}
+
+	DWORD wait_result = WaitForSingleObject(proc_info.hProcess,INFINITE);
+	if(wait_result == WAIT_FAILED){
+		CloseHandle(proc_info.hProcess);
+		CloseHandle(proc_info.hThread);
+		fprintf(stderr,"WaitForSingleObject() failed, %s:%d.\n",__FILE__,__LINE__-4);
+		return -1;
+	}
+
+	DWORD exit_status = 0;
+	if(GetExitCodeProcess(proc_info.hProcess,&exit_status)){
+		CloseHandle(proc_info.hProcess);
+		CloseHandle(proc_info.hThread);
+		
+		if(exit_status == 0) return 0;
+
+		return -1;
+	}
+
+	CloseHandle(proc_info.hProcess);
+	CloseHandle(proc_info.hThread);
+	return -1;
+}
+
+#endif
+
+
 
 int DB_test_count_fields()
 {
@@ -27,7 +113,7 @@ int DB_test_count_fields()
 	return 0;
 }
 
-int DB_test_combine_old_and_new_rec(struct Schema *s,int *fds,char files[3][MAX_FILE_PATH_LENGTH], char *file_name)
+int DB_test_combine_old_and_new_rec(struct Schema *s,file_t *fds,char files[3][MAX_FILE_PATH_LENGTH], char *file_name)
 {
 	struct Record_f rec_old = {0};
 	struct Record_f rec_new = {0};
@@ -76,7 +162,7 @@ clean_on_failure:
 	return -1;
 }
 
-int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH],int *fds)
+int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH],file_t *fds)
 {
 	struct Schema sch_in = {0};
 	/*this creates a file named test, and give a definitions*/
@@ -105,10 +191,12 @@ clean_on_failure:
 	delete_file(3,files[0],files[1],files[2]);
 	return -1;
 }
+
 int CRUD_test_check_data()
 {
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
+
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};
 	struct Record_f rec = {0};
 	struct Schema sch = {0};
@@ -153,17 +241,23 @@ clean_on_failure:
 }
 
 int create_file_test(){
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};
 
 	if(open_files("./test",fds,files,CREATE_FILE) == -1){
 		return -1;
 	}
 
+#if defined(__linux__) || (__APPLE__)
 	FILE *fp = popen("ls -l","r");
+#elif defined(_WIN32) || defined(_WIN64)
+	FILE *fp = popen("dir","r");
+#endif
+
 	if(!fp){
 		close_file(3,fds[0],fds[1],fds[2]);
+		delete_file(3,files[0],files[1],files[2]);
 		return -1;
 	}
 
@@ -212,8 +306,8 @@ int delete_file_test(char files_name[3][MAX_FILE_PATH_LENGTH]){
 int lock_file_test()
 {
 
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};
 
 
@@ -228,6 +322,14 @@ int lock_file_test()
 		return -1;
 	}	
 
+#if defined(_WIN32) || defined(_WIN64)
+	if(lock_file_test_WINDOWS(fds) == -1){
+		release_lock(fds,-1);
+		close_file(3,fds[0],fds[1],fds[2]);
+		delete_file(3,files[0],files[1],files[2]);
+		return -1;
+	}
+#elif defined(__linux__) || defined(__APPLE__)
 	
 	int wstatus;
 	pid_t child = fork(), w;
@@ -272,12 +374,15 @@ int lock_file_test()
 		   return -1;
 	   }
    } while (!WIFEXITED(wstatus));
+#endif
+
    release_lock(fds,-1);
    close_file(3,fds[0],fds[1],fds[2]);
    delete_file(3,files[0],files[1],files[2]);
    return 0;
 }
 
+#if defined(__linux__) || (__APPLE__)
 int LUA_test_save_key_at_index_chache(struct Schema *sch)
 {
 	lua_pushboolean(L,0);
@@ -350,6 +455,7 @@ clean_on_failure:
 	return -1;
 
 }
+
 int LUA_test_save_key_at_index(struct Schema *sch)
 {
 	char *func = "create_rec";
@@ -1049,4 +1155,4 @@ clean_on_failure:
 	return -1;
 }
 
-
+#endif

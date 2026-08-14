@@ -7,8 +7,31 @@
 #define REGULAR_TEXT "\033[0m"
 
 static char prog[] = "test_suite";
-int main()
-{
+#if defined(__linux__) || (__APPLE__)
+int main(){
+#elif defined(_WIN32) || defined (_WIN64)
+#include "lock.h"
+int main(int argc, char **argv){
+
+	if(argc >= 5 && (strncmp(argv[1],"--child",7) == 0)){
+		file_t fds[3];
+		INIT_FILE_T_ARRAY(fds,3);
+		fds[0] = (file_t) _strtoui64(argv[2],NULL,10);
+		fds[1] = (file_t) _strtoui64(argv[3],NULL,10);
+		fds[2] = (file_t) _strtoui64(argv[4],NULL,10);
+
+		/* try to acquire a lock on the same file */
+        if (acquire_lock(fds, -1) == -1) { 
+            /* THIS HAS TO FAIL!! */
+            close_file(3, fds[0], fds[1], fds[2]);
+            ExitProcess(0); // Equivalent to exit(0)
+        }
+        // If it magically acquired the lock, fail with code 1
+        ExitProcess(1);
+	}
+
+#endif
+
 	char failed_test[200][256] = {0};
 	int count = 0, passed = 0, failed = 0;
 	fprintf(stdout,"======== Running test for database ===========\n");
@@ -45,11 +68,12 @@ int main()
 		passed++;
 	}
 
-	init_lua("test/lua/old_test.lua");
 
+#if defined(__linux__) || (__APPLE__)
+	init_lua("test/lua/old_test.lua");
 	/*create a file once for the tests!*/
-	int fds[3];
-	memset(fds,-1,sizeof(int)*3);
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
 	struct Schema sch = {0};
 	char files[3][256] = {0};
 	if(create_file_for_test("./test","field:t_s:integer:t_i:float:t_f:byte:t_b:double:t_d", &sch,files,fds) == -1){
@@ -155,6 +179,9 @@ int main()
 		passed++;
 	}
 	free_schema(&sch);
+	close_lua();
+#endif
+
 	fprintf(stdout,"======== END test for database ===========\n");
 	fprintf(stdout,"(%s): %d tests executed, %s%d tests passed%s, %s%d tests failed%s.\n",
 														prog,
@@ -172,10 +199,8 @@ int main()
 			else
 				fprintf(stderr,"%s%s%s.\n",RED_TEXT,failed_test[i],REGULAR_TEXT);
 		}
-		close_lua();
 		return 0;
 	}
 	fprintf(stderr,"(%s): %sPASSED%s!\n",prog,GREEN_TEXT,REGULAR_TEXT);
-	close_lua();
 	return 0;
 }
