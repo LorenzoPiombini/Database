@@ -21,7 +21,7 @@
 #include "string_utilities.h"
 #include "common.h"
 
-static char prog[] = "db";
+static char *prog = "db";
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type);
 
 HashTable *g_ht = NULL;

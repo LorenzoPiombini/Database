@@ -14,7 +14,7 @@ echo Starting compilation...
 :: Compile each source file into an object file
 for %%f in (%SOURCES%) do (
     echo Compiling %%f...
-    gcc -c %dir%%%f -o %obj%%%~nf.o -Iinclude
+    gcc -g3 -c %dir%%%f -o %obj%%%~nf.o -Iinclude
     
     :: Stop if any compilation fails
     if !ERRORLEVEL! neq 0 (
@@ -23,16 +23,11 @@ for %%f in (%SOURCES%) do (
         goto :error
     )
 )
-
-echo build libraries...
-gcc -shared -o libstrop.dll .\obj\str_op.o .\obj\common.o .\obj\globals.o .\obj\string_utilities.o
-gcc -shared -o libfile.dll .\obj\file.o .\obj\record.o .\obj\date.o .\obj\debug.o .\obj\parse.o .\obj\endian.o .\obj\crud.o .\obj\hash_tbl.o .\obj\lock.o .\obj\input.o .\obj\sort.o -L. -lstrop
-gcc -shared -o libhelper.dll  .\obj\helper.o .\obj\hash_tbl.o .\obj\parse.o -L. -lstrop
-
 echo.
 echo Linking object files into %OUT%...
-%CC% *.o -o %OUT% -L. -lfile -lstrop -lhelper
+%CC% -g3 .\obj\*.o -o %OUT%
 
+copy %OUT% C:\Users\loren\bin\
 if %ERRORLEVEL% neq 0 (
     echo.
     echo Build failed during linking.

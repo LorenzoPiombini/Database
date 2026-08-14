@@ -84,7 +84,7 @@ int create_file(char *fileName, file_t *fd)
 #elif defined(_WIN32)
 	DWORD err = GetFileAttributesA(fileName);
 	if(err !=  INVALID_FILE_ATTRIBUTES){
-		fprintf(stderr,"file %s already exist");
+		fprintf(stderr,"file %s already exist",fileName);
 		return -1;
 	}
 
@@ -11632,14 +11632,14 @@ int buffered_write(file_t *fd, struct Record_f *rec, int update, file_offset rec
 		strncpy(buf,rec->file_name,strlen(rec->file_name));
 		strncat(buf,".dat",strlen(".dat")+1);		
 
+		close_file(1,*fd);
 		if(open_file(buf,1,fd) == -1){ /* open the file back with O_TRUNC*/
 			file_error_handler(1,*fd);
 			close_ram_file(&ram);
 			return -1;
 		}
-			
-		close_file(1,*fd);
 	}
+
 /*TODO undesrtand the logic here!! it seems funny */
 	if(os_write(*fd,ram.mem,ram.size) == -1)
 	{
@@ -11650,7 +11650,7 @@ int buffered_write(file_t *fd, struct Record_f *rec, int update, file_offset rec
 
 	if(update){
 		close_file(1,*fd);
-		if(open_file(buf,1,fd) == -1){ /* open the file back with O_TRUNC*/
+		if(open_file(buf,0,fd) == -1){ /* open the file back with O_TRUNC*/
 			file_error_handler(1,*fd);
 			close_ram_file(&ram);
 			return -1;
