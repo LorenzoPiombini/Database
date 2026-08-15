@@ -945,10 +945,10 @@ int main(int argc, char *argv[])
 				if((err = file_error_handler(1,fds[2])) > 0){
 #if defined(__linux__) || defined(__APPLE__)
 					if(err == ENOENT)
-						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path.base);
 #elif defined(_WIN32) || defined(_WIN64)
 					if(err == ERROR_FILE_NOT_FOUND)
-						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path.base);
 #endif
 				}
 				release_lock(fds,-1);
@@ -1092,10 +1092,10 @@ int main(int argc, char *argv[])
 				if((err=file_error_handler(1,fds[2])) > 0){
 #if defined(__linux__) || defined(__APPLE__)
 					if(err == ENOENT)
-						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path.base);
 #elif defined(_WIN32) || defined(_WIN64)
 					if(err == ERROR_FILE_NOT_FOUND)
-						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path.base);
 #endif
 				}
 				goto clean_on_error_5;
@@ -1166,10 +1166,10 @@ int main(int argc, char *argv[])
 							if((err=file_error_handler(1,fds[2])) > 0){
 #if defined(__linux__) || defined(__APPLE__)
 								if(err == ENOENT)
-									fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+									fprintf(stderr,"(%s): '%s' does not exist",prog,file_path.base);
 #elif defined(_WIN32) || defined(_WIN64)
 								if(err == ERROR_FILE_NOT_FOUND)
-									fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+									fprintf(stderr,"(%s): '%s' does not exist",prog,file_path.base);
 #endif
 							}
 
