@@ -68,6 +68,13 @@ int main(int argc, char **argv){
 		passed++;
 	}
 
+	count++;
+	if(CRUD_test_write_record() == -1){
+		strncpy(failed_test[failed],"CRUD_tes_write_record()",strlen("CRUD_test_write_record()"));
+		failed++;
+	}else{
+		passed++;
+	}
 
 #if defined(__linux__) || (__APPLE__)
 	init_lua("test/lua/old_test.lua");

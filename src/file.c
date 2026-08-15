@@ -245,7 +245,7 @@ void close_file(int count, ...)
 	int i;
 	for(i = 0; i < count; i++){
 		file_t h = va_arg(args,file_t);
-		if(h != INVALID_HANDLE_VALUE){
+		if(h != INVALID_HANDLE_VALUE && h){
 			if(!CloseHandle(h))
 				fails++;
 		}
@@ -7143,7 +7143,7 @@ int file_error_handler(int count, ...)
 #if defined(__linux__) || defined(__APPLE__)
 			if(fds[x] != -1 && fds[x] > 2) close(fds[x]);
 #elif defined(_WIN32)
-			if(handles[x] !=  INVALID_HANDLE_VALUE)
+			if(handles[x] !=  INVALID_HANDLE_VALUE && handles[x])
 				CloseHandle(handles[x]);
 #endif
 	   } 

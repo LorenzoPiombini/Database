@@ -7,6 +7,7 @@
 #include <stdarg.h>
 
 #if defined(__linux__) || defined(__APPLE__)
+/*for now keep the lua env only in Linux*/
 	#include "export_db_lua.h"
 	#include "lua_start.h"
 	#ifdef FEDORA 
@@ -28,6 +29,7 @@ int create_file_test();
 int delete_file_test(char files_name[3][MAX_FILE_PATH_LENGTH]);
 int lock_file_test();
 int CRUD_test_check_data();
+int CRUD_test_write_record();
 
 /*LUA just keep it for Linux for now*/
 #if defined(__linux__) || defined(__APPLE__)

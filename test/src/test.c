@@ -2,11 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__linux__) || (__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
 
 	#include <unistd.h>
 	#include <sys/wait.h>
-/*for now keep the lua env only in Linux*/
 
 #elif defined(_WIN32) || defined (_WIN64)
 
@@ -24,7 +23,9 @@
 #include "str_op.h"
 #include "lock.h"
 
+char prog[] = "test_suite";
 #if defined(_WIN32) || defined(_WIN64)
+
 
 int lock_file_test_WINDOWS(file_t *fds)
 {
@@ -192,6 +193,105 @@ clean_on_failure:
 	return -1;
 }
 
+int CRUD_test_write_record()
+{
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
+
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	struct Record_f rec = {0};
+	struct Schema sch = {0};
+	char *file_name = "person";
+    char *data_to_add = "name:A person:last_name:Incognito:phone:+1900-000-0000";
+
+	/*this creates a file named test, and give a definitions*/
+	if(open_files(file_name,fds,files,CREATE_FILE) == -1){
+		return -1;
+	}
+
+	if(!create_file_definition_with_no_value(TYPE_DF,3,
+				"name:t_s:last_name:t_s:phone:t_s:",
+				&sch)) goto clean_on_failure;
+
+
+	struct Header_d hd = {0, 0, &sch};
+	if (!create_header(&hd)) goto clean_on_failure;
+
+	if (!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	int lock_f = 0, check = 0;
+	if((check = check_data(file_name,data_to_add,fds,files, &rec,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
+
+	if(check != SCHEMA_EQ) goto clean_on_failure;
+
+	i64 k = generate_numeric_key(fds,INCREM,-1,NULL);
+	if(k == -1){
+		fprintf(stderr,"increment key failed. %s:%d\n",__FILE__,__LINE__-2);
+		goto clean_on_failure;
+	}
+
+	if(k > (i64)(MAX_KEY-1)){
+		fprintf(stderr,"(%s): key is out of range.\n",prog);
+		goto clean_on_failure;
+	}
+
+	int n = (ui32)k;
+
+#if defined(__linux__) || defined(__APPLE__)
+	if(write_record(fds,(void *)&n, UINT, &rec, 0, files, &lock_f, -1,hd.sch_d) == -1) goto clean_on_failure;
+#elif defined(_WIN32) || defined(_WIN64)
+	if(write_record(fds,(void *)&n, UINT_KEY, &rec, 0, files, &lock_f, -1,hd.sch_d) == -1) goto clean_on_failure;
+#endif
+	
+	
+	/*
+	 * it is important closing the file here
+	 * due tue Windows inner working
+	 * */
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	INIT_FILE_T_ARRAY(fds,3);
+
+	/*CHeck the stdout*/
+	FILE *fp = popen("isam_db.exe -lf person","r");
+	if(!fp) goto clean_on_failure;
+
+
+	int count = 0;
+	char buffer[1024*4];
+	while(fgets(buffer,1024*4,fp) != NULL){
+		if(strstr(buffer, "name") 
+			|| strstr(buffer,"last_name") 
+			|| strstr(buffer,"phone")
+			|| strstr(buffer,"A person")
+			|| strstr(buffer,"Incognito")
+			|| strstr(buffer,"+1900-000-0000"))
+			count++;
+	}
+
+	pclose(fp);
+	if(count != 6) goto clean_on_failure;
+
+	if(lock_f) 
+		release_lock(fds,lock_f);
+	free_record(&rec,rec.fields_num);
+	free_schema(&sch);
+	delete_file(3,files[0],files[1],files[2]);
+	return 0;
+
+clean_on_failure:
+	if(rec.fields)
+		free_record(&rec,rec.fields_num);
+	if(sch.fields_name)
+		free_schema(&sch);
+
+	if(lock_f) 
+		release_lock(fds,lock_f);
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	delete_file(3,files[0],files[1],files[2]);
+	return -1;
+}
 int CRUD_test_check_data()
 {
 	file_t fds[3];
