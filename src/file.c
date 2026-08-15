@@ -27,9 +27,11 @@ static size_t get_disk_size_record(struct Record_f *rec);
 static void move_ram_file_ptr(struct Ram_file *ram,size_t size);
 static size_t get_string_size(file_t fd, struct Ram_file *ram);
 
+static int ERROR_CODE_FILE_OPERATION = 0;
 
 int open_file(char *fileName, int use_trunc, file_t *fd)
 {
+	ERROR_CODE_FILE_OPERATION = 0;
 #if defined(__linux__) || defined(__APPLE__)
 	errno = 0;
 	if (!use_trunc) {
@@ -56,7 +58,10 @@ int open_file(char *fileName, int use_trunc, file_t *fd)
 	}
 
 	*fd = (file_t)CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
-	if(!(*fd) || *fd == INVALID_HANDLE_VALUE) return -1;
+	if(!(*fd) || *fd == INVALID_HANDLE_VALUE){
+		ERROR_CODE_FILE_OPERATION = GetLastError();
+		return -1;
+	}
 #endif
 	return 0;
 }
@@ -64,6 +69,7 @@ int open_file(char *fileName, int use_trunc, file_t *fd)
 int create_file(char *fileName, file_t *fd)
 {
 
+	ERROR_CODE_FILE_OPERATION = 0;
 #if defined(__linux__) || defined(__APPLE__)
 	*fd = open(fileName, O_RDONLY);
 	if (*fd != STATUS_ERROR) {
@@ -84,7 +90,7 @@ int create_file(char *fileName, file_t *fd)
 #elif defined(_WIN32)
 	DWORD err = GetFileAttributesA(fileName);
 	if(err !=  INVALID_FILE_ATTRIBUTES){
-		fprintf(stderr,"file %s already exist",fileName);
+		fprintf(stderr,"file already exist\n");
 		return -1;
 	}
 
@@ -94,7 +100,12 @@ int create_file(char *fileName, file_t *fd)
 								CREATE_NEW,
 								FILE_ATTRIBUTE_NORMAL,
 								NULL);
-	if(fd == NULL || fd == INVALID_HANDLE_VALUE) return -1;
+
+
+	if(fd == NULL || fd == INVALID_HANDLE_VALUE){
+		ERROR_CODE_FILE_OPERATION = GetLastError();
+		return -1;
+	}
 	return 0;
 #endif
 }
@@ -233,6 +244,20 @@ file_offset get_file_size(file_t fd, char *file_name)
 	/*END OF LINUX SPECIFIC CODE*/
 #elif defined(_WIN32) 
 
+
+
+int error_to_string(ui64 error,char *buffer){
+	DWORD systemResult = FormatMessageA(
+			FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL,
+			error,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			buffer,
+			1024,
+			NULL
+			);
+	return 0;
+}
 
 
 void close_file(int count, ...)
@@ -7108,9 +7133,12 @@ int file_error_handler(int count, ...)
 	va_list args;
 	va_start(args, count);
 #if defined(__linux__) || defined(__APPLE__)
-	int fds[count];
+	file_t fds[count];
+	INIT_FILE_T_ARRAY(fds,count);
 #elif defined(_WIN32)
-	HANDLE handles[count];
+	file_t handles[count];
+	INIT_FILE_T_ARRAY(handles,count);
+	
 #endif
 	int i = 0, j = 0;
 
@@ -7118,12 +7146,13 @@ int file_error_handler(int count, ...)
 	for (i = 0; i < count; i++) {
 #if defined(__linux__) || defined(__APPLE__)
 		int fd = va_arg(args, int);
-		if (fd == STATUS_ERROR) 
+		if (fd == STATUS_ERROR){
 #elif defined(_WIN32)
 		HANDLE file_handle = va_arg(args,HANDLE);
-		if (file_handle == INVALID_HANDLE_VALUE)
+		if (file_handle == INVALID_HANDLE_VALUE){
+			err++;
 #endif
-		{
+		
 			j++;
 			continue;
 		}
@@ -7141,7 +7170,7 @@ int file_error_handler(int count, ...)
 		int x;
 		for(x = 0 ;x < count; x++){
 #if defined(__linux__) || defined(__APPLE__)
-			if(fds[x] != -1 && fds[x] > 2) close(fds[x]);
+			if(fds[x] > 2) close(fds[x]);
 #elif defined(_WIN32)
 			if(handles[x] !=  INVALID_HANDLE_VALUE && handles[x])
 				CloseHandle(handles[x]);
@@ -7152,7 +7181,7 @@ int file_error_handler(int count, ...)
 	if(err > 0) return ENOENT;	
 	if(exist > 0) return EEXIST;	
 #elif defined(_WIN32)
-	if(err > 0) return ERROR_FILE_NOT_FOUND;	
+	if(err > 0) return ERROR_CODE_FILE_OPERATION;	
 #endif
 	return j;
 }

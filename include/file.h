@@ -96,6 +96,7 @@ void free_cache(struct Cache *c);
 
 #include <windows.h>
 
+int error_to_string(ui64 error,char *buffer);
 int cache_file(file_t *fd,char *file_name,struct Schema *sch,struct Cache *c,HashTable *cache_register,int cache_pos);
 int buffered_write(file_t *file_handle, struct Record_f *rec, int update, file_offset rec_ram_file_pos, file_offset offset);
 int get_all_record(file_t file_handle, struct Ram_file *ram);

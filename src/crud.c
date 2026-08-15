@@ -582,12 +582,21 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			{
 				if(create_file(files[2],&fds[2]) == -1){
 					err = file_error_handler(1,fds[2]);
-					if(err == ENOENT)
-						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-					else if(err == EEXIST)
-						fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
-					else
-						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
+#if defined(__linux__) || defined(__APPLE__)
+					switch(err){
+					case ENOENT: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case EEXIST: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#elif defined(_WIN32) || defined(_WIN64)
+					switch(err){
+					case ERROR_FILE_NOT_FOUND: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case ERROR_SHARING_VIOLATION: fprintf(stderr,"(%s): File '%s' already in use.\n",prog,file_name);break;
+					case ERROR_ACCESS_DENIED: fprintf(stderr,"(%s): You don't have permissions to open file '%s' .\n",prog,file_name);break;
+					case ERROR_ALREADY_EXISTS: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#endif
 
 					return STATUS_ERROR;
 				}	
@@ -598,13 +607,21 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 				if(create_file(files[1],&fds[1]) == -1 ||
 					create_file(files[2],&fds[2]) == -1){
 					err = file_error_handler(2, fds[1],fds[2]);
-					if(err == ENOENT)
-						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-					else if(err == EEXIST)
-						fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
-					else
-						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
-
+#if defined(__linux__) || defined(__APPLE__)
+					switch(err){
+					case ENOENT: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case EEXIST: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#elif defined(_WIN32) || defined(_WIN64)
+					switch(err){
+					case ERROR_FILE_NOT_FOUND: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case ERROR_SHARING_VIOLATION: fprintf(stderr,"(%s): File '%s' already in use.\n",prog,file_name);break;
+					case ERROR_ACCESS_DENIED: fprintf(stderr,"(%s): You don't have permissions to open file '%s' .\n",prog,file_name);break;
+					case ERROR_ALREADY_EXISTS: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#endif
 					return STATUS_ERROR;
 				}	
 				break;
@@ -613,11 +630,21 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			{
 				if( open_file(files[2], 0,&fds[2]) == -1){
 					err = file_error_handler(1,fds[2]);
-					if(err == ENOENT)
-						fprintf(stderr,"(%s): File '%s' doesn't exist. %s:%d\n",prog,file_name,__FILE__,__LINE__-2);
-					else
-						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
-
+#if defined(__linux__) || defined(__APPLE__)
+					switch(err){
+					case ENOENT: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case EEXIST: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#elif defined(_WIN32) || defined(_WIN64)
+					switch(err){
+					case ERROR_FILE_NOT_FOUND: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case ERROR_SHARING_VIOLATION: fprintf(stderr,"(%s): File '%s' already in use.\n",prog,file_name);break;
+					case ERROR_ACCESS_DENIED: fprintf(stderr,"(%s): You don't have permissions to open file '%s' .\n",prog,file_name);break;
+					case ERROR_ALREADY_EXISTS: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#endif
 					return STATUS_ERROR;
 				}
 
@@ -627,11 +654,21 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			{
 				if(open_file(files[0], 0,&fds[0]) == -1){
 					err = file_error_handler(1,fds[0]);
-					if(err == ENOENT)
-						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-					else
-						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
-
+#if defined(__linux__) || defined(__APPLE__)
+					switch(err){
+					case ENOENT: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case EEXIST: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#elif defined(_WIN32) || defined(_WIN64)
+					switch(err){
+					case ERROR_FILE_NOT_FOUND: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case ERROR_SHARING_VIOLATION: fprintf(stderr,"(%s): File '%s' already in use.\n",prog,file_name);break;
+					case ERROR_ACCESS_DENIED: fprintf(stderr,"(%s): You don't have permissions to open file '%s' .\n",prog,file_name);break;
+					case ERROR_ALREADY_EXISTS: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#endif
 					return STATUS_ERROR;
 				}
 				return 0;
@@ -640,11 +677,21 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 			{
 				if(open_file(files[1],0,&fds[1]) == -1){
 					err = file_error_handler(1,fds[1]);
-					if(err == ENOENT)
-						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-					else
-						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 5);
-
+#if defined(__linux__) || defined(__APPLE__)
+					switch(err){
+					case ENOENT: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case EEXIST: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#elif defined(_WIN32) || defined(_WIN64)
+					switch(err){
+					case ERROR_FILE_NOT_FOUND: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case ERROR_SHARING_VIOLATION: fprintf(stderr,"(%s): File '%s' already in use.\n",prog,file_name);break;
+					case ERROR_ACCESS_DENIED: fprintf(stderr,"(%s): You don't have permissions to open file '%s' .\n",prog,file_name);break;
+					case ERROR_ALREADY_EXISTS: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#endif
 					return STATUS_ERROR;
 				}
 				return 0;
@@ -655,13 +702,21 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 					|| create_file(files[1],&fds[1]) == -1
 					|| create_file(files[2],&fds[2]) == -1) {
 					err = file_error_handler(3, fds[0],fds[1],fds[2]);
-					if(err == ENOENT)
-						fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-					else if(err == EEXIST)
-						fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);
-					else
-						printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);
-
+#if defined(__linux__) || defined(__APPLE__)
+					switch(err){
+					case ENOENT: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case EEXIST: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#elif defined(_WIN32) || defined(_WIN64)
+					switch(err){
+					case ERROR_FILE_NOT_FOUND: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case ERROR_SHARING_VIOLATION: fprintf(stderr,"(%s): File '%s' already in use.\n",prog,file_name);break;
+					case ERROR_ACCESS_DENIED: fprintf(stderr,"(%s): You don't have permissions to open file '%s' .\n",prog,file_name);break;
+					case ERROR_ALREADY_EXISTS: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#endif
 					return STATUS_ERROR;
 				}	
 
@@ -699,14 +754,23 @@ int open_files(char *file_name, file_t *fds, char files[3][MAX_FILE_PATH_LENGTH]
 				|| 	open_file(files[1], 0, &fds[1]) == -1
 				||	open_file(files[2], 0, &fds[2]) == -1){
 
-			/*TODO: make error for windows */
 			/* file_error_handler will close the file descriptors if there are issues */
 				err = file_error_handler(3, fds[0],fds[1],fds[2]);
-				if(err == ENOENT)
-					fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);
-				else
-					printf("(%s): Error in creating or opening files, %s:%d.\n",prog, __FILE__, __LINE__ - 2);
-
+#if defined(__linux__) || defined(__APPLE__)
+					switch(err){
+					case ENOENT: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case EEXIST: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#elif defined(_WIN32) || defined(_WIN64)
+					switch(err){
+					case ERROR_FILE_NOT_FOUND: fprintf(stderr,"(%s): File '%s' doesn't exist.\n",prog,file_name);break;
+					case ERROR_SHARING_VIOLATION: fprintf(stderr,"(%s): File '%s' already in use.\n",prog,file_name);break;
+					case ERROR_ACCESS_DENIED: fprintf(stderr,"(%s): You don't have permissions to open file '%s' .\n",prog,file_name);break;
+					case ERROR_ALREADY_EXISTS: fprintf(stderr,"(%s): File '%s' already exist.\n",prog,file_name);break;
+					default: printf("(%s): Error in creating or opening files, %s:%d.\n",prog, F, L - 2);break;
+					}
+#endif
 				return STATUS_ERROR;
 			}
 			break;

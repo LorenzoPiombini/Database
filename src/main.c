@@ -941,7 +941,16 @@ int main(int argc, char *argv[])
 
 			close_file(1,fds[2]);
 			if(open_file(files[2],1,&fds[2]) == -1){ /* truncate*/
-				file_error_handler(1,fds[2]);
+				int err = 0;
+				if((err = file_error_handler(1,fds[2])) > 0){
+#if defined(__linux__) || defined(__APPLE__)
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+#elif defined(_WIN32) || defined(_WIN64)
+					if(err == ERROR_FILE_NOT_FOUND)
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+#endif
+				}
 				release_lock(fds,-1);
 				close_file(3, fds[0], fds[1],fds[2]);
 				return STATUS_ERROR;
@@ -1079,7 +1088,16 @@ int main(int argc, char *argv[])
 
 			close_file(1,fds[2]);
 			if( open_file(files[2],1,&fds[2]) == -1){
-				file_error_handler(1,fds[2]);
+				int err = 0;
+				if((err=file_error_handler(1,fds[2])) > 0){
+#if defined(__linux__) || defined(__APPLE__)
+					if(err == ENOENT)
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+#elif defined(_WIN32) || defined(_WIN64)
+					if(err == ERROR_FILE_NOT_FOUND)
+						fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+#endif
+				}
 				goto clean_on_error_5;
 			}
 
@@ -1144,7 +1162,17 @@ int main(int argc, char *argv[])
 						close_file(1, fds[0]);
 						/*opening with O_TRUNC*/
 						if(open_file(files[0], 1,&fds[0]) == -1){
-							file_error_handler(1,fds[0]);
+							int err = 0;
+							if((err=file_error_handler(1,fds[2])) > 0){
+#if defined(__linux__) || defined(__APPLE__)
+								if(err == ENOENT)
+									fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+#elif defined(_WIN32) || defined(_WIN64)
+								if(err == ERROR_FILE_NOT_FOUND)
+									fprintf(stderr,"(%s): '%s' does not exist",prog,file_path);
+#endif
+							}
+
 							goto option_clean_on_error;
 						}
 
