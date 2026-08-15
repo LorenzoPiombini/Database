@@ -219,7 +219,7 @@ int CRUD_test_write_record()
 
 	if (!write_header(fds[2], &hd)) goto clean_on_failure;
 
-	int lock_f = 0, check = 0;
+	int lock_f = STD_LOCK, check = 0;
 	if((check = check_data(file_name,data_to_add,fds,files, &rec,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
 
 	if(check != SCHEMA_EQ) goto clean_on_failure;
@@ -253,27 +253,26 @@ int CRUD_test_write_record()
 	INIT_FILE_T_ARRAY(fds,3);
 
 	/*CHeck the stdout*/
-	FILE *fp = popen("isam_db.exe -lf person","r");
+#if defined(_WIN32) || defined(_WIN64)
+	FILE *fp = popen("isam_db.exe -f person -k 1","r");
+#elif defined(__linux__) || defined(__APPLE__)
+	FILE *fp = popen("SHOW person 1","r");
+#endif
+
 	if(!fp) goto clean_on_failure;
 
 
 	int count = 0;
 	char buffer[1024*4];
 	while(fgets(buffer,1024*4,fp) != NULL){
-		if(strstr(buffer, "name") 
-			|| strstr(buffer,"last_name") 
-			|| strstr(buffer,"phone")
-			|| strstr(buffer,"A person")
-			|| strstr(buffer,"Incognito")
-			|| strstr(buffer,"+1900-000-0000"))
-			count++;
+		if(strstr(buffer, "name") && strstr(buffer,"A person")) count++;
+		if(strstr(buffer,"last_name") && strstr(buffer,"Incognito")) count++;
+		if(strstr(buffer,"phone") && strstr(buffer,"+1900-000-0000")) count++;
 	}
 
 	pclose(fp);
-	if(count != 6) goto clean_on_failure;
+	if(count != 3) goto clean_on_failure;
 
-	if(lock_f) 
-		release_lock(fds,lock_f);
 	free_record(&rec,rec.fields_num);
 	free_schema(&sch);
 	delete_file(3,files[0],files[1],files[2]);
@@ -284,9 +283,6 @@ clean_on_failure:
 		free_record(&rec,rec.fields_num);
 	if(sch.fields_name)
 		free_schema(&sch);
-
-	if(lock_f) 
-		release_lock(fds,lock_f);
 
 	close_file(3,fds[0],fds[1],fds[2]);
 	delete_file(3,files[0],files[1],files[2]);
