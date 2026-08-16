@@ -51,13 +51,12 @@ int open_file(char *fileName, int use_trunc, file_t *fd)
 	if(!use_trunc){
 		access = GENERIC_WRITE | GENERIC_READ;
 		creation = OPEN_EXISTING;
-
 	}else{
 		access = GENERIC_WRITE | GENERIC_READ;
 		creation = TRUNCATE_EXISTING;
 	}
 
-	*fd = (file_t)CreateFileA(fileName,access,0,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
+	*fd = (file_t)CreateFileA(fileName,access,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL,creation,FILE_ATTRIBUTE_NORMAL,NULL);
 	if(!(*fd) || *fd == INVALID_HANDLE_VALUE){
 		ERROR_CODE_FILE_OPERATION = GetLastError();
 		return -1;
