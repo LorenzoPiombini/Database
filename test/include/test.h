@@ -44,7 +44,7 @@ int LUA_test_w_rec_cache(struct Schema *sch);
 int LUA_port_table_to_record_test();
 int LUA_test_write_customer_cache();
 #elif defined(_WIN32) || defined (_WIN64)
-int lock_file_test_WINDOWS(file_t *fds);
+int lock_file_test_WINDOWS();
 #endif
 
 #endif

@@ -27,7 +27,7 @@ char prog[] = "test_suite";
 #if defined(_WIN32) || defined(_WIN64)
 
 
-int lock_file_test_WINDOWS(file_t *fds)
+int lock_file_test_WINDOWS()
 {
 	STARTUPINFOA startup_info;
 	PROCESS_INFORMATION proc_info;
@@ -35,22 +35,11 @@ int lock_file_test_WINDOWS(file_t *fds)
 	memset(&startup_info,0,sizeof(startup_info));
 	memset(&proc_info,0,sizeof(proc_info));
 
+	
 	startup_info.cb = sizeof(proc_info);
-
-	char command[256] = {0};
-	if(sprintf_s(command,256,".\\test_suite.exe --child %Iu %Iu %Iu",
-				(ULONG_PTR)fds[0],
-				(ULONG_PTR)fds[1],
-				(ULONG_PTR)fds[2]) == -1){
-		/*sprintf_s failed*/
-		fprintf(stderr,"sprintf_s() failed, %s:%d.\n",__FILE__,__LINE__-5);
-		return -1;
-
-	}
-
-	if(!CreateProcessA(
-				NULL,
-				command,
+	
+	char command[] = "isam_db.exe -f person -R alilas:t_s";
+	if(!CreateProcessA( NULL, command,
 				NULL,
 				NULL,
 				TRUE,
@@ -88,7 +77,7 @@ int lock_file_test_WINDOWS(file_t *fds)
 		CloseHandle(proc_info.hProcess);
 		CloseHandle(proc_info.hThread);
 		
-		if(exit_status == 0) return 0;
+		if(exit_status == -1) return 0;
 
 		return -1;
 	}
@@ -402,15 +391,28 @@ int delete_file_test(char files_name[3][MAX_FILE_PATH_LENGTH]){
 int lock_file_test()
 {
 
+	struct Schema sch = {0};
 	file_t fds[3];
 	INIT_FILE_T_ARRAY(fds,3);
 	char files[3][MAX_FILE_PATH_LENGTH] = {0};
 
 
-	if(open_files("./test",fds,files,CREATE_FILE) == -1){
+	char *file_name = "person";
+	if(open_files(file_name,fds,files,CREATE_FILE) == -1){
 		return -1;
 	}
 	
+	if(!create_file_definition_with_no_value(TYPE_DF,3,
+				"name:t_s:last_name:t_s:phone:t_s:",
+				&sch)) goto clean_on_failure;
+
+
+	struct Header_d hd = {0, 0, &sch};
+	if (!create_header(&hd)) goto clean_on_failure;
+
+	if (!write_header(fds[2], &hd)) goto clean_on_failure;
+
+	free_schema(&sch);
 
 	if(acquire_lock(fds,-1) == -1){
 		close_file(3,fds[0],fds[1],fds[2]);
@@ -419,7 +421,7 @@ int lock_file_test()
 	}	
 
 #if defined(_WIN32) || defined(_WIN64)
-	if(lock_file_test_WINDOWS(fds) == -1){
+	if(lock_file_test_WINDOWS() == -1){
 		release_lock(fds,-1);
 		close_file(3,fds[0],fds[1],fds[2]);
 		delete_file(3,files[0],files[1],files[2]);
@@ -471,11 +473,17 @@ int lock_file_test()
 	   }
    } while (!WIFEXITED(wstatus));
 #endif
-
    release_lock(fds,-1);
    close_file(3,fds[0],fds[1],fds[2]);
    delete_file(3,files[0],files[1],files[2]);
    return 0;
+clean_on_failure:
+   if(sch.fields_name) 
+	   free_schema(&sch);
+   release_lock(fds,-1);
+   close_file(3,fds[0],fds[1],fds[2]);
+   delete_file(3,files[0],files[1],files[2]);
+   return -1;
 }
 
 #if defined(__linux__) || (__APPLE__)

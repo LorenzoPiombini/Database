@@ -7,31 +7,7 @@
 #define REGULAR_TEXT "\033[0m"
 
 static char prog[] = "test_suite";
-#if defined(__linux__) || (__APPLE__)
 int main(){
-#elif defined(_WIN32) || defined (_WIN64)
-#include "lock.h"
-int main(int argc, char **argv){
-
-	if(argc >= 5 && (strncmp(argv[1],"--child",7) == 0)){
-		file_t fds[3];
-		INIT_FILE_T_ARRAY(fds,3);
-		fds[0] = (file_t) _strtoui64(argv[2],NULL,10);
-		fds[1] = (file_t) _strtoui64(argv[3],NULL,10);
-		fds[2] = (file_t) _strtoui64(argv[4],NULL,10);
-
-		/* try to acquire a lock on the same file */
-        if (acquire_lock(fds, -1) == -1) { 
-            /* THIS HAS TO FAIL!! */
-            close_file(3, fds[0], fds[1], fds[2]);
-            ExitProcess(0); // Equivalent to exit(0)
-        }
-        // If it magically acquired the lock, fail with code 1
-        ExitProcess(1);
-	}
-
-#endif
-
 	char failed_test[200][256] = {0};
 	int count = 0, passed = 0, failed = 0;
 	fprintf(stdout,"======== Running test for database ===========\n");
@@ -43,7 +19,7 @@ int main(int argc, char **argv){
 	} else{
 		passed++;
 	}
-	
+
 	count++;
 	if(DB_test_count_fields() == -1){
 		strncpy(failed_test[failed],"DB_test_count_fields()",strlen("DB_test_count_fields()"));
@@ -51,7 +27,7 @@ int main(int argc, char **argv){
 	} else{
 		passed++;
 	}
-	
+
 	count++;
 	if(lock_file_test() == -1){
 		strncpy(failed_test[failed],"lock_file_test()",strlen("lock_file_test()"));
@@ -103,7 +79,7 @@ int main(int argc, char **argv){
 	}else{
 		passed++;
 	}
-		
+
 	count++;
 	if(DB_test_combine_old_and_new_rec(&sch,fds,files,"./test") == -1){
 		strncpy(failed_test[failed],"DB_test_combine_old_and_new_rec()",strlen("DB_test_combine_old_and_new_rec()"));
