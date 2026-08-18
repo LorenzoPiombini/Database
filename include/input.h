@@ -10,7 +10,8 @@
 
 void print_usage(char *argv[]);
 
-int check_input_and_values( struct String file_path, 
+int check_input_and_values( struct String schema_def, 
+							struct String file_path, 
 							struct String data_to_add,
 							struct String key,
 							char *argv[],

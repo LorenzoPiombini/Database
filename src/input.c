@@ -51,7 +51,7 @@ void print_types(void)
 		printf("\tTYPE_DATE, unsigned integer, %ld bytes, (%ld bits).\n",sizeof(ui32),8*sizeof(ui32));
 }
 
-int check_input_and_values(struct String file_path, struct String data_to_add, struct String key, char *argv[],
+int check_input_and_values(struct String schema_def, struct String file_path, struct String data_to_add, struct String key, char *argv[],
                           	unsigned char del, 
 							unsigned char list_def, 
 							unsigned char new_file,
@@ -155,6 +155,22 @@ int check_input_and_values(struct String file_path, struct String data_to_add, s
 		return 0;
 	}
 
+	if(list_def && (del 
+				|| !schema_def.is_empty(&schema_def)
+				|| update
+				|| del_file
+				|| new_file 
+				|| modify_schema
+				|| import_from_data
+				|| !key.is_empty(&key)
+				|| !data_to_add.is_empty(&data_to_add) 
+				|| build
+				|| nr_of_record_display
+				|| swap_index)){
+		printf("option -l must be used with -f only.\n");
+		printf("[example]: isam_db -lf a_file.\n");
+		return 0;
+	}
 	if (index_add && (del 
 				|| update
 				|| del_file

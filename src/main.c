@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!check_input_and_values(file_path, 
+	if (!check_input_and_values(schema_def,file_path, 
 				data_to_add,
 				key,
 				argv, 
