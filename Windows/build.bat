@@ -40,6 +40,7 @@ copy %OUT% C:\Users\loren\bin\
 echo.
 echo Creating crud Library.
 move ..\obj\main.o .
+move ..\src\main.c .
 gcc -g3 -shared -o libcrud.dll ..\obj\*.o
 
 if %ERRORLEVEL% neq 0 (
@@ -49,9 +50,38 @@ if %ERRORLEVEL% neq 0 (
 )
 
 move main.o ..\obj\
+echo .
+echo Creating crud object for development
+mkdir obj_static
+cd obj_static
+
+gcc -c ..\..\src\*.c  -I..\..\include
+
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo Cannot create database static library.
+	move main.c ..\..\src\
+    goto :error
+)
+
+
+:: Collect all .o files into a single string variable
+set "OBJ_FILES="
+for %%f in (*.o) do (
+    set "OBJ_FILES=!OBJ_FILES! %%f"
+)
+
+:: Create the static library using the collected files
+echo Creating static library libdb.a...
+ar rcs libdb.a %OBJ_FILES%
+
+move libdb.a ..\
+cd ..\
+del obj_static\*.*
+move main.c ..\src\
 
 :: Make libcrud.dll accessable from everywhere
-copy libcrud.dll C:\Users\loren\bin\
+copy libcrud.dll  C:\Users\loren\bin\
 
 :: build the test suite 
 echo.
