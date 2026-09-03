@@ -59,16 +59,42 @@ int get_week_number(struct tm* time_in)
 	return week_n;
 }
 
-/*TODO*/
 static int detect_date_format(char *date){
-	int i;
-	char *p = date;
-	for(i = 0; *p != '-' && *p; p++,i++);
+	
+	/*detect the dilimeter*/	
+	int res = is_valid_date(date);
+	switch(res){
+	case DOT:
+	{
+		int i;
+		for(i = 0; *p != '.' && *p; p++,i++);
 
-	if(i == 4)
-		return YYYY_MM_DD;
+		if(i == 4)
+			return YYYY_MM_DD;
+		break
+	}
+	case SLASH:
+	{
+		int i;
+		for(i = 0; *p != '\\' && *p; p++,i++);
 
-	return -1;
+		if(i == 4)
+			return YYYY_MM_DD;
+		break
+	}
+	case DASH:
+	{
+		int i;
+		for(i = 0; *p != '.' && *p; p++,i++);
+
+		if(i == 4)
+			return YYYY_MM_DD;
+		break
+	}
+	default:
+		return -1;
+	}
+	return 2;
 }
 
 int convert_date_str(int format, char *str, struct tm* input_date)
@@ -357,7 +383,7 @@ static int is_valid_date(char *date)
 	ui8 dash = 0;
 	ui8 slash = 0;
 	ui8 dot = 0;
-	for(; *p != '\0';p++){
+	for(; *p;p++){
 		if(isalpha(*p)) return -1;
 		if(*p == ' ' || *p == '\t') return -1;
 		if(*p == '\\' || *p == '/') slash++;
@@ -379,6 +405,7 @@ ui32 convert_date_to_number(int format, char *date)
 	long seconds = 0;
 	if(format == -1){
 		format = detect_date_format(date);
+		if(format == -1) return 0;
 	}
 	if((seconds = convert_str_date_to_seconds(date,format)) == -1){
 		fprintf(stderr,"convert_str_date_to_seconds failed, %s:%d\n",__FILE__,__LINE__-1);
