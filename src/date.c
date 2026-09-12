@@ -67,29 +67,32 @@ static int detect_date_format(char *date){
 	case DOT:
 	{
 		int i;
+		char *p = date;
 		for(i = 0; *p != '.' && *p; p++,i++);
 
 		if(i == 4)
 			return YYYY_MM_DD;
-		break
+		break;
 	}
 	case SLASH:
 	{
 		int i;
+		char *p = date;
 		for(i = 0; *p != '\\' && *p; p++,i++);
 
 		if(i == 4)
 			return YYYY_MM_DD;
-		break
+		break;
 	}
 	case DASH:
 	{
 		int i;
+		char *p = date;
 		for(i = 0; *p != '.' && *p; p++,i++);
 
 		if(i == 4)
 			return YYYY_MM_DD;
-		break
+		break;
 	}
 	default:
 		return -1;

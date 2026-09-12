@@ -74,12 +74,12 @@ int work_process(int sock)
 			char *json_data = &buffer[2];
 			size_t s = strlen(json_data);
 			struct Json_token *tokens = (struct Json_token *) &buffer[2+s+1];
-			int tk_count = tokens.size *2 + 1;
+			int tk_count = tokens->size *2 + 1;
 
 
 
 			long long res = -1, key = -1;
-			if(execute_lua_function("write_customers","s>ll",cust_data,&res,&key) == -1 || res == 2 ){
+			if(execute_lua_function("write_customers","s>ll",json_data,&res,&key) == -1 || res == 2 ){
 				/*send error and resume*/
 				short int err_code = (short int)res;
 				memcpy(&err[0],&err_code,sizeof(short int));
