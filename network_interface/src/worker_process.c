@@ -16,6 +16,7 @@
 #include "common.h"
 #include "lua_start.h"
 #include "string_utilities.h"
+#include "json.h"
 
 static char prog[] = "worker_process";
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
@@ -70,7 +71,12 @@ int work_process(int sock)
 		switch(operation_to_perform){
 		case NEW_CUST:
 		{
-			char *cust_data = &buffer[2];
+			char *json_data = &buffer[2];
+			size_t s = strlen(json_data);
+			struct Json_token *tokens = (struct Json_token *) &buffer[2+s+1];
+			int tk_count = tokens.size *2 + 1;
+
+
 
 			long long res = -1, key = -1;
 			if(execute_lua_function("write_customers","s>ll",cust_data,&res,&key) == -1 || res == 2 ){
