@@ -30,6 +30,7 @@ static int l_get_numeric_key(lua_State *L);
 static int l_save_key_at_index(lua_State *L);
 static int l_delete_record(lua_State *L);
 static int l_get_all_key(lua_State *L);
+static int l_get_offset_for_new_record(lua_State *L);
 
 /* functions that will be callable from Lua scripts*/
 static const luaL_Reg db_funcs[] = {
@@ -45,6 +46,7 @@ static const luaL_Reg db_funcs[] = {
 	{"update_record",l_update_record},		/* update_record(file_name,data,key) */
 	{"delete_record",l_delete_record},		/* delete_record(file_name,key) -- index is optional */
 	{"get_all_key",l_get_all_key},			/* get_all_key(file_name,index,mode)*/
+	{"get_offset",l_get_offset_for_new_record}, /*get_offset(file_name)*/
 	{NULL,NULL}
 };
 
@@ -62,6 +64,97 @@ int luaopen_db(lua_State *L){
 	lua_pushlightuserdata(L,(void*)port_table_to_record);
 	lua_setglobal(L,"port_table_function");
 	return 1;
+}
+
+static int l_get_offset_for_new_record(lua_State *L)
+{
+	char *file_name = (char*)luaL_checkstring(L,1);
+	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
+
+	struct Schema sch;
+	memset(&sch,0,sizeof(struct Schema));
+	struct Header_d hd = {0,0,&sch};
+		
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
+	char file_names[3][MAX_FILE_PATH_LENGTH] = {0};
+
+	if(is_test(L)) goto get_offset_test;
+	/*check if the file is cached in memory*/
+	off_t file_pos_in_the_cache = -1;
+	if((file_pos_in_the_cache = get((void*)file_name,&cache_register,STR)) != -1){
+		goto use_cache;
+	}
+
+	if(open_files(file_name,fds,file_names,-1) == -1)
+		goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) 
+		goto err_not_db_file;
+
+	/*cache the file*/
+	int first_free_cache = 0;
+	if((first_free_cache = get_free_slot_cache(dbCache)) == -1){
+		/*cache is full free one spot in the cache */
+		if((first_free_cache = check_and_free_one_cache(dbCache)) == -1)
+			goto err_cache;/*we cannot free a cache slot, we use the disk*/
+	}
+
+	if(cache_file(fds,file_name,hd.sch_d,dbCache,&cache_register,first_free_cache) == -1)
+		goto err_cache;
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	INIT_FILE_T_ARRAY(fds,3);
+	free_schema(hd.sch_d);
+
+use_cache:
+	
+	if(file_pos_in_the_cache != -1){
+		struct Cache *p = &dbCache[file_pos_in_the_cache];
+		lua_pushinteger(L,(lua_Integer)p->data_file.size);
+		p->used = now_seconds();
+	}else{
+		struct Cache *p = &dbCache[first_free_cache];
+		lua_pushinteger(L,(lua_Integer)p->data_file.size);
+		p->used = now_seconds();
+	}
+
+	return 1;
+get_offset_test:
+	if(open_files(file_name,fds,file_names,-1) == -1)
+		goto err_open_file;
+	if(is_db_file(&hd,fds) == -1) 
+		goto err_not_db_file;
+
+	free_schema(hd.sch_d);
+
+	file_offset fo = go_to_EOF(fds[1]);
+	if(fo == -1){
+		lua_pushnil(L);
+		lua_pushstring(L,"go_to_EOF() failed.(l_get_offset_for_new_record).");
+		return 2;
+	}
+
+	close_file(3,fds[0],fds[1],fds[2]);
+	lua_pushinteger(L,(lua_Integer)fo);
+	return 1;
+
+
+err_cache:
+	close_file(3,fds[0],fds[1],fds[2]);
+	free_schema(hd.sch_d);
+	lua_pushnil(L);
+	lua_pushinteger(L,(lua_Integer)-CACHE_FAILED);
+	return 2;
+
+err_not_db_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"not a db file.");
+	close_file(3,fds[0],fds[1],fds[2]);
+	return 2;
+err_open_file:
+	lua_pushnil(L);
+	lua_pushstring(L,"could not open the file.");
+	return 2;
 }
 
 /* 
@@ -119,7 +212,6 @@ static int l_get_record(lua_State *L)
 	if(is_db_file(&hd,fds) == -1) 
 		goto err_not_db_file;
 
-	
 
 	/*cache the file*/
 	int first_free_cache = 0;
