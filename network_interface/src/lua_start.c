@@ -4,12 +4,14 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <errno.h>
 
 #include "record.h"
 #include "file.h"
 #include "crud.h"
 #include "date.h"
 #include "lua_start.h"
+#include "json.h"
 
 lua_State *L = NULL;
 static time_t sec = 0; 
@@ -78,13 +80,21 @@ void clear_lua_stack()
 	lua_settop(L,0);
 }
 
-int execute_lua_function(char *func_name, char *func_sig, ...)
+int execute_lua_function(char *func_name, int (*create_tbl)(ui8*,char*),ui8 *data,char*file_name,char *func_sig,...)
 {
 	va_list vl;
 	int narg, nres;
 
 	va_start(vl,func_sig);
 	lua_getglobal(L,func_name);
+	/*
+	 * callback function to create the table with the data
+	 * from the server 
+	 * */
+	if(create_tbl){
+		if(!data || !file_name) return -1;
+		if(create_tbl(data,file_name) == -1) return -1;
+	}
 
 	for(narg = 0; *func_sig != '\0'; narg++,func_sig++){
 
@@ -271,4 +281,55 @@ static void free_inactive_caches(struct Cache *c)
 			}
 		}
 	}
+}
+
+int create_lua_table(ui8 *data, char *file_name)
+{
+	lua_newtable(L);
+	lua_pushstring(L,file_name);
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	int fields_num = (int)*(ui16*)data;
+	data += sizeof(ui16);
+
+	lua_pushinteger(L,fields_num);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+	
+	int i;
+	for(i = 0; i < fields_num; i++){
+		ui8 type = *(ui8*)data;
+		data++;
+		ui16 f_len = *(ui16*)data; 
+		data += sizeof(ui16);
+		/*set field name*/
+		lua_pushlstring(L,(const char*)data,f_len);
+		data += f_len;       
+
+		ui16 v_len = *(ui16*)data; 
+		data += sizeof(ui16);
+
+		switch(type){
+		case STRING_JS:	lua_pushlstring(L,(const char*)data,v_len); data += v_len; break;
+		case TRUE_JS: 	lua_pushinteger(L,1); data += v_len; break;
+		case FALSE_JS:	lua_pushinteger(L,0); data += v_len; break;
+		case NUMBER_JS: 
+		{
+			errno = 0;
+			double d = strtod((const char*)data,NULL);
+			if(errno == EINVAL) return -1;
+			lua_pushnumber(L,d);
+			data += v_len;
+			break;
+		}
+		}
+		lua_settable(L,-3);
+	}
+	lua_settable(L,-3);
+	return 0;
 }

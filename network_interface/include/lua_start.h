@@ -26,10 +26,11 @@ extern HashTable *cache_r_ptr;
 int init_lua(char *config_file);
 void clear_lua_stack();
 int execute_lua_script(char *buf);
-int execute_lua_function(char *func_name, char *func_sig, ...);
+int execute_lua_function(char *func_name,int (*create_tbl)(ui8*,char*),ui8*data,char*file_name, char *func_sig, ...);
 void close_lua();
 void check_config_file();
 int get_function_signature(char *function_name,char *signature);
+int create_lua_table(ui8 *data, char *file_name);
 
 
 #endif

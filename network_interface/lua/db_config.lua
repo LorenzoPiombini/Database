@@ -90,7 +90,7 @@ function write_customers(data)
 		return nil
 	end
 
-	local f = cli_rec.fields
+	local f = data.fields
 
 	-- indexing function
 	-- we are saving the same record with a different key, to get better

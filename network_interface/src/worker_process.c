@@ -16,7 +16,6 @@
 #include "common.h"
 #include "lua_start.h"
 #include "string_utilities.h"
-#include "json.h"
 
 static char prog[] = "worker_process";
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
@@ -71,15 +70,13 @@ int work_process(int sock)
 		switch(operation_to_perform){
 		case NEW_CUST:
 		{
-			char *json_data = &buffer[2];
-			size_t s = strlen(json_data);
-			struct Json_token *tokens = (struct Json_token *) &buffer[2+s+1];
-			int tk_count = tokens->size *2 + 1;
 
-
+			/*this is the data from ssl_process*/
+			ui8 *data = (ui8*)&buffer[2];
+			int (*cr_tbl)(ui8 *,char*) = create_lua_table; 
 
 			long long res = -1, key = -1;
-			if(execute_lua_function("write_customers","s>ll",json_data,&res,&key) == -1 || res == 2 ){
+			if(execute_lua_function("write_customers",cr_tbl,data,CUSTOMER_FILE,">ll",&res,&key) == -1 || res == 2 ){
 				/*send error and resume*/
 				short int err_code = (short int)res;
 				memcpy(&err[0],&err_code,sizeof(short int));
@@ -130,7 +127,7 @@ new_cust_error:
 				goto report_error;
 
 			char *json = NULL;
-			if(execute_lua_function(function_to_execute,sig,&json) == -1){
+			if(execute_lua_function(function_to_execute,NULL,NULL,NULL,sig,&json) == -1){
 				/*send error and resume*/
 				goto report_error;
 			}
@@ -188,12 +185,14 @@ report_error:
 			data_sock = -1;
 			continue;
 		}
-		case N_ITEM:
+		case N_ITEM: /*NEW ITEM*/
 		{
-			char *data = &buffer[2];
+			ui8 *data = (ui8*)&buffer[2];
+			int (*cr_tbl)(ui8 *,char*) = create_lua_table; 
+
 			long long res = -1;
 			char *item_name = NULL;
-			if(execute_lua_function("write_item","s>ls",data,&res,&item_name) == -1){
+			if(execute_lua_function("write_item",cr_tbl,data,ITEM_FILE,">ls",&res,&item_name) == -1){
 				short int err_code = (short int)res;
 				memcpy(&err[0],&err_code,sizeof(short int));
 				switch(err_code){
@@ -246,6 +245,9 @@ n_item_error:
 		case NEW_SORD:
 		case UPDATE_SORD:
 		{
+			ui8 *data = (ui8*)&buffer[2];
+			int (*cr_tbl)(ui8 *,char*) = create_lua_table; 
+
 			size_t len = 0;
 			char *t = NULL;
 
@@ -310,7 +312,7 @@ n_item_error:
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
-				if(execute_lua_function("write_orders","ss>l",orders_head,orders_line,&key_ord) == -1){
+				if(execute_lua_function("write_orders",cr_tbl,data,SALES_ORDERS_H,">l",orders_head,orders_line,&key_ord) == -1){
 					/*send error and resume*/
 					/*key ord contain the error code*/
 					short int err_code = (short int)key_ord;
@@ -340,13 +342,23 @@ n_item_error:
 				switch(key_type){
 				case UINT:
 				{
+					ui8 *data = (ui8*)&buffer[2];
+					int (*cr_tbl)(ui8 *,char*) = create_lua_table; 
+
 					error_value = -1;
 					long l = string_to_long(key_up);
 					if(error_value == INVALID_VALUE) goto new_up_ords_err;
 
 					ui32 key = (ui32)l;
 					long long res = -1;
-					if(execute_lua_function("update_orders","ssI>l",orders_head,orders_line,key,&res) == -1 || res != 0){
+					if(execute_lua_function("update_orders",
+								cr_tbl,
+								data,
+								SALES_ORDERS_H,
+								"I>l",
+								orders_head,
+								orders_line,
+								key, &res) == -1 || res != 0){
 						/*send error and resume*/
 						clear_lua_stack();
 						goto new_up_ords_err;
@@ -356,7 +368,7 @@ n_item_error:
 				case STR:
 				{
 					long long res = -1;
-					if(execute_lua_function("update_orders","sss>l",orders_head,orders_line,key_up,&res) == -1 || res != 0){
+					if(execute_lua_function("update_orders",cr_tbl,data,SALES_ORDERS_H,"s>l",key_up,&res) == -1 || res != 0){
 						/*send error and resume*/
 						clear_lua_stack();
 						goto new_up_ords_err;
@@ -421,21 +433,21 @@ new_up_ords_err:
 			int index = 0,mode = 0;
 			switch(operation_to_perform){
 			case S_ORD:
-				if(execute_lua_function("g_all_key","sii>s",SALES_ORDERS_H,index,mode,&keys) == -1){
+				if(execute_lua_function("g_all_key",NULL,NULL,NULL,"sii>s",SALES_ORDERS_H,index,mode,&keys) == -1){
 					clear_lua_stack();
 					goto error_s_ord;
 				}
 				break;
 			case CUSTOMER_GET_ALL:
 				index = 2, mode = MAKE_KEY_JS_STRING;
-				if(execute_lua_function("g_all_key","sii>s",CUSTOMER_FILE,index,mode,&keys) == -1){
+				if(execute_lua_function("g_all_key",NULL,NULL,NULL,"sii>s",CUSTOMER_FILE,index,mode,&keys) == -1){
 					clear_lua_stack();
 					goto error_s_ord;
 				}
 				break;
 			case ITEM_GET_ALL:
 				index = 1, mode = MAKE_KEY_JS_STRING;
-				if(execute_lua_function("g_all_key","sii>s",ITEM_FILE,index,mode,&keys) == -1){
+				if(execute_lua_function("g_all_key",NULL,NULL,NULL,"sii>s",ITEM_FILE,index,mode,&keys) == -1){
 					clear_lua_stack();
 					goto error_s_ord;
 				}	
@@ -538,7 +550,7 @@ error_s_ord:
 				char *json = NULL;
 				switch(operation_to_perform){
 				case ITEM_GET:
-					if(execute_lua_function("get_item","I>s",k,&json) == -1){
+					if(execute_lua_function("get_item",NULL,NULL,NULL,"I>s",k,&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -548,7 +560,7 @@ error_s_ord:
 					}
 					break;
 				case S_ORD_GET:
-					if(execute_lua_function("get_order","I>s",k,&json) == -1){
+					if(execute_lua_function("get_order",NULL,NULL,NULL,"I>s",k,&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -558,7 +570,7 @@ error_s_ord:
 					}
 					break;
 				case CUSTOMER_GET:
-					if(execute_lua_function("get_customer","I>s",k,&json) == -1){
+					if(execute_lua_function("get_customer",NULL,NULL,NULL,"I>s",k,&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -568,7 +580,7 @@ error_s_ord:
 					}
 					break;
 				case S_ORD_CUSTOMER_GET:
-					if(execute_lua_function("get_customer_for_new_sales_order","I>s",k,&json) == -1){
+					if(execute_lua_function("get_customer_for_new_sales_order",NULL,NULL,NULL,"I>s",k,&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -616,7 +628,7 @@ s_ord_get_exit_error:
 				char *json = NULL;
 				switch(operation_to_perform){
 				case ITEM_GET:
-					if(execute_lua_function("get_item","s>s",&buffer[2],&json) == -1){
+					if(execute_lua_function("get_item",NULL,NULL,NULL,"s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -626,7 +638,7 @@ s_ord_get_exit_error:
 					}
 					break;
 				case S_ORD_GET:
-					if(execute_lua_function("get_order","s>s",&buffer[2],&json) == -1){
+					if(execute_lua_function("get_order",NULL,NULL,NULL,"s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -636,7 +648,7 @@ s_ord_get_exit_error:
 					}
 					break;
 				case CUSTOMER_GET:
-					if(execute_lua_function("get_customer","s>s",&buffer[2],&json) == -1){
+					if(execute_lua_function("get_customer",NULL,NULL,NULL,"s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
@@ -646,7 +658,7 @@ s_ord_get_exit_error:
 				}
 					break;
 				case S_ORD_CUSTOMER_GET:
-					if(execute_lua_function("get_customer_for_new_sales_order","s>s",&buffer[2],&json) == -1){
+					if(execute_lua_function("get_customer_for_new_sales_order",NULL,NULL,NULL,"s>s",&buffer[2],&json) == -1){
 						clear_lua_stack();
 						goto s_ord_get_exit_error;
 					}
