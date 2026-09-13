@@ -22,6 +22,7 @@ struct Cache *dbcache_ptr = NULL;
 HashTable *cache_r_ptr =NULL;
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
+static int create_lua_table(ui8 *data, char *file_name);
 
 int init_lua(char *config_file)
 {
@@ -80,56 +81,44 @@ void clear_lua_stack()
 	lua_settop(L,0);
 }
 
-int execute_lua_function(char *func_name, int (*create_tbl)(ui8*,char*),ui8 *data,char*file_name,char *func_sig,...)
+int execute_lua_function(char *func_name, char *func_sig,...)
 {
 	va_list vl;
 	int narg, nres;
 
 	va_start(vl,func_sig);
 	lua_getglobal(L,func_name);
-	/*
-	 * callback function to create the table with the data
-	 * from the server 
-	 * */
-	if(create_tbl){
-		if(!data || !file_name) return -1;
-		if(create_tbl(data,file_name) == -1) return -1;
-	}
 
 	for(narg = 0; *func_sig != '\0'; narg++,func_sig++){
 
 		luaL_checkstack(L,1,"too many arguments");
 
 		switch(*func_sig){
+			case 't':
+			{
+				ui8 *data = va_arg(vl,ui8*);	
+				char *file_name = va_arg(vl,char*);
+
+				if(!data || !file_name) return -1;
+				if(create_lua_table(data,file_name) == -1) return -1;
+				break;
+			}
 			case 'r':
-				/*TODO:
-			       	Record_f
-				if(port_record(L,va_arg(vl,struct Record_f*)) == -1){
-					return -1;
-				}
-				*/
-				break;
-			case 'd': /* double */	
-				lua_pushnumber(L,va_arg(vl,double));
-				break;
-			case 'i': /* integer*/	
-				lua_pushinteger(L,va_arg(vl,int));
-				break;
-			case 'I': /*unsigned integer*/	
-				lua_pushinteger(L,va_arg(vl,uint32_t));
-				break;
-			case 'l': /* long integer*/	
-				lua_pushinteger(L,va_arg(vl,long));
-				break;
-			case 's': /* string*/	
-				char *s = va_arg(vl,char*);
-				lua_pushstring(L,s);
-				break;
-			case '>': /*end of input*/
-				func_sig++;
-				goto fcall;
+			/*TODO:
+			  Record_f
+			  if(port_record(L,va_arg(vl,struct Record_f*)) == -1){
+			  return -1;
+			  }
+			  */
+			break;
+			case 'd':	lua_pushnumber(L,va_arg(vl,double));			break;/* double */	
+			case 'i': 	lua_pushinteger(L,va_arg(vl,int));				break;/* integer*/
+			case 'I': 	lua_pushinteger(L,va_arg(vl,uint32_t));			break;/*unsigned integer*/	
+			case 'l': 	lua_pushinteger(L,va_arg(vl,long));				break;/* long integer*/	
+			case 's': 	char *s = va_arg(vl,char*);lua_pushstring(L,s);	break;/* string*/	
+			case '>': 	func_sig++; goto fcall;/*end of input*/
 			default:
-				return -1;
+			return -1;
 		}
 	}
 
@@ -151,74 +140,74 @@ fcall:
 				case 'r':
 					{
 						/*record*/
-/*
+						/*
 TODO:
-						if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
-							clear_lua_stack();
-							return -1;
-						}
+if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
+clear_lua_stack();
+return -1;
+}
 */
-						break;
+					break;
 					}
-				case 'd':
-					{
-						int is_num;
-						double d = lua_tonumberx(L,nres,&is_num);
-						if(!is_num){
-							clear_lua_stack();
-							return -1;
-						}
-						*va_arg(vl, double *) = d;
-						break;
-					}
-				case 'i':
-					{
-						int is_num;
-						int l = (int)lua_tointegerx(L,nres,&is_num);
-						if(!is_num){
-							/*get error code*/
-							l = lua_tointegerx(L,-1,&is_num);
-							*va_arg(vl, int*) = l;
-							clear_lua_stack();
-							return -1;
-						}
-						*va_arg(vl, int*) = l;
-						break;
-					}
-				case 'l':
-					{
-						int is_num;
-						long long l = (long long)lua_tointegerx(L,nres,&is_num);
-						if(!is_num){
-							/*get error code*/
-							l = lua_tointegerx(L,-1,&is_num);
-							*va_arg(vl, long long*) = l;
-							clear_lua_stack();
-							return -1;
-						}
-						*va_arg(vl, long long*) = l;
-						break;
-					}
-				case 's':
-					{
-						char *s = (char*)lua_tostring(L,nres);
-						if(!s){
-							clear_lua_stack();
-							return -1;
-						}
-						*va_arg(vl,char **) = s;
-						break;
-					}
-				default:
-					clear_lua_stack();
-					return -1;
-			}
-			nres++;
-			func_sig++;
-		}
+case 'd':
+{
+	int is_num;
+	double d = lua_tonumberx(L,nres,&is_num);
+	if(!is_num){
+		clear_lua_stack();
+		return -1;
 	}
-	va_end(vl);
-	return 0;
+	*va_arg(vl, double *) = d;
+	break;
+}
+case 'i':
+{
+	int is_num;
+	int l = (int)lua_tointegerx(L,nres,&is_num);
+	if(!is_num){
+		/*get error code*/
+		l = lua_tointegerx(L,-1,&is_num);
+		*va_arg(vl, int*) = l;
+		clear_lua_stack();
+		return -1;
+	}
+	*va_arg(vl, int*) = l;
+	break;
+}
+case 'l':
+{
+	int is_num;
+	long long l = (long long)lua_tointegerx(L,nres,&is_num);
+	if(!is_num){
+		/*get error code*/
+		l = lua_tointegerx(L,-1,&is_num);
+		*va_arg(vl, long long*) = l;
+		clear_lua_stack();
+		return -1;
+	}
+	*va_arg(vl, long long*) = l;
+	break;
+}
+case 's':
+{
+	char *s = (char*)lua_tostring(L,nres);
+	if(!s){
+		clear_lua_stack();
+		return -1;
+	}
+	*va_arg(vl,char **) = s;
+	break;
+}
+default:
+clear_lua_stack();
+return -1;
+}
+nres++;
+func_sig++;
+}
+}
+va_end(vl);
+return 0;
 }
 
 int get_function_signature(char *function_name,char *signature)
@@ -283,7 +272,7 @@ static void free_inactive_caches(struct Cache *c)
 	}
 }
 
-int create_lua_table(ui8 *data, char *file_name)
+static int create_lua_table(ui8 *data, char *file_name)
 {
 	lua_newtable(L);
 	lua_pushstring(L,file_name);
