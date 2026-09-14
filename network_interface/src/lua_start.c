@@ -15,6 +15,7 @@
 
 lua_State *L = NULL;
 static time_t sec = 0; 
+static int top_lua_stack = 0;
 
 static const int CACHE_SIZE = 30;
 table_to_record_fn tbl_to_rec = NULL;
@@ -47,6 +48,7 @@ int init_lua(char *config_file)
 	lua_pop(L,1);
 
 	check_config_file();
+	top_lua_stack = lua_gettop(L);
 	return 0;
 }
 
@@ -72,13 +74,14 @@ void check_config_file()
 		clear_lua_stack();
 		if(load(L,"/root/db/lua/db_config.lua") == -1) return;
 		sec = file_data.st_mtim.tv_sec;
+		top_lua_stack = lua_gettop(L);
 	}
 
 	if(dbcache_ptr) free_inactive_caches(dbcache_ptr);
 }
 void clear_lua_stack()
 {
-	lua_settop(L,0);
+	lua_settop(L,top_lua_stack);
 }
 
 int execute_lua_function(char *func_name, char *func_sig,...)
@@ -100,7 +103,10 @@ int execute_lua_function(char *func_name, char *func_sig,...)
 				char *file_name = va_arg(vl,char*);
 
 				if(!data || !file_name) return -1;
-				if(create_lua_table(data,file_name) == -1) return -1;
+				if(create_lua_table(data,file_name) == -1) {
+					va_end(vl);
+					return -1;
+				}
 				break;
 			}
 			case 'r':
@@ -111,14 +117,13 @@ int execute_lua_function(char *func_name, char *func_sig,...)
 			  }
 			  */
 			break;
-			case 'd':	lua_pushnumber(L,va_arg(vl,double));			break;/* double */	
-			case 'i': 	lua_pushinteger(L,va_arg(vl,int));				break;/* integer*/
-			case 'I': 	lua_pushinteger(L,va_arg(vl,uint32_t));			break;/*unsigned integer*/	
-			case 'l': 	lua_pushinteger(L,va_arg(vl,long));				break;/* long integer*/	
-			case 's': 	char *s = va_arg(vl,char*);lua_pushstring(L,s);	break;/* string*/	
+			case 'd':	lua_pushnumber(L,va_arg(vl,double));			break;	/* double */	
+			case 'i': 	lua_pushinteger(L,va_arg(vl,int));				break;	/* integer*/
+			case 'I': 	lua_pushinteger(L,va_arg(vl,uint32_t));			break;	/*unsigned integer*/	
+			case 'l': 	lua_pushinteger(L,va_arg(vl,long));				break;	/* long integer*/	
+			case 's': 	{char *s = va_arg(vl,char*);lua_pushstring(L,s);break;}	/* string*/	
 			case '>': 	func_sig++; goto fcall;/*end of input*/
-			default:
-			return -1;
+			default: 	va_end(vl); return -1;
 		}
 	}
 
@@ -129,6 +134,7 @@ fcall:
 	if(lua_pcall(L,narg,nres,0) != 0){
 		fprintf(stderr,"%s\n",lua_tostring(L,-1));
 		lua_pop(L,1);
+		va_end(vl);
 		return -1;
 	}
 
@@ -141,73 +147,78 @@ fcall:
 					{
 						/*record*/
 						/*
-TODO:
-if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
-clear_lua_stack();
-return -1;
-}
-*/
-					break;
+							TODO:
+							if(port_table_to_record(L,*va_arg(vl,struct Record_f**)) == -1){
+							clear_lua_stack();
+							return -1;
+							}
+							*/
+						break;
 					}
-case 'd':
-{
-	int is_num;
-	double d = lua_tonumberx(L,nres,&is_num);
-	if(!is_num){
-		clear_lua_stack();
-		return -1;
+				case 'd':
+					{
+						int is_num;
+						double d = lua_tonumberx(L,nres,&is_num);
+						if(!is_num){
+							clear_lua_stack();
+							va_end(vl);
+							return -1;
+						}
+						*va_arg(vl, double *) = d;
+						break;
+					}
+				case 'i':
+					{
+						int is_num;
+						int l = (int)lua_tointegerx(L,nres,&is_num);
+						if(!is_num){
+							/*get error code*/
+							l = lua_tointegerx(L,-1,&is_num);
+							*va_arg(vl, int*) = l;
+							clear_lua_stack();
+							va_end(vl);
+							return -1;
+						}
+						*va_arg(vl, int*) = l;
+						break;
+					}
+				case 'l':
+					{
+						int is_num;
+						long long l = (long long)lua_tointegerx(L,nres,&is_num);
+						if(!is_num){
+							/*get error code*/
+							l = lua_tointegerx(L,-1,&is_num);
+							*va_arg(vl, long long*) = l;
+							clear_lua_stack();
+							va_end(vl);
+							return -1;
+						}
+						*va_arg(vl, long long*) = l;
+						break;
+					}
+				case 's':
+					{
+						char *s = (char*)lua_tostring(L,nres);
+						if(!s){
+							clear_lua_stack();
+							va_end(vl);
+							return -1;
+						}
+						*va_arg(vl,char **) = s;
+						break;
+					}
+				default:
+					clear_lua_stack();
+					va_end(vl);
+					return -1;
+			}
+			nres++;
+			func_sig++;
+		}
 	}
-	*va_arg(vl, double *) = d;
-	break;
-}
-case 'i':
-{
-	int is_num;
-	int l = (int)lua_tointegerx(L,nres,&is_num);
-	if(!is_num){
-		/*get error code*/
-		l = lua_tointegerx(L,-1,&is_num);
-		*va_arg(vl, int*) = l;
-		clear_lua_stack();
-		return -1;
-	}
-	*va_arg(vl, int*) = l;
-	break;
-}
-case 'l':
-{
-	int is_num;
-	long long l = (long long)lua_tointegerx(L,nres,&is_num);
-	if(!is_num){
-		/*get error code*/
-		l = lua_tointegerx(L,-1,&is_num);
-		*va_arg(vl, long long*) = l;
-		clear_lua_stack();
-		return -1;
-	}
-	*va_arg(vl, long long*) = l;
-	break;
-}
-case 's':
-{
-	char *s = (char*)lua_tostring(L,nres);
-	if(!s){
-		clear_lua_stack();
-		return -1;
-	}
-	*va_arg(vl,char **) = s;
-	break;
-}
-default:
-clear_lua_stack();
-return -1;
-}
-nres++;
-func_sig++;
-}
-}
-va_end(vl);
-return 0;
+	va_end(vl);
+	return 0;
 }
 
 int get_function_signature(char *function_name,char *signature)
@@ -272,8 +283,9 @@ static void free_inactive_caches(struct Cache *c)
 	}
 }
 
-static int create_lua_table(ui8 *data, char *file_name)
+static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 {
+	size_t bwalked = 0;
 	lua_newtable(L);
 	lua_pushstring(L,file_name);
 	lua_setfield(L,-2,"file_name");
@@ -281,50 +293,55 @@ static int create_lua_table(ui8 *data, char *file_name)
 	lua_pushinteger(L,0); /*you do not know this*/
 	lua_setfield(L,-2,"offset");
 
-	int fields_num = (int)*(ui16*)data;
-	data += sizeof(ui16);
+	ui16 fields_num = 0;
+	memcpy(&fields_num,&data[bwalked],sizeof(ui16));
+	bwalked += sizeof(ui16);
 
 	lua_pushinteger(L,fields_num);
 	lua_setfield(L,-2,"fields_number");
 
 	lua_pushlstring(L,"fields",6);
 	lua_newtable(L);
-	
+
 	int i;
 	for(i = 0; i < fields_num; i++){
+		if(bwalked >= data_size) return -1;		
 		ui8 type = 0;
-		memcpy(&type,data,sizeof(type));
-		data++;
+		memcpy(&type,&data[bwalked],sizeof(type));
+		bwalked++;
 
 		ui16 f_len = 0;
-		memcpy(&f_len,data,sizeof(ui16));
-		data += sizeof(ui16);
+		memcpy(&f_len,&data[bwalked],sizeof(ui16));
+		bwalked += sizeof(ui16);
 
 		/*set field name*/
-		lua_pushlstring(L,(const char*)data,f_len);
-		data += f_len;       
+		lua_pushlstring(L,(const char*)&data[bwalked],f_len);
+		bwalked += f_len;       
 
 		ui16 v_len = *(ui16*)data; 
-		data += sizeof(ui16);
+		memcpy(&v_len,&data[bwalked],sizeof(ui16));
+
+		bwalked += sizeof(ui16);
 
 		switch(type){
-		case STRING_JS:	lua_pushlstring(L,(const char*)data,v_len); data += v_len; break;
-		case TRUE_JS: 	lua_pushinteger(L,1); data += v_len; break;
-		case FALSE_JS:	lua_pushinteger(L,0); data += v_len; break;
-		case NUMBER_JS: 
-		{
-			char nb[64] = {0};
-			if(v_len > sizeof nb) return -1;
-			memcpy(nb,data,v_len);
+			case STRING_JS:	lua_pushlstring(L,(const char*)&data[bwalked],v_len); bwalked += v_len; break;
+			case TRUE_JS: 	lua_pushinteger(L,1); bwalked += v_len; break;
+			case FALSE_JS:	lua_pushinteger(L,0); bwalked += v_len; break;
+			case NUMBER_JS: 
+			{
+				char nb[64] = {0};
+				if(v_len >= sizeof nb) return -1;
+				memcpy(nb,&data[bwalked],v_len);
 
-			errno = 0;
-			char *endptr;
-			double d = strtod(nb,NULL);
-			if(endptr == nb || errno == EINVAL) return -1;
-			lua_pushnumber(L,d);
-			data += v_len;
-			break;
-		}
+				errno = 0;
+				char *endptr;
+				double d = strtod(nb,&endptr);
+				if(endptr == nb || errno == EINVAL) return -1;
+				lua_pushnumber(L,d);
+				bwalked += v_len;
+				break;
+			}
+			default:		return -1;
 		}
 		lua_settable(L,-3);
 	}

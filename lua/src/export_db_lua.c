@@ -417,8 +417,8 @@ static int l_write_record(lua_State *L)
 	char *file_name = (char*)luaL_checkstring(L,1);
 	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
 
-	char *data_to_add = (char*)luaL_checkstring(L,2);
-	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
+	/*second argument must be a table*/
+	luaL_checktype(L,2,LUA_TTABLE);
 	
 
 	file_t fds[3];
@@ -545,7 +545,8 @@ use_cache:
 		struct Cache *p = &dbCache[file_pos_in_the_cache];
 
 		struct Header_d hd_c = {0,0,&p->sch};
-		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0) == -1) goto err_cache_invalid_data;
+		if(port_table_to_record(L,2,&rec,&sch) == -1)goto err_cache_invalid_data;
+		/*if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0) == -1) goto err_cache_invalid_data;*/
 
 		if(set_tbl(p->index_file,k,p->data_file.size,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.size) == -1) goto err_cache_write_const_unique;
@@ -556,7 +557,8 @@ use_cache:
 		/*THIS IS THE FIRST TIME WE CACHE THE FILE!!!!!*/
 		struct Cache *p = &dbCache[first_free_cache];
 
-		if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) goto err_cache_invalid_data;
+		if(port_table_to_record(L,2,&rec,&sch) == -1)goto err_cache_invalid_data;
+		/*if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0) == -1) goto err_cache_invalid_data;*/
 
 		if(set_tbl(p->index_file,k,p->data_file.size,key_type,0) == -1) goto err_cache_write_index;
 		if(check_const_unique(&p->sch,&rec,&p->index_file,p->data_file.size) == -1) goto err_cache_write_const_unique;
@@ -567,7 +569,7 @@ use_cache:
 		free_schema(hd.sch_d);
 	}
 	
-	port_record(L,&rec);
+	port_record(L,&rec);/*is this obsolete now?*/
 	free_record(&rec,rec.fields_num);
 	return 2;/*return the key and the record*/
 
@@ -580,12 +582,12 @@ err_cache:
 	}
 
 	lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
-	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
-		goto err_invalid_data;
+	if(port_table_to_record(L,2,&rec,&sch) == -1) goto err_invalid_data;
+	/*if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) */
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
 		goto err_write_rec;
 
-	port_record(L,&rec);
+	port_record(L,&rec); /*?obsolete?*/
 
 	if(lock) {
 		release_lock(fds,-1);
@@ -607,12 +609,12 @@ write_rec_test:
 	}
 
 	lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
-	if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) 
-		goto err_invalid_data;
+	if(port_table_to_record(L,2,&rec,&sch) == -1) goto err_invalid_data;
+	/*if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,0) == -1) */
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
 		goto err_write_rec;
 
-	port_record(L,&rec);
+	port_record(L,&rec);/*?obsolete?*/
 
 	if(lock) {
 		release_lock(fds,-1);
@@ -1890,11 +1892,13 @@ int port_record(lua_State *L, struct Record_f* r){
 	return 0;
 }
 
-/*assume the record is on top of the stack*/
-int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch)
+/* NOTE:
+ * i don't think you need set_top(), this layer and the db, share the same lua stack
+ * on failure the db layer will call clear_lua_stack() effectivelly clearing the stack;
+ * */
+int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Schema *sch)
 {
-	
-	if(lua_getfield(L,-1,"file_name") != LUA_TSTRING) return -1;
+	if(lua_getfield(L,index,"file_name") != LUA_TSTRING) return -1;
 	char *file_name = (char*) lua_tostring(L,-1);
 	if(!file_name) return -1;
 
@@ -1902,7 +1906,7 @@ int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch)
 
 	if(create_record(file_name,*sch,rec) == -1) return -1;
 
-	if(lua_getfield(L,-1,"offset") != LUA_TNUMBER) return -1;
+	if(lua_getfield(L,index,"offset") != LUA_TNUMBER) return -1;
 
 	int is_num;
 	rec->offset = (file_offset) lua_tonumberx(L,-1,&is_num);
@@ -1912,7 +1916,7 @@ int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch)
 	}
 	lua_pop(L,1);
 
-	if(lua_getfield(L,-1,"fields") != LUA_TTABLE){
+	if(lua_getfield(L,index,"fields") != LUA_TTABLE){
 		/*TODO: error*/
 		return -1;
 	}

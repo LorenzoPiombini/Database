@@ -64,8 +64,15 @@ int work_process(int sock)
 			continue;
 		}
 
+		if(r == EIGTH_Kib){
+			fprintf(stderr,"REFACTOR NEEDED,SOCKET READING BUFFER %s:%d\n",__FILE__,__LINE__-14);
+			close(data_sock);
+			continue;
+		}
+
 		buffer[sizeof(buffer) - 1] = '\0';
 		int operation_to_perform = (int)(*((ui16*)buffer));	
+
 
 		switch(operation_to_perform){
 		case NEW_CUST:
@@ -73,9 +80,10 @@ int work_process(int sock)
 
 			/*this is the data from ssl_process*/
 			ui8 *data = (ui8*)&buffer[2];
+			size_t data_size = strlen(&buffer[2]);/*here the data are always null terminated*/
 
 			long long res = -1, key = -1;
-			if(execute_lua_function("write_customers","t>ll",data,CUSTOMER_FILE,&res,&key) == -1 || res == 2 ){
+			if(execute_lua_function("write_customers","t>ll",data,data_size,CUSTOMER_FILE,&res,&key) == -1 || res == 2 ){
 				/*send error and resume*/
 				short int err_code = (short int)res;
 				memcpy(&err[0],&err_code,sizeof(short int));
