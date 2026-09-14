@@ -292,10 +292,14 @@ static int create_lua_table(ui8 *data, char *file_name)
 	
 	int i;
 	for(i = 0; i < fields_num; i++){
-		ui8 type = *(ui8*)data;
+		ui8 type = 0;
+		memcpy(&type,data,sizeof(type));
 		data++;
-		ui16 f_len = *(ui16*)data; 
+
+		ui16 f_len = 0;
+		memcpy(&f_len,data,sizeof(ui16));
 		data += sizeof(ui16);
+
 		/*set field name*/
 		lua_pushlstring(L,(const char*)data,f_len);
 		data += f_len;       
@@ -309,9 +313,14 @@ static int create_lua_table(ui8 *data, char *file_name)
 		case FALSE_JS:	lua_pushinteger(L,0); data += v_len; break;
 		case NUMBER_JS: 
 		{
+			char nb[64] = {0};
+			if(v_len > sizeof nb) return -1;
+			memcpy(nb,data,v_len);
+
 			errno = 0;
-			double d = strtod((const char*)data,NULL);
-			if(errno == EINVAL) return -1;
+			char *endptr;
+			double d = strtod(nb,NULL);
+			if(endptr == nb || errno == EINVAL) return -1;
 			lua_pushnumber(L,d);
 			data += v_len;
 			break;
