@@ -277,6 +277,7 @@ clean_on_failure:
 	delete_file(3,files[0],files[1],files[2]);
 	return -1;
 }
+
 int CRUD_test_check_data()
 {
 	file_t fds[3];
@@ -501,7 +502,7 @@ int LUA_test_save_key_at_index_chache(struct Schema *sch)
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L,-1, &rec,sch) == -1) goto clean_on_failure;
 
 	func = "indexing";
 	lua_getglobal(L,func);
@@ -571,7 +572,7 @@ int LUA_test_save_key_at_index(struct Schema *sch)
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L,-1, &rec,sch) == -1) goto clean_on_failure;
 
 	func = "indexing";
 	lua_getglobal(L,func);
@@ -613,7 +614,7 @@ int LUA_test_create_record(struct Schema *sch)
 	if(lua_pcall(L,2,1,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, -1,&rec,sch) == -1) goto clean_on_failure;
 
 	clear_lua_stack();
 	
@@ -653,34 +654,37 @@ int LUA_port_table_to_record_test()
 	close_file(3,fds[0],fds[1],fds[2]);
 	memset(fds,-1,sizeof(int)*3);
 
-	/*the lua function w_rec will open and close the file*/
-	char *func = "w_rec";
+	/*create the table*/
+	lua_newtable(L);
+	lua_pushstring(L,"test_pt");
+	lua_setfield(L,-2,"file_name");
 
-	/*BEHAVIOUR 1*/
-	lua_getglobal(L,func);
-	lua_pushstring(L,"test_pt"); /*Arg 1*/
-	lua_pushstring(L,"name:Lorenzo:last_name:Piombini:age:39"); /*Arg 2*/
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
 
-	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+
+	lua_pushlstring(L,"Lorenzo",7);
+	lua_setfield(L,-2,"name");
+	lua_pushlstring(L,"Piombini",7);
+	lua_setfield(L,-2,"last_name");
+	lua_pushinteger(L,39);
+	lua_setfield(L,-2,"age");
+	lua_settable(L,-3);
+
 
 	struct Record_f rec = {0};
-	if(tbl_to_rec(L, &rec,&sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, -1,&rec,&sch) == -1) goto clean_on_failure;
 
-	/*
-		w_rec() function return two results the key and the table(record)
-		the key is at position -3 from the top of the lua stack
-	*/
-
-	int is_num;
-	uint32_t k = lua_tonumberx(L, -3, &is_num); 
-	if(!is_num) goto clean_on_failure;
-	
 	clear_lua_stack();
 
-	if(k != 0 && (
-				(strncmp(rec.fields[0].data.s,"Lorenzo",strlen("Lorenzo") != 0))
+	if((strncmp(rec.fields[0].data.s,"Lorenzo",strlen("Lorenzo") != 0))
 				||(strncmp(rec.fields[1].data.s,"Piombini",strlen("Piombini") != 0))
-				|| rec.fields[2].data.b != 39)) goto clean_on_failure;
+				|| rec.fields[2].data.b != 39) goto clean_on_failure;
 
 	free_record(&rec,rec.fields_num);
 	free_schema(&sch);
@@ -898,7 +902,7 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, -1,&rec,sch) == -1) goto clean_on_failure;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -987,12 +991,30 @@ int LUA_test_w_rec(struct Schema *sch)
 	/*BEHAVIOUR 1*/
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+
+	/* arg2*/
+	lua_newtable(L);
+	lua_pushstring(L,"test");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",1);
+	lua_newtable(L);
+
+	lua_pushlstring(L,"This is a field",15);
+	lua_setfield(L,-2,"field");
+	lua_settable(L,-3);
+	/**/
 
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
 	struct Record_f rec = {0};
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L,-1, &rec,sch) == -1) goto clean_on_failure;
 
 	/*
 		w_rec() function return two results the key and the table(record)
@@ -1014,11 +1036,28 @@ int LUA_test_w_rec(struct Schema *sch)
 	/*BEHAVIOUR 2*/
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
-	lua_pushstring(L,"key_1"); /*Arg 2*/
+	/* arg2*/
+	lua_newtable(L);
+	lua_pushstring(L,"test");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",1);
+	lua_newtable(L);
+
+	lua_pushlstring(L,"This is a field",15);
+	lua_setfield(L,-2,"field");
+	lua_settable(L,-3);
+
+	lua_pushstring(L,"key_1"); /*Arg 3*/
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L,-1,&rec,sch) == -1) goto clean_on_failure;
 
 	char *k_s = (char*)lua_tostring(L, -3); 
 	if(!k_s) goto clean_on_failure;
@@ -1034,11 +1073,28 @@ int LUA_test_w_rec(struct Schema *sch)
 
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+	/*Arg 2*/
+	lua_newtable(L);
+	lua_pushstring(L,"test_pt");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",1);
+	lua_newtable(L);
+
+	lua_pushlstring(L,"This is a field",15);
+	lua_setfield(L,-2,"field");
+	lua_settable(L,-3);
+
 	lua_pushinteger(L,32); /*Arg 3*/
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L,-1, &rec,sch) == -1) goto clean_on_failure;
 
 	is_num = 0;
 	k = lua_tonumberx(L, -3, &is_num); 
@@ -1054,12 +1110,28 @@ int LUA_test_w_rec(struct Schema *sch)
 	/*BEHAVIOUR 3*/
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+	/*Arg 2*/
+	lua_newtable(L);
+	lua_pushstring(L,"test_pt");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",1);
+	lua_newtable(L);
+
+	lua_pushlstring(L,"This is a field",15);
+	lua_setfield(L,-2,"field");
+	lua_settable(L,-3);
 	lua_pushstring(L,"base"); /*Arg 3*/
 	lua_pushinteger(L,100); /*Arg 4*/
 	if(lua_pcall(L,4,2,0) != LUA_OK) goto clean_on_failure;
 
-	if(tbl_to_rec(L, &rec,sch) == -1) goto clean_on_failure;
+	if(tbl_to_rec(L, -1, &rec,sch) == -1) goto clean_on_failure;
 
 	is_num = 0;
 	k = lua_tonumberx(L, -3, &is_num); 
