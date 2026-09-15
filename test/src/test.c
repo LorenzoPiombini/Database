@@ -897,7 +897,24 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	/*BEHAVIOUR 1*/
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"field:This is a field"); /*Arg 2*/
+
+	lua_newtable(L);
+	lua_pushstring(L,"test");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+
+	lua_pushlstring(L,"This is a field",15);
+	lua_setfield(L,-2,"field");
+	lua_settable(L,-3);
+
 
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
 
@@ -1003,7 +1020,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	lua_pushinteger(L,3);
 	lua_setfield(L,-2,"fields_number");
 
-	lua_pushlstring(L,"fields",1);
+	lua_pushlstring(L,"fields",6);
 	lua_newtable(L);
 
 	lua_pushlstring(L,"This is a field",15);
@@ -1015,11 +1032,6 @@ int LUA_test_w_rec(struct Schema *sch)
 
 	struct Record_f rec = {0};
 	if(tbl_to_rec(L,-1, &rec,sch) == -1) goto clean_on_failure;
-
-	/*
-		w_rec() function return two results the key and the table(record)
-		the key is at position -3 from the top of the lua stack
-	*/
 
 	int is_num;
 	uint32_t k = lua_tonumberx(L, -3, &is_num); 
@@ -1047,7 +1059,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	lua_pushinteger(L,3);
 	lua_setfield(L,-2,"fields_number");
 
-	lua_pushlstring(L,"fields",1);
+	lua_pushlstring(L,"fields",6);
 	lua_newtable(L);
 
 	lua_pushlstring(L,"This is a field",15);
@@ -1084,7 +1096,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	lua_pushinteger(L,3);
 	lua_setfield(L,-2,"fields_number");
 
-	lua_pushlstring(L,"fields",1);
+	lua_pushlstring(L,"fields",6);
 	lua_newtable(L);
 
 	lua_pushlstring(L,"This is a field",15);
@@ -1121,7 +1133,7 @@ int LUA_test_w_rec(struct Schema *sch)
 	lua_pushinteger(L,3);
 	lua_setfield(L,-2,"fields_number");
 
-	lua_pushlstring(L,"fields",1);
+	lua_pushlstring(L,"fields",6);
 	lua_newtable(L);
 
 	lua_pushlstring(L,"This is a field",15);
@@ -1266,6 +1278,32 @@ int LUA_test_write_customer_cache()
 	char *func = "write_customers";
 	lua_getglobal(L,func);
 	lua_pushstring(L,"name:Test LLC:addr:1B W 8th St:csz:New York NY 10011 :price_level_id:STND");
+	/* arg1*/
+	lua_newtable(L);
+	lua_pushstring(L,"customer");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,4);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+
+	lua_pushlstring(L,"Test LLC",8);
+	lua_setfield(L,-2,"name");
+
+	lua_pushlstring(L,"1B 8th St",9);
+	lua_setfield(L,-2,"addr");
+
+	lua_pushlstring(L,"New York NY 10011 ",18);
+	lua_setfield(L,-2,"csz");
+
+	lua_pushlstring(L,"STND",4);
+	lua_setfield(L,-2,"price_level_id");
+	lua_settable(L,-3);
 
 	if(lua_pcall(L,1,2,0) != LUA_OK) goto clean_on_failure;
 

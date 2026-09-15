@@ -452,7 +452,7 @@ static int l_write_record(lua_State *L)
 				if((n = generate_numeric_key(fds,REG | key_mode,-1,&dbCache[file_pos_in_the_cache])) == -1) goto err_key_gen;
 			}	
 
-			if((unsigned short)n < USHRT_MAX){
+			if(n < (int)USHRT_MAX){
 				k = (void*)(uint16_t*)&n;
 			} else{
 				k = (void*)(uint32_t*)&n;
@@ -464,7 +464,6 @@ static int l_write_record(lua_State *L)
 		n = (long long)luaL_checkinteger(L,3);
 		if( n < 0) goto err_key;
 		k = (void*)&n;
-		lua_pushinteger(L,n);
 	}else if(type == LUA_TSTRING){
 		char *param = (char*)luaL_checkstring(L,3);
 		if(param && (strlen(param) == strlen("base")) &&
@@ -569,8 +568,13 @@ use_cache:
 		free_schema(hd.sch_d);
 	}
 	
+
+	if(key_type == UINT) lua_pushinteger(L,n);
+	if(key_type == STR) lua_pushstring(L,(char*)k);
+
 	port_record(L,&rec);/*is this obsolete now?*/
 	free_record(&rec,rec.fields_num);
+
 	return 2;/*return the key and the record*/
 
 err_cache:
@@ -587,6 +591,8 @@ err_cache:
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
 		goto err_write_rec;
 
+	if(key_type == UINT) lua_pushinteger(L,n);
+	if(key_type == STR) lua_pushstring(L,(char*)k);
 	port_record(L,&rec); /*?obsolete?*/
 
 	if(lock) {
@@ -602,10 +608,10 @@ err_cache:
 write_rec_test:
 
 	if(fds[0] == -1){
-	if(open_files(file_name,fds,file_names,-1) == -1) 
-		goto err_open_file;
-	if(is_db_file(&hd,fds) == -1) 
-		goto err_not_db_file;
+		if(open_files(file_name,fds,file_names,-1) == -1) 
+			goto err_open_file;
+		if(is_db_file(&hd,fds) == -1) 
+			goto err_not_db_file;
 	}
 
 	lock = STD_LOCK | LOCK_FROM_LUA;/*this will lock the file on disk*/
@@ -614,16 +620,18 @@ write_rec_test:
 	if(write_record(fds,(void*)k,key_type,&rec,0,file_names,&lock,-1,hd.sch_d) == -1) 
 		goto err_write_rec;
 
+	if(key_type == UINT) lua_pushinteger(L,n);
+	if(key_type == STR) lua_pushstring(L,(char*)k);
 	port_record(L,&rec);/*?obsolete?*/
 
 	if(lock) {
 		release_lock(fds,-1);
 		lock = 0;
 	}
+
 	close_file(3,fds[0],fds[1],fds[2]);
 	free_schema(hd.sch_d);
 	free_record(&rec,rec.fields_num);
-
 	return 2;
 
 err_cache_write:

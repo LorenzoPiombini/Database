@@ -51,12 +51,7 @@ end
 
 function write_customers(data)
 
-	local cli_rec = create_rec(customers, data)
-	if cli_rec == nil then
-		return nil
-	end
-
-	local f = cli_rec.fields
+	local f = data.fields
 
 	-- indexing function
 	-- we are saving the same record with a different key, to get better
@@ -64,7 +59,10 @@ function write_customers(data)
 	-- if this one fails, it means that we have this customer in the DB already
 	-- USING INDEX 2 BECAUSE INDEX 1 and 0 ARE USED INTERNALY FROM THE DB system
 	-- @@ we are creating a reference to the customer record, based on the customer name @@
-	local res = indexing(customers, f.name, 2, cli_rec.offset)
+	data.offset = g_offset(customers);
+	if data.offset == nil then return -1 end
+
+	local res = indexing(customers, f.name, 2, data.offset)
 	if res ~= 2 then
 		return -1
 	end
