@@ -544,7 +544,7 @@ use_cache:
 		struct Cache *p = &dbCache[file_pos_in_the_cache];
 
 		struct Header_d hd_c = {0,0,&p->sch};
-		if(port_table_to_record(L,2,&rec,&sch) == -1)goto err_cache_invalid_data;
+		if(port_table_to_record(L,2,&rec,&p->sch) == -1)goto err_cache_invalid_data;
 		/*if(check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0) == -1) goto err_cache_invalid_data;*/
 
 		if(set_tbl(p->index_file,k,p->data_file.size,key_type,0) == -1) goto err_cache_write_index;
@@ -704,9 +704,8 @@ static int l_update_record(lua_State *L)
 	char *file_name = (char*)luaL_checkstring(L,1);
 	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
 
-	/*TODO: move to new table flow*/
-	char *data_to_add = (char*)luaL_checkstring(L,2);
-	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
+	/*second argument must be a table*/
+	luaL_checktype(L,2,LUA_TTABLE);
 	
 	char *k_str = NULL;
 	void *key = NULL;
@@ -787,7 +786,8 @@ use_cache:
 	int check = 0;
 	int lock = STD_LOCK | LOCK_FROM_LUA;
 	struct Header_d hd_c = {0,0,&p->sch};
-	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0)) == -1) goto err_cache_invalid_data;
+	/*if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd_c,&lock,-1,0)) == -1)*/
+	if((check = port_table_to_record(L,2,&rec,&p->sch)) == -1) goto err_cache_invalid_data;
 	
 	/*get old record*/
 	if((pos = get(key, &p->index_file[0],key_type)) == -1) goto err_cache_rec_not_found;
@@ -857,7 +857,8 @@ update_rec_test:
 		if(is_db_file(&hd,fds) == -1) goto err_not_db_file;
 	}
 	check = -1;
-	if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,1)) == -1) goto err_invalid_data;
+	if((check = port_table_to_record(L,2,&rec,&sch)) == -1) goto err_invalid_data;
+	/*if((check = check_data(file_name,data_to_add,fds,file_names,&rec,&hd,&lock,-1,1)) == -1)*/
 	int r = 0;
 	if((r = update_rec(file_name,fds,key,key_type,&rec,hd,check,&lock,NULL,-1)) == -1) goto err_update_rec;
 
@@ -1901,10 +1902,6 @@ int port_record(lua_State *L, struct Record_f* r){
 	return 0;
 }
 
-/* NOTE:
- * i don't think you need set_top(), this layer and the db, share the same lua stack
- * on failure the db layer will call clear_lua_stack() effectivelly clearing the stack;
- * */
 int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Schema *sch)
 {
 	if(lua_getfield(L,index,"file_name") != LUA_TSTRING) return -1;
@@ -1931,11 +1928,12 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 	}
 		
 
-	int i;
+	int i, check_type = SCHEMA_EQ;
 	for(i = 0; i < sch->fields_num; i++){
 		lua_getfield(L,-1,sch->fields_name[i]);
 		if(lua_isnil(L,-1)) {
 			lua_pop(L,1);
+			check_type = SCHEMA_CT;
 			continue;
 		}
 	
@@ -1945,7 +1943,6 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 			is_num = 0;
 			rec->fields[i].data.i = (int) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				lua_settop(L,0);
 				return -1;
 			}
 			rec->field_set[i] = 1;
@@ -1957,7 +1954,6 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 			is_num = 0;
 			rec->fields[i].data.l = (long) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				lua_settop(L,0);
 				return -1;
 			}
 			rec->field_set[i] = 1;
@@ -1969,7 +1965,6 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 			is_num = 0;
 			rec->fields[i].data.b = (unsigned char) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				lua_settop(L,0);
 				return -1;
 			}
 			rec->field_set[i] = 1;
@@ -1981,7 +1976,6 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 			is_num = 0;
 			rec->fields[i].data.f = (float) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				lua_settop(L,0);
 				return -1;
 			}
 			rec->field_set[i] = 1;
@@ -1991,9 +1985,8 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 		case TYPE_DOUBLE:
 		{
 			is_num = 0;
-			rec->fields[i].data.b = (double) lua_tonumberx(L,-1,&is_num); 
+			rec->fields[i].data.d = (double) lua_tonumberx(L,-1,&is_num); 
 			if(!is_num){
-				lua_settop(L,0);
 				return -1;
 			}
 			rec->field_set[i] = 1;
@@ -2004,14 +1997,12 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 		{
 			char *s = (char*)lua_tostring(L,-1);
 			if(!s){
-				lua_settop(L,0);
 				return -1;
 			}
 
 			size_t sz = strlen(s);
 			rec->fields[i].data.s = (char *)malloc(sz+1);
 			if(!rec->fields[i].data.s){
-				lua_settop(L,0);
 				return -1;
 			}
 
@@ -2025,19 +2016,13 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 		{ 
 			char *s = (char*)lua_tostring(L,-1);
 			if(!s){
-				lua_settop(L,0);
 				return -1;
 			}
 			if((rec->fields[i].data.date = convert_date_to_number(-1,s)) == 0){
-				lua_settop(L,0);
 				return -1;
 			}
 			rec->field_set[i] = 1;
 			lua_pop(L,1);
-			break;
-		}
-		case TYPE_FILE:
-		{
 			break;
 		}
 		/*TYPE ARRAYS*/
@@ -2045,7 +2030,7 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 		}
 	}
 
-	return 0;
+	return check_type;
 }
 
 

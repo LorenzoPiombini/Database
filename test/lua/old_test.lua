@@ -26,6 +26,7 @@ create_rec = db.create_record
 g_rec = db.get_record
 d_rec = db.delete_record
 g_all_key = db.get_all_key
+g_offset = db.get_offset
 
 --- look for documentation in lua/src/export_db_lua.c
 --- return two results, the record created and its key, if the key is not passed

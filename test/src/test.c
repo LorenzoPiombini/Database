@@ -715,7 +715,25 @@ int LUA_test_update_rec_cache()
 	char *func = "update_record";
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"double:2.0"); /*Arg 2*/
+	lua_newtable(L);
+
+	/*Arg 2*/
+	lua_pushstring(L,"test");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+
+	lua_pushnumber(L,2.0);
+	lua_setfield(L,-2,"double");
+	lua_settable(L,-3);
+
 	lua_pushinteger(L,103); /*Arg 3*/
 	
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
@@ -768,7 +786,24 @@ int LUA_test_update_rec_cache()
 	
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"integer:1"); /*Arg 2*/
+
+	lua_newtable(L);
+	lua_pushstring(L,"test");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+
+	lua_pushinteger(L,1);
+	lua_setfield(L,-2,"integer");
+	lua_settable(L,-3);
+
 	lua_pushinteger(L,103); /*Arg 3*/
 	
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
@@ -823,7 +858,24 @@ int LUA_test_update_rec_cache()
 
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
-	lua_pushstring(L,"field:This is the new string, is it longer, because i want to try how does the fucntion work,this should succeed and be written in the right spot in the file"); /*Arg 2*/
+
+	lua_newtable(L);
+	lua_pushstring(L,"test");
+	lua_setfield(L,-2,"file_name");
+
+	lua_pushinteger(L,0); /*you do not know this*/
+	lua_setfield(L,-2,"offset");
+
+	lua_pushinteger(L,3);
+	lua_setfield(L,-2,"fields_number");
+
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+
+	lua_pushstring(L,"This is the new string, is it longer, because i want to try how does the fucntion work,this should succeed and be written in the right spot in the file");
+	lua_setfield(L,-2,"field");
+	lua_settable(L,-3);
+
 	lua_pushinteger(L,103); /*Arg 3*/
 	
 	if(lua_pcall(L,3,2,0) != LUA_OK) goto clean_on_failure;
@@ -898,6 +950,7 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	lua_getglobal(L,func);
 	lua_pushstring(L,"test"); /*Arg 1*/
 
+	/*Arg 2*/
 	lua_newtable(L);
 	lua_pushstring(L,"test");
 	lua_setfield(L,-2,"file_name");
@@ -914,6 +967,7 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	lua_pushlstring(L,"This is a field",15);
 	lua_setfield(L,-2,"field");
 	lua_settable(L,-3);
+	/**/
 
 
 	if(lua_pcall(L,2,2,0) != LUA_OK) goto clean_on_failure;
@@ -924,6 +978,7 @@ int LUA_test_w_rec_cache(struct Schema *sch)
 	/*
 		w_rec() function return two results the key and the table(record)
 		the key is at position -3 from the top of the lua stack
+		(because the Record_f get transalated to a two nested table in the lua layer)
 	*/
 
 	int is_num;
@@ -1277,7 +1332,7 @@ int LUA_test_write_customer_cache()
 
 	char *func = "write_customers";
 	lua_getglobal(L,func);
-	lua_pushstring(L,"name:Test LLC:addr:1B W 8th St:csz:New York NY 10011 :price_level_id:STND");
+	/*lua_pushstring(L,"name:Test LLC:addr:1B W 8th St:csz:New York NY 10011 :price_level_id:STND");*/
 	/* arg1*/
 	lua_newtable(L);
 	lua_pushstring(L,"customer");
@@ -1305,7 +1360,10 @@ int LUA_test_write_customer_cache()
 	lua_setfield(L,-2,"price_level_id");
 	lua_settable(L,-3);
 
-	if(lua_pcall(L,1,2,0) != LUA_OK) goto clean_on_failure;
+	if(lua_pcall(L,1,2,0) != LUA_OK){
+		fprintf(stderr,"%s\n",lua_tostring(L,-1));
+		goto clean_on_failure;
+	}
 
 	int is_num;
 	uint32_t k = lua_tonumberx(L, -2, &is_num); 
