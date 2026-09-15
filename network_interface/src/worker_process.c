@@ -106,7 +106,7 @@ int work_process(int sock)
 			memset(succ,0,1024);
 			if(copy_to_string(&succ[2],1024-2,"{\"message\":\"customer nr %d, created!\"}",key) == -1) goto new_cust_error;
 
-			if(write(data_sock,succ,strlen(&succ[2])) == -1) goto new_cust_error;
+			if(write(data_sock,succ,strlen(&succ[2])+2) == -1) goto new_cust_error;
 
 			close(data_sock);
 			data_sock = -1;
