@@ -1916,10 +1916,7 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 
 	int is_num;
 	rec->offset = (file_offset) lua_tonumberx(L,-1,&is_num);
-	if(!is_num){
-		/*TODO: error*/
-		return -1;
-	}
+	if(!is_num) return -1;
 	lua_pop(L,1);
 
 	if(lua_getfield(L,index,"fields") != LUA_TTABLE){

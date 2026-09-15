@@ -58,7 +58,6 @@ int work_process(int sock)
 			break;
 		}
 
-
 		if(r == 0){
 			close(data_sock);
 			continue;
@@ -72,7 +71,6 @@ int work_process(int sock)
 
 		buffer[sizeof(buffer) - 1] = '\0';
 		int operation_to_perform = (int)(*((ui16*)buffer));	
-
 
 		switch(operation_to_perform){
 		case NEW_CUST:
@@ -168,7 +166,7 @@ new_cust_error:
 				goto report_error;
 			}
 
-			/*I NEED A TIMER ????*/
+			/*do I NEED A TIMER ????*/
 			char ok = 0;
 			if(read(data_sock,&ok,1) == -1){
 				free(msg);
@@ -195,11 +193,14 @@ report_error:
 		}
 		case N_ITEM: /*NEW ITEM*/
 		{
-			ui8 *data = (ui8*)&buffer[2];
+			size_t data_size = 0;
+			memcpy(&data_size,&buffer[2],sizeof(ui64));
+			/*this is the data from ssl_process*/
+			ui8 *data = (ui8*)&buffer[10];
 
 			long long res = -1;
 			char *item_name = NULL;
-			if(execute_lua_function("write_item","t>ls",data,ITEM_FILE,&res,&item_name) == -1){
+			if(execute_lua_function("write_item","t>ls",data,data_size,ITEM_FILE,&res,&item_name) == -1){
 				short int err_code = (short int)res;
 				memcpy(&err[0],&err_code,sizeof(short int));
 				switch(err_code){
@@ -230,7 +231,7 @@ report_error:
 			clear_lua_stack();
 			item_name = NULL;
 			
-			if(write(data_sock,succ,strlen(&succ[2]) + 2 ) == -1) goto n_item_error;
+			if(write(data_sock,succ,strlen(&succ[2]) + 2) == -1) goto n_item_error;
 
 			close(data_sock);
 			data_sock = -1;
