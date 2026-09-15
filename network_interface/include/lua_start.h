@@ -14,7 +14,7 @@
 #endif
 
 #include "hash_tbl.h"
-typedef int (*table_to_record_fn)(lua_State*,struct Record_f*,struct Schema*);
+typedef int (*table_to_record_fn)(lua_State*,int,struct Record_f*,struct Schema*);
 typedef int (*create_table)(ui8 *,char *);
 
 extern table_to_record_fn tbl_to_rec;

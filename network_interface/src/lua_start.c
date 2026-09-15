@@ -23,7 +23,7 @@ struct Cache *dbcache_ptr = NULL;
 HashTable *cache_r_ptr =NULL;
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
-static int create_lua_table(ui8 *data, char *file_name);
+static int create_lua_table(ui8 *data, char *file_name,size_t data_size);
 
 int init_lua(char *config_file)
 {
@@ -100,10 +100,11 @@ int execute_lua_function(char *func_name, char *func_sig,...)
 			case 't':
 			{
 				ui8 *data = va_arg(vl,ui8*);	
+				size_t data_size = va_arg(vl,size_t);
 				char *file_name = va_arg(vl,char*);
 
 				if(!data || !file_name) return -1;
-				if(create_lua_table(data,file_name) == -1) {
+				if(create_lua_table(data,file_name,data_size) == -1) {
 					va_end(vl);
 					return -1;
 				}
@@ -283,6 +284,7 @@ static void free_inactive_caches(struct Cache *c)
 	}
 }
 
+/*create a table from json tokens*/
 static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 {
 	size_t bwalked = 0;
@@ -296,6 +298,7 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 	ui16 fields_num = 0;
 	memcpy(&fields_num,&data[bwalked],sizeof(ui16));
 	bwalked += sizeof(ui16);
+	if(bwalked > data_size) return -1;
 
 	lua_pushinteger(L,fields_num);
 	lua_setfield(L,-2,"fields_number");
@@ -305,23 +308,26 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 
 	int i;
 	for(i = 0; i < fields_num; i++){
-		if(bwalked >= data_size) return -1;		
 		ui8 type = 0;
 		memcpy(&type,&data[bwalked],sizeof(type));
 		bwalked++;
+		if(bwalked > data_size) return -1;
 
 		ui16 f_len = 0;
 		memcpy(&f_len,&data[bwalked],sizeof(ui16));
 		bwalked += sizeof(ui16);
+		if(bwalked > data_size) return -1;
 
 		/*set field name*/
 		lua_pushlstring(L,(const char*)&data[bwalked],f_len);
 		bwalked += f_len;       
+		if(bwalked > data_size) return -1;
 
 		ui16 v_len = *(ui16*)data; 
 		memcpy(&v_len,&data[bwalked],sizeof(ui16));
 
 		bwalked += sizeof(ui16);
+		if(bwalked > data_size) return -1;
 
 		switch(type){
 			case STRING_JS:	lua_pushlstring(L,(const char*)&data[bwalked],v_len); bwalked += v_len; break;
@@ -343,6 +349,7 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 			}
 			default:		return -1;
 		}
+		if(bwalked > data_size) return -1;
 		lua_settable(L,-3);
 	}
 	lua_settable(L,-3);

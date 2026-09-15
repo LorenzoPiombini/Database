@@ -22,5 +22,5 @@ extern struct Cache dbCache[CACHE_SIZE];
 extern HashTable cache_register;
 
 int port_record(lua_State *L, struct Record_f *rec);
-int port_table_to_record(lua_State *L, struct Record_f *rec,struct Schema *sch);
+int port_table_to_record(lua_State *L, int index,struct Record_f *rec,struct Schema *sch);
 #endif

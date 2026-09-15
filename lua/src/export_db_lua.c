@@ -538,7 +538,7 @@ static int l_write_record(lua_State *L)
 		goto err_cache;
 
 	close_file(3,fds[0],fds[1],fds[2]);
-	memset(fds,-1,3*sizeof(int));
+	INIT_FILE_T_ARRAY(fds,3);
 use_cache:
 
 	if(file_pos_in_the_cache != -1){
@@ -574,7 +574,7 @@ use_cache:
 	return 2;/*return the key and the record*/
 
 err_cache:
-	if(fds[0] == -1){
+	if(!IS_FILE_T_VALID(fds[0])){
 		if(open_files(file_name,fds,file_names,-1) == -1) 
 			goto err_open_file;
 		if(is_db_file(&hd,fds) == -1) 
@@ -696,6 +696,7 @@ static int l_update_record(lua_State *L)
 	char *file_name = (char*)luaL_checkstring(L,1);
 	luaL_argcheck(L, file_name != NULL, 1,"file_name expected");
 
+	/*TODO: move to new table flow*/
 	char *data_to_add = (char*)luaL_checkstring(L,2);
 	luaL_argcheck(L, data_to_add != NULL, 2,"data expected!");
 	
