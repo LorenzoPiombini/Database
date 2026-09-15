@@ -67,21 +67,20 @@ function write_to_name_file(data)
 end
 
 function write_item(data)
-	local name = string.match(data,"name:([^:]+)")
-	local p_level = string.match(data,"price_level_id:([^:]+)")
-	local price = tonumber(string.match(data,"unit_price:([^:]+)"))
-	if price == nil or price < 0 then return nil,VALUE_ERROR end
-	if name == nil then return nil,VALUE_ERROR end
-	
+	print(data.unit_price)
+	print(data.name)
+	print(data.uom)
+	if data.unit_price == nil or data.unit_price < 0 then return nil,VALUE_ERROR end
+	if data.name == nil then return nil,VALUE_ERROR end
 	--if price level is there, make sure is accurate
-	if p_level ~= nil then
-		local p_level_record = g_rec(price_level,p_level,1)
+	if data.price_level_id ~= nil then
+		local p_level_record = g_rec(price_level,data.price_level_id,1)
 		if p_level_record == nil then return nil,VALUE_ERROR end
 	end
 
 	local k, i = w_rec(items,data,INCREMENT)
 	if k == nil then return  nil,NEW_ITEM_WRITE_FAILED end
-	return 0,name
+	return 0,data.name
 end
 
 function write_customers(data)
