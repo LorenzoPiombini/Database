@@ -78,9 +78,10 @@ int work_process(int sock)
 		case NEW_CUST:
 		{
 
+			size_t data_size = 0;
+			memcpy(&data_size,&buffer[2],sizeof(ui64));
 			/*this is the data from ssl_process*/
-			ui8 *data = (ui8*)&buffer[2];
-			size_t data_size = strlen(&buffer[2]);/*here the data are always null terminated*/
+			ui8 *data = (ui8*)&buffer[10];
 
 			long long res = -1, key = -1;
 			if(execute_lua_function("write_customers","t>ll",data,data_size,CUSTOMER_FILE,&res,&key) == -1 || res == 2 ){
