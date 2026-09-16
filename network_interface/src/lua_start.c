@@ -319,38 +319,49 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 		if(bwalked > data_size) return -1;
 
 		/*set field name*/
-		lua_pushlstring(L,(const char*)&data[bwalked],f_len);
+		char buf[f_len+1];
+		memset(buf,0,f_len+1);
+		memcpy(buf,&data[bwalked],f_len);
+
 		bwalked += f_len;       
 		if(bwalked > data_size) return -1;
 
-		ui16 v_len = *(ui16*)data; 
+		ui16 v_len;
 		memcpy(&v_len,&data[bwalked],sizeof(ui16));
-
 		bwalked += sizeof(ui16);
+
 		if(bwalked > data_size) return -1;
 
 		switch(type){
-			case STRING_JS:	lua_pushlstring(L,(const char*)&data[bwalked],v_len); bwalked += v_len; break;
-			case TRUE_JS: 	lua_pushinteger(L,1); bwalked += v_len; break;
-			case FALSE_JS:	lua_pushinteger(L,0); bwalked += v_len; break;
-			case NUMBER_JS: 
-			{
-				char nb[64] = {0};
-				if(v_len >= sizeof nb) return -1;
-				memcpy(nb,&data[bwalked],v_len);
+		case STRING_JS:	
+			lua_pushlstring(L,(const char*)&data[bwalked],v_len); bwalked += v_len;
+			lua_setfield(L,-2,buf);
+			break;
+		case TRUE_JS:
+			lua_pushinteger(L,1); bwalked += v_len;
+			lua_setfield(L,-2,buf);
+			break;
+		case FALSE_JS:	
+			lua_pushinteger(L,0); bwalked += v_len;
+			lua_setfield(L,-2,buf);
+			break;
+		case NUMBER_JS: 
+		{
+			char nb[64] = {0};
+			if(v_len >= sizeof nb) return -1;
+			memcpy(nb,&data[bwalked],v_len);
 
-				errno = 0;
-				char *endptr;
-				double d = strtod(nb,&endptr);
-				if(endptr == nb || errno == EINVAL) return -1;
-				lua_pushnumber(L,d);
-				bwalked += v_len;
-				break;
-			}
-			default:		return -1;
+			errno = 0;
+			char *endptr;
+			double d = strtod(nb,&endptr);
+			if(endptr == nb || errno == EINVAL) return -1;
+			lua_pushnumber(L,d);
+			lua_setfield(L,-2,buf);
+			bwalked += v_len;
+			break;
 		}
-		if(bwalked > data_size) return -1;
-		lua_settable(L,-3);
+		default:		return -1;
+		}
 	}
 	lua_settable(L,-3);
 	return 0;
