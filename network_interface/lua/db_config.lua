@@ -67,20 +67,23 @@ function write_to_name_file(data)
 end
 
 function write_item(data)
-	print(data.unit_price)
-	print(data.name)
-	print(data.uom)
-	if data.unit_price == nil or data.unit_price < 0 then return nil,VALUE_ERROR end
-	if data.name == nil then return nil,VALUE_ERROR end
+	local f = data.fields
+	print(f.name)
+	print(f.uom)
+	print(f.unit_price)
+	if f == nil then return nil, VALUE_ERROR end
+
+	if f.unit_price == nil or f.unit_price < 0 then return nil,VALUE_ERROR end
+	if f.name == nil then return nil,VALUE_ERROR end
 	--if price level is there, make sure is accurate
-	if data.price_level_id ~= nil then
-		local p_level_record = g_rec(price_level,data.price_level_id,1)
+	if f.price_level_id ~= nil then
+		local p_level_record = g_rec(price_level,f.price_level_id,1)
 		if p_level_record == nil then return nil,VALUE_ERROR end
 	end
 
 	local k, i = w_rec(items,data,INCREMENT)
 	if k == nil then return  nil,NEW_ITEM_WRITE_FAILED end
-	return 0,data.name
+	return 0,f.name
 end
 
 function write_customers(data)
