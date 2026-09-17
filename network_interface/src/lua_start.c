@@ -334,17 +334,23 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 
 		switch(type){
 		case STRING_JS:	
+		{
 			lua_pushlstring(L,(const char*)&data[bwalked],v_len); bwalked += v_len;
 			lua_setfield(L,-2,buf);
 			break;
+		}
 		case TRUE_JS:
+		{
 			lua_pushinteger(L,1); bwalked += v_len;
 			lua_setfield(L,-2,buf);
 			break;
+		}
 		case FALSE_JS:	
+		{
 			lua_pushinteger(L,0); bwalked += v_len;
 			lua_setfield(L,-2,buf);
 			break;
+		}
 		case NUMBER_JS: 
 		{
 			char nb[64] = {0};

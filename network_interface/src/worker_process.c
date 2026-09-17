@@ -20,6 +20,11 @@
 static char prog[] = "worker_process";
 static int data_to_json(char **buffer, struct Record_f *rec,int end_point);
 
+#define read64(n) (((ui64)(n)[0])	| ((ui64)(n)[1]<<8)\
+			| ((ui64)(n)[2]<<16)  	| ((ui64)(n)[3]<<24)\
+			| ((ui64)(n)[4]<<32)  	| ((ui64)(n)[5]<<40)\
+			| ((ui64)(n)[6]<<48)  	| ((ui64)(n)[7]<<56))
+
 #define LUA_VALUE_ERROR -20
 #define LUA_SALES_ORDER_HEAD_WRITE_FAILED -21
 #define LUA_SALES_ORDER_LINES_WRITE_FAILED -22
@@ -76,8 +81,9 @@ int work_process(int sock)
 		case NEW_CUST:
 		{
 
-			size_t data_size = 0;
-			memcpy(&data_size,&buffer[2],sizeof(ui64));
+			char *p = &buffer[2];
+			size_t data_size = read64((ui8*)p);
+
 			/*this is the data from ssl_process*/
 			ui8 *data = (ui8*)&buffer[10];
 
@@ -193,9 +199,8 @@ report_error:
 		}
 		case N_ITEM: /*NEW ITEM*/
 		{
-			size_t data_size = 0;
-			memcpy(&data_size,&buffer[2],sizeof(ui64));
-			/*this is the data from ssl_process*/
+			char *p = &buffer[2];
+			size_t data_size = read64((ui8*)p);
 			ui8 *data = (ui8*)&buffer[10];
 
 			long long res = -1;
@@ -253,73 +258,17 @@ n_item_error:
 		case NEW_SORD:
 		case UPDATE_SORD:
 		{
-			ui8 *data = (ui8*)&buffer[2];
-
-			size_t len = 0;
-			char *t = NULL;
-
-			char key_up[1024];
-			memset(key_up,0,1024);
-			clear_tok();
-			t = tok(&buffer[2],"^");
-			if(t){
-				len = strlen(t);	
-			}else{
-				memset(err,0,1024);
-				write(data_sock,err,sizeof(err));
-				close(data_sock);
-				data_sock = -1;
-				continue;
-			}
+			char *p = &buffer[2];
+			size_t data_size = read64((ui8*)p);
+			ui8 *data = (ui8*)&buffer[10];
 
 			if(operation_to_perform == UPDATE_SORD){
 				/*get the key of the record that we have to update*/
-
-				if(len >= 1024){/*if the length is >= than 1024 we need a code refactor*/
-					fprintf(stderr,"code refactor needed %s:%d\n",__FILE__,__LINE__- 10);
-					memset(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					continue;
-				}
-				strncpy(key_up,t,len);
-				t = tok(NULL,"^");
-				if(t){
-					len = strlen(t);	
-				}else{
-					memset(err,0,1024);
-					write(data_sock,err,sizeof(err));
-					close(data_sock);
-					data_sock = -1;
-					continue;
-				}
 			}
-
-			char orders_head[len+1];
-			memset(orders_head,0,len+1);
-			strncpy(orders_head,t,len);
-
-			fprintf(stdout,"%s\n",orders_head);
-			t = tok(NULL,"^");
-			if(t){
-				len = strlen(t);	
-			}else{
-				memset(err,0,1024);
-				write(data_sock,err,sizeof(err));
-				close(data_sock);
-				data_sock = -1;
-				continue;
-			}
-
-			char orders_line[len+1];
-			memset(orders_line,0,len+1);
-			strncpy(orders_line,t,len);
-
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
-				if(execute_lua_function("write_orders","tt>l",data,SALES_ORDERS_H,SALES_ORDERS_L,&key_ord) == -1){
+				if(execute_lua_function("write_orders","tt>l",data,data_size,SALES_ORDERS_H,SALES_ORDERS_L,&key_ord) == -1){
 					/*send error and resume*/
 					/*key ord contain the error code*/
 					short int err_code = (short int)key_ord;
@@ -345,6 +294,7 @@ n_item_error:
 					goto new_up_ords_err;
 				}
 			}else{
+#if 0
 				int key_type = is_num(key_up);
 				switch(key_type){
 				case UINT:
@@ -386,10 +336,11 @@ n_item_error:
 				default:
 					goto new_up_ords_err;
 				}
+#endif
 			}
 
-			clear_lua_stack();
 
+			clear_lua_stack();
 			if(operation_to_perform == NEW_SORD){
 				memset(succ,0,1024);
 				if(copy_to_string(&succ[2],1022,"{ \"message\" : \"order nr %d, created!\"}",key_ord) == -1){
@@ -403,6 +354,7 @@ n_item_error:
 				if(write(data_sock,succ,l) == -1) goto new_up_ords_err;
 
 			}else if(operation_to_perform == UPDATE_SORD){
+#if 0
 				memset(succ,0,1024);
 				if(copy_to_string(&succ[2],1022,"{ \"message\" : \"order nr %s, updated!\"}",key_up) == -1){
 					/*log error*/
@@ -411,6 +363,7 @@ n_item_error:
 				size_t l = strlen(&succ[2])+ 3;
 
 				if(write(data_sock,succ,l) == -1) goto new_up_ords_err;
+#endif
 			}
 
 			close(data_sock);
