@@ -23,7 +23,7 @@ struct Cache *dbcache_ptr = NULL;
 HashTable *cache_r_ptr =NULL;
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
-static int create_lua_table(ui8 *data, char *file_name,size_t data_size);
+static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *bwalked);
 
 int init_lua(char *config_file)
 {
@@ -104,7 +104,8 @@ int execute_lua_function(char *func_name, char *func_sig,...)
 				char *file_name = va_arg(vl,char*);
 
 				if(!data || !file_name) return -1;
-				if(create_lua_table(data,file_name,data_size) == -1) {
+				size_t bwalked = 0; 
+				if(create_lua_table(data,file_name,data_size,&bwalked) == -1) {
 					va_end(vl);
 					return -1;
 				}
@@ -284,10 +285,12 @@ static void free_inactive_caches(struct Cache *c)
 	}
 }
 
-/*create a table from json tokens*/
-static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
+/* 
+ * create a table from json tokens
+ * in this case a lua table is mappable to a Record_f
+ * */
+static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *bwalked)
 {
-	size_t bwalked = 0;
 	lua_newtable(L);
 	lua_pushstring(L,file_name);
 	lua_setfield(L,-2,"file_name");
@@ -295,10 +298,11 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 	lua_pushinteger(L,0); /*you do not know this*/
 	lua_setfield(L,-2,"offset");
 
+	if((*bwalked + sizeof(ui16)) > data_size) return -1;
+
 	ui16 fields_num = 0;
-	memcpy(&fields_num,&data[bwalked],sizeof(ui16));
-	bwalked += sizeof(ui16);
-	if(bwalked > data_size) return -1;
+	memcpy(&fields_num,&data[*bwalked],sizeof(ui16));
+	*bwalked += sizeof(ui16);
 
 	lua_pushinteger(L,fields_num);
 	lua_setfield(L,-2,"fields_number");
@@ -308,46 +312,62 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 
 	int i;
 	for(i = 0; i < fields_num; i++){
+		if((*bwalked + sizeof(ui8)) > data_size) return -1;
+
 		ui8 type = 0;
-		memcpy(&type,&data[bwalked],sizeof(type));
-		bwalked++;
-		if(bwalked > data_size) return -1;
+		memcpy(&type,&data[*bwalked],sizeof(type));
+		(*bwalked)++;
+		if(type == ARRAY_JS) continue;
+
+		if((*bwalked + sizeof(ui16)) > data_size) return -1;
 
 		ui16 f_len = 0;
-		memcpy(&f_len,&data[bwalked],sizeof(ui16));
-		bwalked += sizeof(ui16);
-		if(bwalked > data_size) return -1;
+		memcpy(&f_len,&data[*bwalked],sizeof(ui16));
+		*bwalked += sizeof(ui16);
 
 		/*set field name*/
+		if((*bwalked + f_len) > data_size) return -1;
 		char buf[f_len+1];
 		memset(buf,0,f_len+1);
-		memcpy(buf,&data[bwalked],f_len);
+		memcpy(buf,&data[*bwalked],f_len);
 
-		bwalked += f_len;       
-		if(bwalked > data_size) return -1;
+		*bwalked += f_len;       
+
+		if((*bwalked + sizeof(ui16)) > data_size) return -1;
+
+		if(type == OBJECT_JS) goto cases;
 
 		ui16 v_len;
-		memcpy(&v_len,&data[bwalked],sizeof(ui16));
-		bwalked += sizeof(ui16);
+		memcpy(&v_len,&data[*bwalked],sizeof(ui16));
+		*bwalked += sizeof(ui16);
 
-		if(bwalked > data_size) return -1;
+		if(type != OBJECT_JS && (*bwalked + v_len) > data_size) return -1;
 
+cases:
 		switch(type){
+		case OBJECT_JS:
+		{
+			if(create_lua_table(data,buf,data_size,bwalked) == -1) return -1;
+			continue;
+		}
 		case STRING_JS:	
 		{
-			lua_pushlstring(L,(const char*)&data[bwalked],v_len); bwalked += v_len;
+			lua_pushlstring(L,(const char*)&data[*bwalked],v_len); 
+			*bwalked += v_len;
 			lua_setfield(L,-2,buf);
 			break;
 		}
 		case TRUE_JS:
 		{
-			lua_pushinteger(L,1); bwalked += v_len;
+			lua_pushinteger(L,1);
+			*bwalked += v_len;
 			lua_setfield(L,-2,buf);
 			break;
 		}
 		case FALSE_JS:	
 		{
-			lua_pushinteger(L,0); bwalked += v_len;
+			lua_pushinteger(L,0);
+			*bwalked += v_len;
 			lua_setfield(L,-2,buf);
 			break;
 		}
@@ -355,7 +375,7 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 		{
 			char nb[64] = {0};
 			if(v_len >= sizeof nb) return -1;
-			memcpy(nb,&data[bwalked],v_len);
+			memcpy(nb,&data[*bwalked],v_len);
 
 			errno = 0;
 			char *endptr;
@@ -363,7 +383,7 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size)
 			if(endptr == nb || errno == EINVAL) return -1;
 			lua_pushnumber(L,d);
 			lua_setfield(L,-2,buf);
-			bwalked += v_len;
+			*bwalked += v_len;
 			break;
 		}
 		default:		return -1;

@@ -268,7 +268,7 @@ n_item_error:
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
-				if(execute_lua_function("write_orders","tt>l",data,data_size,SALES_ORDERS_H,SALES_ORDERS_L,&key_ord) == -1){
+				if(execute_lua_function("write_orders","t>l",data,data_size,"data",&key_ord) == -1){
 					/*send error and resume*/
 					/*key ord contain the error code*/
 					short int err_code = (short int)key_ord;
