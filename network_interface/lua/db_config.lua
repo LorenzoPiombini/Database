@@ -190,8 +190,17 @@ function update_orders(orders_head, orders_lines, key)
 	return 0
 end
 
-function write_orders(orders_head, orders_lines)
+function write_orders(data)
+	local soh = data.fields.sales_orders_head.date
+	local sol = data.fields.sales_orders_lines.item_id
+	
+	soh.offset = g_offset(sales_orders.head)
+	sol.offset = g_offset(sales_orders.lines)
+	
 	local next_head_key = get_numeric_key(sales_orders.head,BASE,ORDER_BASE)
+	
+end
+function wait(orders_head, orders_lines)
 	if next_head_key == nil then return nil end
 
 

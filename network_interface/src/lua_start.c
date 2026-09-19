@@ -24,6 +24,7 @@ HashTable *cache_r_ptr =NULL;
 static int load(lua_State *L, char *file_config);
 static void free_inactive_caches(struct Cache *c);
 static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *bwalked);
+static int create_nested_lua_table(ui8 *data,size_t data_size,size_t *bwalked);
 
 int init_lua(char *config_file)
 {
@@ -298,17 +299,24 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *
 	lua_pushinteger(L,0); /*you do not know this*/
 	lua_setfield(L,-2,"offset");
 
+	lua_pushlstring(L,"fields",6);
+	lua_newtable(L);
+
+	int fields_num = 0;
+	if((fields_num = create_nested_lua_table(data,data_size,bwalked)) == -1) return -1;
+
+	lua_pushinteger(L,fields_num);
+	lua_setfield(L,-2,"fields_number");
+	lua_settable(L,-3);
+	return 0;
+}
+static int create_nested_lua_table(ui8 *data,size_t data_size,size_t *bwalked)
+{
 	if((*bwalked + sizeof(ui16)) > data_size) return -1;
 
 	ui16 fields_num = 0;
 	memcpy(&fields_num,&data[*bwalked],sizeof(ui16));
 	*bwalked += sizeof(ui16);
-
-	lua_pushinteger(L,fields_num);
-	lua_setfield(L,-2,"fields_number");
-
-	lua_pushlstring(L,"fields",6);
-	lua_newtable(L);
 
 	int i;
 	for(i = 0; i < fields_num; i++){
@@ -317,7 +325,6 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *
 		ui8 type = 0;
 		memcpy(&type,&data[*bwalked],sizeof(type));
 		(*bwalked)++;
-		if(type == ARRAY_JS) continue;
 
 		if((*bwalked + sizeof(ui16)) > data_size) return -1;
 
@@ -335,7 +342,7 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *
 
 		if((*bwalked + sizeof(ui16)) > data_size) return -1;
 
-		if(type == OBJECT_JS) goto cases;
+		if(type == OBJECT_JS || type == ARRAY_JS) goto cases;
 
 		ui16 v_len;
 		memcpy(&v_len,&data[*bwalked],sizeof(ui16));
@@ -345,9 +352,31 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *
 
 cases:
 		switch(type){
+		case ARRAY_JS:
+		{
+			lua_pushlstring(L,buf,f_len);
+			lua_newtable(L);
+			
+			int count = 1;
+array_element:
+			if((*bwalked + sizeof(ui8)) > data_size) return -1;
+			ui8 type = 0;
+			memcpy(&type,&data[*bwalked],sizeof(type));
+
+			if(type != OBJECT_JS) break;
+
+			(*bwalked)++;
+			lua_pushinteger(L,count++);
+			if(create_nested_lua_table(data,data_size,bwalked) == -1) return -1;
+			lua_settable(L,-3);
+			goto array_element;
+		}
 		case OBJECT_JS:
 		{
-			if(create_lua_table(data,buf,data_size,bwalked) == -1) return -1;
+			lua_pushlstring(L,buf,f_len);
+			lua_newtable(L);
+			if(create_nested_lua_table(data,data_size,bwalked) == -1) return -1;
+			lua_settable(L,-3);
 			continue;
 		}
 		case STRING_JS:	
@@ -389,6 +418,5 @@ cases:
 		default:		return -1;
 		}
 	}
-	lua_settable(L,-3);
-	return 0;
+	return fields_num;
 }
