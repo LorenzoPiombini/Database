@@ -5,8 +5,8 @@ TEST = false
 
 --[[ key generation modes]]
 REG = 0 -- this is automatically used if yuo don't pass any
-BASE = "base"
-INCREMENT = "increment"
+BASE = 1
+INCREMENT = 2
 -- [[ @@@@@@@@@@@@@@@@@@@@@@@@]]
 
 ORDER_BASE = 100
@@ -68,9 +68,6 @@ end
 
 function write_item(data)
 	local f = data.fields
-	print(f.name)
-	print(f.uom)
-	print(f.unit_price)
 	if f == nil then return nil, VALUE_ERROR end
 
 	if f.unit_price == nil or f.unit_price < 0 then return nil,VALUE_ERROR end
@@ -191,15 +188,31 @@ function update_orders(orders_head, orders_lines, key)
 end
 
 function write_orders(data)
-	local soh = data.fields.sales_orders_head.date
-	local sol = data.fields.sales_orders_lines.item_id
-	
-	soh.offset = g_offset(sales_orders.head)
-	sol.offset = g_offset(sales_orders.lines)
-	
+	local soh = data.fields.sales_orders_head
+	local sol = data.fields.sales_orders_lines
+
 	local next_head_key = get_numeric_key(sales_orders.head,BASE,ORDER_BASE)
-	
+	for i = 1, soh.lines_nr do
+		if sol[i].fields.qty == nil or sol[i].fields.qty <= 0 then return nil,VALUE_ERROR end
+		--create the Record_f like structure
+		sol[i].file_name = sales_orders.lines		
+		sol[i].offset = g_offset(sales_orders.lines)
+		local key_line = string.format("%d/%d", next_head_key, i)
+		local kl, ord_lines = w_rec(sales_orders.lines, sol[i], key_line)
+		if ord_lines == nil then return nil, SALES_ORDER_LINE_WRITE_FAILED end
+	end
+
+	--create the Record_f like structure
+	local soh_t = {}
+	soh_t.file_name = sales_orders.head
+	soh_t.offset =  g_offset(sales_orders.head);
+	soh_t.fields = soh
+
+	local kh, ord_head = w_rec(sales_orders.head, soh_t,next_head_key)
+	if ord_head == nil then return nil, SALES_ORDER_HEAD_WRITE_FAILED end
+	return next_head_key
 end
+
 function wait(orders_head, orders_lines)
 	if next_head_key == nil then return nil end
 
