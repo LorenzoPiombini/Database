@@ -88,7 +88,7 @@ static int detect_date_format(char *date){
 	{
 		int i;
 		char *p = date;
-		for(i = 0; *p != '.' && *p; p++,i++);
+		for(i = 0; *p != '-' && *p; p++,i++);
 
 		if(i == 4)
 			return YYYY_MM_DD;
