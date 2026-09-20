@@ -358,18 +358,25 @@ cases:
 			lua_newtable(L);
 			
 			int count = 1;
-array_element:
-			if((*bwalked + sizeof(ui8)) > data_size) return -1;
-			ui8 type = 0;
-			memcpy(&type,&data[*bwalked],sizeof(type));
+			for(;;){
+				if((*bwalked + sizeof(ui8)) > data_size) return -1;
+				ui8 type = 0;
+				memcpy(&type,&data[*bwalked],sizeof(ui8));
 
-			if(type != OBJECT_JS) break;
+				if(type != OBJECT_JS) break;
 
-			(*bwalked)++;
-			lua_pushinteger(L,count++);
-			if(create_nested_lua_table(data,data_size,bwalked) == -1) return -1;
+				(*bwalked)++;
+
+				lua_newtable(L);
+				lua_newtable(L);
+
+				int fn = 0;
+				if((fn=create_nested_lua_table(data,data_size,bwalked)) == -1) return -1;
+				lua_setfield(L,-2,"fields");
+				lua_rawseti(L,-2,count++);
+			}	
 			lua_settable(L,-3);
-			goto array_element;
+			break;
 		}
 		case OBJECT_JS:
 		{
