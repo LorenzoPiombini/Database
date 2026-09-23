@@ -78,7 +78,7 @@ function write_item(data)
 		if p_level_record == nil then return nil,VALUE_ERROR end
 	end
 
-	local k, i = w_rec(items,data,INCREMENT)
+	local k, i = w_rec(items,data,"increment")
 	if k == nil then return  nil,NEW_ITEM_WRITE_FAILED end
 	return 0,f.name
 end
@@ -685,9 +685,10 @@ local function get_orders_total(keys_head)
 			if item == nil then print(err_i) return -4 end
 
 			total = total + item.fields.unit_price * line.fields.qty
-			if disc ~= 0 then
-				total = total * ((100-disc)/ 100)
-			end
+		end
+
+		if disc ~= 0 then
+			total = total * ((100-disc)/ 100)
 		end
 		orders_tot = orders_tot + total
 		totals[n] = string.format('"%s":"%s","%s":%.2f',"customer_id",h.fields.customer_id,"total",total)

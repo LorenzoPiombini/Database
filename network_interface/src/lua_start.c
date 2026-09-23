@@ -361,9 +361,8 @@ cases:
 			int count = 1;
 			for(;;){
 				if((*bwalked + sizeof(ui32)) > data_size) return -1;
-				ui32 stop = 0;
-				memcpy(&stop,&data[*bwalked],sizeof(ui32));
-				if(stop == JSON_END_ARRAY){
+				ui32 stop = JSON_END_ARRAY;
+				if(memcmp(&stop,&data[*bwalked],sizeof(ui32)) == 0){
 					*bwalked += sizeof(ui32);	
 					break;
 				}
