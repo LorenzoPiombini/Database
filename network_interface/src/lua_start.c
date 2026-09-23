@@ -310,6 +310,7 @@ static int create_lua_table(ui8 *data, char *file_name,size_t data_size,size_t *
 	lua_settable(L,-3);
 	return 0;
 }
+
 static int create_nested_lua_table(ui8 *data,size_t data_size,size_t *bwalked)
 {
 	if((*bwalked + sizeof(ui16)) > data_size) return -1;
@@ -359,11 +360,18 @@ cases:
 			
 			int count = 1;
 			for(;;){
+				if((*bwalked + sizeof(ui32)) > data_size) return -1;
+				ui32 stop = 0;
+				memcpy(&stop,&data[*bwalked],sizeof(ui32));
+				if(stop == JSON_END_ARRAY){
+					*bwalked += sizeof(ui32);	
+					break;
+				}
+
 				if((*bwalked + sizeof(ui8)) > data_size) return -1;
+
 				ui8 type = 0;
 				memcpy(&type,&data[*bwalked],sizeof(ui8));
-
-				if(type != OBJECT_JS) break;
 
 				(*bwalked)++;
 
