@@ -83,12 +83,13 @@ int work_process(int sock)
 
 			char *p = &buffer[2];
 			size_t data_size = read64((ui8*)p);
+			if(data_size != (size_t)r) goto new_cust_error;
 
 			/*this is the data from ssl_process*/
 			ui8 *data = (ui8*)&buffer[10];
 
 			long long res = -1, key = -1;
-			if(execute_lua_function("write_customers","t>ll",data,data_size,CUSTOMER_FILE,&res,&key) == -1 || res == 2 ){
+			if(execute_lua_function("write_customers","t>ll",data,data_size-10,CUSTOMER_FILE,&res,&key) == -1 || res == 2 ){
 				/*send error and resume*/
 				short int err_code = (short int)res;
 				memcpy(&err[0],&err_code,sizeof(short int));
@@ -201,11 +202,13 @@ report_error:
 		{
 			char *p = &buffer[2];
 			size_t data_size = read64((ui8*)p);
+			if(data_size != (size_t)r) goto n_item_error;
+
 			ui8 *data = (ui8*)&buffer[10];
 
 			long long res = -1;
 			char *item_name = NULL;
-			if(execute_lua_function("write_item","t>ls",data,data_size,ITEM_FILE,&res,&item_name) == -1){
+			if(execute_lua_function("write_item","t>ls",data,data_size-10,ITEM_FILE,&res,&item_name) == -1){
 				short int err_code = (short int)res;
 				memcpy(&err[0],&err_code,sizeof(short int));
 				switch(err_code){
@@ -260,6 +263,8 @@ n_item_error:
 		{
 			char *p = &buffer[2];
 			size_t data_size = read64((ui8*)p);
+			if(data_size != (size_t)r) goto new_up_ords_err;
+
 			ui8 *data = (ui8*)&buffer[10];
 
 			if(operation_to_perform == UPDATE_SORD){
@@ -268,7 +273,7 @@ n_item_error:
 
 			long long key_ord = -1;
 			if(operation_to_perform == NEW_SORD){
-				if(execute_lua_function("write_orders","t>l",data,data_size,"data",&key_ord) == -1){
+				if(execute_lua_function("write_orders","t>l",data,data_size-10,"data",&key_ord) == -1){
 					/*send error and resume*/
 					/*key ord contain the error code*/
 					short int err_code = (short int)key_ord;
