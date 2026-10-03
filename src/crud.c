@@ -20,6 +20,7 @@
 #include "input.h"
 #include "string_utilities.h"
 #include "common.h"
+#include "allocator.h"
 
 static char *prog = "db";
 static file_offset get_rec_position(struct HashTable *ht, void *key, int key_type);
@@ -78,16 +79,15 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 		struct Record_f *temp = NULL;
 		temp = rec;
 		while ((update_rec_pos = get_update_offset(fds[1])) > 0) {
-			struct Record_f *n = (struct Record_f*)malloc(sizeof(struct Record_f));
+			struct Record_f *n = (struct Record_f*)A_Malloc(sizeof(struct Record_f),M_STATIC,NULL);
 			if(!n){		
-				fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"A_Malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				return STATUS_ERROR;
 			}
 
-			memset(n,0,sizeof *n);
 			if (find_record_position(fds[1], update_rec_pos) == -1) {
 				__er_file_pointer(F, L - 1);
-				free(n);
+				A_free(n);
 				return STATUS_ERROR;
 			}
 
@@ -122,14 +122,12 @@ int get_record(int mode,char *file_name,struct Record_f *rec, void *key, int key
 			memcpy(&up_r_pos_ne,&ram.mem[pos_after_read],sizeof(ui64));
 			if(up_r_pos_ne == 0) break;
 
-			struct Record_f *n = (struct Record_f*)malloc(sizeof(struct Record_f));
+			struct Record_f *n = (struct Record_f*)A_Malloc(sizeof(struct Record_f),M_STATIC,NULL);
 			if(!n){		
-				fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+				fprintf(stderr,"A_Malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 				clear_ram_file(&ram);
 				return STATUS_ERROR;
 			}
-
-			memset(n,0,sizeof *n);
 
 			file_offset update_rec_pos = swap64(up_r_pos_ne);
 			n->offset = update_rec_pos;
@@ -159,18 +157,17 @@ int get_all_records(char *file_name,file_t *fds,struct Record_f ***recs,struct H
 
 	
 	*all_size = (ram.size/sizeof(struct Record_f*)) +1;
-	*recs = (struct Record_f**)malloc(sizeof(struct Record_f*)*(*all_size));
+	*recs = (struct Record_f**)A_Malloc(sizeof(struct Record_f*)*(*all_size),M_STATIC,NULL);
 	if(!recs){ 
-		fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+		fprintf(stderr,"A_Malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 		clear_ram_file(&ram);
 		return STATUS_ERROR;
 	}
 
-	memset(*recs,0,*all_size * sizeof *recs);
 	i32 i = 0;
 	do{
 		file_offset pos_after_read = 0;
-		struct Record_f* rec = (struct Record_f*)malloc(sizeof(struct Record_f));
+		struct Record_f* rec = (struct Record_f*)A_Malloc(sizeof(struct Record_f),M_STATIC,NULL);
 		memset(rec,0,sizeof(struct Record_f));
 
 		if(( pos_after_read = read_ram_file(file_name,&ram, rec,*(hd.sch_d))) == -1){
@@ -194,14 +191,13 @@ int get_all_records(char *file_name,file_t *fds,struct Record_f ***recs,struct H
 			}
 		}
 
-		struct Record_f *n = (struct Record_f*)malloc(sizeof(struct Record_f));
+		struct Record_f *n = (struct Record_f*)A_Malloc(sizeof(struct Record_f),M_STATIC,NULL);
 		if(!n){		
-			fprintf(stderr,"malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
+			fprintf(stderr,"A_Malloc() failed, %s:%d.\n",__FILE__,__LINE__-2);
 			clear_ram_file(&ram);
 			return STATUS_ERROR;
 		}
 
-		memset(n,0,sizeof *n);
 		file_offset update_rec_pos = swap64(up_r_pos_ne);
 		n->offset = update_rec_pos;
 		ram.offset = update_rec_pos;
@@ -1097,10 +1093,10 @@ int set_tbl(struct HashTable *ht, void *key, file_offset offset, int key_type,in
 	{
 		if (key_conv) {
 			if (!set(key_conv, key_type, offset,indexing >= 1 ? &ht[indexing] : &ht[0])){
-				free(key_conv);
+				A_free(key_conv);
 				return -1;
 			}
-			free(key_conv);
+			A_free(key_conv);
 		}
 	} 
 #if defined(__linux__) || defined(__APPLE__)
@@ -1186,7 +1182,7 @@ static file_offset get_rec_position(struct HashTable *ht, void *key, int key_typ
 		{
 			if (key_conv) {
 				offset = get(key_conv, ht, key_type); /*look for the key in the ht */
-				free(key_conv);
+				A_free(key_conv);
 				if(offset == -1) 
 					return KEY_NOT_FOUND;
 
