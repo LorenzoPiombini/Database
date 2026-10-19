@@ -69,8 +69,35 @@ LIBDIR = /usr/local/lib
 INCLUDEDIR = /usr/local/include
 SHAREDLIBl = lib$(LIBNAMEl).so
 
+
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
+else
+    DETECTED_OS := $(shell uname -s)
+endif
+
+# Normalize a few common values
+ifeq ($(DETECTED_OS),Darwin)
+    DETECTED_OS := macOS
+endif
+
+ifeq ($(DETECTED_OS),Windows)
+    EXE  := .exe
+    RM   := del /Q
+else ifeq ($(DETECTED_OS),macOS)
+    EXE  :=
+    RM   := rm -f
+    LDFLAGS += -framework CoreFoundation
+else ifeq ($(DETECTED_OS),Linux)
+    EXE  :=
+    RM   := rm -f
+    LDFLAGS += -lpthread
 # Detect if the OS is Fedora
-IS_FEDORA := $(shell grep -E '^ID="?fedora"?' /etc/os-release > /dev/null 2>&1 && echo yes || echo no)
+	IS_FEDORA := $(shell grep -E '^ID="?fedora"?' /etc/os-release > /dev/null 2>&1 && echo yes || echo no)
+endif
+
+info:
+	@echo "Detected OS: $(DETECTED_OS)"
 
 default: $(TARGET)
 
