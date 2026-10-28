@@ -41,6 +41,14 @@ int main(){
 	}
 
 	count++;
+	if(DB_test_int_float_conversion() == -1){
+		strncpy(failed_test[failed],"DB_test_int_float_conversion",strlen("DB_test_int_float_conversion"));
+		failed++;
+	}else{
+		passed++;
+	}
+
+	count++;
 	if(CRUD_test_check_data() == -1){
 		strncpy(failed_test[failed],"CRUD_test_check_data()",strlen("CRUD_test_check_data()"));
 		failed++;

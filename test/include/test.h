@@ -22,6 +22,7 @@
 	#endif
 #endif
 
+int DB_test_int_float_conversion();
 int DB_test_count_fields();
 int DB_test_combine_old_and_new_rec(struct Schema *s,file_t *fds,char files[3][MAX_FILE_PATH_LENGTH], char *file_name);
 int create_file_for_test(char *file_name,char *file_definition, struct Schema *sch, char files[3][MAX_FILE_PATH_LENGTH],file_t *fds);

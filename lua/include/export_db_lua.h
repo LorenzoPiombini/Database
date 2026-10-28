@@ -1,24 +1,20 @@
 #ifndef _EXPORT_DB_LUA_
 #define _EXPORT_DB_LUA 1
 
-<<<<<<< Updated upstream
-#ifdef FEDORA
-	#include "lua.h"
-	#include "lauxlib.h"
-#else
-	#include "lua5.4/lua.h"
-	#include "lua5.4/lauxlib.h"
-#endif
 
-=======
 #if defined(__linux__)
-	#include "lua5.4/lua.h"
-	#include "lua5.4/lauxlib.h"
+	#ifdef FEDORA
+		#include "lua.h"
+		#include "lauxlib.h"
+	#else
+		#include "lua5.4/lua.h"
+		#include "lua5.4/lauxlib.h"
+	#endif
 #elif defined(__APPLE__)
 	#include "/opt/homebrew/include/lua5.4/lua.h"
 	#include "/opt/homebrew/include/lua5.4/lauxlib.h"
 #endif
->>>>>>> Stashed changes
+
 #include "crud.h"
 #include "file.h"
 #include "record.h"

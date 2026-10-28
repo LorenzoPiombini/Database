@@ -702,7 +702,7 @@ int set_schema(char names[][MAX_FIELD_LT], int *types_i, struct Schema *sch, int
 							char cpy[s];
 							memset(cpy,0,s);
 							strncpy(cpy,def_value[i],vs);
-							strncat(cpy,decimal,ds);
+							strncpy(&cpy[vs],decimal,ds);
 
 							int range = 0;
 							if ((range = is_number_in_limits(cpy)) == 0){
@@ -1858,7 +1858,7 @@ unsigned char set_field(
 								char cpy[s];
 								memset(cpy,0,s);
 								strncpy(cpy,t,vs);
-								strncat(cpy,decimal,ds);
+								strncpy(&cpy[vs],decimal,ds);
 
 								int range = 0;
 								if ((range = is_number_in_limits(cpy)) == 0){
@@ -1917,7 +1917,7 @@ unsigned char set_field(
 							char cpy[s];
 							memset(cpy,0,s);
 							strncpy(cpy,value,vs);
-							strncat(cpy,decimal,ds);
+							strncpy(&cpy[vs],decimal,ds);
 
 							int range = 0;
 							if ((range = is_number_in_limits(cpy)) == 0){
@@ -2142,7 +2142,7 @@ unsigned char set_field(
 								char cpy[s];
 								memset(cpy,0,s);
 								strncpy(cpy,value,vs);
-								strncat(cpy,decimal,ds);
+								strncpy(&cpy[vs],decimal,ds);
 
 								int range = 0;
 								if ((range = is_number_in_limits(cpy)) == 0){
@@ -2205,7 +2205,7 @@ unsigned char set_field(
 							char cpy[s];
 							memset(cpy,0,s);
 							strncpy(cpy,value,vs);
-							strncat(cpy,decimal,ds);
+							strncpy(&cpy[vs],decimal,ds);
 
 							int range = 0;
 							if ((range = is_number_in_limits(cpy)) == 0){

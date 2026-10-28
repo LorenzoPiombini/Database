@@ -91,6 +91,34 @@ int lock_file_test_WINDOWS()
 
 
 
+int DB_test_int_float_conversion()
+{
+	char files[3][MAX_FILE_PATH_LENGTH] = {0};
+	file_t fds[3];
+	INIT_FILE_T_ARRAY(fds,3);
+	struct Schema sch = {0};
+	struct Header_d hd = {0,0,&sch};
+	struct Record_f rec = {0};
+
+	char file_definition[] = "float_1:t_f:double_1:t_d";
+
+	int field_count = count_fields(file_definition,T_);
+	if(!create_file_definition_with_no_value(TYPE_DF,field_count,file_definition,&sch)) goto clean_on_failure;
+
+	int check = 0,lock_f = STD_LOCK;
+	if((check = check_data("float_test","float_1:1:double_1:3",fds,files, &rec,&hd,&lock_f,-1,0)) == -1) goto clean_on_failure;
+	
+	if(rec.fields[0].data.f != (float)1.00) return -1;    
+	if(rec.fields[1].data.d != (double)3.00) return -1;    
+		
+	free_schema(&sch);
+	free_record(&rec,rec.fields_num);
+	return 0;
+clean_on_failure:
+	free_schema(&sch);
+	free_record(&rec,rec.fields_num);
+	return -1;
+}
 int DB_test_count_fields()
 {
 	if(count_fields("field:field:field:",":") != 3) return -1;
