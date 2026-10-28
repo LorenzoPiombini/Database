@@ -10,6 +10,7 @@
 #include "date.h"
 #include "hash_tbl.h"
 #include "key.h"
+#include "allocator.h"
 
 #define LOWER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 65 || (int)*p <= 90) ;*p = ((int)*p) + 22,p++)
 #define UPPER_STR(s) for(char *p = &s[0]; *p && ((int)*p >= 97 || (int)*p <= 122) ;(int)*p -= 22,p++)
@@ -801,9 +802,8 @@ use_cache:
 	
 	
 	while((pos = read_update_offset_ram_file(&p->data_file)) != 0){
-		struct Record_f *n = malloc(sizeof *n);
+		struct Record_f *n = (struct Record_f*)A_Malloc(sizeof *n,M_STATIC,NULL);
 		if(!n) goto err_memory_allocation_update;
-		memset(n,0,sizeof *n);
 
 		p->data_file.offset =pos;
 		if(read_ram_file(file_name, &p->data_file, n, p->sch) == -1){ 
@@ -1167,11 +1167,8 @@ static int l_string_data_to_add_template(lua_State *L)
 	}
 	
 	int colon_nr = (i * 2 ) - 1;
-	char *st = (char*)malloc(colon_nr+sum+1);
-	if(!st) 
-		goto err_ask_mem;
-
-	memset(st,0,colon_nr+sum+1);
+	char *st = (char*)A_Malloc(colon_nr+sum+1,M_STATIC,NULL);
+	if(!st) goto err_ask_mem;
 
 
 	int bwritten = 0;
@@ -1510,7 +1507,7 @@ use_cache:
 		goto error_key_null_from_cache;
 
 	lua_pushstring(L,r);
-	free(r);
+	A_free(r);
 	return 1;
 get_all_keys_test:
 
@@ -1525,7 +1522,7 @@ get_all_keys_test:
 
 	lua_pushstring(L,res);
 	close_file(1,fds[0]);
-	free(res);
+	A_free(res);
 	return 1;
 
 err_cache:
@@ -1623,7 +1620,7 @@ static int l_save_key_at_index(lua_State *L)
 	fds[0] = -1;
 
 use_cache:
-	free_schema(hd.sch_d);
+	if(hd.sch_d) free_schema(hd.sch_d);
 	struct Cache *p = NULL;
 	if(file_pos_in_the_cache != -1){
 		p = &dbCache[file_pos_in_the_cache];
@@ -1998,10 +1995,8 @@ int port_table_to_record(lua_State *L,int index, struct Record_f *rec,struct Sch
 			}
 
 			size_t sz = strlen(s);
-			rec->fields[i].data.s = (char *)malloc(sz+1);
-			if(!rec->fields[i].data.s){
-				return -1;
-			}
+			rec->fields[i].data.s = (char *)A_Malloc(sz+1,M_STATIC,NULL);
+			if(!rec->fields[i].data.s) return -1;
 
 			memset(rec->fields[i].data.s,0,sz+1);
 			memcpy(rec->fields[i].data.s,s,sz);

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "test.h"
+#include "allocator.h"
 
 #define GREEN_TEXT "\033[32m"
 #define RED_TEXT "\033[31m"
@@ -8,6 +9,9 @@
 
 static char prog[] = "test_suite";
 int main(){
+
+	if(A_init_mainzone() == -1) return -1;
+
 	char failed_test[200][256] = {0};
 	int count = 0, passed = 0, failed = 0;
 	fprintf(stdout,"======== Running test for database ===========\n");
@@ -184,6 +188,8 @@ int main(){
 		}
 		return 0;
 	}
+
 	fprintf(stderr,"(%s): %sPASSED%s!\n",prog,GREEN_TEXT,REGULAR_TEXT);
+	A_close_mainzone(); /*only for development*/
 	return 0;
 }
